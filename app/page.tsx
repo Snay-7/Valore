@@ -109,12 +109,34 @@ a{text-decoration:none;color:inherit}
 .glow{position:absolute;border-radius:50%;pointer-events:none}
 
 /* Demo Modal */
-.demo-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
-.demo-modal{background:var(--bg1);border:1px solid var(--border-m);border-radius:18px;width:100%;max-width:1000px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;position:relative}
-.demo-modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);flex-shrink:0}
+.demo-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(8px)}
+.demo-modal{background:var(--bg1);border:1px solid var(--border-m);border-radius:18px;width:100%;max-width:1000px;max-height:95vh;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.demo-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
 .demo-modal-body{overflow-y:auto;flex:1}
-.demo-close{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-m);font-size:18px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
+.demo-close{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-m);font-size:18px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-family:var(--font-body);flex-shrink:0}
 .demo-close:hover{border-color:var(--red);color:var(--red)}
+.demo-sidebar{display:block}
+.demo-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.demo-proj-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 80px;gap:8px;align-items:center}
+@media(max-width:768px){
+  .demo-overlay{padding:0}
+  .demo-modal{border-radius:0;max-height:100vh;height:100vh}
+  .demo-modal-header{padding:10px 14px}
+  .demo-modal-header .demo-title-text{display:none}
+  .demo-modal-header .btn-primary{font-size:11px;padding:7px 12px}
+  .demo-sidebar{display:none !important}
+  .demo-browser-chrome{display:none !important}
+  .demo-grid{grid-template-columns:1fr !important}
+  .demo-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .demo-metrics{grid-template-columns:repeat(2,1fr) !important}
+  .demo-proj-row{grid-template-columns:1fr 1fr !important;gap:6px}
+  .demo-proj-row .proj-gdv{display:none}
+  .demo-proj-row .proj-status{display:none}
+  .demo-step-footer{padding:10px 14px !important}
+  .demo-content-pad{padding:14px !important}
+  .sens-table{font-size:9px !important}
+  .sens-table .sens-row-label{font-size:8px !important;width:40px !important}
+}
 
 /* ─ Comparison table ─ */
 .comp-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);padding:0}
@@ -467,19 +489,19 @@ function DemoModal({onClose,onLogin}) {
       <div className="demo-modal">
         {/* Header */}
         <div className="demo-modal-header">
-          <div style={{display:"flex",alignItems:"center",gap:16}}>
-            <span style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,color:"var(--gold)",letterSpacing:".1em"}}>VALORA</span>
-            <span style={{fontSize:12,color:"var(--text-d)"}}>Interactive Platform Demo</span>
-          </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <button className="btn-primary" onClick={onLogin} style={{fontSize:12,padding:"8px 18px"}}>Start Free Trial →</button>
+            <span style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:300,color:"var(--gold)",letterSpacing:".1em"}}>VALORA</span>
+            <span className="demo-title-text" style={{fontSize:12,color:"var(--text-d)"}}>Interactive Platform Demo</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button className="btn-primary" onClick={onLogin} style={{fontSize:12,padding:"8px 16px"}}>Start Free Trial →</button>
             <button className="demo-close" onClick={onClose}>✕</button>
           </div>
         </div>
 
         <div className="demo-modal-body">
           {/* Browser chrome */}
-          <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
+          <div className="demo-browser-chrome" style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
             <div style={{display:"flex",gap:5}}>
               {["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:10,height:10,borderRadius:"50%",background:c}}/>)}
             </div>
@@ -488,9 +510,9 @@ function DemoModal({onClose,onLogin}) {
           </div>
 
           {/* Main layout */}
-          <div style={{display:"grid",gridTemplateColumns:"180px 1fr",minHeight:460}}>
+          <div className="demo-grid" style={{display:"grid",gridTemplateColumns:"180px 1fr",minHeight:460}}>
             {/* Sidebar */}
-            <div style={{background:"var(--bg2)",borderRight:"1px solid var(--border)",padding:"16px 0"}}>
+            <div className="demo-sidebar" style={{background:"var(--bg2)",borderRight:"1px solid var(--border)",padding:"16px 0"}}>
               <div style={{padding:"0 12px",marginBottom:20}}>
                 <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8,padding:"0 4px"}}>Portfolio</div>
                 {[
@@ -523,19 +545,18 @@ function DemoModal({onClose,onLogin}) {
             {/* Content area */}
             <div>
               {/* Tab bar */}
-              <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",padding:"0 20px",height:42}}>
+              <div className="demo-tabs" style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",padding:"0 20px",height:42}}>
                 {DEMO_STEPS.map(s=>(
                   <div key={s.id} onClick={()=>setStep(s.id)} style={{padding:"0 14px",height:"100%",display:"flex",alignItems:"center",fontSize:11,cursor:"pointer",borderBottom:`2px solid ${step===s.id?"var(--gold)":"transparent"}`,color:step===s.id?"var(--gold)":"var(--text-d)",transition:"all .2s"}}>{s.tab}</div>
                 ))}
               </div>
 
               {/* Screen content */}
-              <div style={{padding:20,minHeight:400}}>
+              <div className="demo-content-pad" style={{padding:20,minHeight:400}}>
 
-                {/* Step 1: Dashboard */}
                 {step===1&&(
                   <div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+                    <div className="demo-metrics">
                       {[["Total GDV","£253m","var(--gold)","↑ 3 active"],["Avg PoC","29.4%","var(--green)","above target"],["Avg IRR","34.2%","var(--blue)","unlevered"],["Team","4 users","var(--text)","active"]].map(([l,v,c,s])=>(
                         <div key={l} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
                           <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>{l}</div>
@@ -546,12 +567,14 @@ function DemoModal({onClose,onLogin}) {
                     </div>
                     <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>Recent Projects</div>
                     {[["Chiswick Tower","London W6","BTR","£208.5m","43.7%","var(--green)","Feasibility"],["Dubai Marina","Dubai, UAE","BTS","د.إ380m","22.5%","var(--green)","Active"],["Shoreditch Hotel","London EC2","Hotel","£42.0m","18.2%","var(--amber)","Review"]].map(([n,l,t,g,p,pc,st])=>(
-                      <div key={n} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:9,padding:"11px 14px",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 80px",gap:8,alignItems:"center",marginBottom:6,fontSize:12}}>
-                        <div><div style={{fontWeight:500,color:"var(--text)"}}>{n}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{l}</div></div>
-                        <div><span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:t==="BTR"?"rgba(201,168,76,.12)":t==="BTS"?"rgba(91,156,246,.12)":"rgba(240,164,41,.12)",color:t==="BTR"?"var(--gold)":t==="BTS"?"var(--blue)":"var(--amber)"}}>{t}</span></div>
-                        <div style={{fontFamily:"var(--font-mono)",color:"var(--text-m)"}}>{g}</div>
-                        <div style={{fontFamily:"var(--font-mono)",fontWeight:600,color:pc}}>{p}</div>
-                        <div style={{fontSize:10,padding:"3px 8px",borderRadius:10,textAlign:"center",background:st==="Active"?"rgba(91,156,246,.1)":st==="Review"?"rgba(240,164,41,.1)":"rgba(61,220,132,.1)",color:st==="Active"?"var(--blue)":st==="Review"?"var(--amber)":"var(--green)"}}>{st}</div>
+                      <div key={n} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:9,padding:"11px 14px",marginBottom:6}}>
+                        <div className="demo-proj-row">
+                          <div><div style={{fontWeight:500,color:"var(--text)",fontSize:12}}>{n}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{l}</div></div>
+                          <div><span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:t==="BTR"?"rgba(201,168,76,.12)":t==="BTS"?"rgba(91,156,246,.12)":"rgba(240,164,41,.12)",color:t==="BTR"?"var(--gold)":t==="BTS"?"var(--blue)":"var(--amber)"}}>{t}</span></div>
+                          <div className="proj-gdv" style={{fontFamily:"var(--font-mono)",color:"var(--text-m)",fontSize:12}}>{g}</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontWeight:600,color:pc,fontSize:12}}>{p}</div>
+                          <div className="proj-status" style={{fontSize:10,padding:"3px 8px",borderRadius:10,textAlign:"center",background:st==="Active"?"rgba(91,156,246,.1)":st==="Review"?"rgba(240,164,41,.1)":"rgba(61,220,132,.1)",color:st==="Active"?"var(--blue)":st==="Review"?"var(--amber)":"var(--green)"}}>{st}</div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -696,7 +719,7 @@ function DemoModal({onClose,onLogin}) {
           </div>
 
           {/* Step nav footer */}
-          <div style={{borderTop:"1px solid var(--border)",padding:"14px 24px",display:"flex",alignItems:"center",gap:12,background:"var(--bg2)"}}>
+          <div className="demo-step-footer" style={{borderTop:"1px solid var(--border)",padding:"14px 24px",display:"flex",alignItems:"center",gap:12,background:"var(--bg2)",flexShrink:0}}>
             <button className="btn-ghost" onClick={()=>setStep(s=>Math.max(1,s-1))} style={{padding:"7px 16px",fontSize:12}} disabled={step===1}>← Previous</button>
             <div style={{display:"flex",gap:8,flex:1,justifyContent:"center"}}>
               {DEMO_STEPS.map(s=>(
