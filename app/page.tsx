@@ -108,7 +108,18 @@ a{text-decoration:none;color:inherit}
 /* Glow */
 .glow{position:absolute;border-radius:50%;pointer-events:none}
 
-/* Legal pages */
+/* Demo Modal */
+.demo-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+.demo-modal{background:var(--bg1);border:1px solid var(--border-m);border-radius:18px;width:100%;max-width:1000px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.demo-modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);flex-shrink:0}
+.demo-modal-body{overflow-y:auto;flex:1}
+.demo-close{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-m);font-size:18px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-family:var(--font-body)}
+.demo-close:hover{border-color:var(--red);color:var(--red)}
+
+/* ─ Comparison table ─ */
+.comp-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border);padding:0}
+.comp-cell{padding:14px 20px;font-size:13px;display:flex;align-items:center}
+.check-v{color:var(--green)}.check-x{color:var(--text-d)}.check-g{color:var(--gold);font-weight:500}
 .legal-content{max-width:760px;margin:0 auto;padding:120px 40px 80px}
 .legal-content h1{font-family:var(--font-display);font-size:clamp(32px,4vw,52px);font-weight:300;margin-bottom:12px;color:var(--text)}
 .legal-content .meta{font-size:12px;color:var(--text-d);margin-bottom:48px;padding-bottom:20px;border-bottom:1px solid var(--border)}
@@ -433,11 +444,285 @@ export default function App() {
   );
 }
 
+/* ─────────────────────── DEMO MODAL ─────────────────────── */
+const DEMO_STEPS = [
+  { id:1, label:"Dashboard", tab:"Dashboard" },
+  { id:2, label:"Appraisal Input", tab:"Revenue & Costs" },
+  { id:3, label:"Sensitivity Matrix", tab:"Analysis" },
+  { id:4, label:"AI Market Review", tab:"AI Review" },
+  { id:5, label:"Investor Brochure", tab:"Share" },
+];
+
+function DemoModal({onClose,onLogin}) {
+  const [step,setStep]=useState(1);
+
+  useEffect(()=>{
+    const handler=(e)=>{ if(e.key==="Escape") onClose(); };
+    document.addEventListener("keydown",handler);
+    return ()=>document.removeEventListener("keydown",handler);
+  },[onClose]);
+
+  return (
+    <div className="demo-overlay" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="demo-modal">
+        {/* Header */}
+        <div className="demo-modal-header">
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <span style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,color:"var(--gold)",letterSpacing:".1em"}}>VALORA</span>
+            <span style={{fontSize:12,color:"var(--text-d)"}}>Interactive Platform Demo</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <button className="btn-primary" onClick={onLogin} style={{fontSize:12,padding:"8px 18px"}}>Start Free Trial →</button>
+            <button className="demo-close" onClick={onClose}>✕</button>
+          </div>
+        </div>
+
+        <div className="demo-modal-body">
+          {/* Browser chrome */}
+          <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",gap:5}}>
+              {["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:10,height:10,borderRadius:"50%",background:c}}/>)}
+            </div>
+            <div style={{flex:1,background:"var(--bg3)",borderRadius:6,padding:"5px 12px",fontSize:11,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>app.valoraplatform.com / {["dashboard","appraisal/chiswick-tower","appraisal/sensitivity","appraisal/ai-review","appraisal/brochure"][step-1]}</div>
+            <div style={{fontSize:11,color:"var(--text-d)"}}>Step {step} of 5</div>
+          </div>
+
+          {/* Main layout */}
+          <div style={{display:"grid",gridTemplateColumns:"180px 1fr",minHeight:460}}>
+            {/* Sidebar */}
+            <div style={{background:"var(--bg2)",borderRight:"1px solid var(--border)",padding:"16px 0"}}>
+              <div style={{padding:"0 12px",marginBottom:20}}>
+                <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8,padding:"0 4px"}}>Portfolio</div>
+                {[
+                  {icon:"◫",label:"Dashboard",s:1},
+                  {icon:"⊞",label:"New Appraisal",s:0},
+                  {icon:"≡",label:"Pipeline",s:0},
+                ].map(item=>(
+                  <div key={item.label} onClick={()=>item.s&&setStep(item.s)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",borderRadius:7,fontSize:12,color:step===item.s?"var(--gold)":"var(--text-m)",background:step===item.s?"rgba(201,168,76,.1)":"transparent",cursor:item.s?"pointer":"default",marginBottom:2}}>
+                    <span style={{fontSize:13,width:16,textAlign:"center"}}>{item.icon}</span>{item.label}
+                  </div>
+                ))}
+              </div>
+              <div style={{padding:"0 12px"}}>
+                <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8,padding:"0 4px"}}>Active Projects</div>
+                {[
+                  {name:"Chiswick Tower",sub:"BTR · £208.5m",s:[2,3,4,5]},
+                  {name:"Dubai Marina",sub:"BTS · د.إ380m",s:[]},
+                ].map(proj=>(
+                  <div key={proj.name} onClick={()=>proj.s.length&&setStep(proj.s[0])} style={{display:"flex",flexDirection:"column",gap:3,padding:"8px",borderRadius:7,cursor:proj.s.length?"pointer":"default",background:proj.s.includes(step)?"rgba(201,168,76,.08)":"transparent",marginBottom:2,transition:"background .2s"}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{fontSize:11,color:proj.s.includes(step)?"var(--gold)":"var(--text)"}}>◈</span>
+                      <span style={{fontSize:11,color:proj.s.includes(step)?"var(--text)":"var(--text-m)"}}>{proj.name}</span>
+                    </div>
+                    <div style={{fontSize:9,color:"var(--text-d)",paddingLeft:19}}>{proj.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Content area */}
+            <div>
+              {/* Tab bar */}
+              <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",padding:"0 20px",height:42}}>
+                {DEMO_STEPS.map(s=>(
+                  <div key={s.id} onClick={()=>setStep(s.id)} style={{padding:"0 14px",height:"100%",display:"flex",alignItems:"center",fontSize:11,cursor:"pointer",borderBottom:`2px solid ${step===s.id?"var(--gold)":"transparent"}`,color:step===s.id?"var(--gold)":"var(--text-d)",transition:"all .2s"}}>{s.tab}</div>
+                ))}
+              </div>
+
+              {/* Screen content */}
+              <div style={{padding:20,minHeight:400}}>
+
+                {/* Step 1: Dashboard */}
+                {step===1&&(
+                  <div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+                      {[["Total GDV","£253m","var(--gold)","↑ 3 active"],["Avg PoC","29.4%","var(--green)","above target"],["Avg IRR","34.2%","var(--blue)","unlevered"],["Team","4 users","var(--text)","active"]].map(([l,v,c,s])=>(
+                        <div key={l} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+                          <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>{l}</div>
+                          <div style={{fontSize:20,fontFamily:"var(--font-display)",fontWeight:300,color:c}}>{v}</div>
+                          <div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>{s}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>Recent Projects</div>
+                    {[["Chiswick Tower","London W6","BTR","£208.5m","43.7%","var(--green)","Feasibility"],["Dubai Marina","Dubai, UAE","BTS","د.إ380m","22.5%","var(--green)","Active"],["Shoreditch Hotel","London EC2","Hotel","£42.0m","18.2%","var(--amber)","Review"]].map(([n,l,t,g,p,pc,st])=>(
+                      <div key={n} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:9,padding:"11px 14px",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 80px",gap:8,alignItems:"center",marginBottom:6,fontSize:12}}>
+                        <div><div style={{fontWeight:500,color:"var(--text)"}}>{n}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{l}</div></div>
+                        <div><span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:t==="BTR"?"rgba(201,168,76,.12)":t==="BTS"?"rgba(91,156,246,.12)":"rgba(240,164,41,.12)",color:t==="BTR"?"var(--gold)":t==="BTS"?"var(--blue)":"var(--amber)"}}>{t}</span></div>
+                        <div style={{fontFamily:"var(--font-mono)",color:"var(--text-m)"}}>{g}</div>
+                        <div style={{fontFamily:"var(--font-mono)",fontWeight:600,color:pc}}>{p}</div>
+                        <div style={{fontSize:10,padding:"3px 8px",borderRadius:10,textAlign:"center",background:st==="Active"?"rgba(91,156,246,.1)":st==="Review"?"rgba(240,164,41,.1)":"rgba(61,220,132,.1)",color:st==="Active"?"var(--blue)":st==="Review"?"var(--amber)":"var(--green)"}}>{st}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Step 2: Appraisal Input */}
+                {step===2&&(
+                  <div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                      <div>
+                        <div style={{fontSize:16,fontFamily:"var(--font-display)",fontWeight:300}}>Chiswick Tower — BTR Appraisal</div>
+                        <div style={{fontSize:11,color:"var(--text-d)"}}>Hammersmith, London · GBP / SONIA 3.97%</div>
+                      </div>
+                      <div style={{fontSize:10,color:"var(--green)",background:"rgba(61,220,132,.1)",padding:"4px 10px",borderRadius:10}}>● Live calculation</div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                      <div>
+                        {[["Units (OMR)","189"],["Units (DMR)","62"],["Avg Rent OMR (pcm)","£2,850"],["Exit Yield","4.15%"],["Build Cost (psf)","£285"],["Finance Margin","2.50%"]].map(([l,v])=>(
+                          <div key={l} style={{marginBottom:10}}>
+                            <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>{l}</div>
+                            <div style={{background:l==="Avg Rent OMR (pcm)"?"var(--bg3)":"var(--bg3)",border:`1px solid ${l==="Avg Rent OMR (pcm)"?"var(--gold)":"var(--border)"}`,boxShadow:l==="Avg Rent OMR (pcm)"?"0 0 0 2px rgba(201,168,76,.1)":"none",borderRadius:7,padding:"8px 11px",color:"var(--text)",fontSize:13,fontFamily:"var(--font-mono)"}}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{background:"var(--bg3)",border:"1px solid rgba(201,168,76,.2)",borderRadius:10,padding:16,height:"fit-content"}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Live Output</div>
+                        {[["Gross NOI","£8,643,000","var(--text)"],["GDV (Exit)","£208,500,000","var(--gold)"],["Total Cost","£145,200,000","var(--text-m)"],["Profit","£63,300,000","var(--green)"],["Profit on Cost","43.7%","var(--green)"],["IRR (Unlevered)","39.7%","var(--blue)"],["SONIA all-in","6.47%","var(--amber)"]].map(([l,v,c])=>(
+                          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                            <span style={{color:"var(--text-m)"}}>{l}</span>
+                            <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l.includes("Cost")||l.includes("IRR")?"600":"400"}}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Sensitivity */}
+                {step===3&&(
+                  <div>
+                    <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>Sensitivity Analysis — Profit on Cost %</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16}}>Exit yield (rows) vs monthly rent OMR (columns) · base case outlined</div>
+                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10}}>
+                      <div/>
+                      {["£2,600","£2,720","£2,850","£2,980","£3,100"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                      {[
+                        ["3.75%",["24.1%","a"],["28.3%","g"],["32.7%","g"],["37.1%","g"],["41.6%","g"]],
+                        ["4.00%",["19.8%","a"],["23.7%","a"],["27.9%","g"],["32.1%","g"],["36.4%","g"]],
+                        ["4.15%",["15.2%","r"],["19.8%","a"],["43.7%","base"],["28.4%","g"],["33.1%","g"]],
+                        ["4.40%",["11.1%","r"],["15.3%","r"],["19.7%","a"],["24.2%","a"],["28.8%","g"]],
+                        ["4.75%",["6.4%","r"],["10.2%","r"],["14.3%","r"],["18.6%","a"],["22.9%","a"]],
+                      ].map(([yld,...cells])=>(
+                        <>
+                          <div key={yld} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{yld}</div>
+                          {cells.map(([v,t],ci)=>(
+                            <div key={ci} style={{textAlign:"center",padding:"8px 4px",borderRadius:5,fontFamily:"var(--font-mono)",fontSize:11,fontWeight:t==="base"?600:500,
+                              background:t==="r"?"rgba(244,100,95,.12)":t==="a"?"rgba(240,164,41,.1)":t==="base"?"rgba(61,220,132,.09)":"rgba(61,220,132,.09)",
+                              color:t==="r"?"var(--red)":t==="a"?"var(--amber)":"var(--green)",
+                              outline:t==="base"?"2px solid var(--gold)":"none",
+                            }}>{v}</div>
+                          ))}
+                        </>
+                      ))}
+                    </div>
+                    <div style={{display:"flex",gap:16,marginTop:14}}>
+                      {[["rgba(61,220,132,.15)","Above 20% target"],["rgba(240,164,41,.12)","15–20%"],["rgba(244,100,95,.12)","Below 15%"]].map(([bg,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}>
+                          <div style={{width:10,height:10,borderRadius:2,background:bg}}/>
+                          {l}
+                        </div>
+                      ))}
+                      <div style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--gold)"}}>◻ Base case</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: AI Review */}
+                {step===4&&(
+                  <div>
+                    <div style={{background:"var(--bg3)",border:"1px solid rgba(91,156,246,.2)",borderRadius:12,padding:20,marginBottom:12}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                        <div style={{fontSize:13,fontWeight:500}}>⬡ AI Market Review — Chiswick Tower BTR</div>
+                        <div style={{fontSize:10,background:"rgba(91,156,246,.1)",color:"var(--blue)",padding:"3px 10px",borderRadius:10,letterSpacing:".06em",textTransform:"uppercase"}}>Powered by Claude</div>
+                      </div>
+                      <div style={{fontSize:14,fontWeight:600,color:"var(--green)",marginBottom:10}}>◆ Strong — Above market target</div>
+                      <div style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75,marginBottom:14}}>Exit yield of 4.15% sits within the London BTR institutional range of 3.75–4.50%, reflecting Hammersmith's premium location. OMR rents of £2,850 pcm are broadly in line with comparable 1-bed stock in W6, though 5–8% below recent prime transactions on the river.</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Suggested Amendments</div>
+                      {[
+                        ["Reduce void assumption from 2.0% to 1.5% — Hammersmith vacancy has averaged 0.9% over 24 months.","Impact: +£1.2m NOI"],
+                        ["OMR rents supportable at £2,950–3,050 pcm based on Oct–Dec 2025 lettings data.","Impact: +£340k NOI pa / +2.1% PoC"],
+                        ["Consider phasing DMR block separately — planning risk concentrated.","No financial impact, structural risk reduction"],
+                      ].map(([t,i],idx)=>(
+                        <div key={idx} style={{background:"var(--bg4)",borderLeft:"2px solid var(--gold)",padding:"8px 12px",borderRadius:"0 6px 6px 0",fontSize:12,color:"var(--text-m)",marginBottom:7,lineHeight:1.6}}>
+                          ▸ {t} <span style={{color:"var(--green)",fontWeight:600}}>{i}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 5: Brochure */}
+                {step===5&&(
+                  <div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12,textTransform:"uppercase",letterSpacing:".08em"}}>Branded Investor Brochure — Live Preview</div>
+                    <div style={{background:"#fff",borderRadius:10,overflow:"hidden",marginBottom:12}}>
+                      <div style={{background:"#06070a",padding:"18px 22px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <div style={{fontFamily:"Georgia,serif",color:"#c9a84c",fontSize:17,letterSpacing:".15em",fontWeight:300}}>HARRINGTON CAPITAL</div>
+                          <div style={{fontSize:9,color:"rgba(255,255,255,.4)",marginTop:2,letterSpacing:".1em"}}>INSTITUTIONAL INVESTMENT MEMORANDUM</div>
+                        </div>
+                        <div style={{fontSize:9,color:"rgba(201,168,76,.6)",letterSpacing:".08em"}}>CONFIDENTIAL</div>
+                      </div>
+                      <div style={{padding:"18px 22px"}}>
+                        <div style={{fontSize:18,fontWeight:600,color:"#06070a",marginBottom:4}}>Chiswick Tower</div>
+                        <div style={{fontSize:11,color:"#888",marginBottom:16}}>251-unit Build to Rent · Hammersmith Grove, London W6 · Institutional Forward Fund</div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                          {[["GDV","£208.5m","#06070a"],["Profit on Cost","43.7%","#2d7a4a"],["IRR (Unlev.)","39.7%","#1a4fa0"],["Exit Yield","4.15%","#06070a"]].map(([l,v,c])=>(
+                            <div key={l} style={{background:"#f5f4f1",borderRadius:8,padding:12}}>
+                              <div style={{fontSize:9,color:"#999",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{l}</div>
+                              <div style={{fontSize:16,fontWeight:600,color:c}}>{v}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+                      <div>
+                        <div style={{fontSize:10,color:"var(--text-d)",marginBottom:4}}>Live investor link — always shows latest version</div>
+                        <div style={{fontSize:12,color:"var(--blue)",fontFamily:"var(--font-mono)"}}>valora.app/share/chiswick-tower-jh2026</div>
+                      </div>
+                      <button className="btn-primary" style={{fontSize:12,padding:"8px 18px"}}>Copy Link</button>
+                    </div>
+                    <div style={{marginTop:20,textAlign:"center"}}>
+                      <p style={{fontSize:13,color:"var(--text-m)",marginBottom:14}}>Ready to build your first appraisal?</p>
+                      <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"13px 32px"}}>Start 14-Day Free Trial — No Card Needed →</button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* Step nav footer */}
+          <div style={{borderTop:"1px solid var(--border)",padding:"14px 24px",display:"flex",alignItems:"center",gap:12,background:"var(--bg2)"}}>
+            <button className="btn-ghost" onClick={()=>setStep(s=>Math.max(1,s-1))} style={{padding:"7px 16px",fontSize:12}} disabled={step===1}>← Previous</button>
+            <div style={{display:"flex",gap:8,flex:1,justifyContent:"center"}}>
+              {DEMO_STEPS.map(s=>(
+                <div key={s.id} onClick={()=>setStep(s.id)} style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,cursor:"pointer",background:step===s.id?"var(--gold)":step>s.id?"rgba(61,220,132,.15)":"var(--bg4)",color:step===s.id?"#06070a":step>s.id?"var(--green)":"var(--text-d)",fontWeight:step===s.id?600:400,transition:"all .25s",border:step>s.id?"1px solid rgba(61,220,132,.3)":"1px solid var(--border)"}}>{s.id}</div>
+              ))}
+            </div>
+            {step<5 ? (
+              <button className="btn-primary" onClick={()=>setStep(s=>Math.min(5,s+1))} style={{padding:"8px 20px",fontSize:12}}>Next →</button>
+            ) : (
+              <button className="btn-primary" onClick={onLogin} style={{padding:"8px 20px",fontSize:12}}>Start Free Trial →</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────── LANDING ─────────────────────── */
 function Landing({onLogin,onPage,scrolled}) {
+  const [demoOpen,setDemoOpen]=useState(false);
+
   return (
     <div>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
+      {demoOpen && <DemoModal onClose={()=>setDemoOpen(false)} onLogin={onLogin}/>}
 
       {/* HERO */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
@@ -457,7 +742,7 @@ function Landing({onLogin,onPage,scrolled}) {
               </p>
               <div className="fu d-4 hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44}}>
                 <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"14px 30px"}}>Start Free Trial — No Card Needed</button>
-                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px"}}>Watch 3-min Demo ▶</button>
+                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px"}} onClick={()=>setDemoOpen(true)}>Watch 3-min Demo ▶</button>
               </div>
               <div className="fu d-5" style={{display:"flex",gap:28,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap"}}>
                 {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["ISO 27001","Certified"]].map(([v,l])=>(
