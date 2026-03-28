@@ -921,8 +921,22 @@ function AppraisalPage() {
           onChange={e => set("sdltSurcharge", e.target.checked)}
         />
         <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
-          +3% surcharge (additional dwelling / company purchase)
-                </div>
+                  +3% surcharge (additional dwelling / company purchase)
+                </label>
+              </div>
+            </div>
+          )}
+
+          {data.sdltMode === "manual" && (
+            <input
+              className="inp"
+              type="number"
+              placeholder="Enter SDLT amount"
+              value={data.sdltOverride ?? 0}
+              onChange={e => set("sdltOverride", +e.target.value)}
+            />
+          )}
+        </div>
                 <div className="section-title" style={{ marginTop: 24 }}>Refurbishment</div>
                 <div className="inp-row">
                   <div className="inp-group">
