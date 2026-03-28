@@ -511,7 +511,8 @@ function AppraisalPage(){
       }
       const irr=Math.pow(1+calcIRR(cfs),12)-1;
       // Levered: equity cashflows — equity portion of costs, same sales revenue
-      const equityRatio=equity/totalCost;
+      const equity=totalCost-loanAmount;
+      const equityRatio=totalCost>0?equity/totalCost:1;
       const equityCfs:number[]=[];
       for(let m=0;m<totalMonths;m++){
         let cf=0;
