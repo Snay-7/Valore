@@ -924,9 +924,34 @@ function AppraisalPage() {
                   +3% surcharge (additional dwelling / company purchase)
                 </label>
               </div>
+            <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
+              {fmt(r.sdlt || 0, currencySymbol)}
+              {data.sdltTransactionType === "spv" && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {data.sdltMode === "manual" && (
+```
+
+So the final structure of the whole block should be:
+```
+line 881: <div className="inp-group" ...>        ← outer wrapper
+line 882:   <label>SDLT</label>
+line 883:   <div> Auto/Override buttons </div>   ← closes line 902
+line 904:   {data.sdltMode !== "manual" && (
+line 905:     <div flexColumn>                   ← closes line 927
+                <select>...</select>
+                <div flexRow checkbox>...</div>  ← closes line 926
+                <div computed value />
             </div>
           )}
-
+line 936:   {data.sdltMode === "manual" && (
+line 937:     <input />
+line 943:   )}
+line 945: </div>                                 ← closes outer inp-group
           {data.sdltMode === "manual" && (
             <input
               className="inp"
