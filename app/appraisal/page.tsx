@@ -1089,23 +1089,26 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                   <div className="section-title" style={{marginBottom:16}}>Share & Export</div>
                   <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
                     <button className="share-btn" onClick={()=>setShareModal(true)}>
-                      <span className="share-btn-icon">🔗</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                       <span className="share-btn-label">Live Link</span>
                     </button>
                     <button className="share-btn" onClick={handleGeneratePDF} disabled={generatingPDF}>
-                      <span className="share-btn-icon">{generatingPDF?"⏳":"📄"}</span>
+                      {generatingPDF
+                        ?<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="1.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        :<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                      }
                       <span className="share-btn-label">{generatingPDF?"Generating…":"Plain PDF"}</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{setBrochureModal(true);setBrochureContent(null);setBrochurePhotos([]);setBrochureError(null);}}>
-                      <span className="share-btn-icon">✨</span>
-                      <span className="share-btn-label">AI Brochure</span>
+                    <button className="share-btn" onClick={()=>{setBrochureModal(true);setBrochureContent(null);setBrochurePhotos([]);setBrochureError(null);}} style={{borderColor:"rgba(201,168,76,.25)"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span className="share-btn-label" style={{color:"var(--gold)"}}>AI Brochure</span>
                     </button>
                     <button className="share-btn" onClick={()=>{if(!liveLink){setSaveError("Generate live link first");return;}shareEmail();}}>
-                      <span className="share-btn-icon">✉️</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                       <span className="share-btn-label">Email</span>
                     </button>
                     <button className="share-btn" onClick={()=>{if(!liveLink){setSaveError("Generate live link first");return;}shareWhatsApp();}}>
-                      <span className="share-btn-icon">💬</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                       <span className="share-btn-label">WhatsApp</span>
                     </button>
                   </div>
