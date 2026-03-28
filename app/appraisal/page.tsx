@@ -460,15 +460,31 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
       const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.6;const totalFinanceCost=arrangementFee+interestEst;
       const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const yoc=totalSqft>0?noi/totalCost:0;
-      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
-      // Unlevered IRR — whole cost, full GDV exit
-      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      // Levered IRR — equity invested upfront, receive profit at exit (debt self-liquidates)
+      const buildMonths=num(String(data.programmMonths));
+      const stabMonths=num(String(data.stabilisationMonths));
+      const totalMonths=Math.round(buildMonths+stabMonths);
+      // Unlevered: monthly cost drawdown, lump exit at end
+      const uCfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){
+        if(m<buildMonths){
+          const pct=1/(1+Math.exp(-10*((m+1)/buildMonths-0.5)));
+          const prevPct=m===0?0:1/(1+Math.exp(-10*(m/buildMonths-0.5)));
+          uCfs.push(-totalCost*(pct-prevPct));
+        }else{uCfs.push(m===totalMonths-1?gdv:0);}
+      }
+      const irr=Math.pow(1+calcIRR(uCfs),12)-1;
+      // Levered: equity share of costs, exit proceeds minus loan repayment
       const equity=totalCost-loanAmount;
-      const leveredProfit=gdv-totalCost; // profit after all costs incl finance
-      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(equity+leveredProfit);
-      const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
+      const equityRatio=totalCost>0?equity/totalCost:1;
+      const lCfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){
+        if(m<buildMonths){
+          const pct=1/(1+Math.exp(-10*((m+1)/buildMonths-0.5)));
+          const prevPct=m===0?0:1/(1+Math.exp(-10*(m/buildMonths-0.5)));
+          lCfs.push(-totalCost*(pct-prevPct)*equityRatio);
+        }else{lCfs.push(m===totalMonths-1?gdv-loanAmount:0);}
+      }
+      const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
       // RLV — what you can afford to pay for the land given target return
       const targetReturn=0.20;
       const rlv=gdv/(1+targetReturn)-devCost-totalFinanceCost-sdlt;
@@ -480,11 +496,29 @@ function AppraisalPage(){
       const buildCost=totalSqft*num(String(data.buildCostPsf));const profFees=buildCost*(num(String(data.professionalFeesPct))/100);const contingency=buildCost*(num(String(data.contingencyPct))/100);const otherCosts=num(String(data.otherCosts));const devCost=buildCost+profFees+contingency+otherCosts+agentFees+marketing;
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const totalFinanceCost=arrangementFee+interestEst;
       const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const margin=gdv>0?profit/gdv:0;
-      const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      // Levered IRR — equity in, profit out
-      const equity=totalCost-loanAmount;
-      const leveredProfit=gdv-totalCost;
-      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(equity+leveredProfit);
+      const buildMonths=num(String(data.programmMonths));
+      const absMonths=num(String(data.absorptionMonths));
+      const totalMonths=buildMonths+absMonths;
+      // Unlevered: costs during build phase, sales revenue during absorption phase
+      const salesPerMonth=gdv/absMonths;
+      const costPerMonth=totalCost/buildMonths;
+      const cfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){
+        let cf=0;
+        if(m<buildMonths)cf-=costPerMonth;
+        if(m>=buildMonths)cf+=salesPerMonth;
+        cfs.push(cf);
+      }
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      // Levered: equity cashflows — equity portion of costs, same sales revenue
+      const equityRatio=equity/totalCost;
+      const equityCfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){
+        let cf=0;
+        if(m<buildMonths)cf-=costPerMonth*equityRatio;
+        if(m>=buildMonths)cf+=salesPerMonth;
+        equityCfs.push(cf);
+      }
       const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
       return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,irrLevered,loanAmount,financeRate};
     }
@@ -495,12 +529,16 @@ function AppraisalPage(){
       const capex=num(String(data.capexBudget));const profFees=capex*(num(String(data.professionalFeesPct))/100);const contingency=capex*(num(String(data.contingencyPct))/100);const totalCost=purchasePrice+sdlt+capex+profFees+contingency+num(String(data.otherCosts));
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=totalCost*(num(String(data.ltc))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const totalFinanceCost=interestEst+arrangementFee;
       const totalInvestment=totalCost+totalFinanceCost;const profit=exitValue-totalInvestment;const poc=totalInvestment>0?profit/totalInvestment:0;const yoc=totalInvestment>0?ebitda/totalInvestment:0;
-      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      // Levered IRR — equity in, profit out
+      const totalMonths=Math.round(num(String(data.programmMonths))+num(String(data.stabilisationMonths)));
+      const buildMo=Math.round(num(String(data.programmMonths)));
+      const uCfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){uCfs.push(m<buildMo?-totalInvestment/buildMo:(m===totalMonths-1?exitValue:0));}
+      const irr=Math.pow(1+calcIRR(uCfs),12)-1;
       const equity=totalInvestment-loanAmount;
-      const leveredProfit=exitValue-totalInvestment;
-      const equityCfs=[-equity,...Array(months-1).fill(0),equity+leveredProfit];
-      const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
+      const eqRatio=totalInvestment>0?equity/totalInvestment:1;
+      const lCfs:number[]=[];
+      for(let m=0;m<totalMonths;m++){lCfs.push(m<buildMo?-(totalInvestment/buildMo)*eqRatio:(m===totalMonths-1?exitValue-loanAmount:0));}
+      const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
       return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,irrLevered,loanAmount};
     }
     if(assetType==="Flip"){
