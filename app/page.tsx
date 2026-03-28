@@ -1,5 +1,8 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+export const dynamic = 'force-dynamic'
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { useRouter } from "next/navigation";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -1481,7 +1484,24 @@ function Login({onBack}) {
   const [errors,setErrors]=useState<any>({});
 
   const validate=()=>{ const e:any={}; if(!email||!email.includes("@"))e.email="Valid email required"; if(tab!=="reset"&&password.length<8)e.password="8+ characters required"; if(tab==="signup"&&!firm.trim())e.firm="Firm name required"; setErrors(e); return Object.keys(e).length===0; };
-  const submit=(ev)=>{ ev.preventDefault(); if(!validate())return; setLoading(true); setTimeout(()=>{setLoading(false);setSuccess(true);},1600); };
+  const submit=async(ev)=>{
+  ev.preventDefault();
+  if(!validate())return;
+  setLoading(true);
+  if(tab==="signin"){
+    const{error}=await supabase.auth.signInWithPassword({email,password});
+    if(error){setErrors({email:error.message});setLoading(false);return;}
+    window.location.href="/dashboard";
+  } else if(tab==="signup"){
+    const{error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,firm_name:firm}}});
+    if(error){setErrors({email:error.message});setLoading(false);return;}
+    setLoading(false);setSuccess(true);
+  } else if(tab==="reset"){
+    const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback`});
+    if(error){setErrors({email:error.message});setLoading(false);return;}
+    setLoading(false);setSuccess(true);
+  }
+};
 
   return (
     <div className="login-wrap">
