@@ -65,14 +65,41 @@ select.inp{cursor:pointer}
 }
 `;
 
-/* ─── SDLT Calculator (UK banded company rates) ─── */
-function calcSDLT(price: number): number {
-  if (price <= 0) return 0;
+/* —— SDLT Calculator (UK banded rates, multi-mode) —— */
+function calcSDLT(
+  price: number,
+  mode: 'auto' | 'manual',
+  txType: 'residential' | 'commercial' | 'mixed' | 'spv',
+  override: number,
+  surcharge: boolean
+): number {
+  if (mode === 'manual') return override;
+  if (price <= 0 || txType === 'spv') return 0;
+
   let sdlt = 0;
-  const bands = [[0, 150000, 0], [150000, 250000, 0.02], [250000, 925000, 0.05], [925000, 1500000, 0.10], [1500000, Infinity, 0.12]];
-  for (const [low, high, rate] of bands) {
-    if (price > low) sdlt += (Math.min(price, high) - low) * (rate as number + 0.03);
+
+  if (txType === 'residential') {
+    const bands: [number, number, number][] = [
+      [0,       250000,   0.00],
+      [250000,  925000,   0.05],
+      [925000,  1500000,  0.10],
+      [1500000, Infinity, 0.12],
+    ];
+    for (const [low, high, rate] of bands) {
+      if (price > low) sdlt += (Math.min(price, high) - low) * (surcharge ? rate + 0.03 : rate);
+    }
+  } else {
+    // Commercial / Mixed-Use
+    const bands: [number, number, number][] = [
+      [0,      150000,   0.00],
+      [150000, 250000,   0.02],
+      [250000, Infinity, 0.05],
+    ];
+    for (const [low, high, rate] of bands) {
+      if (price > low) sdlt += (Math.min(price, high) - low) * rate;
+    }
   }
+
   return Math.round(sdlt);
 }
 
@@ -124,6 +151,10 @@ const DEFAULTS = {
     tier2Hurdle: 12, tier2DevShare: 30,
     tier3Hurdle: 18, tier3DevShare: 40,
     costProfile: "scurve",
+    sdltMode: "auto" as const,
+sdltTransactionType: "residential" as const,
+sdltOverride: 0,
+sdltSurcharge: true,
   },
   BTS: {
     assetType: "BTS", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -142,6 +173,10 @@ const DEFAULTS = {
     tier2Hurdle: 15, tier2DevShare: 30,
     tier3Hurdle: 20, tier3DevShare: 40,
     costProfile: "scurve",
+    sdltMode: "auto" as const,
+sdltTransactionType: "residential" as const,
+sdltOverride: 0,
+sdltSurcharge: true,
   },
   Hotel: {
     assetType: "Hotel", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -156,6 +191,10 @@ const DEFAULTS = {
     tier2Hurdle: 14, tier2DevShare: 30,
     tier3Hurdle: 20, tier3DevShare: 40,
     costProfile: "straight",
+    sdltMode: "auto" as const,
+sdltTransactionType: "residential" as const,
+sdltOverride: 0,
+sdltSurcharge: true,
   },
   Flip: {
     assetType: "Flip", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -166,6 +205,10 @@ const DEFAULTS = {
     arrangementFeePct: 2.0,
     professionalFeesPct: 2, contingencyPct: 10, otherCosts: 5000,
     costProfile: "straight",
+    sdltMode: "auto" as const,
+sdltTransactionType: "residential" as const,
+sdltOverride: 0,
+sdltSurcharge: true,
   },
 };
 
@@ -236,7 +279,7 @@ function AppraisalPage() {
       const noi = grossRentPa * voidAdjustment - opexPa;
       const gdv = noi / (num(String(data.exitYield)) / 100);
       const landCost = num(String(data.landCost));
-      const sdlt = calcSDLT(landCost);
+      const sdlt = calcSDLT(landCost, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
       const buildCost = totalSqft * num(String(data.buildCostPsf));
       const profFees = buildCost * (num(String(data.professionalFeesPct)) / 100);
       const contingency = buildCost * (num(String(data.contingencyPct)) / 100);
@@ -269,7 +312,7 @@ function AppraisalPage() {
       const agentFees = gdv * (num(String(data.agentFeePct)) / 100);
       const marketing = gdv * (num(String(data.marketingPct)) / 100);
       const landCost = num(String(data.landCost));
-      const sdlt = calcSDLT(landCost);
+      const sdlt = calcSDLT(landCost, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
       const buildCost = totalSqft * num(String(data.buildCostPsf));
       const profFees = buildCost * (num(String(data.professionalFeesPct)) / 100);
       const contingency = buildCost * (num(String(data.contingencyPct)) / 100);
@@ -301,7 +344,7 @@ function AppraisalPage() {
       const stabilisedValue = ebitda / (num(String(data.stabilisedCapRate)) / 100);
       const exitValue = ebitda * (1 + num(String(data.revparGrowthPct)) / 100) / (num(String(data.exitCapRate)) / 100);
       const purchasePrice = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchasePrice);
+      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
       const capex = num(String(data.capexBudget));
       const profFees = capex * (num(String(data.professionalFeesPct)) / 100);
       const contingency = capex * (num(String(data.contingencyPct)) / 100);
@@ -323,7 +366,7 @@ function AppraisalPage() {
     }
     if (assetType === "Flip") {
       const purchase = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchase);
+      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
       const refurb = num(String(data.refurbBudget));
       const profFees = refurb * (num(String(data.professionalFeesPct)) / 100);
       const contingency = refurb * (num(String(data.contingencyPct)) / 100);
@@ -737,10 +780,71 @@ function AppraisalPage() {
                     <label className="inp-label">Purchase Price ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} />
                   </div>
-                  <div className="inp-group">
-                    <label className="inp-label">SDLT (auto)</label>
-                    <div className="inp" style={{ color: "var(--amber)", cursor: "not-allowed" }}>{fmt(r.sdlt || 0, currencySymbol)}</div>
-                  </div>
+                  <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
+  <label className="inp-label">SDLT</label>
+  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+    <button
+      onClick={() => set("sdltMode", "auto")}
+      style={{
+        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
+        background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+        color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-muted)",
+      }}
+    >Auto</button>
+    <button
+      onClick={() => set("sdltMode", "manual")}
+      style={{
+        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
+        background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+        color: data.sdltMode === "manual" ? "#06070a" : "var(--text-muted)",
+      }}
+    >Override</button>
+  </div>
+
+  {data.sdltMode !== "manual" && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <select
+        className="inp"
+        value={data.sdltTransactionType ?? "residential"}
+        onChange={e => set("sdltTransactionType", e.target.value)}
+      >
+        <option value="residential">Residential</option>
+        <option value="commercial">Commercial / Non-Residential</option>
+        <option value="mixed">Mixed-Use</option>
+        <option value="spv">SPV Share Deal (Exempt)</option>
+      </select>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="checkbox"
+          id="sdltSurcharge"
+          checked={data.sdltSurcharge ?? true}
+          onChange={e => set("sdltSurcharge", e.target.checked)}
+        />
+        <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
+          +3% surcharge (additional dwelling / company purchase)
+        </label>
+      </div>
+      <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
+        {fmt(r.sdlt || 0, currencySymbol)}
+        {data.sdltTransactionType === "spv" && (
+          <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>
+        )}
+      </div>
+    </div>
+  )}
+
+  {data.sdltMode === "manual" && (
+    <input
+      className="inp"
+      type="number"
+      placeholder="Enter SDLT amount"
+      value={data.sdltOverride ?? 0}
+      onChange={e => set("sdltOverride", +e.target.value)}
+    />
+  )}
+</div>
                 </div>
                 <div className="section-title" style={{ marginTop: 24 }}>CapEx & Costs</div>
                 <div className="inp-row">
@@ -774,10 +878,50 @@ function AppraisalPage() {
                     <label className="inp-label">Purchase Price ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} />
                   </div>
-                  <div className="inp-group">
-                    <label className="inp-label">SDLT (auto)</label>
-                    <div className="inp" style={{ color: "var(--amber)", cursor: "not-allowed" }}>{fmt(r.sdlt || 0, currencySymbol)}</div>
-                  </div>
+                  <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
+  <label className="inp-label">SDLT</label>
+  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+    <button
+      onClick={() => set("sdltMode", "auto")}
+      style={{
+        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
+        background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+        color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-muted)",
+      }}
+    >Auto</button>
+    <button
+      onClick={() => set("sdltMode", "manual")}
+      style={{
+        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
+        background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+        color: data.sdltMode === "manual" ? "#06070a" : "var(--text-muted)",
+      }}
+    >Override</button>
+  </div>
+
+  {data.sdltMode !== "manual" && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <select
+        className="inp"
+        value={data.sdltTransactionType ?? "residential"}
+        onChange={e => set("sdltTransactionType", e.target.value)}
+      >
+        <option value="residential">Residential</option>
+        <option value="commercial">Commercial / Non-Residential</option>
+        <option value="mixed">Mixed-Use</option>
+        <option value="spv">SPV Share Deal (Exempt)</option>
+      </select>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="checkbox"
+          id="sdltSurcharge"
+          checked={data.sdltSurcharge ?? true}
+          onChange={e => set("sdltSurcharge", e.target.checked)}
+        />
+        <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
+          +3% surcharge (additional dwelling / company purchase)
                 </div>
                 <div className="section-title" style={{ marginTop: 24 }}>Refurbishment</div>
                 <div className="inp-row">
