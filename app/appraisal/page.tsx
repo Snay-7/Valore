@@ -464,11 +464,11 @@ function AppraisalPage(){
       // Unlevered IRR — whole cost, full GDV exit
       const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
       const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      // Levered IRR — equity in, equity out (after debt repayment)
+      // Levered IRR — equity invested upfront, receive profit at exit (debt self-liquidates)
       const equity=totalCost-loanAmount;
-      const debtRepayment=loanAmount;
-      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(gdv-debtRepayment);
-      const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      const leveredProfit=gdv-totalCost; // profit after all costs incl finance
+      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(equity+leveredProfit);
+      const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
       // RLV — what you can afford to pay for the land given target return
       const targetReturn=0.20;
       const rlv=gdv/(1+targetReturn)-devCost-totalFinanceCost-sdlt;
@@ -481,7 +481,11 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const totalFinanceCost=arrangementFee+interestEst;
       const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const margin=gdv>0?profit/gdv:0;
       const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      const equity=totalCost-loanAmount;const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(gdv/num(String(data.absorptionMonths)));const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      // Levered IRR — equity in, profit out
+      const equity=totalCost-loanAmount;
+      const leveredProfit=gdv-totalCost;
+      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(equity+leveredProfit);
+      const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
       return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,irrLevered,loanAmount,financeRate};
     }
     if(assetType==="Hotel"){
@@ -492,7 +496,11 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=totalCost*(num(String(data.ltc))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const totalFinanceCost=interestEst+arrangementFee;
       const totalInvestment=totalCost+totalFinanceCost;const profit=exitValue-totalInvestment;const poc=totalInvestment>0?profit/totalInvestment:0;const yoc=totalInvestment>0?ebitda/totalInvestment:0;
       const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      const equity=totalInvestment-loanAmount;const equityCfs=[-equity,...Array(months-1).fill(0),exitValue-loanAmount];const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      // Levered IRR — equity in, profit out
+      const equity=totalInvestment-loanAmount;
+      const leveredProfit=exitValue-totalInvestment;
+      const equityCfs=[-equity,...Array(months-1).fill(0),equity+leveredProfit];
+      const irrLevered=isFinite(equity)&&equity>0?Math.pow(1+calcIRR(equityCfs),12)-1:0;
       return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,irrLevered,loanAmount};
     }
     if(assetType==="Flip"){
