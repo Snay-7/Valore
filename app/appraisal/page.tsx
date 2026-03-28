@@ -241,7 +241,7 @@ function RevStream({ title, icon, enabled, onToggle, summary, open, onOpen, chil
     <div className="rev-stream" style={{ borderColor: enabled ? "var(--gold-border)" : "var(--border)" }}>
       <div className="rev-stream-hdr" onClick={onOpen}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 16 }}>{icon}</span>
+          {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
           <span style={{ fontSize: 13, fontWeight: 600, color: enabled ? "var(--text)" : "var(--text-d)" }}>{title}</span>
           {enabled && <span style={{ fontSize: 10, color: "var(--green)", fontFamily: "var(--font-mono)", background: "rgba(61,220,132,.1)", padding: "2px 7px", borderRadius: 4 }}>ON</span>}
         </div>
@@ -653,7 +653,7 @@ function AppraisalPage() {
               <div>
                 <div className="section-title">Hotel Revenue Streams</div>
 
-                <RevStream title="Rooms" icon="🛏" enabled={true} onToggle={() => {}}
+                <RevStream title="Rooms" icon="" enabled={true} onToggle={() => {}}
                   summary={fmt(hotelRev?.roomsRev || 0, currencySymbol) + " pa"}
                   open={streamOpen.rooms} onOpen={() => setStreamOpen(s => ({ ...s, rooms: !s.rooms }))}>
                   <div className="inp-row">
@@ -674,7 +674,7 @@ function AppraisalPage() {
                   </div>
                 </RevStream>
 
-                <RevStream title="Food & Beverage" icon="🍽" enabled={data.fnbEnabled} onToggle={() => set("fnbEnabled", !data.fnbEnabled)}
+                <RevStream title="Food & Beverage" icon="" enabled={data.fnbEnabled} onToggle={() => set("fnbEnabled", !data.fnbEnabled)}
                   summary={fmt(hotelRev?.fnbRev || 0, currencySymbol) + " pa"}
                   open={streamOpen.fnb} onOpen={() => setStreamOpen(s => ({ ...s, fnb: !s.fnb }))}>
                   <div className="inp-row">
@@ -688,7 +688,7 @@ function AppraisalPage() {
                   </div>
                 </RevStream>
 
-                <RevStream title="Spa & Wellness" icon="💆" enabled={data.spaEnabled} onToggle={() => set("spaEnabled", !data.spaEnabled)}
+                <RevStream title="Spa & Wellness" icon="" enabled={data.spaEnabled} onToggle={() => set("spaEnabled", !data.spaEnabled)}
                   summary={fmt(hotelRev?.spaRev || 0, currencySymbol) + " pa"}
                   open={streamOpen.spa} onOpen={() => setStreamOpen(s => ({ ...s, spa: !s.spa }))}>
                   <div className="inp-row">
@@ -702,7 +702,7 @@ function AppraisalPage() {
                   </div>
                 </RevStream>
 
-                <RevStream title="Gym & Leisure" icon="🏋" enabled={data.gymEnabled} onToggle={() => set("gymEnabled", !data.gymEnabled)}
+                <RevStream title="Gym & Leisure" icon="" enabled={data.gymEnabled} onToggle={() => set("gymEnabled", !data.gymEnabled)}
                   summary={fmt(hotelRev?.gymRev || 0, currencySymbol) + " pa"}
                   open={streamOpen.gym} onOpen={() => setStreamOpen(s => ({ ...s, gym: !s.gym }))}>
                   <div className="inp-row">
@@ -716,7 +716,7 @@ function AppraisalPage() {
                   </div>
                 </RevStream>
 
-                <RevStream title="Meeting Rooms & Events" icon="📋" enabled={data.meetingEnabled} onToggle={() => set("meetingEnabled", !data.meetingEnabled)}
+                <RevStream title="Meeting Rooms & Events" icon="" enabled={data.meetingEnabled} onToggle={() => set("meetingEnabled", !data.meetingEnabled)}
                   summary={fmt(hotelRev?.meetingRev || 0, currencySymbol) + " pa"}
                   open={streamOpen.meeting} onOpen={() => setStreamOpen(s => ({ ...s, meeting: !s.meeting }))}>
                   <div className="inp-row">
