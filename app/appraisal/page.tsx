@@ -20,6 +20,7 @@ const CSS = `
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s}
 .inp:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.1)}
 .inp::placeholder{color:var(--text-d);font-family:var(--font-body)}
@@ -34,7 +35,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .output-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg4)}
 .output-label{font-size:12px;color:var(--text-m)}
 .output-value{font-family:var(--font-mono);font-size:13px;font-weight:500}
-.badge{display:inline-flex;align-items:center;gap:6px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:.05em}
 .btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:10px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:8px}
 .btn-primary:hover{background:var(--gold-l)}
 .btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:9px 18px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
@@ -54,6 +54,12 @@ select.inp{cursor:pointer}
 .rev-stream-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:var(--bg2);transition:background .2s}
 .rev-stream-hdr:hover{background:var(--bg3)}
 .rev-stream-body{padding:16px;background:var(--bg1);border-top:1px solid var(--border)}
+.share-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;flex:1}
+.share-btn:hover{border-color:var(--gold-border);background:var(--bg3)}
+.share-btn-icon{font-size:20px}
+.share-btn-label{font-size:10px;color:var(--text-m);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-body)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
+.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:32px;width:560px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto}
 @media(max-width:768px){
   .inp-row{grid-template-columns:1fr}
   .inp-row-3{grid-template-columns:1fr 1fr}
@@ -63,200 +69,150 @@ select.inp{cursor:pointer}
 }
 `;
 
-/* —— SDLT Calculator —— */
-function calcSDLT(
-  price: number,
-  mode: 'auto' | 'manual',
-  txType: 'residential' | 'commercial' | 'mixed' | 'spv',
-  override: number,
-  surcharge: boolean
-): number {
-  if (mode === 'manual') return override;
-  if (price <= 0 || txType === 'spv') return 0;
-  let sdlt = 0;
-  if (txType === 'residential') {
-    const bands: [number, number, number][] = [
-      [0, 250000, 0.00], [250000, 925000, 0.05],
-      [925000, 1500000, 0.10], [1500000, Infinity, 0.12],
-    ];
-    for (const [low, high, rate] of bands)
-      if (price > low) sdlt += (Math.min(price, high) - low) * (surcharge ? rate + 0.03 : rate);
-  } else {
-    const bands: [number, number, number][] = [
-      [0, 150000, 0.00], [150000, 250000, 0.02], [250000, Infinity, 0.05],
-    ];
-    for (const [low, high, rate] of bands)
-      if (price > low) sdlt += (Math.min(price, high) - low) * rate;
+function calcSDLT(price:number,mode:'auto'|'manual',txType:'residential'|'commercial'|'mixed'|'spv',override:number,surcharge:boolean):number{
+  if(mode==='manual')return override;
+  if(price<=0||txType==='spv')return 0;
+  let sdlt=0;
+  if(txType==='residential'){
+    const bands:[number,number,number][]=[[ 0,250000,0.00],[250000,925000,0.05],[925000,1500000,0.10],[1500000,Infinity,0.12]];
+    for(const[low,high,rate]of bands)if(price>low)sdlt+=(Math.min(price,high)-low)*(surcharge?rate+0.03:rate);
+  }else{
+    const bands:[number,number,number][]= [[0,150000,0.00],[150000,250000,0.02],[250000,Infinity,0.05]];
+    for(const[low,high,rate]of bands)if(price>low)sdlt+=(Math.min(price,high)-low)*rate;
   }
   return Math.round(sdlt);
 }
 
-/* ─── IRR Calculator ─── */
-function calcIRR(cashflows: number[]): number {
-  let rate = 0.1;
-  for (let i = 0; i < 100; i++) {
-    let npv = 0, dnpv = 0;
-    cashflows.forEach((cf, t) => {
-      const d = Math.pow(1 + rate, t);
-      npv += cf / d;
-      dnpv -= t * cf / (d * (1 + rate));
-    });
-    if (Math.abs(npv) < 0.01) break;
-    rate -= npv / dnpv;
+function calcIRR(cashflows:number[]):number{
+  let rate=0.1;
+  for(let i=0;i<100;i++){
+    let npv=0,dnpv=0;
+    cashflows.forEach((cf,t)=>{const d=Math.pow(1+rate,t);npv+=cf/d;dnpv-=t*cf/(d*(1+rate));});
+    if(Math.abs(npv)<0.01)break;
+    rate-=npv/dnpv;
   }
-  return isFinite(rate) ? rate : 0;
+  return isFinite(rate)?rate:0;
 }
 
-const fmt = (n: number, prefix = "£") => {
-  if (!isFinite(n) || isNaN(n)) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${prefix}${(n / 1e9).toFixed(2)}bn`;
-  if (abs >= 1e6) return `${prefix}${(n / 1e6).toFixed(2)}m`;
-  if (abs >= 1e3) return `${prefix}${(n / 1e3).toFixed(0)}k`;
-  return `${prefix}${n.toFixed(0)}`;
+const fmt=(n:number,prefix="£")=>{
+  if(!isFinite(n)||isNaN(n))return"—";
+  const abs=Math.abs(n);
+  if(abs>=1e9)return`${prefix}${(n/1e9).toFixed(2)}bn`;
+  if(abs>=1e6)return`${prefix}${(n/1e6).toFixed(2)}m`;
+  if(abs>=1e3)return`${prefix}${(n/1e3).toFixed(0)}k`;
+  return`${prefix}${n.toFixed(0)}`;
 };
-const fmtPct = (n: number) => (!isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
-const num = (v: string) => parseFloat(v.replace(/[£,%\s]/g, "")) || 0;
+const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${(n*100).toFixed(1)}%`);
+const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
 
-const DEFAULTS = {
-  BTR: {
-    assetType: "BTR", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
-    programmMonths: 36, stabilisationMonths: 12,
-    units: [
-      { type: "1 Bed OMR", count: 80, rentPcm: 2200, size: 550 },
-      { type: "2 Bed OMR", count: 60, rentPcm: 2900, size: 750 },
-      { type: "3 Bed OMR", count: 30, rentPcm: 3600, size: 1000 },
-      { type: "1 Bed DMR", count: 40, rentPcm: 1650, size: 550 },
-      { type: "2 Bed DMR", count: 22, rentPcm: 2175, size: 750 },
+const DEFAULTS={
+  BTR:{
+    assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+    programmMonths:36,stabilisationMonths:12,
+    units:[
+      {type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},
+      {type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},
+      {type:"2 Bed DMR",count:22,rentPcm:2175,size:750},
     ],
-    exitYield: 4.15, niy: 4.0, voidPct: 1.5, opexPsf: 8,
-    landCost: 15000000, buildCostPsf: 285, siteAreaSqft: 195000,
-    professionalFeesPct: 8, contingencyPct: 5, otherCosts: 500000,
-    ltc: 65, marginOverBenchmark: 2.5, arrangementFeePct: 1.0,
-    tier1Hurdle: 8, tier1DevShare: 20,
-    tier2Hurdle: 12, tier2DevShare: 30,
-    tier3Hurdle: 18, tier3DevShare: 40,
-    costProfile: "scurve",
-    sdltMode: "auto" as const, sdltTransactionType: "residential" as const, sdltOverride: 0, sdltSurcharge: true,
+    exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,
+    landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,
+    professionalFeesPct:8,contingencyPct:5,otherCosts:500000,
+    ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,
+    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,
+    costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true,
   },
-  BTS: {
-    assetType: "BTS", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
-    programmMonths: 30, stabilisationMonths: 6,
-    units: [
-      { type: "1 Bed", count: 40, salePricePsf: 900, size: 550 },
-      { type: "2 Bed", count: 60, salePricePsf: 850, size: 800 },
-      { type: "3 Bed", count: 20, salePricePsf: 800, size: 1100 },
-      { type: "Penthouse", count: 5, salePricePsf: 1400, size: 1800 },
+  BTS:{
+    assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+    programmMonths:30,stabilisationMonths:6,
+    units:[
+      {type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},
+      {type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800},
     ],
-    agentFeePct: 1.5, marketingPct: 1.0, absorptionMonths: 18,
-    landCost: 8000000, buildCostPsf: 260, siteAreaSqft: 110000,
-    professionalFeesPct: 8, contingencyPct: 5, otherCosts: 300000,
-    ltc: 60, marginOverBenchmark: 2.5, arrangementFeePct: 1.0,
-    tier1Hurdle: 8, tier1DevShare: 20,
-    tier2Hurdle: 15, tier2DevShare: 30,
-    tier3Hurdle: 20, tier3DevShare: 40,
-    costProfile: "scurve",
-    sdltMode: "auto" as const, sdltTransactionType: "residential" as const, sdltOverride: 0, sdltSurcharge: true,
+    agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,
+    landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,
+    professionalFeesPct:8,contingencyPct:5,otherCosts:300000,
+    ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,
+    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,
+    costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true,
   },
-  Hotel: {
-    assetType: "Hotel", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
-    programmMonths: 24, stabilisationMonths: 18,
-    rooms: 120, adr: 180, occupancy: 72, starRating: 4, revparGrowthPct: 2.5,
-    // Rooms
-    roomsMarginPct: 75,
-    // F&B
-    fnbEnabled: true, fnbRevenuePerOccRoom: 45, fnbUtilisationPct: 70, fnbMarginPct: 30,
-    // Spa
-    spaEnabled: false, spaRevenuePerRoomPa: 800, spaUtilisationPct: 40, spaMarginPct: 35,
-    // Gym
-    gymEnabled: false, gymMembershipRevPa: 50000, gymGuestRevPerOccRoom: 8, gymMarginPct: 60,
-    // Meetings
-    meetingEnabled: false, meetingRooms: 4, meetingAvgDayRate: 1200, meetingUtilisationPct: 45, meetingMarginPct: 40,
-    // Exit
-    exitCapRate: 6.5, stabilisedCapRate: 6.0,
-    purchasePrice: 18000000, capexBudget: 5000000,
-    professionalFeesPct: 5, contingencyPct: 8, otherCosts: 200000,
-    ltc: 60, marginOverBenchmark: 3.0, arrangementFeePct: 1.5,
-    tier1Hurdle: 8, tier1DevShare: 20,
-    tier2Hurdle: 14, tier2DevShare: 30,
-    tier3Hurdle: 20, tier3DevShare: 40,
-    costProfile: "straight",
-    sdltMode: "auto" as const, sdltTransactionType: "commercial" as const, sdltOverride: 0, sdltSurcharge: false,
+  Hotel:{
+    assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+    programmMonths:24,stabilisationMonths:18,
+    rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,
+    roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,
+    spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,
+    gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,
+    meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,
+    exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,
+    professionalFeesPct:5,contingencyPct:8,otherCosts:200000,
+    ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,
+    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,
+    costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,
   },
-  Flip: {
-    assetType: "Flip", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
-    programmMonths: 9, stabilisationMonths: 0,
-    purchasePrice: 450000, refurbBudget: 85000,
-    salePrice: 620000, agentFeePct: 1.5,
-    bridgingRatePct: 0.85, bridgingTermMonths: 9,
-    arrangementFeePct: 2.0,
-    professionalFeesPct: 2, contingencyPct: 10, otherCosts: 5000,
-    costProfile: "straight",
-    sdltMode: "auto" as const, sdltTransactionType: "residential" as const, sdltOverride: 0, sdltSurcharge: false,
+  Flip:{
+    assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+    programmMonths:9,stabilisationMonths:0,
+    purchasePrice:450000,refurbBudget:85000,salePrice:620000,agentFeePct:1.5,
+    bridgingRatePct:0.85,bridgingTermMonths:9,arrangementFeePct:2.0,
+    professionalFeesPct:2,contingencyPct:10,otherCosts:5000,costProfile:"straight",
+    sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,
   },
 };
 
-type AssetType = "BTR" | "BTS" | "Hotel" | "Flip";
+type AssetType="BTR"|"BTS"|"Hotel"|"Flip";
 
-/* ─── SDLT Block ─── */
-function SDLTBlock({ data, set, r, currencySymbol }: { data: any; set: (f: string, v: any) => void; r: any; currencySymbol: string }) {
-  return (
-    <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
+function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string}){
+  return(
+    <div className="inp-group" style={{gridColumn:"1 / -1"}}>
       <label className="inp-label">SDLT</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <button onClick={() => set("sdltMode", "auto")} style={{ padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600, background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)", color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-m)" }}>Auto</button>
-        <button onClick={() => set("sdltMode", "manual")} style={{ padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600, background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)", color: data.sdltMode === "manual" ? "#06070a" : "var(--text-m)" }}>Override</button>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#06070a":"var(--text-m)"}}>Auto</button>
+        <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#06070a":"var(--text-m)"}}>Override</button>
       </div>
-      {data.sdltMode !== "manual" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <select className="inp" value={data.sdltTransactionType ?? "residential"} onChange={e => set("sdltTransactionType", e.target.value)}>
+      {data.sdltMode!=="manual"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <select className="inp" value={data.sdltTransactionType??"residential"} onChange={e=>set("sdltTransactionType",e.target.value)}>
             <option value="residential">Residential</option>
             <option value="commercial">Commercial / Non-Residential</option>
             <option value="mixed">Mixed-Use</option>
             <option value="spv">SPV Share Deal (Exempt)</option>
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" id="sdltSurcharge" checked={data.sdltSurcharge ?? true} onChange={e => set("sdltSurcharge", e.target.checked)} />
-            <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>+3% surcharge (additional dwelling / company purchase)</label>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <input type="checkbox" id="sdltSurcharge" checked={data.sdltSurcharge??true} onChange={e=>set("sdltSurcharge",e.target.checked)}/>
+            <label htmlFor="sdltSurcharge" className="inp-label" style={{marginBottom:0,fontSize:12}}>+3% surcharge (additional dwelling / company purchase)</label>
           </div>
-          <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
-            {fmt(r.sdlt || 0, currencySymbol)}
-            {data.sdltTransactionType === "spv" && <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>}
+          <div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>
+            {fmt(r.sdlt||0,currencySymbol)}
+            {data.sdltTransactionType==="spv"&&<span style={{marginLeft:8,fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)"}}>EXEMPT</span>}
           </div>
         </div>
       )}
-      {data.sdltMode === "manual" && (
-        <input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride ?? 0} onChange={e => set("sdltOverride", +e.target.value)} />
-      )}
+      {data.sdltMode==="manual"&&<input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride??0} onChange={e=>set("sdltOverride",+e.target.value)}/>}
     </div>
   );
 }
 
-/* ─── Hotel Revenue Stream (collapsible) ─── */
-function RevStream({ title, icon, enabled, onToggle, summary, open, onOpen, children }: {
-  title: string; icon: string; enabled: boolean; onToggle: () => void;
-  summary: string; open: boolean; onOpen: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="rev-stream" style={{ borderColor: enabled ? "var(--gold-border)" : "var(--border)" }}>
+function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
+  return(
+    <div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
       <div className="rev-stream-hdr" onClick={onOpen}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
-          <span style={{ fontSize: 13, fontWeight: 600, color: enabled ? "var(--text)" : "var(--text-d)" }}>{title}</span>
-          {enabled && <span style={{ fontSize: 10, color: "var(--green)", fontFamily: "var(--font-mono)", background: "rgba(61,220,132,.1)", padding: "2px 7px", borderRadius: 4 }}>ON</span>}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {icon&&<span style={{fontSize:16}}>{icon}</span>}
+          <span style={{fontSize:13,fontWeight:600,color:enabled?"var(--text)":"var(--text-d)"}}>{title}</span>
+          {enabled&&<span style={{fontSize:10,color:"var(--green)",fontFamily:"var(--font-mono)",background:"rgba(61,220,132,.1)",padding:"2px 7px",borderRadius:4}}>ON</span>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {enabled && <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)" }}>{summary}</span>}
-          <span style={{ fontSize: 10, color: "var(--text-d)" }}>{open ? "▲" : "▼"}</span>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {enabled&&<span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--gold)"}}>{summary}</span>}
+          <span style={{fontSize:10,color:"var(--text-d)"}}>{open?"▲":"▼"}</span>
         </div>
       </div>
-      {open && (
+      {open&&(
         <div className="rev-stream-body">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <div style={{ position: "relative", width: 36, height: 20, background: enabled ? "var(--gold)" : "var(--bg4)", borderRadius: 10, cursor: "pointer", transition: "background .2s", flexShrink: 0 }} onClick={onToggle}>
-              <div style={{ position: "absolute", top: 2, left: enabled ? 18 : 2, width: 16, height: 16, background: "#fff", borderRadius: "50%", transition: "left .2s" }} />
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <div style={{position:"relative",width:36,height:20,background:enabled?"var(--gold)":"var(--bg4)",borderRadius:10,cursor:"pointer",transition:"background .2s",flexShrink:0}} onClick={onToggle}>
+              <div style={{position:"absolute",top:2,left:enabled?18:2,width:16,height:16,background:"#fff",borderRadius:"50%",transition:"left .2s"}}/>
             </div>
-            <span style={{ fontSize: 12, color: "var(--text-m)" }}>{enabled ? `${title} included in EBITDA` : `${title} excluded — toggle to include`}</span>
+            <span style={{fontSize:12,color:"var(--text-m)"}}>{enabled?`${title} included in EBITDA`:`${title} excluded — toggle to include`}</span>
           </div>
           {children}
         </div>
@@ -265,488 +221,521 @@ function RevStream({ title, icon, enabled, onToggle, summary, open, onOpen, chil
   );
 }
 
-function AppraisalPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const projectId = searchParams.get("project");
+function AppraisalPage(){
+  const router=useRouter();
+  const searchParams=useSearchParams();
+  const projectId=searchParams.get("project");
+  const appraisalParam=searchParams.get("appraisal");
 
-  const [assetType, setAssetType] = useState<AssetType>("BTR");
-  const [data, setData] = useState<any>({ ...DEFAULTS.BTR });
-  const [activeTab, setActiveTab] = useState("general");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [appraisalId, setAppraisalId] = useState<string | null>(null);
-  const [streamOpen, setStreamOpen] = useState({ rooms: true, fnb: false, spa: false, gym: false, meeting: false });
+  const[assetType,setAssetType]=useState<AssetType>("BTR");
+  const[data,setData]=useState<any>({...DEFAULTS.BTR});
+  const[activeTab,setActiveTab]=useState("general");
+  const[saving,setSaving]=useState(false);
+  const[saved,setSaved]=useState(false);
+  const[saveError,setSaveError]=useState<string|null>(null);
+  const[loading,setLoading]=useState(false);
+  const[user,setUser]=useState<any>(null);
+  const[appraisalId,setAppraisalId]=useState<string|null>(null);
+  const[currentProjectId,setCurrentProjectId]=useState<string|null>(projectId);
+  const[streamOpen,setStreamOpen]=useState({rooms:true,fnb:false,spa:false,gym:false,meeting:false});
+  const[shareModal,setShareModal]=useState(false);
+  const[liveLink,setLiveLink]=useState<string|null>(null);
+  const[generatingLink,setGeneratingLink]=useState(false);
+  const[linkCopied,setLinkCopied]=useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
+  useEffect(()=>{
+    const init=async()=>{
+      const{data:{session}}=await supabase.auth.getSession();
+      if(!session){router.push("/");return;}
       setUser(session.user);
     };
     init();
-  }, [router]);
+  },[router]);
 
-  const set = useCallback((field: string, value: any) => {
-    setData((prev: any) => ({ ...prev, [field]: value }));
-    setSaved(false);
-  }, []);
-
-  const switchAssetType = (type: AssetType) => {
-    setAssetType(type);
-    setData({ ...DEFAULTS[type] });
-    setActiveTab("general");
-    setSaved(false);
-  };
-
-  const updateUnit = (index: number, field: string, value: any) => {
-    const units = [...data.units];
-    units[index] = { ...units[index], [field]: value };
-    set("units", units);
-  };
-
-  const addUnit = () => {
-    const units = [...(data.units || [])];
-    units.push(assetType === "BTS"
-      ? { type: "New Type", count: 10, salePricePsf: 800, size: 700 }
-      : { type: "New Type", count: 10, rentPcm: 2000, size: 700 });
-    set("units", units);
-  };
-
-  const removeUnit = (i: number) => {
-    const units = data.units.filter((_: any, idx: number) => idx !== i);
-    set("units", units);
-  };
-
-  /* ─── Hotel revenue helper ─── */
-  const calcHotelRev = useCallback((d: any) => {
-    const rooms = num(String(d.rooms));
-    const occRoomNights = rooms * 365 * (num(String(d.occupancy)) / 100);
-    const roomsRev = num(String(d.adr)) * occRoomNights;
-    const roomsEbitda = roomsRev * (num(String(d.roomsMarginPct ?? 75)) / 100);
-    const fnbRev = d.fnbEnabled ? num(String(d.fnbRevenuePerOccRoom ?? 45)) * occRoomNights * (num(String(d.fnbUtilisationPct ?? 70)) / 100) : 0;
-    const fnbEbitda = fnbRev * (num(String(d.fnbMarginPct ?? 30)) / 100);
-    const spaRev = d.spaEnabled ? num(String(d.spaRevenuePerRoomPa ?? 800)) * rooms * (num(String(d.spaUtilisationPct ?? 40)) / 100) : 0;
-    const spaEbitda = spaRev * (num(String(d.spaMarginPct ?? 35)) / 100);
-    const gymRev = d.gymEnabled ? num(String(d.gymMembershipRevPa ?? 50000)) + num(String(d.gymGuestRevPerOccRoom ?? 8)) * occRoomNights : 0;
-    const gymEbitda = gymRev * (num(String(d.gymMarginPct ?? 60)) / 100);
-    const meetingRev = d.meetingEnabled ? num(String(d.meetingRooms ?? 4)) * num(String(d.meetingAvgDayRate ?? 1200)) * 365 * (num(String(d.meetingUtilisationPct ?? 45)) / 100) : 0;
-    const meetingEbitda = meetingRev * (num(String(d.meetingMarginPct ?? 40)) / 100);
-    const totalRev = roomsRev + fnbRev + spaRev + gymRev + meetingRev;
-    const totalEbitda = roomsEbitda + fnbEbitda + spaEbitda + gymEbitda + meetingEbitda;
-    return { roomsRev, roomsEbitda, fnbRev, fnbEbitda, spaRev, spaEbitda, gymRev, gymEbitda, meetingRev, meetingEbitda, totalRev, totalEbitda };
-  }, []);
-
-  /* ─── CALCULATION ENGINE ─── */
-  const calc = useCallback(() => {
-    if (assetType === "BTR") {
-      const units = data.units || [];
-      const totalUnits = units.reduce((s: number, u: any) => s + (num(String(u.count)) || 0), 0);
-      const totalSqft = units.reduce((s: number, u: any) => s + (num(String(u.count)) * num(String(u.size))), 0);
-      const grossRentPa = units.reduce((s: number, u: any) => s + (num(String(u.count)) * num(String(u.rentPcm)) * 12), 0);
-      const voidAdjustment = 1 - (num(String(data.voidPct)) / 100);
-      const opexPa = totalSqft * num(String(data.opexPsf));
-      const noi = grossRentPa * voidAdjustment - opexPa;
-      const gdv = noi / (num(String(data.exitYield)) / 100);
-      const landCost = num(String(data.landCost));
-      const sdlt = calcSDLT(landCost, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
-      const buildCost = totalSqft * num(String(data.buildCostPsf));
-      const profFees = buildCost * (num(String(data.professionalFeesPct)) / 100);
-      const contingency = buildCost * (num(String(data.contingencyPct)) / 100);
-      const otherCosts = num(String(data.otherCosts));
-      const devCost = buildCost + profFees + contingency + otherCosts;
-      const financeRate = (num(String(data.benchmarkRate)) + num(String(data.marginOverBenchmark))) / 100;
-      const loanAmount = (landCost + devCost) * (num(String(data.ltc)) / 100);
-      const arrangementFee = loanAmount * (num(String(data.arrangementFeePct)) / 100);
-      const interestEst = loanAmount * financeRate * (num(String(data.programmMonths)) / 12) * 0.6;
-      const totalFinanceCost = arrangementFee + interestEst;
-      const totalCost = landCost + sdlt + devCost + totalFinanceCost;
-      const profit = gdv - totalCost;
-      const poc = totalCost > 0 ? profit / totalCost : 0;
-      const yoc = totalSqft > 0 ? noi / totalCost : 0;
-      const months = num(String(data.programmMonths)) + num(String(data.stabilisationMonths));
-      const cfs = [-totalCost];
-      for (let m = 1; m < months; m++) cfs.push(0);
-      cfs.push(gdv);
-      const irr = Math.pow(1 + calcIRR(cfs), 12) - 1;
-      const rlv = gdv * (1 - (poc > 0 ? poc : 0.2)) - devCost - totalFinanceCost;
-      return { gdv, noi, grossRentPa, totalSqft, totalUnits, landCost, sdlt, buildCost, devCost, totalFinanceCost, totalCost, profit, poc, yoc, irr, rlv, financeRate, loanAmount };
-    }
-    if (assetType === "BTS") {
-      const units = data.units || [];
-      const gdv = units.reduce((s: number, u: any) => s + (num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf))), 0);
-      const totalSqft = units.reduce((s: number, u: any) => s + (num(String(u.count)) * num(String(u.size))), 0);
-      const totalUnits = units.reduce((s: number, u: any) => s + num(String(u.count)), 0);
-      const agentFees = gdv * (num(String(data.agentFeePct)) / 100);
-      const marketing = gdv * (num(String(data.marketingPct)) / 100);
-      const landCost = num(String(data.landCost));
-      const sdlt = calcSDLT(landCost, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
-      const buildCost = totalSqft * num(String(data.buildCostPsf));
-      const profFees = buildCost * (num(String(data.professionalFeesPct)) / 100);
-      const contingency = buildCost * (num(String(data.contingencyPct)) / 100);
-      const otherCosts = num(String(data.otherCosts));
-      const devCost = buildCost + profFees + contingency + otherCosts + agentFees + marketing;
-      const financeRate = (num(String(data.benchmarkRate)) + num(String(data.marginOverBenchmark))) / 100;
-      const loanAmount = (landCost + devCost) * (num(String(data.ltc)) / 100);
-      const arrangementFee = loanAmount * (num(String(data.arrangementFeePct)) / 100);
-      const interestEst = loanAmount * financeRate * (num(String(data.programmMonths)) / 12) * 0.5;
-      const totalFinanceCost = arrangementFee + interestEst;
-      const totalCost = landCost + sdlt + devCost + totalFinanceCost;
-      const profit = gdv - totalCost;
-      const poc = totalCost > 0 ? profit / totalCost : 0;
-      const margin = gdv > 0 ? profit / gdv : 0;
-      const months = num(String(data.programmMonths)) + num(String(data.absorptionMonths));
-      const cfs = [-totalCost];
-      for (let m = 1; m < months; m++) cfs.push(gdv / num(String(data.absorptionMonths)));
-      const irr = Math.pow(1 + calcIRR(cfs), 12) - 1;
-      return { gdv, totalSqft, totalUnits, landCost, sdlt, buildCost, devCost, totalFinanceCost, totalCost, profit, poc, margin, irr, loanAmount, financeRate };
-    }
-    if (assetType === "Hotel") {
-      const hr = calcHotelRev(data);
-      const revpar = num(String(data.adr)) * (num(String(data.occupancy)) / 100);
-      const revenuePa = hr.totalRev;
-      const ebitda = hr.totalEbitda;
-      const stabilisedValue = ebitda / (num(String(data.stabilisedCapRate)) / 100);
-      const exitValue = ebitda * (1 + num(String(data.revparGrowthPct)) / 100) / (num(String(data.exitCapRate)) / 100);
-      const purchasePrice = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'commercial', data.sdltOverride ?? 0, data.sdltSurcharge ?? false);
-      const capex = num(String(data.capexBudget));
-      const profFees = capex * (num(String(data.professionalFeesPct)) / 100);
-      const contingency = capex * (num(String(data.contingencyPct)) / 100);
-      const totalCost = purchasePrice + sdlt + capex + profFees + contingency + num(String(data.otherCosts));
-      const financeRate = (num(String(data.benchmarkRate)) + num(String(data.marginOverBenchmark))) / 100;
-      const loanAmount = totalCost * (num(String(data.ltc)) / 100);
-      const interestEst = loanAmount * financeRate * (num(String(data.programmMonths)) / 12) * 0.5;
-      const arrangementFee = loanAmount * (num(String(data.arrangementFeePct)) / 100);
-      const totalFinanceCost = interestEst + arrangementFee;
-      const totalInvestment = totalCost + totalFinanceCost;
-      const profit = exitValue - totalInvestment;
-      const poc = totalInvestment > 0 ? profit / totalInvestment : 0;
-      const yoc = totalInvestment > 0 ? ebitda / totalInvestment : 0;
-      const months = num(String(data.programmMonths)) + num(String(data.stabilisationMonths));
-      const cfs = [-totalInvestment, ...Array(months - 1).fill(0), exitValue];
-      const irr = Math.pow(1 + calcIRR(cfs), 12) - 1;
-      return { revpar, revenuePa, ebitda, stabilisedValue, exitValue, purchasePrice, sdlt, capex, totalCost, totalFinanceCost, totalInvestment, profit, poc, yoc, irr, loanAmount };
-    }
-    if (assetType === "Flip") {
-      const purchase = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchase, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? false);
-      const refurb = num(String(data.refurbBudget));
-      const profFees = refurb * (num(String(data.professionalFeesPct)) / 100);
-      const contingency = refurb * (num(String(data.contingencyPct)) / 100);
-      const other = num(String(data.otherCosts));
-      const bridgingRate = num(String(data.bridgingRatePct)) / 100 / 12;
-      const bridgingMonths = num(String(data.bridgingTermMonths));
-      const loanAmount = (purchase + refurb) * 0.75;
-      const bridgingInterest = loanAmount * bridgingRate * bridgingMonths;
-      const arrangementFee = loanAmount * (num(String(data.arrangementFeePct)) / 100);
-      const totalFinanceCost = bridgingInterest + arrangementFee;
-      const totalCost = purchase + sdlt + refurb + profFees + contingency + other + totalFinanceCost;
-      const salePrice = num(String(data.salePrice));
-      const agentFees = salePrice * (num(String(data.agentFeePct)) / 100);
-      const netProceeds = salePrice - agentFees;
-      const profit = netProceeds - totalCost;
-      const roi = totalCost > 0 ? profit / totalCost : 0;
-      const roiEquity = (totalCost - loanAmount) > 0 ? profit / (totalCost - loanAmount) : 0;
-      const cfs = [-totalCost, ...Array(bridgingMonths - 1).fill(0), netProceeds];
-      const irr = Math.pow(1 + calcIRR(cfs), 12) - 1;
-      return { purchase, sdlt, refurb, profFees, contingency, totalFinanceCost, totalCost, salePrice, agentFees, netProceeds, profit, roi, roiEquity, irr, loanAmount, bridgingInterest };
-    }
-    return {};
-  }, [assetType, data, calcHotelRev]);
-
-  const results = calc();
-  const hotelRev = assetType === "Hotel" ? calcHotelRev(data) : null;
-
-  /* ─── SENSITIVITY ─── */
-  const sensitivity = useCallback(() => {
-    if (assetType !== "BTR") return null;
-    const yields = [-0.5, -0.25, 0, 0.25, 0.5].map(d => num(String(data.exitYield)) + d);
-    const rents = [-200, -100, 0, 100, 200].map(d => 1 + d / (data.units?.[0]?.rentPcm || 2000));
-    return yields.map(y => rents.map(rf => {
-      const units = data.units || [];
-      const grossRent = units.reduce((s: number, u: any) => s + num(String(u.count)) * num(String(u.rentPcm)) * rf * 12, 0);
-      const voidAdj = 1 - (num(String(data.voidPct)) / 100);
-      const totalSqft = units.reduce((s: number, u: any) => s + num(String(u.count)) * num(String(u.size)), 0);
-      const noi = grossRent * voidAdj - totalSqft * num(String(data.opexPsf));
-      const gdv = noi / (y / 100);
-      const r = calc();
-      return r.totalCost > 0 ? (gdv - r.totalCost) / r.totalCost : 0;
-    }));
-  }, [assetType, data, calc]);
-
-  const sensMatrix = sensitivity();
-
-  /* ─── SAVE ─── */
-  const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    const r = results as any;
-    const payload = {
-      created_by: user.id,
-      name: data.name || "Untitled Appraisal",
-      scenario: "base", status: "draft",
-      units_omr: assetType === "BTR" ? (data.units?.filter((u: any) => u.type?.includes("OMR")).reduce((s: number, u: any) => s + num(String(u.count)), 0)) : 0,
-      units_dmr: assetType === "BTR" ? (data.units?.filter((u: any) => u.type?.includes("DMR")).reduce((s: number, u: any) => s + num(String(u.count)), 0)) : 0,
-      rent_omr_pcm: assetType === "BTR" ? (data.units?.[0]?.rentPcm || 0) : 0,
-      exit_yield: num(String(data.exitYield || 0)) / 100,
-      land_cost: num(String(data.landCost || data.purchasePrice || 0)),
-      gdv: r.gdv || r.exitValue || r.salePrice || 0,
-      total_cost: r.totalCost || r.totalInvestment || 0,
-      profit: r.profit || 0,
-      profit_on_cost: r.poc || r.roi || 0,
-      irr_unlevered: r.irr || 0,
-      programme_months: num(String(data.programmMonths)),
-      firm_id: null,
-    };
-    let result;
-    if (projectId) { payload["project_id" as any] = projectId; payload["firm_id" as any] = null; }
-    if (appraisalId) {
-      result = await supabase.from("appraisals").update(payload).eq("id", appraisalId).select().single();
-    } else {
-      if (!projectId) {
-        const { data: proj } = await supabase.from("projects").insert({
-          name: data.name || "New Project", location: data.location || "",
-          asset_type: assetType, currency: data.currency || "GBP",
-          benchmark_rate: data.benchmark || "SONIA", created_by: user.id, firm_id: null,
-        }).select().single();
-        if (proj) payload["project_id" as any] = proj.id;
+  // Load snapshot when appraisal param is present
+  useEffect(()=>{
+    if(!appraisalParam||!user)return;
+    const load=async()=>{
+      setLoading(true);
+      const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
+      if(appr){
+        setAppraisalId(appr.id);
+        setCurrentProjectId(appr.project_id);
+        if(appr.snapshot){
+          const snap=appr.snapshot;
+          const type=(snap.assetType||"BTR") as AssetType;
+          setAssetType(type);
+          setData(snap);
+          setSaved(true);
+        }
       }
-      result = await supabase.from("appraisals").insert(payload).select().single();
+      setLoading(false);
+    };
+    load();
+  },[appraisalParam,user]);
+
+  const set=useCallback((field:string,value:any)=>{
+    setData((prev:any)=>({...prev,[field]:value}));
+    setSaved(false);setSaveError(null);
+  },[]);
+
+  const switchAssetType=(type:AssetType)=>{
+    setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);
+  };
+
+  const updateUnit=(index:number,field:string,value:any)=>{
+    const units=[...data.units];units[index]={...units[index],[field]:value};set("units",units);
+  };
+  const addUnit=()=>{
+    const units=[...(data.units||[])];
+    units.push(assetType==="BTS"?{type:"New Type",count:10,salePricePsf:800,size:700}:{type:"New Type",count:10,rentPcm:2000,size:700});
+    set("units",units);
+  };
+  const removeUnit=(i:number)=>{set("units",data.units.filter((_:any,idx:number)=>idx!==i));};
+
+  const calcHotelRev=useCallback((d:any)=>{
+    const rooms=num(String(d.rooms));
+    const occRoomNights=rooms*365*(num(String(d.occupancy))/100);
+    const roomsRev=num(String(d.adr))*occRoomNights;
+    const roomsEbitda=roomsRev*(num(String(d.roomsMarginPct??75))/100);
+    const fnbRev=d.fnbEnabled?num(String(d.fnbRevenuePerOccRoom??45))*occRoomNights*(num(String(d.fnbUtilisationPct??70))/100):0;
+    const fnbEbitda=fnbRev*(num(String(d.fnbMarginPct??30))/100);
+    const spaRev=d.spaEnabled?num(String(d.spaRevenuePerRoomPa??800))*rooms*(num(String(d.spaUtilisationPct??40))/100):0;
+    const spaEbitda=spaRev*(num(String(d.spaMarginPct??35))/100);
+    const gymRev=d.gymEnabled?num(String(d.gymMembershipRevPa??50000))+num(String(d.gymGuestRevPerOccRoom??8))*occRoomNights:0;
+    const gymEbitda=gymRev*(num(String(d.gymMarginPct??60))/100);
+    const meetingRev=d.meetingEnabled?num(String(d.meetingRooms??4))*num(String(d.meetingAvgDayRate??1200))*365*(num(String(d.meetingUtilisationPct??45))/100):0;
+    const meetingEbitda=meetingRev*(num(String(d.meetingMarginPct??40))/100);
+    const totalRev=roomsRev+fnbRev+spaRev+gymRev+meetingRev;
+    const totalEbitda=roomsEbitda+fnbEbitda+spaEbitda+gymEbitda+meetingEbitda;
+    return{roomsRev,roomsEbitda,fnbRev,fnbEbitda,spaRev,spaEbitda,gymRev,gymEbitda,meetingRev,meetingEbitda,totalRev,totalEbitda};
+  },[]);
+
+  const calc=useCallback(()=>{
+    if(assetType==="BTR"){
+      const units=data.units||[];
+      const totalUnits=units.reduce((s:number,u:any)=>s+(num(String(u.count))||0),0);
+      const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);
+      const grossRentPa=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.rentPcm))*12),0);
+      const voidAdjustment=1-(num(String(data.voidPct))/100);
+      const opexPa=totalSqft*num(String(data.opexPsf));
+      const noi=grossRentPa*voidAdjustment-opexPa;
+      const gdv=noi/(num(String(data.exitYield))/100);
+      const landCost=num(String(data.landCost));
+      const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
+      const buildCost=totalSqft*num(String(data.buildCostPsf));
+      const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
+      const contingency=buildCost*(num(String(data.contingencyPct))/100);
+      const otherCosts=num(String(data.otherCosts));
+      const devCost=buildCost+profFees+contingency+otherCosts;
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
+      const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
+      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
+      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.6;
+      const totalFinanceCost=arrangementFee+interestEst;
+      const totalCost=landCost+sdlt+devCost+totalFinanceCost;
+      const profit=gdv-totalCost;
+      const poc=totalCost>0?profit/totalCost:0;
+      const yoc=totalSqft>0?noi/totalCost:0;
+      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
+      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      const rlv=gdv*(1-(poc>0?poc:0.2))-devCost-totalFinanceCost;
+      return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,yoc,irr,rlv,financeRate,loanAmount};
     }
-    if (result?.data) { setAppraisalId(result.data.id); setSaved(true); }
+    if(assetType==="BTS"){
+      const units=data.units||[];
+      const gdv=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf))),0);
+      const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);
+      const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
+      const agentFees=gdv*(num(String(data.agentFeePct))/100);
+      const marketing=gdv*(num(String(data.marketingPct))/100);
+      const landCost=num(String(data.landCost));
+      const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
+      const buildCost=totalSqft*num(String(data.buildCostPsf));
+      const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
+      const contingency=buildCost*(num(String(data.contingencyPct))/100);
+      const otherCosts=num(String(data.otherCosts));
+      const devCost=buildCost+profFees+contingency+otherCosts+agentFees+marketing;
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
+      const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
+      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
+      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;
+      const totalFinanceCost=arrangementFee+interestEst;
+      const totalCost=landCost+sdlt+devCost+totalFinanceCost;
+      const profit=gdv-totalCost;
+      const poc=totalCost>0?profit/totalCost:0;
+      const margin=gdv>0?profit/gdv:0;
+      const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));
+      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,loanAmount,financeRate};
+    }
+    if(assetType==="Hotel"){
+      const hr=calcHotelRev(data);
+      const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);
+      const revenuePa=hr.totalRev;const ebitda=hr.totalEbitda;
+      const stabilisedValue=ebitda/(num(String(data.stabilisedCapRate))/100);
+      const exitValue=ebitda*(1+num(String(data.revparGrowthPct))/100)/(num(String(data.exitCapRate))/100);
+      const purchasePrice=num(String(data.purchasePrice));
+      const sdlt=calcSDLT(purchasePrice,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
+      const capex=num(String(data.capexBudget));
+      const profFees=capex*(num(String(data.professionalFeesPct))/100);
+      const contingency=capex*(num(String(data.contingencyPct))/100);
+      const totalCost=purchasePrice+sdlt+capex+profFees+contingency+num(String(data.otherCosts));
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
+      const loanAmount=totalCost*(num(String(data.ltc))/100);
+      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;
+      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
+      const totalFinanceCost=interestEst+arrangementFee;
+      const totalInvestment=totalCost+totalFinanceCost;
+      const profit=exitValue-totalInvestment;
+      const poc=totalInvestment>0?profit/totalInvestment:0;
+      const yoc=totalInvestment>0?ebitda/totalInvestment:0;
+      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
+      const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,loanAmount};
+    }
+    if(assetType==="Flip"){
+      const purchase=num(String(data.purchasePrice));
+      const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
+      const refurb=num(String(data.refurbBudget));
+      const profFees=refurb*(num(String(data.professionalFeesPct))/100);
+      const contingency=refurb*(num(String(data.contingencyPct))/100);
+      const other=num(String(data.otherCosts));
+      const bridgingRate=num(String(data.bridgingRatePct))/100/12;
+      const bridgingMonths=num(String(data.bridgingTermMonths));
+      const loanAmount=(purchase+refurb)*0.75;
+      const bridgingInterest=loanAmount*bridgingRate*bridgingMonths;
+      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
+      const totalFinanceCost=bridgingInterest+arrangementFee;
+      const totalCost=purchase+sdlt+refurb+profFees+contingency+other+totalFinanceCost;
+      const salePrice=num(String(data.salePrice));
+      const agentFees=salePrice*(num(String(data.agentFeePct))/100);
+      const netProceeds=salePrice-agentFees;
+      const profit=netProceeds-totalCost;
+      const roi=totalCost>0?profit/totalCost:0;
+      const roiEquity=(totalCost-loanAmount)>0?profit/(totalCost-loanAmount):0;
+      const cfs=[-totalCost,...Array(bridgingMonths-1).fill(0),netProceeds];
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      return{purchase,sdlt,refurb,profFees,contingency,totalFinanceCost,totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,irr,loanAmount,bridgingInterest};
+    }
+    return{};
+  },[assetType,data,calcHotelRev]);
+
+  const results=calc();
+  const hotelRev=assetType==="Hotel"?calcHotelRev(data):null;
+
+  const sensitivity=useCallback(()=>{
+    if(assetType!=="BTR")return null;
+    const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
+    const rents=[-200,-100,0,100,200].map(d=>1+d/(data.units?.[0]?.rentPcm||2000));
+    return yields.map(y=>rents.map(rf=>{
+      const units=data.units||[];
+      const grossRent=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.rentPcm))*rf*12,0);
+      const voidAdj=1-(num(String(data.voidPct))/100);
+      const totalSqft=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size)),0);
+      const noi=grossRent*voidAdj-totalSqft*num(String(data.opexPsf));
+      const gdv=noi/(y/100);
+      const r=calc();
+      return r.totalCost>0?(gdv-r.totalCost)/r.totalCost:0;
+    }));
+  },[assetType,data,calc]);
+
+  const sensMatrix=sensitivity();
+
+  /* ─── SAVE with snapshot ─── */
+  const save=async()=>{
+    if(!user){setSaveError("Not logged in");return;}
+    setSaving(true);setSaveError(null);
+    const r=results as any;
+    try{
+      let resolvedProjectId=currentProjectId;
+      if(!resolvedProjectId){
+        const{data:proj,error:projErr}=await supabase.from("projects").insert({
+          name:data.name||"New Project",location:data.location||"",
+          asset_type:assetType,currency:data.currency||"GBP",
+          benchmark_rate:data.benchmark||"SONIA",created_by:user.id,firm_id:null,
+        }).select().single();
+        if(projErr){setSaveError(`Project error: ${projErr.message}`);setSaving(false);return;}
+        resolvedProjectId=proj.id;setCurrentProjectId(proj.id);
+      }
+      const payload:Record<string,any>={
+        created_by:user.id,project_id:resolvedProjectId,
+        name:data.name||"Untitled Appraisal",scenario:"base",status:"draft",
+        units_omr:assetType==="BTR"?(data.units?.filter((u:any)=>u.type?.includes("OMR")).reduce((s:number,u:any)=>s+num(String(u.count)),0)||0):0,
+        units_dmr:assetType==="BTR"?(data.units?.filter((u:any)=>u.type?.includes("DMR")).reduce((s:number,u:any)=>s+num(String(u.count)),0)||0):0,
+        rent_omr_pcm:assetType==="BTR"?(data.units?.[0]?.rentPcm||0):0,
+        exit_yield:num(String(data.exitYield||0))/100,
+        land_cost:num(String(data.landCost||data.purchasePrice||0)),
+        gdv:r.gdv||r.exitValue||r.salePrice||0,
+        total_cost:r.totalCost||r.totalInvestment||0,
+        profit:r.profit||0,
+        profit_on_cost:r.poc||r.roi||0,
+        irr_unlevered:r.irr||0,
+        programme_months:num(String(data.programmMonths)),
+        firm_id:null,
+        snapshot:{...data,assetType}, // ← full input state
+      };
+      let apprResult;
+      if(appraisalId){
+        const{data:updated,error:updErr}=await supabase.from("appraisals").update(payload).eq("id",appraisalId).select().single();
+        if(updErr){setSaveError(`Update error: ${updErr.message}`);setSaving(false);return;}
+        apprResult=updated;
+      }else{
+        const{data:inserted,error:insErr}=await supabase.from("appraisals").insert(payload).select().single();
+        if(insErr){setSaveError(`Save error: ${insErr.message}`);setSaving(false);return;}
+        apprResult=inserted;
+      }
+      if(apprResult){setAppraisalId(apprResult.id);setSaved(true);}
+    }catch(err:any){setSaveError(err?.message||"Unknown error");}
     setSaving(false);
   };
 
-  const TABS_BTR = ["general", "revenue", "costs", "finance", "cashflow", "analysis"];
-  const TABS_BTS = ["general", "revenue", "costs", "finance", "analysis"];
-  const TABS_HOTEL = ["general", "revenue", "costs", "finance", "analysis"];
-  const TABS_FLIP = ["general", "costs", "finance", "analysis"];
-  const TABS = assetType === "BTR" ? TABS_BTR : assetType === "BTS" ? TABS_BTS : assetType === "Hotel" ? TABS_HOTEL : TABS_FLIP;
-  const TAB_LABELS: Record<string, string> = { general: "General", revenue: "Revenue", costs: "Costs", finance: "Finance", cashflow: "Cash Flow", analysis: "Analysis" };
-  const currencies = ["GBP", "USD", "EUR", "AED", "SGD", "AUD", "JPY", "CHF", "CAD", "HKD"];
-  const benchmarks = ["SONIA", "SOFR", "EURIBOR", "EIBOR", "SORA", "AONIA", "TONA", "SARON", "CORRA", "HONIA"];
-  const currencySymbol = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" }[data.currency] || "£";
-  const r = results as any;
+  /* ─── LIVE LINK ─── */
+  const generateLiveLink=async()=>{
+    if(!appraisalId){setSaveError("Save the appraisal first");return;}
+    setGeneratingLink(true);
+    const token=Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+    await supabase.from("appraisals").update({share_token:token}).eq("id",appraisalId);
+    const link=`${window.location.origin}/share/${token}`;
+    setLiveLink(link);setGeneratingLink(false);
+  };
 
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
+  const copyLink=async()=>{
+    if(!liveLink)return;
+    await navigator.clipboard.writeText(liveLink);
+    setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);
+  };
+
+  const shareEmail=()=>{
+    if(!liveLink)return;
+    const subject=encodeURIComponent(`Valora Appraisal: ${data.name||"Untitled"}`);
+    const body=encodeURIComponent(`Please find the appraisal here:\n\n${liveLink}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const shareWhatsApp=()=>{
+    if(!liveLink)return;
+    const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);
+    window.open(`https://wa.me/?text=${text}`);
+  };
+
+  const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
+  const TABS_BTS=["general","revenue","costs","finance","analysis"];
+  const TABS_HOTEL=["general","revenue","costs","finance","analysis"];
+  const TABS_FLIP=["general","costs","finance","analysis"];
+  const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:TABS_FLIP;
+  const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",cashflow:"Cash Flow",analysis:"Analysis"};
+  const currencies=["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"];
+  const benchmarks=["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"];
+  const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+  const r=results as any;
+
+  if(loading)return(
+    <div style={{minHeight:"100vh",background:"#06070a",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.2)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-body)"}}>
       <style>{CSS}</style>
 
       {/* Nav */}
-      <div style={{ background: "var(--bg1)", borderBottom: "1px solid var(--border)", padding: "0 24px", height: 56, display: "flex", alignItems: "center", gap: 16 }}>
-        <button onClick={() => router.push("/dashboard")} style={{ background: "none", border: "none", color: "var(--gold)", fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 300, cursor: "pointer", letterSpacing: ".1em" }}>VALORA</button>
-        <div style={{ width: 1, height: 18, background: "var(--border)" }} />
-        <span style={{ fontSize: 12, color: "var(--text-d)" }}>← </span>
-        <button onClick={() => router.push("/dashboard")} className="btn-ghost" style={{ padding: "5px 12px", fontSize: 11 }}>Dashboard</button>
-        <div style={{ flex: 1 }} />
+      <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 24px",height:56,display:"flex",alignItems:"center",gap:16}}>
+        <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",color:"var(--gold)",fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,cursor:"pointer",letterSpacing:".1em"}}>VALORA</button>
+        <div style={{width:1,height:18,background:"var(--border)"}}/>
+        <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{padding:"5px 12px",fontSize:11}}>Dashboard</button>
+        <div style={{flex:1}}/>
         <div className="save-indicator">
-          {saving && <span style={{ width: 12, height: 12, border: "1.5px solid var(--gold)", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />}
-          {saved && !saving && <><span style={{ color: "var(--green)", fontSize: 12 }}>✓</span><span>Saved</span></>}
-          {!saved && !saving && <span style={{ animation: "pulse 2s infinite" }}>Unsaved changes</span>}
+          {saving&&<span style={{width:12,height:12,border:"1.5px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>}
+          {saved&&!saving&&<><span style={{color:"var(--green)",fontSize:12}}>✓</span><span>Saved</span></>}
+          {saveError&&!saving&&<span style={{color:"var(--red)",fontSize:11}}>{saveError}</span>}
+          {!saved&&!saving&&!saveError&&<span style={{animation:"pulse 2s infinite"}}>Unsaved changes</span>}
         </div>
-        <button className="btn-primary" onClick={save} disabled={saving} style={{ padding: "8px 18px", fontSize: 12 }}>{saving ? "Saving…" : "Save Appraisal"}</button>
+        <button className="btn-primary" onClick={save} disabled={saving} style={{padding:"8px 18px",fontSize:12}}>{saving?"Saving…":"Save Appraisal"}</button>
       </div>
 
       {/* Asset switcher */}
-      <div style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "0 24px", display: "flex", alignItems: "center", gap: 8, height: 46 }}>
-        <span style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".1em", marginRight: 8 }}>Asset Type:</span>
-        {(["BTR", "BTS", "Hotel", "Flip"] as AssetType[]).map(t => (
-          <button key={t} onClick={() => switchAssetType(t)} style={{ padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid", background: assetType === t ? "rgba(201,168,76,.12)" : "transparent", borderColor: assetType === t ? "var(--gold)" : "var(--border)", color: assetType === t ? "var(--gold)" : "var(--text-d)", fontFamily: "var(--font-body)", transition: "all .2s" }}>{t}</button>
+      <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 24px",display:"flex",alignItems:"center",gap:8,height:46}}>
+        <span style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginRight:8}}>Asset Type:</span>
+        {(["BTR","BTS","Hotel","Flip"] as AssetType[]).map(t=>(
+          <button key={t} onClick={()=>switchAssetType(t)} style={{padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s"}}>{t}</button>
         ))}
-        <div style={{ flex: 1 }} />
-        <input className="inp" value={data.name} onChange={e => set("name", e.target.value)} placeholder="Appraisal name…" style={{ width: 240, padding: "6px 12px", fontSize: 13 }} />
+        <div style={{flex:1}}/>
+        <input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Appraisal name…" style={{width:240,padding:"6px 12px",fontSize:13}}/>
       </div>
 
-      <div className="editor-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", minHeight: "calc(100vh - 102px)" }}>
-        <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column" }}>
-          <div style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", overflowX: "auto", padding: "0 16px" }}>
-            {TABS.map(t => <button key={t} className={`tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>{TAB_LABELS[t]}</button>)}
+      <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
+        <div style={{borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
+          <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",overflowX:"auto",padding:"0 16px"}}>
+            {TABS.map(t=><button key={t} className={`tab ${activeTab===t?"active":""}`} onClick={()=>setActiveTab(t)}>{TAB_LABELS[t]}</button>)}
           </div>
-          <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+          <div style={{padding:24,overflowY:"auto",flex:1}}>
 
             {/* GENERAL */}
-            {activeTab === "general" && (
+            {activeTab==="general"&&(
               <div>
                 <div className="section-title">Project Details</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Chiswick Tower" /></div>
-                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location} onChange={e => set("location", e.target.value)} placeholder="e.g. Hammersmith, London" /></div>
+                  <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Chiswick Tower"/></div>
+                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location} onChange={e=>set("location",e.target.value)} placeholder="e.g. Hammersmith, London"/></div>
                 </div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Currency</label><select className="inp" value={data.currency} onChange={e => set("currency", e.target.value)}>{currencies.map(c => <option key={c}>{c}</option>)}</select></div>
-                  <div className="inp-group"><label className="inp-label">Benchmark Rate</label><select className="inp" value={data.benchmark} onChange={e => set("benchmark", e.target.value)}>{benchmarks.map(b => <option key={b}>{b}</option>)}</select></div>
-                  <div className="inp-group"><label className="inp-label">{data.benchmark} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate} onChange={e => set("benchmarkRate", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Currency</label><select className="inp" value={data.currency} onChange={e=>set("currency",e.target.value)}>{currencies.map(c=><option key={c}>{c}</option>)}</select></div>
+                  <div className="inp-group"><label className="inp-label">Benchmark Rate</label><select className="inp" value={data.benchmark} onChange={e=>set("benchmark",e.target.value)}>{benchmarks.map(b=><option key={b}>{b}</option>)}</select></div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths} onChange={e => set("programmMonths", e.target.value)} /></div>
-                  {assetType !== "Flip" && <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths} onChange={e => set("stabilisationMonths", e.target.value)} /></div>}
+                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                  {assetType!=="Flip"&&<div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>}
                 </div>
-                <div className="inp-group"><label className="inp-label">Cost Profile</label><select className="inp" value={data.costProfile} onChange={e => set("costProfile", e.target.value)}><option value="scurve">S-Curve (recommended)</option><option value="straight">Straight-Line</option><option value="frontloaded">Front-Loaded</option></select></div>
+                <div className="inp-group"><label className="inp-label">Cost Profile</label><select className="inp" value={data.costProfile} onChange={e=>set("costProfile",e.target.value)}><option value="scurve">S-Curve (recommended)</option><option value="straight">Straight-Line</option><option value="frontloaded">Front-Loaded</option></select></div>
               </div>
             )}
 
             {/* REVENUE BTR */}
-            {activeTab === "revenue" && assetType === "BTR" && (
+            {activeTab==="revenue"&&assetType==="BTR"&&(
               <div>
                 <div className="section-title">Unit Mix & Rents</div>
-                <div className="unit-row" style={{ borderBottom: "1px solid var(--gold)44" }}>
-                  {["Unit Type", "Count", "Rent (pcm)", "Size (sqft)", "Gross Pa", ""].map((h, i) => <div key={i} style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".07em" }}>{h}</div>)}
+                <div className="unit-row" style={{borderBottom:"1px solid var(--gold)44"}}>
+                  {["Unit Type","Count","Rent (pcm)","Size (sqft)","Gross Pa",""].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
                 </div>
-                {(data.units || []).map((u: any, i: number) => {
-                  const grossPa = num(String(u.count)) * num(String(u.rentPcm)) * 12;
-                  return (
-                    <div key={i} className="unit-row">
-                      <input className="inp" value={u.type} onChange={e => updateUnit(i, "type", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.count} onChange={e => updateUnit(i, "count", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.rentPcm} onChange={e => updateUnit(i, "rentPcm", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.size} onChange={e => updateUnit(i, "size", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-m)" }}>{fmt(grossPa, currencySymbol)}</div>
-                      <button onClick={() => removeUnit(i)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 16, padding: 0 }}>×</button>
-                    </div>
-                  );
+                {(data.units||[]).map((u:any,i:number)=>{
+                  const grossPa=num(String(u.count))*num(String(u.rentPcm))*12;
+                  return(<div key={i} className="unit-row">
+                    <input className="inp" value={u.type} onChange={e=>updateUnit(i,"type",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.count} onChange={e=>updateUnit(i,"count",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.rentPcm} onChange={e=>updateUnit(i,"rentPcm",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.size} onChange={e=>updateUnit(i,"size",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(grossPa,currencySymbol)}</div>
+                    <button onClick={()=>removeUnit(i)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:16,padding:0}}>×</button>
+                  </div>);
                 })}
-                <button className="btn-ghost" onClick={addUnit} style={{ marginTop: 12, fontSize: 11 }}>+ Add Unit Type</button>
-                <div className="section-title" style={{ marginTop: 28 }}>Exit Assumptions</div>
+                <button className="btn-ghost" onClick={addUnit} style={{marginTop:12,fontSize:11}}>+ Add Unit Type</button>
+                <div className="section-title" style={{marginTop:28}}>Exit Assumptions</div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Exit Yield (%)</label><input className="inp" type="number" step="0.05" value={data.exitYield} onChange={e => set("exitYield", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">NIY (%)</label><input className="inp" type="number" step="0.05" value={data.niy} onChange={e => set("niy", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Void (%)</label><input className="inp" type="number" step="0.1" value={data.voidPct} onChange={e => set("voidPct", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Exit Yield (%)</label><input className="inp" type="number" step="0.05" value={data.exitYield} onChange={e=>set("exitYield",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">NIY (%)</label><input className="inp" type="number" step="0.05" value={data.niy} onChange={e=>set("niy",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Void (%)</label><input className="inp" type="number" step="0.1" value={data.voidPct} onChange={e=>set("voidPct",e.target.value)}/></div>
                 </div>
-                <div className="inp-group"><label className="inp-label">OpEx (psf pa)</label><input className="inp" type="number" value={data.opexPsf} onChange={e => set("opexPsf", e.target.value)} /></div>
+                <div className="inp-group"><label className="inp-label">OpEx (psf pa)</label><input className="inp" type="number" value={data.opexPsf} onChange={e=>set("opexPsf",e.target.value)}/></div>
               </div>
             )}
 
             {/* REVENUE BTS */}
-            {activeTab === "revenue" && assetType === "BTS" && (
+            {activeTab==="revenue"&&assetType==="BTS"&&(
               <div>
                 <div className="section-title">Unit Mix & Sales</div>
-                <div className="unit-row" style={{ borderBottom: "1px solid var(--gold)44" }}>
-                  {["Unit Type", "Count", "Price (psf)", "Size (sqft)", "Revenue", ""].map((h, i) => <div key={i} style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".07em" }}>{h}</div>)}
+                <div className="unit-row" style={{borderBottom:"1px solid var(--gold)44"}}>
+                  {["Unit Type","Count","Price (psf)","Size (sqft)","Revenue",""].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
                 </div>
-                {(data.units || []).map((u: any, i: number) => {
-                  const rev = num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf));
-                  return (
-                    <div key={i} className="unit-row">
-                      <input className="inp" value={u.type} onChange={e => updateUnit(i, "type", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.count} onChange={e => updateUnit(i, "count", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.salePricePsf} onChange={e => updateUnit(i, "salePricePsf", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <input className="inp" type="number" value={u.size} onChange={e => updateUnit(i, "size", e.target.value)} style={{ padding: "6px 8px", fontSize: 12 }} />
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-m)" }}>{fmt(rev, currencySymbol)}</div>
-                      <button onClick={() => removeUnit(i)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 16, padding: 0 }}>×</button>
-                    </div>
-                  );
+                {(data.units||[]).map((u:any,i:number)=>{
+                  const rev=num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf));
+                  return(<div key={i} className="unit-row">
+                    <input className="inp" value={u.type} onChange={e=>updateUnit(i,"type",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.count} onChange={e=>updateUnit(i,"count",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.salePricePsf} onChange={e=>updateUnit(i,"salePricePsf",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <input className="inp" type="number" value={u.size} onChange={e=>updateUnit(i,"size",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(rev,currencySymbol)}</div>
+                    <button onClick={()=>removeUnit(i)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:16,padding:0}}>×</button>
+                  </div>);
                 })}
-                <button className="btn-ghost" onClick={addUnit} style={{ marginTop: 12, fontSize: 11 }}>+ Add Unit Type</button>
-                <div className="section-title" style={{ marginTop: 28 }}>Sales Costs</div>
+                <button className="btn-ghost" onClick={addUnit} style={{marginTop:12,fontSize:11}}>+ Add Unit Type</button>
+                <div className="section-title" style={{marginTop:28}}>Sales Costs</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e => set("agentFeePct", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct} onChange={e => set("marketingPct", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct} onChange={e=>set("marketingPct",e.target.value)}/></div>
                 </div>
-                <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths} onChange={e => set("absorptionMonths", e.target.value)} /></div>
+                <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths} onChange={e=>set("absorptionMonths",e.target.value)}/></div>
               </div>
             )}
 
-            {/* REVENUE HOTEL — multi-stream */}
-            {activeTab === "revenue" && assetType === "Hotel" && (
+            {/* REVENUE HOTEL */}
+            {activeTab==="revenue"&&assetType==="Hotel"&&(
               <div>
                 <div className="section-title">Hotel Revenue Streams</div>
-
-                <RevStream title="Rooms" icon="" enabled={true} onToggle={() => {}}
-                  summary={fmt(hotelRev?.roomsRev || 0, currencySymbol) + " pa"}
-                  open={streamOpen.rooms} onOpen={() => setStreamOpen(s => ({ ...s, rooms: !s.rooms }))}>
+                <RevStream title="Rooms" icon="" enabled={true} onToggle={()=>{}} summary={fmt(hotelRev?.roomsRev||0,currencySymbol)+" pa"} open={streamOpen.rooms} onOpen={()=>setStreamOpen(s=>({...s,rooms:!s.rooms}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Number of Rooms</label><input className="inp" type="number" value={data.rooms} onChange={e => set("rooms", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Star Rating</label><select className="inp" value={data.starRating} onChange={e => set("starRating", e.target.value)}>{[3, 4, 5].map(s => <option key={s}>{s}</option>)}</select></div>
+                    <div className="inp-group"><label className="inp-label">Number of Rooms</label><input className="inp" type="number" value={data.rooms} onChange={e=>set("rooms",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Star Rating</label><select className="inp" value={data.starRating} onChange={e=>set("starRating",e.target.value)}>{[3,4,5].map(s=><option key={s}>{s}</option>)}</select></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">ADR ({currencySymbol})</label><input className="inp" type="number" value={data.adr} onChange={e => set("adr", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Occupancy (%)</label><input className="inp" type="number" value={data.occupancy} onChange={e => set("occupancy", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">ADR ({currencySymbol})</label><input className="inp" type="number" value={data.adr} onChange={e=>set("adr",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Occupancy (%)</label><input className="inp" type="number" value={data.occupancy} onChange={e=>set("occupancy",e.target.value)}/></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Rooms GOP Margin (%)</label><input className="inp" type="number" value={data.roomsMarginPct ?? 75} onChange={e => set("roomsMarginPct", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">RevPAR Growth (%pa)</label><input className="inp" type="number" step="0.1" value={data.revparGrowthPct} onChange={e => set("revparGrowthPct", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">Rooms GOP Margin (%)</label><input className="inp" type="number" value={data.roomsMarginPct??75} onChange={e=>set("roomsMarginPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">RevPAR Growth (%pa)</label><input className="inp" type="number" step="0.1" value={data.revparGrowthPct} onChange={e=>set("revparGrowthPct",e.target.value)}/></div>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg3)", borderRadius: 6, fontSize: 12 }}>
-                    <span style={{ color: "var(--text-m)" }}>Rooms Revenue pa</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--gold)" }}>{fmt(hotelRev?.roomsRev || 0, currencySymbol)}</span>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text-m)"}}>Rooms Revenue pa</span>
+                    <span style={{fontFamily:"var(--font-mono)",color:"var(--gold)"}}>{fmt(hotelRev?.roomsRev||0,currencySymbol)}</span>
                   </div>
                 </RevStream>
-
-                <RevStream title="Food & Beverage" icon="" enabled={data.fnbEnabled} onToggle={() => set("fnbEnabled", !data.fnbEnabled)}
-                  summary={fmt(hotelRev?.fnbRev || 0, currencySymbol) + " pa"}
-                  open={streamOpen.fnb} onOpen={() => setStreamOpen(s => ({ ...s, fnb: !s.fnb }))}>
+                <RevStream title="Food & Beverage" icon="" enabled={data.fnbEnabled} onToggle={()=>set("fnbEnabled",!data.fnbEnabled)} summary={fmt(hotelRev?.fnbRev||0,currencySymbol)+" pa"} open={streamOpen.fnb} onOpen={()=>setStreamOpen(s=>({...s,fnb:!s.fnb}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Revenue per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.fnbRevenuePerOccRoom ?? 45} onChange={e => set("fnbRevenuePerOccRoom", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Capture Rate (%)</label><input className="inp" type="number" value={data.fnbUtilisationPct ?? 70} onChange={e => set("fnbUtilisationPct", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">Revenue per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.fnbRevenuePerOccRoom??45} onChange={e=>set("fnbRevenuePerOccRoom",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Capture Rate (%)</label><input className="inp" type="number" value={data.fnbUtilisationPct??70} onChange={e=>set("fnbUtilisationPct",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">F&B GOP Margin (%)</label><input className="inp" type="number" value={data.fnbMarginPct ?? 30} onChange={e => set("fnbMarginPct", e.target.value)} /></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg3)", borderRadius: 6, fontSize: 12 }}>
-                    <span style={{ color: "var(--text-m)" }}>F&B Revenue pa</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: data.fnbEnabled ? "var(--gold)" : "var(--text-d)" }}>{fmt(hotelRev?.fnbRev || 0, currencySymbol)}</span>
+                  <div className="inp-group"><label className="inp-label">F&B GOP Margin (%)</label><input className="inp" type="number" value={data.fnbMarginPct??30} onChange={e=>set("fnbMarginPct",e.target.value)}/></div>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text-m)"}}>F&B Revenue pa</span>
+                    <span style={{fontFamily:"var(--font-mono)",color:data.fnbEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.fnbRev||0,currencySymbol)}</span>
                   </div>
                 </RevStream>
-
-                <RevStream title="Spa & Wellness" icon="" enabled={data.spaEnabled} onToggle={() => set("spaEnabled", !data.spaEnabled)}
-                  summary={fmt(hotelRev?.spaRev || 0, currencySymbol) + " pa"}
-                  open={streamOpen.spa} onOpen={() => setStreamOpen(s => ({ ...s, spa: !s.spa }))}>
+                <RevStream title="Spa & Wellness" icon="" enabled={data.spaEnabled} onToggle={()=>set("spaEnabled",!data.spaEnabled)} summary={fmt(hotelRev?.spaRev||0,currencySymbol)+" pa"} open={streamOpen.spa} onOpen={()=>setStreamOpen(s=>({...s,spa:!s.spa}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Revenue per Room pa ({currencySymbol})</label><input className="inp" type="number" value={data.spaRevenuePerRoomPa ?? 800} onChange={e => set("spaRevenuePerRoomPa", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.spaUtilisationPct ?? 40} onChange={e => set("spaUtilisationPct", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">Revenue per Room pa ({currencySymbol})</label><input className="inp" type="number" value={data.spaRevenuePerRoomPa??800} onChange={e=>set("spaRevenuePerRoomPa",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.spaUtilisationPct??40} onChange={e=>set("spaUtilisationPct",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Spa GOP Margin (%)</label><input className="inp" type="number" value={data.spaMarginPct ?? 35} onChange={e => set("spaMarginPct", e.target.value)} /></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg3)", borderRadius: 6, fontSize: 12 }}>
-                    <span style={{ color: "var(--text-m)" }}>Spa Revenue pa</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: data.spaEnabled ? "var(--gold)" : "var(--text-d)" }}>{fmt(hotelRev?.spaRev || 0, currencySymbol)}</span>
+                  <div className="inp-group"><label className="inp-label">Spa GOP Margin (%)</label><input className="inp" type="number" value={data.spaMarginPct??35} onChange={e=>set("spaMarginPct",e.target.value)}/></div>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text-m)"}}>Spa Revenue pa</span>
+                    <span style={{fontFamily:"var(--font-mono)",color:data.spaEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.spaRev||0,currencySymbol)}</span>
                   </div>
                 </RevStream>
-
-                <RevStream title="Gym & Leisure" icon="" enabled={data.gymEnabled} onToggle={() => set("gymEnabled", !data.gymEnabled)}
-                  summary={fmt(hotelRev?.gymRev || 0, currencySymbol) + " pa"}
-                  open={streamOpen.gym} onOpen={() => setStreamOpen(s => ({ ...s, gym: !s.gym }))}>
+                <RevStream title="Gym & Leisure" icon="" enabled={data.gymEnabled} onToggle={()=>set("gymEnabled",!data.gymEnabled)} summary={fmt(hotelRev?.gymRev||0,currencySymbol)+" pa"} open={streamOpen.gym} onOpen={()=>setStreamOpen(s=>({...s,gym:!s.gym}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">External Membership Rev pa ({currencySymbol})</label><input className="inp" type="number" value={data.gymMembershipRevPa ?? 50000} onChange={e => set("gymMembershipRevPa", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Guest Rev per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.gymGuestRevPerOccRoom ?? 8} onChange={e => set("gymGuestRevPerOccRoom", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">External Membership Rev pa ({currencySymbol})</label><input className="inp" type="number" value={data.gymMembershipRevPa??50000} onChange={e=>set("gymMembershipRevPa",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Guest Rev per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.gymGuestRevPerOccRoom??8} onChange={e=>set("gymGuestRevPerOccRoom",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Gym GOP Margin (%)</label><input className="inp" type="number" value={data.gymMarginPct ?? 60} onChange={e => set("gymMarginPct", e.target.value)} /></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg3)", borderRadius: 6, fontSize: 12 }}>
-                    <span style={{ color: "var(--text-m)" }}>Gym Revenue pa</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: data.gymEnabled ? "var(--gold)" : "var(--text-d)" }}>{fmt(hotelRev?.gymRev || 0, currencySymbol)}</span>
+                  <div className="inp-group"><label className="inp-label">Gym GOP Margin (%)</label><input className="inp" type="number" value={data.gymMarginPct??60} onChange={e=>set("gymMarginPct",e.target.value)}/></div>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text-m)"}}>Gym Revenue pa</span>
+                    <span style={{fontFamily:"var(--font-mono)",color:data.gymEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.gymRev||0,currencySymbol)}</span>
                   </div>
                 </RevStream>
-
-                <RevStream title="Meeting Rooms & Events" icon="" enabled={data.meetingEnabled} onToggle={() => set("meetingEnabled", !data.meetingEnabled)}
-                  summary={fmt(hotelRev?.meetingRev || 0, currencySymbol) + " pa"}
-                  open={streamOpen.meeting} onOpen={() => setStreamOpen(s => ({ ...s, meeting: !s.meeting }))}>
+                <RevStream title="Meeting Rooms & Events" icon="" enabled={data.meetingEnabled} onToggle={()=>set("meetingEnabled",!data.meetingEnabled)} summary={fmt(hotelRev?.meetingRev||0,currencySymbol)+" pa"} open={streamOpen.meeting} onOpen={()=>setStreamOpen(s=>({...s,meeting:!s.meeting}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Number of Meeting Rooms</label><input className="inp" type="number" value={data.meetingRooms ?? 4} onChange={e => set("meetingRooms", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Avg Day Rate ({currencySymbol})</label><input className="inp" type="number" value={data.meetingAvgDayRate ?? 1200} onChange={e => set("meetingAvgDayRate", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">Number of Meeting Rooms</label><input className="inp" type="number" value={data.meetingRooms??4} onChange={e=>set("meetingRooms",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Avg Day Rate ({currencySymbol})</label><input className="inp" type="number" value={data.meetingAvgDayRate??1200} onChange={e=>set("meetingAvgDayRate",e.target.value)}/></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.meetingUtilisationPct ?? 45} onChange={e => set("meetingUtilisationPct", e.target.value)} /></div>
-                    <div className="inp-group"><label className="inp-label">Events GOP Margin (%)</label><input className="inp" type="number" value={data.meetingMarginPct ?? 40} onChange={e => set("meetingMarginPct", e.target.value)} /></div>
+                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.meetingUtilisationPct??45} onChange={e=>set("meetingUtilisationPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Events GOP Margin (%)</label><input className="inp" type="number" value={data.meetingMarginPct??40} onChange={e=>set("meetingMarginPct",e.target.value)}/></div>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg3)", borderRadius: 6, fontSize: 12 }}>
-                    <span style={{ color: "var(--text-m)" }}>Meetings Revenue pa</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: data.meetingEnabled ? "var(--gold)" : "var(--text-d)" }}>{fmt(hotelRev?.meetingRev || 0, currencySymbol)}</span>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text-m)"}}>Meetings Revenue pa</span>
+                    <span style={{fontFamily:"var(--font-mono)",color:data.meetingEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.meetingRev||0,currencySymbol)}</span>
                   </div>
                 </RevStream>
-
-                {/* P&L + Exit */}
-                <div style={{ background: "var(--bg2)", border: "1px solid var(--gold-border)", borderRadius: 10, padding: 16, marginTop: 8 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Total P&L Summary</div>
-                  {([["Total Revenue pa", hotelRev?.totalRev || 0, "var(--text)"], ["Total EBITDA pa", hotelRev?.totalEbitda || 0, "var(--green)"]] as any[]).map(([l, v, c]) => (
-                    <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--bg4)", fontSize: 13 }}>
-                      <span style={{ color: "var(--text-m)" }}>{l}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: c, fontWeight: 600 }}>{fmt(v, currencySymbol)}</span>
+                <div style={{background:"var(--bg2)",border:"1px solid var(--gold-border)",borderRadius:10,padding:16,marginTop:8}}>
+                  <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Total P&L Summary</div>
+                  {([["Total Revenue pa",hotelRev?.totalRev||0,"var(--text)"],["Total EBITDA pa",hotelRev?.totalEbitda||0,"var(--green)"]] as any[]).map(([l,v,c])=>(
+                    <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--bg4)",fontSize:13}}>
+                      <span style={{color:"var(--text-m)"}}>{l}</span>
+                      <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:600}}>{fmt(v,currencySymbol)}</span>
                     </div>
                   ))}
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Exit Assumptions</div>
+                  <div style={{marginTop:16}}>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Exit Assumptions</div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Stabilised Cap Rate (%)</label><input className="inp" type="number" step="0.1" value={data.stabilisedCapRate} onChange={e => set("stabilisedCapRate", e.target.value)} /></div>
-                      <div className="inp-group"><label className="inp-label">Exit Cap Rate (%)</label><input className="inp" type="number" step="0.1" value={data.exitCapRate} onChange={e => set("exitCapRate", e.target.value)} /></div>
+                      <div className="inp-group"><label className="inp-label">Stabilised Cap Rate (%)</label><input className="inp" type="number" step="0.1" value={data.stabilisedCapRate} onChange={e=>set("stabilisedCapRate",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Exit Cap Rate (%)</label><input className="inp" type="number" step="0.1" value={data.exitCapRate} onChange={e=>set("exitCapRate",e.target.value)}/></div>
                     </div>
                   </div>
                 </div>
@@ -754,115 +743,115 @@ function AppraisalPage() {
             )}
 
             {/* COSTS BTR/BTS */}
-            {activeTab === "costs" && assetType !== "Flip" && assetType !== "Hotel" && (
+            {activeTab==="costs"&&assetType!=="Flip"&&assetType!=="Hotel"&&(
               <div>
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Asset / Land Cost ({currencySymbol})</label><input className="inp" type="number" value={data.landCost} onChange={e => set("landCost", e.target.value)} /></div>
-                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
+                  <div className="inp-group"><label className="inp-label">Asset / Land Cost ({currencySymbol})</label><input className="inp" type="number" value={data.landCost} onChange={e=>set("landCost",e.target.value)}/></div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
                 </div>
-                <div className="section-title" style={{ marginTop: 24 }}>Build Costs</div>
+                <div className="section-title" style={{marginTop:24}}>Build Costs</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Build Cost (psf)</label><input className="inp" type="number" value={data.buildCostPsf} onChange={e => set("buildCostPsf", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Site Area (sqft)</label><input className="inp" type="number" value={data.siteAreaSqft} onChange={e => set("siteAreaSqft", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Build Cost (psf)</label><input className="inp" type="number" value={data.buildCostPsf} onChange={e=>set("buildCostPsf",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Site Area (sqft)</label><input className="inp" type="number" value={data.siteAreaSqft} onChange={e=>set("siteAreaSqft",e.target.value)}/></div>
                 </div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e => set("professionalFeesPct", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e => set("contingencyPct", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e => set("otherCosts", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
                 </div>
               </div>
             )}
 
             {/* COSTS HOTEL */}
-            {activeTab === "costs" && assetType === "Hotel" && (
+            {activeTab==="costs"&&assetType==="Hotel"&&(
               <div>
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} /></div>
-                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
+                  <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
                 </div>
-                <div className="section-title" style={{ marginTop: 24 }}>CapEx & Costs</div>
+                <div className="section-title" style={{marginTop:24}}>CapEx & Costs</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">CapEx Budget ({currencySymbol})</label><input className="inp" type="number" value={data.capexBudget} onChange={e => set("capexBudget", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e => set("otherCosts", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">CapEx Budget ({currencySymbol})</label><input className="inp" type="number" value={data.capexBudget} onChange={e=>set("capexBudget",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e => set("professionalFeesPct", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e => set("contingencyPct", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                 </div>
               </div>
             )}
 
             {/* COSTS FLIP */}
-            {activeTab === "costs" && assetType === "Flip" && (
+            {activeTab==="costs"&&assetType==="Flip"&&(
               <div>
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} /></div>
-                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
+                  <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
                 </div>
-                <div className="section-title" style={{ marginTop: 24 }}>Refurbishment</div>
+                <div className="section-title" style={{marginTop:24}}>Refurbishment</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Refurb Budget ({currencySymbol})</label><input className="inp" type="number" value={data.refurbBudget} onChange={e => set("refurbBudget", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e => set("otherCosts", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Refurb Budget ({currencySymbol})</label><input className="inp" type="number" value={data.refurbBudget} onChange={e=>set("refurbBudget",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e => set("professionalFeesPct", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e => set("contingencyPct", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                 </div>
-                <div className="section-title" style={{ marginTop: 24 }}>Sale</div>
+                <div className="section-title" style={{marginTop:24}}>Sale</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Sale Price ({currencySymbol})</label><input className="inp" type="number" value={data.salePrice} onChange={e => set("salePrice", e.target.value)} /></div>
-                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e => set("agentFeePct", e.target.value)} /></div>
+                  <div className="inp-group"><label className="inp-label">Sale Price ({currencySymbol})</label><input className="inp" type="number" value={data.salePrice} onChange={e=>set("salePrice",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
                 </div>
               </div>
             )}
 
             {/* FINANCE */}
-            {activeTab === "finance" && (
+            {activeTab==="finance"&&(
               <div>
                 <div className="section-title">Development Finance</div>
-                {assetType !== "Flip" ? (
+                {assetType!=="Flip"?(
                   <>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e => set("ltc", e.target.value)} /></div>
-                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark} onChange={e => set("marginOverBenchmark", e.target.value)} /></div>
+                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e=>set("ltc",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e => set("arrangementFeePct", e.target.value)} /></div>
-                      <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{ color: "var(--blue)", cursor: "not-allowed" }}>{r.financeRate ? `${(r.financeRate * 100).toFixed(2)}%` : "—"}</div></div>
+                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
                     </div>
-                    <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{ color: "var(--amber)", cursor: "not-allowed" }}>{fmt(r.loanAmount || 0, currencySymbol)}</div></div>
+                    <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
                   </>
-                ) : (
+                ):(
                   <>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Bridging Rate (%pm)</label><input className="inp" type="number" step="0.05" value={data.bridgingRatePct} onChange={e => set("bridgingRatePct", e.target.value)} /></div>
-                      <div className="inp-group"><label className="inp-label">Term (months)</label><input className="inp" type="number" value={data.bridgingTermMonths} onChange={e => set("bridgingTermMonths", e.target.value)} /></div>
+                      <div className="inp-group"><label className="inp-label">Bridging Rate (%pm)</label><input className="inp" type="number" step="0.05" value={data.bridgingRatePct} onChange={e=>set("bridgingRatePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Term (months)</label><input className="inp" type="number" value={data.bridgingTermMonths} onChange={e=>set("bridgingTermMonths",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e => set("arrangementFeePct", e.target.value)} /></div>
-                      <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{ color: "var(--amber)", cursor: "not-allowed" }}>{fmt(r.loanAmount || 0, currencySymbol)}</div></div>
+                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
                     </div>
                   </>
                 )}
-                {assetType !== "Flip" && (
+                {assetType!=="Flip"&&(
                   <>
-                    <div className="section-title" style={{ marginTop: 28 }}>Promote Waterfall</div>
-                    {[1, 2, 3].map(tier => (
+                    <div className="section-title" style={{marginTop:28}}>Promote Waterfall</div>
+                    {[1,2,3].map(tier=>(
                       <div key={tier} className="waterfall-tier">
-                        <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 500, marginBottom: 12 }}>Tier {tier}</div>
+                        <div style={{fontSize:12,color:"var(--gold)",fontWeight:500,marginBottom:12}}>Tier {tier}</div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">IRR Hurdle (%)</label><input className="inp" type="number" value={data[`tier${tier}Hurdle`]} onChange={e => set(`tier${tier}Hurdle`, e.target.value)} /></div>
-                          <div className="inp-group"><label className="inp-label">Developer Share (%)</label><input className="inp" type="number" value={data[`tier${tier}DevShare`]} onChange={e => set(`tier${tier}DevShare`, e.target.value)} /></div>
+                          <div className="inp-group"><label className="inp-label">IRR Hurdle (%)</label><input className="inp" type="number" value={data[`tier${tier}Hurdle`]} onChange={e=>set(`tier${tier}Hurdle`,e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Developer Share (%)</label><input className="inp" type="number" value={data[`tier${tier}DevShare`]} onChange={e=>set(`tier${tier}DevShare`,e.target.value)}/></div>
                         </div>
-                        <div style={{ height: 6, background: "var(--bg4)", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${data[`tier${tier}DevShare`]}%`, background: "linear-gradient(90deg,var(--gold),var(--gold-l))", borderRadius: 3 }} />
+                        <div style={{height:6,background:"var(--bg4)",borderRadius:3,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${data[`tier${tier}DevShare`]}%`,background:"linear-gradient(90deg,var(--gold),var(--gold-l))",borderRadius:3}}/>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-d)", marginTop: 4 }}>
+                        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text-d)",marginTop:4}}>
                           <span>Developer: {data[`tier${tier}DevShare`]}%</span>
-                          <span>Investor: {100 - data[`tier${tier}DevShare`]}%</span>
+                          <span>Investor: {100-data[`tier${tier}DevShare`]}%</span>
                         </div>
                       </div>
                     ))}
@@ -872,128 +861,128 @@ function AppraisalPage() {
             )}
 
             {/* CASHFLOW BTR */}
-            {activeTab === "cashflow" && assetType === "BTR" && (
+            {activeTab==="cashflow"&&assetType==="BTR"&&(
               <div>
                 <div className="section-title">Monthly Cash Flow (Indicative)</div>
-                <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 16 }}>
-                  {data.costProfile === "scurve" ? "S-Curve" : data.costProfile === "frontloaded" ? "Front-Loaded" : "Straight-Line"} cost profile · {data.programmMonths} month programme
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <div className="cf-row" style={{ marginBottom: 8 }}>
-                    {["Month", "Cost Draw", "Cum. Draw", "Interest", "Net CF", "Cum. Cost", "% Complete"].map(h => <div key={h} className="cf-header">{h}</div>)}
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>{data.costProfile==="scurve"?"S-Curve":data.costProfile==="frontloaded"?"Front-Loaded":"Straight-Line"} cost profile · {data.programmMonths} month programme</div>
+                <div style={{overflowX:"auto"}}>
+                  <div className="cf-row" style={{marginBottom:8}}>
+                    {["Month","Cost Draw","Cum. Draw","Interest","Net CF","Cum. Cost","% Complete"].map(h=><div key={h} className="cf-header">{h}</div>)}
                   </div>
-                  {Array.from({ length: Math.min(num(String(data.programmMonths)), 36) }, (_, m) => {
-                    const months = num(String(data.programmMonths));
-                    const totalCost = r.buildCost || 0;
-                    let pct = 0;
-                    if (data.costProfile === "scurve") pct = 1 / (1 + Math.exp(-10 * ((m + 1) / months - 0.5)));
-                    else if (data.costProfile === "frontloaded") pct = Math.sqrt((m + 1) / months);
-                    else pct = (m + 1) / months;
-                    const prevPct = m === 0 ? 0 : (data.costProfile === "scurve" ? 1 / (1 + Math.exp(-10 * (m / months - 0.5))) : data.costProfile === "frontloaded" ? Math.sqrt(m / months) : m / months);
-                    const draw = totalCost * (pct - prevPct);
-                    const cumDraw = totalCost * pct;
-                    const interest = cumDraw * ((r.financeRate || 0) / 12);
-                    const netCf = -(draw + interest);
-                    const cumCost = cumDraw + (r.landCost || 0) + (r.sdlt || 0);
-                    return (
-                      <div key={m} className="cf-row" style={{ background: m % 2 === 0 ? "transparent" : "rgba(255,255,255,.015)" }}>
-                        <div style={{ color: "var(--text-d)" }}>M{m + 1}</div>
-                        <div style={{ color: "var(--red)", fontFamily: "var(--font-mono)" }}>{fmt(draw, currencySymbol)}</div>
-                        <div style={{ color: "var(--text-m)", fontFamily: "var(--font-mono)" }}>{fmt(cumDraw, currencySymbol)}</div>
-                        <div style={{ color: "var(--amber)", fontFamily: "var(--font-mono)" }}>{fmt(interest, currencySymbol)}</div>
-                        <div style={{ color: "var(--red)", fontFamily: "var(--font-mono)" }}>{fmt(netCf, currencySymbol)}</div>
-                        <div style={{ color: "var(--text-m)", fontFamily: "var(--font-mono)" }}>{fmt(cumCost, currencySymbol)}</div>
-                        <div style={{ color: "var(--green)" }}>{(pct * 100).toFixed(0)}%</div>
-                      </div>
-                    );
+                  {Array.from({length:Math.min(num(String(data.programmMonths)),36)},(_,m)=>{
+                    const months=num(String(data.programmMonths));const totalCost=r.buildCost||0;
+                    let pct=0;
+                    if(data.costProfile==="scurve")pct=1/(1+Math.exp(-10*((m+1)/months-0.5)));
+                    else if(data.costProfile==="frontloaded")pct=Math.sqrt((m+1)/months);
+                    else pct=(m+1)/months;
+                    const prevPct=m===0?0:(data.costProfile==="scurve"?1/(1+Math.exp(-10*(m/months-0.5))):data.costProfile==="frontloaded"?Math.sqrt(m/months):m/months);
+                    const draw=totalCost*(pct-prevPct);const cumDraw=totalCost*pct;
+                    const interest=cumDraw*((r.financeRate||0)/12);const netCf=-(draw+interest);
+                    const cumCost=cumDraw+(r.landCost||0)+(r.sdlt||0);
+                    return(<div key={m} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
+                      <div style={{color:"var(--text-d)"}}>M{m+1}</div>
+                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(draw,currencySymbol)}</div>
+                      <div style={{color:"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumDraw,currencySymbol)}</div>
+                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)"}}>{fmt(interest,currencySymbol)}</div>
+                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(netCf,currencySymbol)}</div>
+                      <div style={{color:"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCost,currencySymbol)}</div>
+                      <div style={{color:"var(--green)"}}>{(pct*100).toFixed(0)}%</div>
+                    </div>);
                   })}
-                  <div className="cf-row" style={{ background: "rgba(201,168,76,.05)", borderTop: "1px solid var(--gold)44" }}>
-                    <div style={{ color: "var(--gold)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600 }}>EXIT</div>
-                    <div /><div /><div />
-                    <div style={{ color: "var(--green)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(r.gdv || 0, currencySymbol)}</div>
-                    <div /><div style={{ color: "var(--green)" }}>100%</div>
+                  <div className="cf-row" style={{background:"rgba(201,168,76,.05)",borderTop:"1px solid var(--gold)44"}}>
+                    <div style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600}}>EXIT</div>
+                    <div/><div/><div/>
+                    <div style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmt(r.gdv||0,currencySymbol)}</div>
+                    <div/><div style={{color:"var(--green)"}}>100%</div>
                   </div>
                 </div>
               </div>
             )}
 
             {/* ANALYSIS */}
-            {activeTab === "analysis" && (
+            {activeTab==="analysis"&&(
               <div>
                 <div className="section-title">Returns Summary</div>
-                <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
-                  {assetType === "BTR" && ([
-                    ["GDV (Exit)", fmt(r.gdv, currencySymbol), "var(--gold)"],
-                    ["Gross NOI pa", fmt(r.noi, currencySymbol), "var(--text)"],
-                    ["Total Build Cost", fmt(r.buildCost, currencySymbol), "var(--text-m)"],
-                    ["Total Finance Cost", fmt(r.totalFinanceCost, currencySymbol), "var(--amber)"],
-                    ["Total Cost", fmt(r.totalCost, currencySymbol), "var(--text-m)"],
-                    ["Profit", fmt(r.profit, currencySymbol), r.profit > 0 ? "var(--green)" : "var(--red)"],
-                    ["Profit on Cost", fmtPct(r.poc), r.poc > 0.2 ? "var(--green)" : r.poc > 0.1 ? "var(--amber)" : "var(--red)"],
-                    ["Yield on Cost", fmtPct(r.yoc), "var(--blue)"],
-                    ["IRR (Unlevered)", fmtPct(r.irr), "var(--blue)"],
-                    ["Residual Land Value", fmt(r.rlv, currencySymbol), "var(--gold)"],
-                  ] as any[]).map(([l, v, c]) => <div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{ color: c }}>{v}</span></div>)}
-                  {assetType === "BTS" && ([
-                    ["GDV", fmt(r.gdv, currencySymbol), "var(--gold)"],
-                    ["Total Units", r.totalUnits?.toString() || "—", "var(--text)"],
-                    ["Total Sqft", r.totalSqft?.toLocaleString() || "—", "var(--text-m)"],
-                    ["Total Cost", fmt(r.totalCost, currencySymbol), "var(--text-m)"],
-                    ["Profit", fmt(r.profit, currencySymbol), r.profit > 0 ? "var(--green)" : "var(--red)"],
-                    ["Profit on Cost", fmtPct(r.poc), r.poc > 0.2 ? "var(--green)" : r.poc > 0.1 ? "var(--amber)" : "var(--red)"],
-                    ["Profit on GDV", fmtPct(r.margin), r.margin > 0.15 ? "var(--green)" : "var(--amber)"],
-                    ["IRR (Unlevered)", fmtPct(r.irr), "var(--blue)"],
-                  ] as any[]).map(([l, v, c]) => <div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{ color: c }}>{v}</span></div>)}
-                  {assetType === "Hotel" && ([
-                    ["RevPAR", fmt(r.revpar, currencySymbol), "var(--gold)"],
-                    ["Total Revenue pa", fmt(r.revenuePa, currencySymbol), "var(--text)"],
-                    ["EBITDA pa", fmt(r.ebitda, currencySymbol), "var(--green)"],
-                    ["Stabilised Value", fmt(r.stabilisedValue, currencySymbol), "var(--text-m)"],
-                    ["Exit Value", fmt(r.exitValue, currencySymbol), "var(--gold)"],
-                    ["Total Investment", fmt(r.totalInvestment, currencySymbol), "var(--text-m)"],
-                    ["Profit", fmt(r.profit, currencySymbol), r.profit > 0 ? "var(--green)" : "var(--red)"],
-                    ["Return on Cost", fmtPct(r.poc), r.poc > 0.15 ? "var(--green)" : "var(--amber)"],
-                    ["Yield on Cost", fmtPct(r.yoc), "var(--blue)"],
-                    ["IRR", fmtPct(r.irr), "var(--blue)"],
-                  ] as any[]).map(([l, v, c]) => <div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{ color: c }}>{v}</span></div>)}
-                  {assetType === "Flip" && ([
-                    ["Purchase Price", fmt(r.purchase, currencySymbol), "var(--text)"],
-                    ["SDLT", fmt(r.sdlt, currencySymbol), "var(--amber)"],
-                    ["Refurb Budget", fmt(r.refurb, currencySymbol), "var(--text-m)"],
-                    ["Finance Cost", fmt(r.totalFinanceCost, currencySymbol), "var(--amber)"],
-                    ["Total Cost", fmt(r.totalCost, currencySymbol), "var(--text-m)"],
-                    ["Net Sale Proceeds", fmt(r.netProceeds, currencySymbol), "var(--gold)"],
-                    ["Profit", fmt(r.profit, currencySymbol), r.profit > 0 ? "var(--green)" : "var(--red)"],
-                    ["ROI on Total Cost", fmtPct(r.roi), r.roi > 0.15 ? "var(--green)" : "var(--amber)"],
-                    ["ROI on Equity", fmtPct(r.roiEquity), r.roiEquity > 0.25 ? "var(--green)" : "var(--amber)"],
-                    ["IRR (Annualised)", fmtPct(r.irr), "var(--blue)"],
-                  ] as any[]).map(([l, v, c]) => <div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{ color: c }}>{v}</span></div>)}
+                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,marginBottom:20}}>
+                  {assetType==="BTR"&&([
+                    ["GDV (Exit)",fmt(r.gdv,currencySymbol),"var(--gold)"],["Gross NOI pa",fmt(r.noi,currencySymbol),"var(--text)"],
+                    ["Total Build Cost",fmt(r.buildCost,currencySymbol),"var(--text-m)"],["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],
+                    ["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                    ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],
+                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"],
+                  ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
+                  {assetType==="BTS"&&([
+                    ["GDV",fmt(r.gdv,currencySymbol),"var(--gold)"],["Total Units",r.totalUnits?.toString()||"—","var(--text)"],
+                    ["Total Sqft",r.totalSqft?.toLocaleString()||"—","var(--text-m)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],
+                    ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                    ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],
+                    ["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                  ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
+                  {assetType==="Hotel"&&([
+                    ["RevPAR",fmt(r.revpar,currencySymbol),"var(--gold)"],["Total Revenue pa",fmt(r.revenuePa,currencySymbol),"var(--text)"],
+                    ["EBITDA pa",fmt(r.ebitda,currencySymbol),"var(--green)"],["Stabilised Value",fmt(r.stabilisedValue,currencySymbol),"var(--text-m)"],
+                    ["Exit Value",fmt(r.exitValue,currencySymbol),"var(--gold)"],["Total Investment",fmt(r.totalInvestment,currencySymbol),"var(--text-m)"],
+                    ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                    ["Return on Cost",fmtPct(r.poc),r.poc>0.15?"var(--green)":"var(--amber)"],
+                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR",fmtPct(r.irr),"var(--blue)"],
+                  ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
+                  {assetType==="Flip"&&([
+                    ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["SDLT",fmt(r.sdlt,currencySymbol),"var(--amber)"],
+                    ["Refurb Budget",fmt(r.refurb,currencySymbol),"var(--text-m)"],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],
+                    ["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],
+                    ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                    ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],
+                    ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],
+                    ["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],
+                  ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
 
-                {assetType === "BTR" && sensMatrix && (
-                  <div>
+                {assetType==="BTR"&&sensMatrix&&(
+                  <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
-                    <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 12 }}>Exit yield (rows) vs rent multiplier (columns)</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "80px repeat(5,1fr)", gap: 4, fontSize: 10 }}>
-                      <div />
-                      {["-10%", "-5%", "Base", "+5%", "+10%"].map(h => <div key={h} style={{ textAlign: "center", color: "var(--text-d)", padding: "4px", textTransform: "uppercase", letterSpacing: ".06em" }}>{h}</div>)}
-                      {sensMatrix.map((row: number[], yi: number) => {
-                        const yieldVal = num(String(data.exitYield)) + [-0.5, -0.25, 0, 0.25, 0.5][yi];
-                        return (<>
-                          <div key={`y${yi}`} style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 6, color: "var(--text-d)" }}>{yieldVal.toFixed(2)}%</div>
-                          {row.map((poc: number, ri: number) => (
-                            <div key={ri} className={`sens-cell ${poc > 0.20 ? "cell-g" : poc > 0.10 ? "cell-a" : "cell-r"} ${yi === 2 && ri === 2 ? "cell-base" : ""}`}>{(poc * 100).toFixed(1)}%</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit yield (rows) vs rent multiplier (columns)</div>
+                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10}}>
+                      <div/>
+                      {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                      {sensMatrix.map((row:number[],yi:number)=>{
+                        const yieldVal=num(String(data.exitYield))+[-0.5,-0.25,0,0.25,0.5][yi];
+                        return(<>
+                          <div key={`y${yi}`} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{yieldVal.toFixed(2)}%</div>
+                          {row.map((poc:number,ri:number)=>(
+                            <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${yi===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
                           ))}
                         </>);
                       })}
                     </div>
-                    <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
-                      {[["rgba(61,220,132,.15)", "> 20%"], ["rgba(240,164,41,.12)", "10–20%"], ["rgba(244,100,95,.12)", "< 10%"]].map(([bg, l]) => (
-                        <div key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--text-d)" }}><div style={{ width: 10, height: 10, borderRadius: 2, background: bg }} />{l}</div>
+                    <div style={{display:"flex",gap:16,marginTop:12}}>
+                      {[["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]].map(([bg,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {/* ── SHARE & EXPORT ── */}
+                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20}}>
+                  <div className="section-title" style={{marginBottom:16}}>Share & Export</div>
+                  <div style={{display:"flex",gap:8,marginBottom:16}}>
+                    <button className="share-btn" onClick={()=>setShareModal(true)}>
+                      <span className="share-btn-icon">🔗</span>
+                      <span className="share-btn-label">Live Link</span>
+                    </button>
+                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}shareEmail();}}>
+                      <span className="share-btn-icon">✉️</span>
+                      <span className="share-btn-label">Email</span>
+                    </button>
+                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}shareWhatsApp();}}>
+                      <span className="share-btn-icon">💬</span>
+                      <span className="share-btn-label">WhatsApp</span>
+                    </button>
+                  </div>
+                  {!saved&&<div style={{fontSize:11,color:"var(--amber)",marginTop:8}}>⚠ Save the appraisal before sharing</div>}
+                  {saved&&appraisalId&&<div style={{fontSize:11,color:"var(--text-d)"}}>Appraisal saved · ready to share</div>}
+                </div>
               </div>
             )}
 
@@ -1001,148 +990,186 @@ function AppraisalPage() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="output-panel" style={{ padding: 20, position: "sticky", top: 0, height: "calc(100vh - 102px)", overflowY: "auto", background: "var(--bg1)" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 300, color: "var(--text)", marginBottom: 4 }}>{data.name || "New Appraisal"}</div>
-          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 20 }}>{data.location || "No location"} · {assetType} · {data.currency}</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-            {assetType === "BTR" && [
-              { label: "GDV", value: fmt(r.gdv, currencySymbol), color: "var(--gold)" },
-              { label: "Profit on Cost", value: fmtPct(r.poc), color: r.poc > 0.2 ? "var(--green)" : r.poc > 0.1 ? "var(--amber)" : "var(--red)" },
-              { label: "IRR", value: fmtPct(r.irr), color: "var(--blue)" },
-              { label: "Yield on Cost", value: fmtPct(r.yoc), color: "var(--text)" },
-            ].map(m => (
-              <div key={m.label} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 9, padding: 12 }}>
-                <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: m.color }}>{m.value}</div>
-              </div>
-            ))}
-            {assetType === "BTS" && [
-              { label: "GDV", value: fmt(r.gdv, currencySymbol), color: "var(--gold)" },
-              { label: "Profit on Cost", value: fmtPct(r.poc), color: r.poc > 0.2 ? "var(--green)" : "var(--amber)" },
-              { label: "IRR", value: fmtPct(r.irr), color: "var(--blue)" },
-              { label: "Profit on GDV", value: fmtPct(r.margin), color: "var(--text)" },
-            ].map(m => (
-              <div key={m.label} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 9, padding: 12 }}>
-                <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: m.color }}>{m.value}</div>
-              </div>
-            ))}
-            {assetType === "Hotel" && [
-              { label: "Exit Value", value: fmt(r.exitValue, currencySymbol), color: "var(--gold)" },
-              { label: "EBITDA pa", value: fmt(r.ebitda, currencySymbol), color: "var(--green)" },
-              { label: "IRR", value: fmtPct(r.irr), color: "var(--blue)" },
-              { label: "Return on Cost", value: fmtPct(r.poc), color: r.poc > 0.15 ? "var(--green)" : "var(--amber)" },
-            ].map(m => (
-              <div key={m.label} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 9, padding: 12 }}>
-                <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: m.color }}>{m.value}</div>
-              </div>
-            ))}
-            {assetType === "Flip" && [
-              { label: "Sale Price", value: fmt(r.salePrice, currencySymbol), color: "var(--gold)" },
-              { label: "Profit", value: fmt(r.profit, currencySymbol), color: r.profit > 0 ? "var(--green)" : "var(--red)" },
-              { label: "ROI on Cost", value: fmtPct(r.roi), color: r.roi > 0.15 ? "var(--green)" : "var(--amber)" },
-              { label: "IRR", value: fmtPct(r.irr), color: "var(--blue)" },
-            ].map(m => (
-              <div key={m.label} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 9, padding: 12 }}>
-                <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: m.color }}>{m.value}</div>
-              </div>
-            ))}
+        <div className="output-panel" style={{padding:20,position:"sticky",top:0,height:"calc(100vh - 102px)",overflowY:"auto",background:"var(--bg1)"}}>
+          <div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,color:"var(--text)",marginBottom:4}}>{data.name||"New Appraisal"}</div>
+          <div style={{fontSize:11,color:"var(--text-d)",marginBottom:20}}>{data.location||"No location"} · {assetType} · {data.currency}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:20}}>
+            {assetType==="BTR"&&[
+              {label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},
+              {label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},
+              {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
+              {label:"Yield on Cost",value:fmtPct(r.yoc),color:"var(--text)"},
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}>
+              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div>
+            </div>))}
+            {assetType==="BTS"&&[
+              {label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},
+              {label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":"var(--amber)"},
+              {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
+              {label:"Profit on GDV",value:fmtPct(r.margin),color:"var(--text)"},
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}>
+              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div>
+            </div>))}
+            {assetType==="Hotel"&&[
+              {label:"Exit Value",value:fmt(r.exitValue,currencySymbol),color:"var(--gold)"},
+              {label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol),color:"var(--green)"},
+              {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
+              {label:"Return on Cost",value:fmtPct(r.poc),color:r.poc>0.15?"var(--green)":"var(--amber)"},
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}>
+              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div>
+            </div>))}
+            {assetType==="Flip"&&[
+              {label:"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},
+              {label:"Profit",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},
+              {label:"ROI on Cost",value:fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},
+              {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}>
+              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div>
+            </div>))}
           </div>
 
-          {/* Hotel revenue breakdown */}
-          {assetType === "Hotel" && hotelRev && (
-            <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Revenue Breakdown</div>
+          {assetType==="Hotel"&&hotelRev&&(
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
+              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Revenue Breakdown</div>
               {([
-                ["Rooms", hotelRev.roomsRev, hotelRev.roomsEbitda, true],
-                ["F&B", hotelRev.fnbRev, hotelRev.fnbEbitda, data.fnbEnabled],
-                ["Spa", hotelRev.spaRev, hotelRev.spaEbitda, data.spaEnabled],
-                ["Gym", hotelRev.gymRev, hotelRev.gymEbitda, data.gymEnabled],
-                ["Meetings", hotelRev.meetingRev, hotelRev.meetingEbitda, data.meetingEnabled],
-              ] as any[]).filter(([,,, en]) => en).map(([label, rev, ebitda]: any) => (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--bg4)", fontSize: 11 }}>
-                  <span style={{ color: "var(--text-m)", width: 60 }}>{label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-m)" }}>{fmt(rev, currencySymbol)}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontSize: 10 }}>{fmt(ebitda, currencySymbol)}</span>
+                ["Rooms",hotelRev.roomsRev,hotelRev.roomsEbitda,true],
+                ["F&B",hotelRev.fnbRev,hotelRev.fnbEbitda,data.fnbEnabled],
+                ["Spa",hotelRev.spaRev,hotelRev.spaEbitda,data.spaEnabled],
+                ["Gym",hotelRev.gymRev,hotelRev.gymEbitda,data.gymEnabled],
+                ["Meetings",hotelRev.meetingRev,hotelRev.meetingEbitda,data.meetingEnabled],
+              ] as any[]).filter(([,,,en])=>en).map(([label,rev,ebitda]:any)=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--bg4)",fontSize:11}}>
+                  <span style={{color:"var(--text-m)",width:60}}>{label}</span>
+                  <span style={{fontFamily:"var(--font-mono)",color:"var(--text-m)"}}>{fmt(rev,currencySymbol)}</span>
+                  <span style={{fontFamily:"var(--font-mono)",color:"var(--green)",fontSize:10}}>{fmt(ebitda,currencySymbol)}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, marginTop: 4 }}>
-                <span style={{ color: "var(--gold)", fontWeight: 600 }}>Total EBITDA</span>
-                <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 600 }}>{fmt(hotelRev.totalEbitda, currencySymbol)}</span>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:12,marginTop:4}}>
+                <span style={{color:"var(--gold)",fontWeight:600}}>Total EBITDA</span>
+                <span style={{fontFamily:"var(--font-mono)",color:"var(--green)",fontWeight:600}}>{fmt(hotelRev.totalEbitda,currencySymbol)}</span>
               </div>
             </div>
           )}
 
-          <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-            <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Cost Breakdown</div>
-            {assetType === "BTR" && ([
-              { label: "Land + SDLT", value: (r.landCost || 0) + (r.sdlt || 0), color: "var(--text-m)" },
-              { label: "Build Cost", value: r.buildCost, color: "var(--text-m)" },
-              { label: "Dev Costs", value: r.devCost, color: "var(--text-m)" },
-              { label: "Finance", value: r.totalFinanceCost, color: "var(--amber)" },
-              { label: "Total", value: r.totalCost, color: "var(--gold)", bold: true },
-            ] as any[]).map((item: any) => (
-              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--bg4)", fontSize: 12 }}>
-                <span style={{ color: "var(--text-m)" }}>{item.label}</span>
-                <span style={{ fontFamily: "var(--font-mono)", color: item.color, fontWeight: item.bold ? 600 : 400 }}>{fmt(item.value || 0, currencySymbol)}</span>
+          <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
+            <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Cost Breakdown</div>
+            {assetType==="BTR"&&([
+              {label:"Land + SDLT",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},
+              {label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},
+              {label:"Dev Costs",value:r.devCost,color:"var(--text-m)"},
+              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
+              {label:"Total",value:r.totalCost,color:"var(--gold)",bold:true},
+            ] as any[]).map((item:any)=>(
+              <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                <span style={{color:"var(--text-m)"}}>{item.label}</span>
+                <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
               </div>
             ))}
-            {assetType === "Hotel" && ([
-              { label: "Purchase + SDLT", value: (r.purchasePrice || 0) + (r.sdlt || 0), color: "var(--text-m)" },
-              { label: "CapEx", value: r.capex, color: "var(--text-m)" },
-              { label: "Finance", value: r.totalFinanceCost, color: "var(--amber)" },
-              { label: "Total Investment", value: r.totalInvestment, color: "var(--gold)", bold: true },
-            ] as any[]).map((item: any) => (
-              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--bg4)", fontSize: 12 }}>
-                <span style={{ color: "var(--text-m)" }}>{item.label}</span>
-                <span style={{ fontFamily: "var(--font-mono)", color: item.color, fontWeight: item.bold ? 600 : 400 }}>{fmt(item.value || 0, currencySymbol)}</span>
+            {assetType==="Hotel"&&([
+              {label:"Purchase + SDLT",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},
+              {label:"CapEx",value:r.capex,color:"var(--text-m)"},
+              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
+              {label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true},
+            ] as any[]).map((item:any)=>(
+              <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                <span style={{color:"var(--text-m)"}}>{item.label}</span>
+                <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
               </div>
             ))}
-            {assetType === "Flip" && ([
-              { label: "Purchase + SDLT", value: (r.purchase || 0) + (r.sdlt || 0), color: "var(--text-m)" },
-              { label: "Refurb + Fees", value: (r.refurb || 0) + (r.profFees || 0) + (r.contingency || 0), color: "var(--text-m)" },
-              { label: "Finance", value: r.totalFinanceCost, color: "var(--amber)" },
-              { label: "Total", value: r.totalCost, color: "var(--gold)", bold: true },
-            ] as any[]).map((item: any) => (
-              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--bg4)", fontSize: 12 }}>
-                <span style={{ color: "var(--text-m)" }}>{item.label}</span>
-                <span style={{ fontFamily: "var(--font-mono)", color: item.color, fontWeight: item.bold ? 600 : 400 }}>{fmt(item.value || 0, currencySymbol)}</span>
+            {assetType==="Flip"&&([
+              {label:"Purchase + SDLT",value:(r.purchase||0)+(r.sdlt||0),color:"var(--text-m)"},
+              {label:"Refurb + Fees",value:(r.refurb||0)+(r.profFees||0)+(r.contingency||0),color:"var(--text-m)"},
+              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
+              {label:"Total",value:r.totalCost,color:"var(--gold)",bold:true},
+            ] as any[]).map((item:any)=>(
+              <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                <span style={{color:"var(--text-m)"}}>{item.label}</span>
+                <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
               </div>
             ))}
           </div>
 
-          {(r.poc !== undefined) && (
-            <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 11 }}>
-                <span style={{ color: "var(--text-d)" }}>Return vs 20% Target</span>
-                <span style={{ color: r.poc > 0.2 ? "var(--green)" : "var(--amber)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmtPct(r.poc)}</span>
+          {(r.poc!==undefined)&&(
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:11}}>
+                <span style={{color:"var(--text-d)"}}>Return vs 20% Target</span>
+                <span style={{color:r.poc>0.2?"var(--green)":"var(--amber)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmtPct(r.poc)}</span>
               </div>
-              <div style={{ height: 6, background: "var(--bg4)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${Math.min((r.poc / 0.3) * 100, 100)}%`, background: r.poc > 0.2 ? "linear-gradient(90deg,var(--green),#2ab06a)" : "linear-gradient(90deg,var(--amber),#d4920a)", borderRadius: 3, transition: "width .3s" }} />
+              <div style={{height:6,background:"var(--bg4)",borderRadius:3,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${Math.min((r.poc/0.3)*100,100)}%`,background:r.poc>0.2?"linear-gradient(90deg,var(--green),#2ab06a)":"linear-gradient(90deg,var(--amber),#d4920a)",borderRadius:3,transition:"width .3s"}}/>
               </div>
-              <div style={{ fontSize: 9, color: "var(--text-d)", marginTop: 6, textAlign: "right" }}>
-                {r.poc > 0.2 ? `${((r.poc - 0.2) * 100).toFixed(1)}% above target` : `${((0.2 - r.poc) * 100).toFixed(1)}% below target`}
+              <div style={{fontSize:9,color:"var(--text-d)",marginTop:6,textAlign:"right"}}>
+                {r.poc>0.2?`${((r.poc-0.2)*100).toFixed(1)}% above target`:`${((0.2-r.poc)*100).toFixed(1)}% below target`}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── SHARE MODAL ── */}
+      {shareModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShareModal(false);}}>
+          <div className="modal">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontFamily:"var(--font-display)",fontSize:26,fontWeight:300}}>Share Appraisal</div>
+              <button onClick={()=>setShareModal(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:20}}>×</button>
+            </div>
+            <p style={{fontSize:13,color:"var(--text-d)",marginBottom:28}}>{data.name||"Untitled"} · {assetType} · {data.location||"No location"}</p>
+
+            {/* Live Link */}
+            <div style={{background:"var(--bg3)",borderRadius:10,padding:16,marginBottom:16}}>
+              <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Live Link</div>
+              {!liveLink?(
+                <button className="btn-primary" onClick={generateLiveLink} disabled={generatingLink||!saved} style={{width:"100%",justifyContent:"center"}}>
+                  {generatingLink?"Generating…":!saved?"Save appraisal first":"Generate Live Link"}
+                </button>
+              ):(
+                <>
+                  <div style={{background:"var(--bg4)",borderRadius:7,padding:"10px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--gold)",wordBreak:"break-all",marginBottom:10}}>{liveLink}</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn-primary" onClick={copyLink} style={{flex:1,justifyContent:"center"}}>
+                      {linkCopied?"✓ Copied!":"Copy Link"}
+                    </button>
+                    <button className="btn-ghost" onClick={shareEmail} style={{flex:1,justifyContent:"center"}}>Email</button>
+                    <button className="btn-ghost" onClick={shareWhatsApp} style={{flex:1,justifyContent:"center"}}>WhatsApp</button>
+                  </div>
+                </>
+              )}
+              <p style={{fontSize:11,color:"var(--text-d)",marginTop:10}}>Anyone with this link can view the full appraisal — no login required.</p>
+            </div>
+
+            {/* Quick share */}
+            <div style={{display:"flex",gap:8}}>
+              <button className="share-btn" onClick={shareEmail}>
+                <span className="share-btn-icon">✉️</span>
+                <span className="share-btn-label">Email</span>
+              </button>
+              <button className="share-btn" onClick={shareWhatsApp}>
+                <span className="share-btn-icon">💬</span>
+                <span className="share-btn-label">WhatsApp</span>
+              </button>
+            </div>
+            {(!liveLink)&&<p style={{fontSize:11,color:"var(--amber)",marginTop:12}}>Generate a live link above first to share via email or WhatsApp.</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function AppraisalPageWrapper() {
-  return (
+export default function AppraisalPageWrapper(){
+  return(
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+      <div style={{minHeight:"100vh",background:"#06070a",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.2)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     }>
-      <AppraisalPage />
+      <AppraisalPage/>
     </Suspense>
   );
 }
