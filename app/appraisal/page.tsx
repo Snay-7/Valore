@@ -109,7 +109,7 @@ function calcIRR(cashflows:number[]):number{
       if(Math.abs(next-rate)<1e-8)return isFinite(next)?next:0;
       rate=next;
     }
-    return isFinite(rate)u0026u0026rate>-1?rate:0;
+    return (isFinite(rate)&&rate>-1)?rate:0;
   }
   for(let i=0;i<100;i++){
     const mid=(lo+hi)/2;
