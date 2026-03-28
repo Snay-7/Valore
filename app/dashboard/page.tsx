@@ -59,9 +59,9 @@ export default function Dashboard() {
             <h1 style={{ fontFamily:"Georgia,serif", fontSize:36, fontWeight:300, marginBottom:6 }}>Dashboard</h1>
             <p style={{ fontSize:14, color:"#7d8590" }}>Welcome back — {user?.email}</p>
           </div>
-          <button style={{ background:"#c9a84c", color:"#06070a", border:"none", borderRadius:8, padding:"12px 24px", fontSize:13, fontWeight:600, cursor:"pointer" }}>
-            + New Appraisal
-          </button>
+          <button onClick={()=>router.push("/appraisal")} style={{ background:"#c9a84c", color:"#06070a", border:"none", borderRadius:8, padding:"12px 24px", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+  + New Appraisal
+</button>
         </div>
 
         {projects.length === 0 ? (
@@ -69,9 +69,9 @@ export default function Dashboard() {
             <div style={{ fontSize:48, marginBottom:20 }}>◈</div>
             <h2 style={{ fontFamily:"Georgia,serif", fontSize:28, fontWeight:300, marginBottom:12, color:"#eceae4" }}>No projects yet</h2>
             <p style={{ fontSize:15, color:"#7d8590", marginBottom:32 }}>Create your first appraisal to get started.</p>
-            <button style={{ background:"#c9a84c", color:"#06070a", border:"none", borderRadius:8, padding:"14px 32px", fontSize:14, fontWeight:600, cursor:"pointer" }}>
-              Create First Appraisal →
-            </button>
+            <button onClick={()=>router.push("/appraisal")} style={{ background:"#c9a84c", color:"#06070a", border:"none", borderRadius:8, padding:"14px 32px", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+  Create First Appraisal →
+</button>
           </div>
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16 }}>
