@@ -460,9 +460,19 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
       const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.6;const totalFinanceCost=arrangementFee+interestEst;
       const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const yoc=totalSqft>0?noi/totalCost:0;
-      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;const rlv=gdv*(1-(poc>0?poc:0.2))-devCost-totalFinanceCost;
-      return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,yoc,irr,rlv,financeRate,loanAmount};
+      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
+      // Unlevered IRR — whole cost, full GDV exit
+      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      // Levered IRR — equity in, equity out (after debt repayment)
+      const equity=totalCost-loanAmount;
+      const debtRepayment=loanAmount;
+      const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(0);equityCfs.push(gdv-debtRepayment);
+      const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      // RLV — what you can afford to pay for the land given target return
+      const targetReturn=0.20;
+      const rlv=gdv/(1+targetReturn)-devCost-totalFinanceCost-sdlt;
+      return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,yoc,irr,irrLevered,rlv,financeRate,loanAmount};
     }
     if(assetType==="BTS"){
       const units=data.units||[];const gdv=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf))),0);const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
@@ -471,7 +481,8 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const totalFinanceCost=arrangementFee+interestEst;
       const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const margin=gdv>0?profit/gdv:0;
       const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,loanAmount,financeRate};
+      const equity=totalCost-loanAmount;const equityCfs=[-equity];for(let m=1;m<months;m++)equityCfs.push(gdv/num(String(data.absorptionMonths)));const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,irrLevered,loanAmount,financeRate};
     }
     if(assetType==="Hotel"){
       const hr=calcHotelRev(data);const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);const revenuePa=hr.totalRev;const ebitda=hr.totalEbitda;
@@ -481,7 +492,8 @@ function AppraisalPage(){
       const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=totalCost*(num(String(data.ltc))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const totalFinanceCost=interestEst+arrangementFee;
       const totalInvestment=totalCost+totalFinanceCost;const profit=exitValue-totalInvestment;const poc=totalInvestment>0?profit/totalInvestment:0;const yoc=totalInvestment>0?ebitda/totalInvestment:0;
       const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,loanAmount};
+      const equity=totalInvestment-loanAmount;const equityCfs=[-equity,...Array(months-1).fill(0),exitValue-loanAmount];const irrLevered=Math.pow(1+calcIRR(equityCfs),12)-1;
+      return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,irrLevered,loanAmount};
     }
     if(assetType==="Flip"){
       const purchase=num(String(data.purchasePrice));const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
@@ -1030,7 +1042,9 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                     ["Total Build Cost",fmt(r.buildCost,currencySymbol),"var(--text-m)"],["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],
                     ["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
                     ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],
-                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],
+                    ["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],
                     ["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="BTS"&&([
@@ -1038,7 +1052,9 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                     ["Total Sqft",r.totalSqft?.toLocaleString()||"—","var(--text-m)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],
                     ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
                     ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],
-                    ["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],
+                    ["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Hotel"&&([
                     ["RevPAR",fmt(r.revpar,currencySymbol),"var(--gold)"],["Total Revenue pa",fmt(r.revenuePa,currencySymbol),"var(--text)"],
@@ -1046,7 +1062,9 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                     ["Exit Value",fmt(r.exitValue,currencySymbol),"var(--gold)"],["Total Investment",fmt(r.totalInvestment,currencySymbol),"var(--text-m)"],
                     ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
                     ["Return on Cost",fmtPct(r.poc),r.poc>0.15?"var(--green)":"var(--amber)"],
-                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR",fmtPct(r.irr),"var(--blue)"],
+                    ["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],
+                    ["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],
+                    ["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Flip"&&([
                     ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["SDLT",fmt(r.sdlt,currencySymbol),"var(--amber)"],
@@ -1129,8 +1147,8 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
             {assetType==="BTR"&&[
               {label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},
               {label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},
-              {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
-              {label:"Yield on Cost",value:fmtPct(r.yoc),color:"var(--text)"},
+              {label:"IRR (Unlevered)",value:fmtPct(r.irr),color:"var(--blue)"},
+              {label:"IRR (Levered)",value:fmtPct(r.irrLevered),color:"var(--blue)"},
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}>
               <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div>
               <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div>
