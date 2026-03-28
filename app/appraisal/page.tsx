@@ -791,10 +791,10 @@ function AppraisalPage() {
             {/* ── COSTS TAB — BTR & BTS ── */}
             {activeTab === "costs" && assetType !== "Flip" && assetType !== "Hotel" && (
               <div>
-                <div className="section-title">Land</div>
+                <div className="section-title">Acquisition</div>
                 <div className="inp-row">
                   <div className="inp-group">
-                    <label className="inp-label">Land Cost ({currencySymbol})</label>
+                    <label className="inp-label">Asset / Land Cost ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.landCost} onChange={e => set("landCost", e.target.value)} />
                   </div>
                   <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
