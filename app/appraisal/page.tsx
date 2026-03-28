@@ -21,6 +21,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 .inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s}
 .inp:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.1)}
 .inp::placeholder{color:var(--text-d);font-family:var(--font-body)}
@@ -37,8 +38,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .output-value{font-family:var(--font-mono);font-size:13px;font-weight:500}
 .btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:10px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:8px}
 .btn-primary:hover{background:var(--gold-l)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:9px 18px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(244,100,95,.3);border-radius:7px;padding:5px 12px;font-family:var(--font-body);font-size:11px;cursor:pointer;transition:all .2s}
+.btn-danger:hover{background:rgba(244,100,95,.1);border-color:var(--red)}
 .unit-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg4)}
 .sens-cell{text-align:center;padding:7px 4px;border-radius:5px;font-family:var(--font-mono);font-size:11px;font-weight:500}
 .cell-r{background:rgba(244,100,95,.12);color:var(--red)}
@@ -54,12 +58,22 @@ select.inp{cursor:pointer}
 .rev-stream-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:var(--bg2);transition:background .2s}
 .rev-stream-hdr:hover{background:var(--bg3)}
 .rev-stream-body{padding:16px;background:var(--bg1);border-top:1px solid var(--border)}
-.share-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;flex:1}
+.share-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;flex:1}
 .share-btn:hover{border-color:var(--gold-border);background:var(--bg3)}
-.share-btn-icon{font-size:20px}
-.share-btn-label{font-size:10px;color:var(--text-m);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-body)}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
-.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:32px;width:560px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto}
+.share-btn:disabled{opacity:.4;cursor:not-allowed}
+.share-btn-icon{font-size:18px}
+.share-btn-label{font-size:9px;color:var(--text-m);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-body);text-align:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
+.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:32px;width:640px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto}
+.modal-sm{width:440px}
+.ai-section{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+.ai-section-label{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;display:block;font-family:var(--font-body)}
+.ai-textarea{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:12px;line-height:1.65;padding:10px 12px;outline:none;resize:vertical;min-height:90px;transition:border-color .2s}
+.ai-textarea:focus{border-color:var(--gold)}
+.photo-slot{width:80px;height:80px;border:1px dashed var(--border-m);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;transition:border-color .2s;flex-shrink:0}
+.photo-slot:hover{border-color:var(--gold)}
+.photo-slot img{width:100%;height:100%;object-fit:cover}
+.ai-generating{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:90px}
 @media(max-width:768px){
   .inp-row{grid-template-columns:1fr}
   .inp-row-3{grid-template-columns:1fr 1fr}
@@ -82,7 +96,6 @@ function calcSDLT(price:number,mode:'auto'|'manual',txType:'residential'|'commer
   }
   return Math.round(sdlt);
 }
-
 function calcIRR(cashflows:number[]):number{
   let rate=0.1;
   for(let i=0;i<100;i++){
@@ -93,7 +106,6 @@ function calcIRR(cashflows:number[]):number{
   }
   return isFinite(rate)?rate:0;
 }
-
 const fmt=(n:number,prefix="£")=>{
   if(!isFinite(n)||isNaN(n))return"—";
   const abs=Math.abs(n);
@@ -106,351 +118,242 @@ const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${(n*100).toFixed(1)}%`)
 const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
 
 const DEFAULTS={
-  BTR:{
-    assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
-    programmMonths:36,stabilisationMonths:12,
-    units:[
-      {type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},
-      {type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},
-      {type:"2 Bed DMR",count:22,rentPcm:2175,size:750},
-    ],
-    exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,
-    landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,
-    professionalFeesPct:8,contingencyPct:5,otherCosts:500000,
-    ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,
-    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,
-    costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true,
-  },
-  BTS:{
-    assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
-    programmMonths:30,stabilisationMonths:6,
-    units:[
-      {type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},
-      {type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800},
-    ],
-    agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,
-    landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,
-    professionalFeesPct:8,contingencyPct:5,otherCosts:300000,
-    ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,
-    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,
-    costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true,
-  },
-  Hotel:{
-    assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
-    programmMonths:24,stabilisationMonths:18,
-    rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,
-    roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,
-    spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,
-    gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,
-    meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,
-    exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,
-    professionalFeesPct:5,contingencyPct:8,otherCosts:200000,
-    ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,
-    tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,
-    costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,
-  },
-  Flip:{
-    assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
-    programmMonths:9,stabilisationMonths:0,
-    purchasePrice:450000,refurbBudget:85000,salePrice:620000,agentFeePct:1.5,
-    bridgingRatePct:0.85,bridgingTermMonths:9,arrangementFeePct:2.0,
-    professionalFeesPct:2,contingencyPct:10,otherCosts:5000,costProfile:"straight",
-    sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,
-  },
+  BTR:{assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
+  BTS:{assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
+  Hotel:{assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
+  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,refurbBudget:85000,salePrice:620000,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:9,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
 };
-
 type AssetType="BTR"|"BTS"|"Hotel"|"Flip";
+type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
 
 function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string}){
-  return(
-    <div className="inp-group" style={{gridColumn:"1 / -1"}}>
-      <label className="inp-label">SDLT</label>
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#06070a":"var(--text-m)"}}>Auto</button>
-        <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#06070a":"var(--text-m)"}}>Override</button>
-      </div>
-      {data.sdltMode!=="manual"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <select className="inp" value={data.sdltTransactionType??"residential"} onChange={e=>set("sdltTransactionType",e.target.value)}>
-            <option value="residential">Residential</option>
-            <option value="commercial">Commercial / Non-Residential</option>
-            <option value="mixed">Mixed-Use</option>
-            <option value="spv">SPV Share Deal (Exempt)</option>
-          </select>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <input type="checkbox" id="sdltSurcharge" checked={data.sdltSurcharge??true} onChange={e=>set("sdltSurcharge",e.target.checked)}/>
-            <label htmlFor="sdltSurcharge" className="inp-label" style={{marginBottom:0,fontSize:12}}>+3% surcharge (additional dwelling / company purchase)</label>
-          </div>
-          <div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>
-            {fmt(r.sdlt||0,currencySymbol)}
-            {data.sdltTransactionType==="spv"&&<span style={{marginLeft:8,fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)"}}>EXEMPT</span>}
-          </div>
-        </div>
-      )}
-      {data.sdltMode==="manual"&&<input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride??0} onChange={e=>set("sdltOverride",+e.target.value)}/>}
+  return(<div className="inp-group" style={{gridColumn:"1 / -1"}}>
+    <label className="inp-label">SDLT</label>
+    <div style={{display:"flex",gap:8,marginBottom:8}}>
+      <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#06070a":"var(--text-m)"}}>Auto</button>
+      <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#06070a":"var(--text-m)"}}>Override</button>
     </div>
-  );
+    {data.sdltMode!=="manual"&&(<div style={{display:"flex",flexDirection:"column",gap:8}}>
+      <select className="inp" value={data.sdltTransactionType??"residential"} onChange={e=>set("sdltTransactionType",e.target.value)}>
+        <option value="residential">Residential</option><option value="commercial">Commercial / Non-Residential</option>
+        <option value="mixed">Mixed-Use</option><option value="spv">SPV Share Deal (Exempt)</option>
+      </select>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <input type="checkbox" id="sdltSurcharge" checked={data.sdltSurcharge??true} onChange={e=>set("sdltSurcharge",e.target.checked)}/>
+        <label htmlFor="sdltSurcharge" className="inp-label" style={{marginBottom:0,fontSize:12}}>+3% surcharge (additional dwelling / company purchase)</label>
+      </div>
+      <div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>
+        {fmt(r.sdlt||0,currencySymbol)}
+        {data.sdltTransactionType==="spv"&&<span style={{marginLeft:8,fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)"}}>EXEMPT</span>}
+      </div>
+    </div>)}
+    {data.sdltMode==="manual"&&<input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride??0} onChange={e=>set("sdltOverride",+e.target.value)}/>}
+  </div>);
 }
 
 function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
-  return(
-    <div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
-      <div className="rev-stream-hdr" onClick={onOpen}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {icon&&<span style={{fontSize:16}}>{icon}</span>}
-          <span style={{fontSize:13,fontWeight:600,color:enabled?"var(--text)":"var(--text-d)"}}>{title}</span>
-          {enabled&&<span style={{fontSize:10,color:"var(--green)",fontFamily:"var(--font-mono)",background:"rgba(61,220,132,.1)",padding:"2px 7px",borderRadius:4}}>ON</span>}
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {enabled&&<span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--gold)"}}>{summary}</span>}
-          <span style={{fontSize:10,color:"var(--text-d)"}}>{open?"▲":"▼"}</span>
-        </div>
+  return(<div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
+    <div className="rev-stream-hdr" onClick={onOpen}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        {icon&&<span style={{fontSize:16}}>{icon}</span>}
+        <span style={{fontSize:13,fontWeight:600,color:enabled?"var(--text)":"var(--text-d)"}}>{title}</span>
+        {enabled&&<span style={{fontSize:10,color:"var(--green)",fontFamily:"var(--font-mono)",background:"rgba(61,220,132,.1)",padding:"2px 7px",borderRadius:4}}>ON</span>}
       </div>
-      {open&&(
-        <div className="rev-stream-body">
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-            <div style={{position:"relative",width:36,height:20,background:enabled?"var(--gold)":"var(--bg4)",borderRadius:10,cursor:"pointer",transition:"background .2s",flexShrink:0}} onClick={onToggle}>
-              <div style={{position:"absolute",top:2,left:enabled?18:2,width:16,height:16,background:"#fff",borderRadius:"50%",transition:"left .2s"}}/>
-            </div>
-            <span style={{fontSize:12,color:"var(--text-m)"}}>{enabled?`${title} included in EBITDA`:`${title} excluded — toggle to include`}</span>
-          </div>
-          {children}
-        </div>
-      )}
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        {enabled&&<span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--gold)"}}>{summary}</span>}
+        <span style={{fontSize:10,color:"var(--text-d)"}}>{open?"▲":"▼"}</span>
+      </div>
     </div>
-  );
+    {open&&(<div className="rev-stream-body">
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <div style={{position:"relative",width:36,height:20,background:enabled?"var(--gold)":"var(--bg4)",borderRadius:10,cursor:"pointer",transition:"background .2s",flexShrink:0}} onClick={onToggle}>
+          <div style={{position:"absolute",top:2,left:enabled?18:2,width:16,height:16,background:"#fff",borderRadius:"50%",transition:"left .2s"}}/>
+        </div>
+        <span style={{fontSize:12,color:"var(--text-m)"}}>{enabled?`${title} included in EBITDA`:`${title} excluded — toggle to include`}</span>
+      </div>
+      {children}
+    </div>)}
+  </div>);
 }
 
-/* ─── PDF Generator ─── */
-async function generatePDF(data:any, results:any, assetType:string, currencySymbol:string, userEmail:string){
-  // Dynamically load jsPDF from CDN
+/* ─── Plain PDF ─── */
+async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string){
   if(!(window as any).jspdf){
     await new Promise<void>((resolve,reject)=>{
       const s=document.createElement("script");
       s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload=()=>resolve();
-      s.onerror=()=>reject();
-      document.head.appendChild(s);
+      s.onload=()=>resolve();s.onerror=()=>reject();document.head.appendChild(s);
     });
   }
   const{jsPDF}=(window as any).jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const W=210,M=20;
-  let y=M;
-
-  const gold=[201,168,76];
-  const dark=[6,7,10];
-  const grey=[125,133,144];
-  const white=[255,255,255];
-  const green=[61,220,132];
-  const red=[244,100,95];
-
-  // Background
-  doc.setFillColor(...dark as [number,number,number]);
-  doc.rect(0,0,210,297,"F");
-
-  // Gold header bar
-  doc.setFillColor(...gold as [number,number,number]);
-  doc.rect(0,0,210,2,"F");
-
-  // VALORA wordmark
-  doc.setTextColor(...gold as [number,number,number]);
-  doc.setFontSize(22);
-  doc.setFont("helvetica","bold");
-  doc.text("VALORA",M,y+8);
-
-  // Date + user
-  doc.setTextColor(...grey as [number,number,number]);
-  doc.setFontSize(8);
-  doc.setFont("helvetica","normal");
+  const W=210,M=20;let y=M;
+  const gold=[201,168,76],dark=[6,7,10],grey=[125,133,144],white=[255,255,255],green=[61,220,132],red=[244,100,95];
+  doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,210,2,"F");
+  doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text("VALORA",M,y+8);
+  doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(8);doc.setFont("helvetica","normal");
   doc.text(`Generated ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}`,W-M,y+8,{align:"right"});
-  doc.text(userEmail||"",W-M,y+14,{align:"right"});
-  y+=24;
-
-  // Project title
-  doc.setTextColor(...white as [number,number,number]);
-  doc.setFontSize(20);
-  doc.setFont("helvetica","bold");
-  doc.text(data.name||"Untitled Appraisal",M,y);
-  y+=8;
-  doc.setFontSize(10);
-  doc.setFont("helvetica","normal");
-  doc.setTextColor(...grey as [number,number,number]);
-  doc.text(`${data.location||"No location"} · ${assetType} · ${data.currency||"GBP"}`,M,y);
-  y+=10;
-
-  // Divider
-  doc.setDrawColor(...gold as [number,number,number]);
-  doc.setLineWidth(0.3);
-  doc.line(M,y,W-M,y);
-  y+=8;
-
-  // Key metrics boxes
+  doc.text(userEmail||"",W-M,y+14,{align:"right"});y+=24;
+  doc.setTextColor(...white as [number,number,number]);doc.setFontSize(20);doc.setFont("helvetica","bold");doc.text(data.name||"Untitled Appraisal",M,y);y+=8;
+  doc.setFontSize(10);doc.setFont("helvetica","normal");doc.setTextColor(...grey as [number,number,number]);
+  doc.text(`${data.location||"No location"} · ${assetType} · ${data.currency||"GBP"}`,M,y);y+=10;
+  doc.setDrawColor(...gold as [number,number,number]);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=8;
   const r=results as any;
-  const metrics=assetType==="BTR"?[
-    {label:"GDV",value:fmt(r.gdv,currencySymbol)},
-    {label:"Profit on Cost",value:fmtPct(r.poc)},
-    {label:"IRR",value:fmtPct(r.irr)},
-    {label:"Yield on Cost",value:fmtPct(r.yoc)},
-  ]:assetType==="BTS"?[
-    {label:"GDV",value:fmt(r.gdv,currencySymbol)},
-    {label:"Profit on Cost",value:fmtPct(r.poc)},
-    {label:"IRR",value:fmtPct(r.irr)},
-    {label:"Profit on GDV",value:fmtPct(r.margin)},
-  ]:assetType==="Hotel"?[
-    {label:"Exit Value",value:fmt(r.exitValue,currencySymbol)},
-    {label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol)},
-    {label:"IRR",value:fmtPct(r.irr)},
-    {label:"Return on Cost",value:fmtPct(r.poc)},
-  ]:[
-    {label:"Sale Price",value:fmt(r.salePrice,currencySymbol)},
-    {label:"Profit",value:fmt(r.profit,currencySymbol)},
-    {label:"ROI on Cost",value:fmtPct(r.roi)},
-    {label:"IRR",value:fmtPct(r.irr)},
-  ];
-
+  const metrics=assetType==="BTR"?[{label:"GDV",value:fmt(r.gdv,currencySymbol)},{label:"Profit on Cost",value:fmtPct(r.poc)},{label:"IRR",value:fmtPct(r.irr)},{label:"Yield on Cost",value:fmtPct(r.yoc)}]:assetType==="BTS"?[{label:"GDV",value:fmt(r.gdv,currencySymbol)},{label:"Profit on Cost",value:fmtPct(r.poc)},{label:"IRR",value:fmtPct(r.irr)},{label:"Profit on GDV",value:fmtPct(r.margin)}]:assetType==="Hotel"?[{label:"Exit Value",value:fmt(r.exitValue,currencySymbol)},{label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol)},{label:"IRR",value:fmtPct(r.irr)},{label:"Return on Cost",value:fmtPct(r.poc)}]:[{label:"Sale Price",value:fmt(r.salePrice,currencySymbol)},{label:"Profit",value:fmt(r.profit,currencySymbol)},{label:"ROI on Cost",value:fmtPct(r.roi)},{label:"IRR",value:fmtPct(r.irr)}];
   const boxW=(W-M*2-9)/4;
-  metrics.forEach((m,i)=>{
-    const x=M+i*(boxW+3);
-    doc.setFillColor(18,21,26);
-    doc.roundedRect(x,y,boxW,18,2,2,"F");
-    doc.setTextColor(...grey as [number,number,number]);
-    doc.setFontSize(7);
-    doc.text(m.label.toUpperCase(),x+3,y+6);
-    doc.setTextColor(...gold as [number,number,number]);
-    doc.setFontSize(11);
-    doc.setFont("helvetica","bold");
-    doc.text(m.value,x+3,y+14);
-    doc.setFont("helvetica","normal");
-  });
+  metrics.forEach((m,i)=>{const x=M+i*(boxW+3);doc.setFillColor(18,21,26);doc.roundedRect(x,y,boxW,18,2,2,"F");doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(7);doc.text(m.label.toUpperCase(),x+3,y+6);doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(m.value,x+3,y+14);doc.setFont("helvetica","normal");});
   y+=26;
-
-  // Section: Returns Summary
-  const drawSection=(title:string,rows:[string,string,boolean?][], startY:number)=>{
-    doc.setTextColor(...gold as [number,number,number]);
-    doc.setFontSize(11);
-    doc.setFont("helvetica","bold");
-    doc.text(title,M,startY);
-    doc.setLineWidth(0.2);
-    doc.setDrawColor(...gold as [number,number,number]);
-    doc.line(M,startY+2,W-M,startY+2);
+  const drawSection=(title:string,rows:[string,string,boolean?][],startY:number)=>{
+    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(title,M,startY);
+    doc.setLineWidth(0.2);doc.setDrawColor(...gold as [number,number,number]);doc.line(M,startY+2,W-M,startY+2);
     let ry=startY+8;
     rows.forEach(([label,value,isPositive],idx)=>{
       if(ry>270){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");ry=20;}
       if(idx%2===0){doc.setFillColor(12,14,18);doc.rect(M,ry-4,W-M*2,7,"F");}
-      doc.setTextColor(...grey as [number,number,number]);
-      doc.setFontSize(9);
-      doc.setFont("helvetica","normal");
-      doc.text(label,M+2,ry);
+      doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text(label,M+2,ry);
       const col=isPositive===undefined?white:isPositive?green:red;
-      doc.setTextColor(...col as [number,number,number]);
-      doc.setFont("helvetica","bold");
-      doc.text(value,W-M-2,ry,{align:"right"});
-      doc.setFont("helvetica","normal");
-      ry+=7;
+      doc.setTextColor(...col as [number,number,number]);doc.setFont("helvetica","bold");doc.text(value,W-M-2,ry,{align:"right"});doc.setFont("helvetica","normal");ry+=7;
     });
     return ry+4;
   };
-
   if(assetType==="BTR"){
-    y=drawSection("Returns Summary",[
-      ["GDV (Exit)",fmt(r.gdv,currencySymbol)],
-      ["Gross NOI pa",fmt(r.noi,currencySymbol)],
-      ["Total Cost",fmt(r.totalCost,currencySymbol)],
-      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
-      ["Profit on Cost",fmtPct(r.poc),r.poc>0.1],
-      ["Yield on Cost",fmtPct(r.yoc)],
-      ["IRR (Unlevered)",fmtPct(r.irr)],
-      ["Residual Land Value",fmt(r.rlv,currencySymbol)],
-    ],y);
-    y=drawSection("Cost Breakdown",[
-      ["Land / Acquisition",fmt(r.landCost,currencySymbol)],
-      ["SDLT",fmt(r.sdlt,currencySymbol)],
-      ["Build Cost",fmt(r.buildCost,currencySymbol)],
-      ["Professional Fees + Contingency",fmt((r.devCost-r.buildCost-(num(String(data.otherCosts)))),currencySymbol)],
-      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
-      ["Total Cost",fmt(r.totalCost,currencySymbol)],
-    ],y);
-    // Unit mix
-    if(data.units?.length){
-      y=drawSection("Unit Mix",[
-        ...data.units.map((u:any)=>[
-          `${u.type}`,
-          `${u.count} units · ${currencySymbol}${u.rentPcm}pcm`,
-        ] as [string,string]),
-      ],y);
-    }
+    y=drawSection("Returns Summary",[["GDV (Exit)",fmt(r.gdv,currencySymbol)],["Gross NOI pa",fmt(r.noi,currencySymbol)],["Total Cost",fmt(r.totalCost,currencySymbol)],["Profit",fmt(r.profit,currencySymbol),r.profit>0],["Profit on Cost",fmtPct(r.poc),r.poc>0.1],["Yield on Cost",fmtPct(r.yoc)],["IRR (Unlevered)",fmtPct(r.irr)],["Residual Land Value",fmt(r.rlv,currencySymbol)]],y);
+    y=drawSection("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol)],["SDLT",fmt(r.sdlt,currencySymbol)],["Build Cost",fmt(r.buildCost,currencySymbol)],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],["Total Cost",fmt(r.totalCost,currencySymbol)]],y);
+    if(data.units?.length)y=drawSection("Unit Mix",[...data.units.map((u:any)=>[u.type,`${u.count} units · ${currencySymbol}${u.rentPcm}pcm`] as [string,string])],y);
   }else if(assetType==="BTS"){
-    y=drawSection("Returns Summary",[
-      ["GDV",fmt(r.gdv,currencySymbol)],
-      ["Total Units",r.totalUnits?.toString()||"—"],
-      ["Total Cost",fmt(r.totalCost,currencySymbol)],
-      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
-      ["Profit on Cost",fmtPct(r.poc),r.poc>0.1],
-      ["Profit on GDV",fmtPct(r.margin),r.margin>0.1],
-      ["IRR (Unlevered)",fmtPct(r.irr)],
-    ],y);
-    y=drawSection("Cost Breakdown",[
-      ["Land / Acquisition",fmt(r.landCost,currencySymbol)],
-      ["SDLT",fmt(r.sdlt,currencySymbol)],
-      ["Build Cost",fmt(r.buildCost,currencySymbol)],
-      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
-      ["Total Cost",fmt(r.totalCost,currencySymbol)],
-    ],y);
+    y=drawSection("Returns Summary",[["GDV",fmt(r.gdv,currencySymbol)],["Total Units",r.totalUnits?.toString()||"—"],["Total Cost",fmt(r.totalCost,currencySymbol)],["Profit",fmt(r.profit,currencySymbol),r.profit>0],["Profit on Cost",fmtPct(r.poc),r.poc>0.1],["IRR (Unlevered)",fmtPct(r.irr)]],y);
+    y=drawSection("Cost Breakdown",[["Land",fmt(r.landCost,currencySymbol)],["SDLT",fmt(r.sdlt,currencySymbol)],["Build Cost",fmt(r.buildCost,currencySymbol)],["Finance",fmt(r.totalFinanceCost,currencySymbol)],["Total",fmt(r.totalCost,currencySymbol)]],y);
   }else if(assetType==="Hotel"){
-    y=drawSection("Returns Summary",[
-      ["RevPAR",fmt(r.revpar,currencySymbol)],
-      ["Total Revenue pa",fmt(r.revenuePa,currencySymbol)],
-      ["EBITDA pa",fmt(r.ebitda,currencySymbol)],
-      ["Exit Value",fmt(r.exitValue,currencySymbol)],
-      ["Total Investment",fmt(r.totalInvestment,currencySymbol)],
-      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
-      ["Return on Cost",fmtPct(r.poc),r.poc>0.1],
-      ["IRR",fmtPct(r.irr)],
-    ],y);
-    y=drawSection("Cost Breakdown",[
-      ["Purchase Price",fmt(r.purchasePrice,currencySymbol)],
-      ["SDLT",fmt(r.sdlt,currencySymbol)],
-      ["CapEx",fmt(r.capex,currencySymbol)],
-      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
-      ["Total Investment",fmt(r.totalInvestment,currencySymbol)],
-    ],y);
+    y=drawSection("Returns Summary",[["RevPAR",fmt(r.revpar,currencySymbol)],["EBITDA pa",fmt(r.ebitda,currencySymbol)],["Exit Value",fmt(r.exitValue,currencySymbol)],["Total Investment",fmt(r.totalInvestment,currencySymbol)],["Profit",fmt(r.profit,currencySymbol),r.profit>0],["Return on Cost",fmtPct(r.poc),r.poc>0.1],["IRR",fmtPct(r.irr)]],y);
+    y=drawSection("Cost Breakdown",[["Purchase",fmt(r.purchasePrice,currencySymbol)],["SDLT",fmt(r.sdlt,currencySymbol)],["CapEx",fmt(r.capex,currencySymbol)],["Finance",fmt(r.totalFinanceCost,currencySymbol)],["Total",fmt(r.totalInvestment,currencySymbol)]],y);
   }else{
-    y=drawSection("Returns Summary",[
-      ["Purchase Price",fmt(r.purchase,currencySymbol)],
-      ["SDLT",fmt(r.sdlt,currencySymbol)],
-      ["Refurb Budget",fmt(r.refurb,currencySymbol)],
-      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
-      ["Total Cost",fmt(r.totalCost,currencySymbol)],
-      ["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol)],
-      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
-      ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.1],
-      ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.2],
-      ["IRR (Annualised)",fmtPct(r.irr)],
-    ],y);
+    y=drawSection("Returns Summary",[["Purchase Price",fmt(r.purchase,currencySymbol)],["SDLT",fmt(r.sdlt,currencySymbol)],["Refurb",fmt(r.refurb,currencySymbol)],["Finance",fmt(r.totalFinanceCost,currencySymbol)],["Total Cost",fmt(r.totalCost,currencySymbol)],["Net Proceeds",fmt(r.netProceeds,currencySymbol)],["Profit",fmt(r.profit,currencySymbol),r.profit>0],["ROI",fmtPct(r.roi),r.roi>0.1],["IRR",fmtPct(r.irr)]],y);
+  }
+  y=drawSection("Project Details",[["Asset Type",assetType],["Location",data.location||"—"],["Currency",data.currency||"GBP"],["Programme",`${data.programmMonths} months`],["Benchmark",`${data.benchmark} + ${data.marginOverBenchmark}%`]],y);
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,292,210,5,"F");
+  doc.setTextColor(...dark as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","bold");
+  doc.text("VALORA · Institutional Development Appraisal",M,296);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,296,{align:"right"});
+  doc.save(`Valora_${(data.name||"Appraisal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+/* ─── AI Brochure PDF ─── */
+async function generateBrochurePDF(data:any,results:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[]){
+  if(!(window as any).jspdf){
+    await new Promise<void>((resolve,reject)=>{
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      s.onload=()=>resolve();s.onerror=()=>reject();document.head.appendChild(s);
+    });
+  }
+  const{jsPDF}=(window as any).jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const W=210,M=18;
+  const gold=[201,168,76],dark=[6,7,10],grey=[125,133,144],white=[255,255,255],bg2=[18,21,26];
+  const r=results as any;
+
+  /* PAGE 1 — Cover */
+  doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");
+  // Gold left sidebar
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");
+  // Photos strip if provided
+  if(photos.length>0){
+    const phH=photos.length>=2?80:60;
+    const phW=photos.length>=2?W/photos.length:W*0.6;
+    photos.slice(0,3).forEach((ph,i)=>{
+      try{doc.addImage(ph,"JPEG",i*phW,0,phW,phH);}catch(e){}
+    });
+    // Dark overlay on photo
+    doc.setFillColor(6,7,10);doc.setGState(doc.GState({opacity:0.55}));
+    doc.rect(0,0,W,photos.length>0?80:0,"F");
+    doc.setGState(doc.GState({opacity:1}));
+  }
+  // VALORA mark
+  doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(10);doc.setFont("helvetica","bold");
+  doc.text("VALORA",M,photos.length>0?20:16);
+  doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(...grey as [number,number,number]);
+  doc.text("INVESTMENT MEMORANDUM",M,photos.length>0?26:22);
+
+  const titleY=photos.length>0?95:50;
+  doc.setTextColor(...white as [number,number,number]);doc.setFontSize(28);doc.setFont("helvetica","bold");
+  const titleLines=doc.splitTextToSize(data.name||"Investment Opportunity",W-M*2);
+  doc.text(titleLines,M,titleY);
+  doc.setFontSize(12);doc.setFont("helvetica","normal");doc.setTextColor(...gold as [number,number,number]);
+  doc.text(`${data.location||""}  ·  ${assetType}`,M,titleY+titleLines.length*10+4);
+
+  // Key metrics on cover
+  const metricsY=titleY+titleLines.length*10+20;
+  const metrics=assetType==="BTR"?[["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Yield on Cost",fmtPct(r.yoc)]]:assetType==="BTS"?[["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Profit on GDV",fmtPct(r.margin)]]:assetType==="Hotel"?[["Exit Value",fmt(r.exitValue,currencySymbol)],["EBITDA pa",fmt(r.ebitda,currencySymbol)],["IRR",fmtPct(r.irr)],["Return on Cost",fmtPct(r.poc)]]:[["Sale Price",fmt(r.salePrice,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["ROI",fmtPct(r.roi)],["IRR",fmtPct(r.irr)]];
+  const mW=(W-M*2-12)/4;
+  metrics.forEach(([l,v],i)=>{
+    const x=M+i*(mW+4);
+    doc.setFillColor(...bg2 as [number,number,number]);doc.roundedRect(x,metricsY,mW,20,2,2,"F");
+    doc.setDrawColor(...gold as [number,number,number]);doc.setLineWidth(0.5);doc.roundedRect(x,metricsY,mW,20,2,2,"S");
+    doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(6.5);doc.setFont("helvetica","normal");doc.text(String(l).toUpperCase(),x+3,metricsY+7);
+    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(String(v),x+3,metricsY+16);
+  });
+
+  // Gold footer bar cover
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,291,W,6,"F");
+  doc.setTextColor(...dark as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","bold");
+  doc.text("STRICTLY PRIVATE & CONFIDENTIAL",M,295.5);
+  doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),W-M,295.5,{align:"right"});
+
+  /* PAGE 2 — AI Content */
+  doc.addPage();
+  doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");
+
+  const wrapText=(doc:any,text:string,x:number,startY:number,maxW:number,lineH:number)=>{
+    const lines=doc.splitTextToSize(text,maxW);
+    lines.forEach((line:string,i:number)=>{
+      if(startY+i*lineH>278){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");startY=20-i*lineH;}
+      doc.text(line,x,startY+i*lineH);
+    });
+    return startY+lines.length*lineH+4;
+  };
+
+  let py=20;
+  // Page header
+  doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M,py);
+  doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(data.name||"",W-M,py,{align:"right"});
+  py+=10;
+
+  const sections:[string,keyof BrochureContent][]=[
+    ["Executive Summary","executiveSummary"],
+    ["Deal Strengths","dealStrengths"],
+    ["Risk Assessment","riskAssessment"],
+    ["Market Comparables","marketComparables"],
+  ];
+
+  sections.forEach(([title,key])=>{
+    if(py>260){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");py=20;}
+    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(title,M,py);
+    doc.setLineWidth(0.2);doc.setDrawColor(...gold as [number,number,number]);doc.line(M,py+2,W-M,py+2);py+=9;
+    doc.setTextColor(...white as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","normal");
+    py=wrapText(doc,content[key]||"",M,py,W-M*2,5);
+    py+=6;
+  });
+
+  // Returns table on last section
+  if(py<240){
+    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Financial Summary",M,py);
+    doc.setLineWidth(0.2);doc.line(M,py+2,W-M,py+2);py+=9;
+    const rows=assetType==="BTR"?[["GDV (Exit)",fmt(r.gdv,currencySymbol)],["Total Cost",fmt(r.totalCost,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)]]:assetType==="BTS"?[["GDV",fmt(r.gdv,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)]]:assetType==="Hotel"?[["Exit Value",fmt(r.exitValue,currencySymbol)],["EBITDA pa",fmt(r.ebitda,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["IRR",fmtPct(r.irr)]]:[["Sale Price",fmt(r.salePrice,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["ROI",fmtPct(r.roi)],["IRR",fmtPct(r.irr)]];
+    rows.forEach(([l,v],i)=>{
+      if(i%2===0){doc.setFillColor(12,14,18);doc.rect(M,py-4,W-M*2,7,"F");}
+      doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text(String(l),M+2,py);
+      doc.setTextColor(...gold as [number,number,number]);doc.setFont("helvetica","bold");doc.text(String(v),W-M-2,py,{align:"right"});doc.setFont("helvetica","normal");py+=7;
+    });
   }
 
-  // Project details
-  y=drawSection("Project Details",[
-    ["Asset Type",assetType],
-    ["Location",data.location||"—"],
-    ["Currency",data.currency||"GBP"],
-    ["Programme",`${data.programmMonths} months`],
-    ["Benchmark Rate",`${data.benchmark} + ${data.marginOverBenchmark}%`],
-  ],y);
-
   // Footer
-  doc.setFillColor(...gold as [number,number,number]);
-  doc.rect(0,292,210,5,"F");
-  doc.setTextColor(...dark as [number,number,number]);
-  doc.setFontSize(7);
-  doc.setFont("helvetica","bold");
-  doc.text("VALORA · Institutional Development Appraisal",M,296);
-  doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,296,{align:"right"});
+  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,291,W,6,"F");
+  doc.setTextColor(...dark as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","bold");
+  doc.text("VALORA · Institutional Development Appraisal",M,295.5);
+  doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
 
-  // Save
-  const filename=`Valora_${(data.name||"Appraisal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
-  doc.save(filename);
+  doc.save(`Valora_Brochure_${(data.name||"Deal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 function AppraisalPage(){
@@ -475,6 +378,16 @@ function AppraisalPage(){
   const[generatingLink,setGeneratingLink]=useState(false);
   const[linkCopied,setLinkCopied]=useState(false);
   const[generatingPDF,setGeneratingPDF]=useState(false);
+  // Delete
+  const[deleteModal,setDeleteModal]=useState(false);
+  const[deleting,setDeleting]=useState(false);
+  // AI Brochure
+  const[brochureModal,setBrochureModal]=useState(false);
+  const[brochurePhotos,setBrochurePhotos]=useState<string[]>([]);
+  const[brochureContent,setBrochureContent]=useState<BrochureContent|null>(null);
+  const[generatingBrochure,setGeneratingBrochure]=useState(false);
+  const[brochureError,setBrochureError]=useState<string|null>(null);
+  const[downloadingBrochure,setDownloadingBrochure]=useState(false);
 
   useEffect(()=>{
     const init=async()=>{
@@ -496,13 +409,9 @@ function AppraisalPage(){
         if(appr.snapshot){
           const snap=appr.snapshot;
           const type=(snap.assetType||"BTR") as AssetType;
-          setAssetType(type);
-          setData(snap);
-          setSaved(true);
+          setAssetType(type);setData(snap);setSaved(true);
         }
-        if(appr.share_token){
-          setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
-        }
+        if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
       setLoading(false);
     };
@@ -517,7 +426,6 @@ function AppraisalPage(){
   const switchAssetType=(type:AssetType)=>{
     setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);
   };
-
   const updateUnit=(index:number,field:string,value:any)=>{
     const units=[...data.units];units[index]={...units[index],[field]:value};set("units",units);
   };
@@ -529,20 +437,13 @@ function AppraisalPage(){
   const removeUnit=(i:number)=>{set("units",data.units.filter((_:any,idx:number)=>idx!==i));};
 
   const calcHotelRev=useCallback((d:any)=>{
-    const rooms=num(String(d.rooms));
-    const occRoomNights=rooms*365*(num(String(d.occupancy))/100);
-    const roomsRev=num(String(d.adr))*occRoomNights;
-    const roomsEbitda=roomsRev*(num(String(d.roomsMarginPct??75))/100);
-    const fnbRev=d.fnbEnabled?num(String(d.fnbRevenuePerOccRoom??45))*occRoomNights*(num(String(d.fnbUtilisationPct??70))/100):0;
-    const fnbEbitda=fnbRev*(num(String(d.fnbMarginPct??30))/100);
-    const spaRev=d.spaEnabled?num(String(d.spaRevenuePerRoomPa??800))*rooms*(num(String(d.spaUtilisationPct??40))/100):0;
-    const spaEbitda=spaRev*(num(String(d.spaMarginPct??35))/100);
-    const gymRev=d.gymEnabled?num(String(d.gymMembershipRevPa??50000))+num(String(d.gymGuestRevPerOccRoom??8))*occRoomNights:0;
-    const gymEbitda=gymRev*(num(String(d.gymMarginPct??60))/100);
-    const meetingRev=d.meetingEnabled?num(String(d.meetingRooms??4))*num(String(d.meetingAvgDayRate??1200))*365*(num(String(d.meetingUtilisationPct??45))/100):0;
-    const meetingEbitda=meetingRev*(num(String(d.meetingMarginPct??40))/100);
-    const totalRev=roomsRev+fnbRev+spaRev+gymRev+meetingRev;
-    const totalEbitda=roomsEbitda+fnbEbitda+spaEbitda+gymEbitda+meetingEbitda;
+    const rooms=num(String(d.rooms));const occRoomNights=rooms*365*(num(String(d.occupancy))/100);
+    const roomsRev=num(String(d.adr))*occRoomNights;const roomsEbitda=roomsRev*(num(String(d.roomsMarginPct??75))/100);
+    const fnbRev=d.fnbEnabled?num(String(d.fnbRevenuePerOccRoom??45))*occRoomNights*(num(String(d.fnbUtilisationPct??70))/100):0;const fnbEbitda=fnbRev*(num(String(d.fnbMarginPct??30))/100);
+    const spaRev=d.spaEnabled?num(String(d.spaRevenuePerRoomPa??800))*rooms*(num(String(d.spaUtilisationPct??40))/100):0;const spaEbitda=spaRev*(num(String(d.spaMarginPct??35))/100);
+    const gymRev=d.gymEnabled?num(String(d.gymMembershipRevPa??50000))+num(String(d.gymGuestRevPerOccRoom??8))*occRoomNights:0;const gymEbitda=gymRev*(num(String(d.gymMarginPct??60))/100);
+    const meetingRev=d.meetingEnabled?num(String(d.meetingRooms??4))*num(String(d.meetingAvgDayRate??1200))*365*(num(String(d.meetingUtilisationPct??45))/100):0;const meetingEbitda=meetingRev*(num(String(d.meetingMarginPct??40))/100);
+    const totalRev=roomsRev+fnbRev+spaRev+gymRev+meetingRev;const totalEbitda=roomsEbitda+fnbEbitda+spaEbitda+gymEbitda+meetingEbitda;
     return{roomsRev,roomsEbitda,fnbRev,fnbEbitda,spaRev,spaEbitda,gymRev,gymEbitda,meetingRev,meetingEbitda,totalRev,totalEbitda};
   },[]);
 
@@ -552,108 +453,44 @@ function AppraisalPage(){
       const totalUnits=units.reduce((s:number,u:any)=>s+(num(String(u.count))||0),0);
       const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);
       const grossRentPa=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.rentPcm))*12),0);
-      const voidAdjustment=1-(num(String(data.voidPct))/100);
-      const opexPa=totalSqft*num(String(data.opexPsf));
-      const noi=grossRentPa*voidAdjustment-opexPa;
-      const gdv=noi/(num(String(data.exitYield))/100);
-      const landCost=num(String(data.landCost));
-      const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
-      const buildCost=totalSqft*num(String(data.buildCostPsf));
-      const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
-      const contingency=buildCost*(num(String(data.contingencyPct))/100);
-      const otherCosts=num(String(data.otherCosts));
-      const devCost=buildCost+profFees+contingency+otherCosts;
-      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-      const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
-      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
-      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.6;
-      const totalFinanceCost=arrangementFee+interestEst;
-      const totalCost=landCost+sdlt+devCost+totalFinanceCost;
-      const profit=gdv-totalCost;
-      const poc=totalCost>0?profit/totalCost:0;
-      const yoc=totalSqft>0?noi/totalCost:0;
-      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
-      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;
-      const rlv=gdv*(1-(poc>0?poc:0.2))-devCost-totalFinanceCost;
+      const voidAdjustment=1-(num(String(data.voidPct))/100);const opexPa=totalSqft*num(String(data.opexPsf));
+      const noi=grossRentPa*voidAdjustment-opexPa;const gdv=noi/(num(String(data.exitYield))/100);
+      const landCost=num(String(data.landCost));const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
+      const buildCost=totalSqft*num(String(data.buildCostPsf));const profFees=buildCost*(num(String(data.professionalFeesPct))/100);const contingency=buildCost*(num(String(data.contingencyPct))/100);const otherCosts=num(String(data.otherCosts));const devCost=buildCost+profFees+contingency+otherCosts;
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
+      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.6;const totalFinanceCost=arrangementFee+interestEst;
+      const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const yoc=totalSqft>0?noi/totalCost:0;
+      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(0);cfs.push(gdv);
+      const irr=Math.pow(1+calcIRR(cfs),12)-1;const rlv=gdv*(1-(poc>0?poc:0.2))-devCost-totalFinanceCost;
       return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,yoc,irr,rlv,financeRate,loanAmount};
     }
     if(assetType==="BTS"){
-      const units=data.units||[];
-      const gdv=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf))),0);
-      const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);
-      const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
-      const agentFees=gdv*(num(String(data.agentFeePct))/100);
-      const marketing=gdv*(num(String(data.marketingPct))/100);
-      const landCost=num(String(data.landCost));
-      const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
-      const buildCost=totalSqft*num(String(data.buildCostPsf));
-      const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
-      const contingency=buildCost*(num(String(data.contingencyPct))/100);
-      const otherCosts=num(String(data.otherCosts));
-      const devCost=buildCost+profFees+contingency+otherCosts+agentFees+marketing;
-      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-      const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);
-      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
-      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;
-      const totalFinanceCost=arrangementFee+interestEst;
-      const totalCost=landCost+sdlt+devCost+totalFinanceCost;
-      const profit=gdv-totalCost;
-      const poc=totalCost>0?profit/totalCost:0;
-      const margin=gdv>0?profit/gdv:0;
-      const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));
-      const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      const units=data.units||[];const gdv=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf))),0);const totalSqft=units.reduce((s:number,u:any)=>s+(num(String(u.count))*num(String(u.size))),0);const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
+      const agentFees=gdv*(num(String(data.agentFeePct))/100);const marketing=gdv*(num(String(data.marketingPct))/100);const landCost=num(String(data.landCost));const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
+      const buildCost=totalSqft*num(String(data.buildCostPsf));const profFees=buildCost*(num(String(data.professionalFeesPct))/100);const contingency=buildCost*(num(String(data.contingencyPct))/100);const otherCosts=num(String(data.otherCosts));const devCost=buildCost+profFees+contingency+otherCosts+agentFees+marketing;
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=(landCost+devCost)*(num(String(data.ltc))/100);const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const totalFinanceCost=arrangementFee+interestEst;
+      const totalCost=landCost+sdlt+devCost+totalFinanceCost;const profit=gdv-totalCost;const poc=totalCost>0?profit/totalCost:0;const margin=gdv>0?profit/gdv:0;
+      const months=num(String(data.programmMonths))+num(String(data.absorptionMonths));const cfs=[-totalCost];for(let m=1;m<months;m++)cfs.push(gdv/num(String(data.absorptionMonths)));const irr=Math.pow(1+calcIRR(cfs),12)-1;
       return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost,totalCost,profit,poc,margin,irr,loanAmount,financeRate};
     }
     if(assetType==="Hotel"){
-      const hr=calcHotelRev(data);
-      const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);
-      const revenuePa=hr.totalRev;const ebitda=hr.totalEbitda;
-      const stabilisedValue=ebitda/(num(String(data.stabilisedCapRate))/100);
-      const exitValue=ebitda*(1+num(String(data.revparGrowthPct))/100)/(num(String(data.exitCapRate))/100);
-      const purchasePrice=num(String(data.purchasePrice));
-      const sdlt=calcSDLT(purchasePrice,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
-      const capex=num(String(data.capexBudget));
-      const profFees=capex*(num(String(data.professionalFeesPct))/100);
-      const contingency=capex*(num(String(data.contingencyPct))/100);
-      const totalCost=purchasePrice+sdlt+capex+profFees+contingency+num(String(data.otherCosts));
-      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-      const loanAmount=totalCost*(num(String(data.ltc))/100);
-      const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;
-      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
-      const totalFinanceCost=interestEst+arrangementFee;
-      const totalInvestment=totalCost+totalFinanceCost;
-      const profit=exitValue-totalInvestment;
-      const poc=totalInvestment>0?profit/totalInvestment:0;
-      const yoc=totalInvestment>0?ebitda/totalInvestment:0;
-      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));
-      const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      const hr=calcHotelRev(data);const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);const revenuePa=hr.totalRev;const ebitda=hr.totalEbitda;
+      const stabilisedValue=ebitda/(num(String(data.stabilisedCapRate))/100);const exitValue=ebitda*(1+num(String(data.revparGrowthPct))/100)/(num(String(data.exitCapRate))/100);
+      const purchasePrice=num(String(data.purchasePrice));const sdlt=calcSDLT(purchasePrice,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
+      const capex=num(String(data.capexBudget));const profFees=capex*(num(String(data.professionalFeesPct))/100);const contingency=capex*(num(String(data.contingencyPct))/100);const totalCost=purchasePrice+sdlt+capex+profFees+contingency+num(String(data.otherCosts));
+      const financeRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;const loanAmount=totalCost*(num(String(data.ltc))/100);const interestEst=loanAmount*financeRate*(num(String(data.programmMonths))/12)*0.5;const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const totalFinanceCost=interestEst+arrangementFee;
+      const totalInvestment=totalCost+totalFinanceCost;const profit=exitValue-totalInvestment;const poc=totalInvestment>0?profit/totalInvestment:0;const yoc=totalInvestment>0?ebitda/totalInvestment:0;
+      const months=num(String(data.programmMonths))+num(String(data.stabilisationMonths));const cfs=[-totalInvestment,...Array(months-1).fill(0),exitValue];const irr=Math.pow(1+calcIRR(cfs),12)-1;
       return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,totalCost,totalFinanceCost,totalInvestment,profit,poc,yoc,irr,loanAmount};
     }
     if(assetType==="Flip"){
-      const purchase=num(String(data.purchasePrice));
-      const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
-      const refurb=num(String(data.refurbBudget));
-      const profFees=refurb*(num(String(data.professionalFeesPct))/100);
-      const contingency=refurb*(num(String(data.contingencyPct))/100);
-      const other=num(String(data.otherCosts));
-      const bridgingRate=num(String(data.bridgingRatePct))/100/12;
-      const bridgingMonths=num(String(data.bridgingTermMonths));
-      const loanAmount=(purchase+refurb)*0.75;
-      const bridgingInterest=loanAmount*bridgingRate*bridgingMonths;
-      const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
-      const totalFinanceCost=bridgingInterest+arrangementFee;
-      const totalCost=purchase+sdlt+refurb+profFees+contingency+other+totalFinanceCost;
-      const salePrice=num(String(data.salePrice));
-      const agentFees=salePrice*(num(String(data.agentFeePct))/100);
-      const netProceeds=salePrice-agentFees;
-      const profit=netProceeds-totalCost;
-      const roi=totalCost>0?profit/totalCost:0;
-      const roiEquity=(totalCost-loanAmount)>0?profit/(totalCost-loanAmount):0;
-      const cfs=[-totalCost,...Array(bridgingMonths-1).fill(0),netProceeds];
-      const irr=Math.pow(1+calcIRR(cfs),12)-1;
+      const purchase=num(String(data.purchasePrice));const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
+      const refurb=num(String(data.refurbBudget));const profFees=refurb*(num(String(data.professionalFeesPct))/100);const contingency=refurb*(num(String(data.contingencyPct))/100);const other=num(String(data.otherCosts));
+      const bridgingRate=num(String(data.bridgingRatePct))/100/12;const bridgingMonths=num(String(data.bridgingTermMonths));const loanAmount=(purchase+refurb)*0.75;
+      const bridgingInterest=loanAmount*bridgingRate*bridgingMonths;const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);const totalFinanceCost=bridgingInterest+arrangementFee;
+      const totalCost=purchase+sdlt+refurb+profFees+contingency+other+totalFinanceCost;const salePrice=num(String(data.salePrice));const agentFees=salePrice*(num(String(data.agentFeePct))/100);const netProceeds=salePrice-agentFees;
+      const profit=netProceeds-totalCost;const roi=totalCost>0?profit/totalCost:0;const roiEquity=(totalCost-loanAmount)>0?profit/(totalCost-loanAmount):0;
+      const cfs=[-totalCost,...Array(bridgingMonths-1).fill(0),netProceeds];const irr=Math.pow(1+calcIRR(cfs),12)-1;
       return{purchase,sdlt,refurb,profFees,contingency,totalFinanceCost,totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,irr,loanAmount,bridgingInterest};
     }
     return{};
@@ -672,14 +509,13 @@ function AppraisalPage(){
       const voidAdj=1-(num(String(data.voidPct))/100);
       const totalSqft=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size)),0);
       const noi=grossRent*voidAdj-totalSqft*num(String(data.opexPsf));
-      const gdv=noi/(y/100);
-      const r=calc();
+      const gdv=noi/(y/100);const r=calc();
       return r.totalCost>0?(gdv-r.totalCost)/r.totalCost:0;
     }));
   },[assetType,data,calc]);
-
   const sensMatrix=sensitivity();
 
+  /* ─── SAVE ─── */
   const save=async()=>{
     if(!user){setSaveError("Not logged in");return;}
     setSaving(true);setSaveError(null);
@@ -687,29 +523,18 @@ function AppraisalPage(){
     try{
       let resolvedProjectId=currentProjectId;
       if(!resolvedProjectId){
-        const{data:proj,error:projErr}=await supabase.from("projects").insert({
-          name:data.name||"New Project",location:data.location||"",
-          asset_type:assetType,currency:data.currency||"GBP",
-          benchmark_rate:data.benchmark||"SONIA",created_by:user.id,firm_id:null,
-        }).select().single();
+        const{data:proj,error:projErr}=await supabase.from("projects").insert({name:data.name||"New Project",location:data.location||"",asset_type:assetType,currency:data.currency||"GBP",benchmark_rate:data.benchmark||"SONIA",created_by:user.id,firm_id:null}).select().single();
         if(projErr){setSaveError(`Project error: ${projErr.message}`);setSaving(false);return;}
         resolvedProjectId=proj.id;setCurrentProjectId(proj.id);
       }
       const payload:Record<string,any>={
-        created_by:user.id,project_id:resolvedProjectId,
-        name:data.name||"Untitled Appraisal",scenario:"base",status:"draft",
+        created_by:user.id,project_id:resolvedProjectId,name:data.name||"Untitled Appraisal",scenario:"base",status:"draft",
         units_omr:assetType==="BTR"?(data.units?.filter((u:any)=>u.type?.includes("OMR")).reduce((s:number,u:any)=>s+num(String(u.count)),0)||0):0,
         units_dmr:assetType==="BTR"?(data.units?.filter((u:any)=>u.type?.includes("DMR")).reduce((s:number,u:any)=>s+num(String(u.count)),0)||0):0,
         rent_omr_pcm:assetType==="BTR"?(data.units?.[0]?.rentPcm||0):0,
-        exit_yield:num(String(data.exitYield||0))/100,
-        land_cost:num(String(data.landCost||data.purchasePrice||0)),
-        gdv:r.gdv||r.exitValue||r.salePrice||0,
-        total_cost:r.totalCost||r.totalInvestment||0,
-        profit:r.profit||0,
-        profit_on_cost:r.poc||r.roi||0,
-        irr_unlevered:r.irr||0,
-        programme_months:num(String(data.programmMonths)),
-        firm_id:null,
+        exit_yield:num(String(data.exitYield||0))/100,land_cost:num(String(data.landCost||data.purchasePrice||0)),
+        gdv:r.gdv||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:r.profit||0,
+        profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,programme_months:num(String(data.programmMonths)),firm_id:null,
         snapshot:{...data,assetType},
       };
       let apprResult;
@@ -727,6 +552,16 @@ function AppraisalPage(){
     setSaving(false);
   };
 
+  /* ─── DELETE ─── */
+  const deleteAppraisal=async()=>{
+    if(!appraisalId||!user)return;
+    setDeleting(true);
+    const{error}=await supabase.from("appraisals").delete().eq("id",appraisalId);
+    if(!error){router.push("/dashboard");}
+    else{setSaveError("Delete failed");setDeleting(false);setDeleteModal(false);}
+  };
+
+  /* ─── LIVE LINK ─── */
   const generateLiveLink=async()=>{
     if(!appraisalId){setSaveError("Save the appraisal first");return;}
     setGeneratingLink(true);
@@ -735,33 +570,92 @@ function AppraisalPage(){
     const link=`${window.location.origin}/share/${token}`;
     setLiveLink(link);setGeneratingLink(false);
   };
-
-  const copyLink=async()=>{
-    if(!liveLink)return;
-    await navigator.clipboard.writeText(liveLink);
-    setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);
-  };
-
-  const shareEmail=()=>{
-    if(!liveLink)return;
-    const subject=encodeURIComponent(`Valora Appraisal: ${data.name||"Untitled"}`);
-    const body=encodeURIComponent(`Please find the appraisal here:\n\n${liveLink}`);
-    window.open(`mailto:?subject=${subject}&body=${body}`);
-  };
-
-  const shareWhatsApp=()=>{
-    if(!liveLink)return;
-    const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);
-    window.open(`https://wa.me/?text=${text}`);
-  };
+  const copyLink=async()=>{if(!liveLink)return;await navigator.clipboard.writeText(liveLink);setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);};
+  const shareEmail=()=>{if(!liveLink)return;const subject=encodeURIComponent(`Valora Appraisal: ${data.name||"Untitled"}`);const body=encodeURIComponent(`Please find the appraisal here:\n\n${liveLink}`);window.open(`mailto:?subject=${subject}&body=${body}`);};
+  const shareWhatsApp=()=>{if(!liveLink)return;const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);window.open(`https://wa.me/?text=${text}`);};
 
   const handleGeneratePDF=async()=>{
     setGeneratingPDF(true);
+    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";await generatePDF(data,results,assetType,currSym,user?.email||"");}
+    catch(e){console.error("PDF error:",e);}
+    setGeneratingPDF(false);
+  };
+
+  /* ─── AI BROCHURE ─── */
+  const handlePhotoUpload=(e:React.ChangeEvent<HTMLInputElement>)=>{
+    const files=Array.from(e.target.files||[]);
+    files.slice(0,3-brochurePhotos.length).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{if(ev.target?.result)setBrochurePhotos(p=>[...p,ev.target!.result as string].slice(0,3));};
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const generateBrochure=async()=>{
+    setGeneratingBrochure(true);setBrochureError(null);setBrochureContent(null);
+    const r=results as any;
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    const dealSummary=`
+Asset Type: ${assetType}
+Project Name: ${data.name||"Unnamed"}
+Location: ${data.location||"Not specified"}
+Currency: ${data.currency||"GBP"}
+Programme: ${data.programmMonths} months
+
+Key Financials:
+- GDV / Exit Value: ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)}
+- Total Cost / Investment: ${fmt(r.totalCost||r.totalInvestment||0,currSym)}
+- Profit: ${fmt(r.profit||0,currSym)}
+- Profit on Cost: ${fmtPct(r.poc||r.roi||0)}
+- IRR: ${fmtPct(r.irr||0)}
+${assetType==="BTR"?`- Exit Yield: ${data.exitYield}%\n- Gross NOI pa: ${fmt(r.noi,currSym)}\n- Total Units: ${r.totalUnits}`:``}
+${assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- Rooms: ${data.rooms}`:``}
+${assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase,currSym)}\n- Sale Price: ${fmt(r.salePrice,currSym)}`:``}
+
+Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100).toFixed(2)+"%" :"N/A"}
+`.trim();
+
+    try{
+      const response=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          messages:[{role:"user",content:`You are an expert property investment analyst writing a professional investment memorandum. Based on the following deal data, write concise, compelling content for an institutional investor brochure.
+
+Deal Data:
+${dealSummary}
+
+Respond ONLY with a JSON object (no markdown, no backticks) with these exact keys:
+{
+  "executiveSummary": "2-3 sentences summarising the opportunity, location appeal, and headline returns",
+  "dealStrengths": "3-4 specific strengths of this deal based on the numbers and asset type",
+  "riskAssessment": "2-3 key risks to consider and how they might be mitigated",
+  "marketComparables": "Brief commentary on market context, typical yields/returns for this asset type and location if known, and how this deal compares"
+}`}]
+        })
+      });
+      const responseData=await response.json();
+      const text=responseData.content?.map((c:any)=>c.text||"").join("")||"";
+      const clean=text.replace(/```json|```/g,"").trim();
+      const parsed=JSON.parse(clean);
+      setBrochureContent(parsed);
+    }catch(err:any){
+      setBrochureError("Failed to generate — check your connection and try again.");
+      console.error("Brochure AI error:",err);
+    }
+    setGeneratingBrochure(false);
+  };
+
+  const handleDownloadBrochure=async()=>{
+    if(!brochureContent)return;
+    setDownloadingBrochure(true);
     try{
       const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
-      await generatePDF(data,results,assetType,currSym,user?.email||"");
-    }catch(e){console.error("PDF error:",e);}
-    setGeneratingPDF(false);
+      await generateBrochurePDF(data,results,assetType,currSym,brochureContent,brochurePhotos);
+    }catch(e){console.error("Brochure PDF error:",e);}
+    setDownloadingBrochure(false);
   };
 
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
@@ -798,6 +692,9 @@ function AppraisalPage(){
           {saveError&&!saving&&<span style={{color:"var(--red)",fontSize:11}}>{saveError}</span>}
           {!saved&&!saving&&!saveError&&<span style={{animation:"pulse 2s infinite"}}>Unsaved changes</span>}
         </div>
+        {appraisalId&&saved&&(
+          <button className="btn-danger" onClick={()=>setDeleteModal(true)}>Delete</button>
+        )}
         <button className="btn-primary" onClick={save} disabled={saving} style={{padding:"8px 18px",fontSize:12}}>{saving?"Saving…":"Save Appraisal"}</button>
       </div>
 
@@ -1119,8 +1016,7 @@ function AppraisalPage(){
                     else pct=(m+1)/months;
                     const prevPct=m===0?0:(data.costProfile==="scurve"?1/(1+Math.exp(-10*(m/months-0.5))):data.costProfile==="frontloaded"?Math.sqrt(m/months):m/months);
                     const draw=totalCost*(pct-prevPct);const cumDraw=totalCost*pct;
-                    const interest=cumDraw*((r.financeRate||0)/12);const netCf=-(draw+interest);
-                    const cumCost=cumDraw+(r.landCost||0)+(r.sdlt||0);
+                    const interest=cumDraw*((r.financeRate||0)/12);const netCf=-(draw+interest);const cumCost=cumDraw+(r.landCost||0)+(r.sdlt||0);
                     return(<div key={m} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
                       <div style={{color:"var(--text-d)"}}>M{m+1}</div>
                       <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(draw,currencySymbol)}</div>
@@ -1208,7 +1104,7 @@ function AppraisalPage(){
                 {/* ── SHARE & EXPORT ── */}
                 <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20}}>
                   <div className="section-title" style={{marginBottom:16}}>Share & Export</div>
-                  <div style={{display:"flex",gap:8,marginBottom:16}}>
+                  <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
                     <button className="share-btn" onClick={()=>setShareModal(true)}>
                       <span className="share-btn-icon">🔗</span>
                       <span className="share-btn-label">Live Link</span>
@@ -1217,11 +1113,15 @@ function AppraisalPage(){
                       <span className="share-btn-icon">{generatingPDF?"⏳":"📄"}</span>
                       <span className="share-btn-label">{generatingPDF?"Generating…":"Plain PDF"}</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}if(!liveLink){setSaveError("Generate live link first");return;}shareEmail();}}>
+                    <button className="share-btn" onClick={()=>{setBrochureModal(true);setBrochureContent(null);setBrochurePhotos([]);setBrochureError(null);}}>
+                      <span className="share-btn-icon">✨</span>
+                      <span className="share-btn-label">AI Brochure</span>
+                    </button>
+                    <button className="share-btn" onClick={()=>{if(!liveLink){setSaveError("Generate live link first");return;}shareEmail();}}>
                       <span className="share-btn-icon">✉️</span>
                       <span className="share-btn-label">Email</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}if(!liveLink){setSaveError("Generate live link first");return;}shareWhatsApp();}}>
+                    <button className="share-btn" onClick={()=>{if(!liveLink){setSaveError("Generate live link first");return;}shareWhatsApp();}}>
                       <span className="share-btn-icon">💬</span>
                       <span className="share-btn-label">WhatsApp</span>
                     </button>
@@ -1281,13 +1181,7 @@ function AppraisalPage(){
           {assetType==="Hotel"&&hotelRev&&(
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
               <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Revenue Breakdown</div>
-              {([
-                ["Rooms",hotelRev.roomsRev,hotelRev.roomsEbitda,true],
-                ["F&B",hotelRev.fnbRev,hotelRev.fnbEbitda,data.fnbEnabled],
-                ["Spa",hotelRev.spaRev,hotelRev.spaEbitda,data.spaEnabled],
-                ["Gym",hotelRev.gymRev,hotelRev.gymEbitda,data.gymEnabled],
-                ["Meetings",hotelRev.meetingRev,hotelRev.meetingEbitda,data.meetingEnabled],
-              ] as any[]).filter(([,,,en])=>en).map(([label,rev,ebitda]:any)=>(
+              {([["Rooms",hotelRev.roomsRev,hotelRev.roomsEbitda,true],["F&B",hotelRev.fnbRev,hotelRev.fnbEbitda,data.fnbEnabled],["Spa",hotelRev.spaRev,hotelRev.spaEbitda,data.spaEnabled],["Gym",hotelRev.gymRev,hotelRev.gymEbitda,data.gymEnabled],["Meetings",hotelRev.meetingRev,hotelRev.meetingEbitda,data.meetingEnabled]] as any[]).filter(([,,,en])=>en).map(([label,rev,ebitda]:any)=>(
                 <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--bg4)",fontSize:11}}>
                   <span style={{color:"var(--text-m)",width:60}}>{label}</span>
                   <span style={{fontFamily:"var(--font-mono)",color:"var(--text-m)"}}>{fmt(rev,currencySymbol)}</span>
@@ -1303,35 +1197,19 @@ function AppraisalPage(){
 
           <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
             <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Cost Breakdown</div>
-            {assetType==="BTR"&&([
-              {label:"Land + SDLT",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},
-              {label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},
-              {label:"Dev Costs",value:r.devCost,color:"var(--text-m)"},
-              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
-              {label:"Total",value:r.totalCost,color:"var(--gold)",bold:true},
-            ] as any[]).map((item:any)=>(
+            {assetType==="BTR"&&([{label:"Land + SDLT",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Dev Costs",value:r.devCost,color:"var(--text-m)"},{label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(
               <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
                 <span style={{color:"var(--text-m)"}}>{item.label}</span>
                 <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
               </div>
             ))}
-            {assetType==="Hotel"&&([
-              {label:"Purchase + SDLT",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},
-              {label:"CapEx",value:r.capex,color:"var(--text-m)"},
-              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
-              {label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true},
-            ] as any[]).map((item:any)=>(
+            {assetType==="Hotel"&&([{label:"Purchase + SDLT",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"CapEx",value:r.capex,color:"var(--text-m)"},{label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(
               <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
                 <span style={{color:"var(--text-m)"}}>{item.label}</span>
                 <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
               </div>
             ))}
-            {assetType==="Flip"&&([
-              {label:"Purchase + SDLT",value:(r.purchase||0)+(r.sdlt||0),color:"var(--text-m)"},
-              {label:"Refurb + Fees",value:(r.refurb||0)+(r.profFees||0)+(r.contingency||0),color:"var(--text-m)"},
-              {label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},
-              {label:"Total",value:r.totalCost,color:"var(--gold)",bold:true},
-            ] as any[]).map((item:any)=>(
+            {assetType==="Flip"&&([{label:"Purchase + SDLT",value:(r.purchase||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Refurb + Fees",value:(r.refurb||0)+(r.profFees||0)+(r.contingency||0),color:"var(--text-m)"},{label:"Finance",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(
               <div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
                 <span style={{color:"var(--text-m)"}}>{item.label}</span>
                 <span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span>
@@ -1356,7 +1234,7 @@ function AppraisalPage(){
         </div>
       </div>
 
-      {/* SHARE MODAL */}
+      {/* ── SHARE MODAL ── */}
       {shareModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShareModal(false);}}>
           <div className="modal">
@@ -1384,19 +1262,116 @@ function AppraisalPage(){
               <p style={{fontSize:11,color:"var(--text-d)",marginTop:10}}>Anyone with this link can view the full appraisal — no login required.</p>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="share-btn" onClick={shareEmail}>
-                <span className="share-btn-icon">✉️</span>
-                <span className="share-btn-label">Email</span>
-              </button>
-              <button className="share-btn" onClick={shareWhatsApp}>
-                <span className="share-btn-icon">💬</span>
-                <span className="share-btn-label">WhatsApp</span>
-              </button>
+              <button className="share-btn" onClick={shareEmail}><span className="share-btn-icon">✉️</span><span className="share-btn-label">Email</span></button>
+              <button className="share-btn" onClick={shareWhatsApp}><span className="share-btn-icon">💬</span><span className="share-btn-label">WhatsApp</span></button>
             </div>
             {(!liveLink)&&<p style={{fontSize:11,color:"var(--amber)",marginTop:12}}>Generate a live link above first to share via email or WhatsApp.</p>}
           </div>
         </div>
       )}
+
+      {/* ── DELETE MODAL ── */}
+      {deleteModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setDeleteModal(false);}}>
+          <div className="modal modal-sm">
+            <div style={{fontFamily:"var(--font-display)",fontSize:24,fontWeight:300,marginBottom:8,color:"var(--red)"}}>Delete Appraisal</div>
+            <p style={{fontSize:13,color:"var(--text-m)",marginBottom:8}}>This will permanently delete <strong style={{color:"var(--text)"}}>{data.name||"this appraisal"}</strong>.</p>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:28}}>This action cannot be undone. The project will remain but the appraisal data will be lost.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button className="btn-ghost" onClick={()=>setDeleteModal(false)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
+              <button onClick={deleteAppraisal} disabled={deleting} style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:7,padding:"10px 20px",fontFamily:"var(--font-body)",fontSize:13,fontWeight:600,cursor:"pointer",opacity:deleting?.6:1}}>
+                {deleting?"Deleting…":"Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI BROCHURE MODAL ── */}
+      {brochureModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setBrochureModal(false);}}>
+          <div className="modal" style={{width:660}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontFamily:"var(--font-display)",fontSize:26,fontWeight:300}}>✨ AI Brochure</div>
+              <button onClick={()=>setBrochureModal(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:20}}>×</button>
+            </div>
+            <p style={{fontSize:13,color:"var(--text-d)",marginBottom:24}}>{data.name||"Untitled"} · {assetType} · {data.location||"No location"}</p>
+
+            {/* Photo upload */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Project Photos (optional, up to 3)</div>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                {brochurePhotos.map((ph,i)=>(
+                  <div key={i} className="photo-slot" style={{border:"1px solid var(--gold-border)"}}>
+                    <img src={ph} alt=""/>
+                    <button onClick={()=>setBrochurePhotos(p=>p.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,.7)",border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                  </div>
+                ))}
+                {brochurePhotos.length<3&&(
+                  <label className="photo-slot" style={{cursor:"pointer"}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:20,marginBottom:4}}>📷</div>
+                      <div style={{fontSize:9,color:"var(--text-d)"}}>Add photo</div>
+                    </div>
+                    <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={handlePhotoUpload}/>
+                  </label>
+                )}
+                <div style={{fontSize:11,color:"var(--text-d)",marginLeft:4}}>Photos appear on the brochure cover page.</div>
+              </div>
+            </div>
+
+            {/* Generate button */}
+            {!brochureContent&&(
+              <button className="btn-primary" onClick={generateBrochure} disabled={generatingBrochure} style={{width:"100%",justifyContent:"center",marginBottom:16,padding:"13px"}}>
+                {generatingBrochure?(
+                  <><span style={{width:14,height:14,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Analysing deal data…</>
+                ):"Generate AI Analysis →"}
+              </button>
+            )}
+
+            {brochureError&&(
+              <div style={{background:"rgba(244,100,95,.1)",border:"1px solid rgba(244,100,95,.3)",borderRadius:8,padding:12,fontSize:12,color:"var(--red)",marginBottom:16}}>{brochureError}</div>
+            )}
+
+            {/* Loading shimmer */}
+            {generatingBrochure&&(
+              <div>
+                {["Executive Summary","Deal Strengths","Risk Assessment","Market Comparables"].map(s=>(
+                  <div key={s} style={{marginBottom:12}}>
+                    <div style={{fontSize:10,color:"var(--gold)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>{s}</div>
+                    <div className="ai-generating"/>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Editable preview */}
+            {brochureContent&&!generatingBrochure&&(
+              <div>
+                {(["executiveSummary","dealStrengths","riskAssessment","marketComparables"] as (keyof BrochureContent)[]).map(key=>{
+                  const labels={executiveSummary:"Executive Summary",dealStrengths:"Deal Strengths",riskAssessment:"Risk Assessment",marketComparables:"Market Comparables"};
+                  return(
+                    <div key={key} className="ai-section">
+                      <span className="ai-section-label">{labels[key]}</span>
+                      <textarea className="ai-textarea" value={brochureContent[key]} onChange={e=>setBrochureContent(prev=>prev?{...prev,[key]:e.target.value}:prev)}/>
+                    </div>
+                  );
+                })}
+                <div style={{display:"flex",gap:10,marginTop:16}}>
+                  <button className="btn-ghost" onClick={()=>{setBrochureContent(null);}} style={{flex:1,justifyContent:"center"}}>↺ Regenerate</button>
+                  <button className="btn-primary" onClick={handleDownloadBrochure} disabled={downloadingBrochure} style={{flex:2,justifyContent:"center",padding:"12px"}}>
+                    {downloadingBrochure?(
+                      <><span style={{width:14,height:14,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Generating PDF…</>
+                    ):"⬇ Download Brochure PDF"}
+                  </button>
+                </div>
+                <p style={{fontSize:11,color:"var(--text-d)",marginTop:10,textAlign:"center"}}>Edit any section above before downloading. All content is editable.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
