@@ -4,12 +4,6 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
-/* ═══════════════════════════════════════════
-   VALORA — Appraisal Editor
-   All 4 asset types: BTR, BTS, Hotel, Flip
-   Tabbed layout with live calculation engine
-═══════════════════════════════════════════ */
-
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -89,7 +83,6 @@ function calcSDLT(
       if (price > low) sdlt += (Math.min(price, high) - low) * (surcharge ? rate + 0.03 : rate);
     }
   } else {
-    // Commercial / Mixed-Use
     const bands: [number, number, number][] = [
       [0,      150000,   0.00],
       [150000, 250000,   0.02],
@@ -152,9 +145,9 @@ const DEFAULTS = {
     tier3Hurdle: 18, tier3DevShare: 40,
     costProfile: "scurve",
     sdltMode: "auto" as const,
-sdltTransactionType: "residential" as const,
-sdltOverride: 0,
-sdltSurcharge: true,
+    sdltTransactionType: "residential" as const,
+    sdltOverride: 0,
+    sdltSurcharge: true,
   },
   BTS: {
     assetType: "BTS", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -174,9 +167,9 @@ sdltSurcharge: true,
     tier3Hurdle: 20, tier3DevShare: 40,
     costProfile: "scurve",
     sdltMode: "auto" as const,
-sdltTransactionType: "residential" as const,
-sdltOverride: 0,
-sdltSurcharge: true,
+    sdltTransactionType: "residential" as const,
+    sdltOverride: 0,
+    sdltSurcharge: true,
   },
   Hotel: {
     assetType: "Hotel", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -192,9 +185,9 @@ sdltSurcharge: true,
     tier3Hurdle: 20, tier3DevShare: 40,
     costProfile: "straight",
     sdltMode: "auto" as const,
-sdltTransactionType: "residential" as const,
-sdltOverride: 0,
-sdltSurcharge: true,
+    sdltTransactionType: "commercial" as const,
+    sdltOverride: 0,
+    sdltSurcharge: false,
   },
   Flip: {
     assetType: "Flip", name: "", location: "", currency: "GBP", benchmark: "SONIA", benchmarkRate: 3.97,
@@ -206,13 +199,84 @@ sdltSurcharge: true,
     professionalFeesPct: 2, contingencyPct: 10, otherCosts: 5000,
     costProfile: "straight",
     sdltMode: "auto" as const,
-sdltTransactionType: "residential" as const,
-sdltOverride: 0,
-sdltSurcharge: true,
+    sdltTransactionType: "residential" as const,
+    sdltOverride: 0,
+    sdltSurcharge: false,
   },
 };
 
 type AssetType = "BTR" | "BTS" | "Hotel" | "Flip";
+
+/* ─── Reusable SDLT UI block ─── */
+function SDLTBlock({ data, set, r, currencySymbol }: { data: any; set: (f: string, v: any) => void; r: any; currencySymbol: string }) {
+  return (
+    <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
+      <label className="inp-label">SDLT</label>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <button
+          onClick={() => set("sdltMode", "auto")}
+          style={{
+            padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+            fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600,
+            background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+            color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-m)",
+          }}
+        >Auto</button>
+        <button
+          onClick={() => set("sdltMode", "manual")}
+          style={{
+            padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
+            fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600,
+            background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
+            color: data.sdltMode === "manual" ? "#06070a" : "var(--text-m)",
+          }}
+        >Override</button>
+      </div>
+
+      {data.sdltMode !== "manual" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <select
+            className="inp"
+            value={data.sdltTransactionType ?? "residential"}
+            onChange={e => set("sdltTransactionType", e.target.value)}
+          >
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial / Non-Residential</option>
+            <option value="mixed">Mixed-Use</option>
+            <option value="spv">SPV Share Deal (Exempt)</option>
+          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              id="sdltSurcharge"
+              checked={data.sdltSurcharge ?? true}
+              onChange={e => set("sdltSurcharge", e.target.checked)}
+            />
+            <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
+              +3% surcharge (additional dwelling / company purchase)
+            </label>
+          </div>
+          <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
+            {fmt(r.sdlt || 0, currencySymbol)}
+            {data.sdltTransactionType === "spv" && (
+              <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {data.sdltMode === "manual" && (
+        <input
+          className="inp"
+          type="number"
+          placeholder="Enter SDLT amount"
+          value={data.sdltOverride ?? 0}
+          onChange={e => set("sdltOverride", +e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
 
 function AppraisalPage() {
   const router = useRouter();
@@ -294,7 +358,6 @@ function AppraisalPage() {
       const profit = gdv - totalCost;
       const poc = totalCost > 0 ? profit / totalCost : 0;
       const yoc = totalSqft > 0 ? noi / totalCost : 0;
-      // IRR approximation
       const months = num(String(data.programmMonths)) + num(String(data.stabilisationMonths));
       const cfs = [-totalCost];
       for (let m = 1; m < months; m++) cfs.push(0);
@@ -344,7 +407,7 @@ function AppraisalPage() {
       const stabilisedValue = ebitda / (num(String(data.stabilisedCapRate)) / 100);
       const exitValue = ebitda * (1 + num(String(data.revparGrowthPct)) / 100) / (num(String(data.exitCapRate)) / 100);
       const purchasePrice = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
+      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'commercial', data.sdltOverride ?? 0, data.sdltSurcharge ?? false);
       const capex = num(String(data.capexBudget));
       const profFees = capex * (num(String(data.professionalFeesPct)) / 100);
       const contingency = capex * (num(String(data.contingencyPct)) / 100);
@@ -366,7 +429,7 @@ function AppraisalPage() {
     }
     if (assetType === "Flip") {
       const purchase = num(String(data.purchasePrice));
-      const sdlt = calcSDLT(purchasePrice, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? true);
+      const sdlt = calcSDLT(purchase, data.sdltMode ?? 'auto', data.sdltTransactionType ?? 'residential', data.sdltOverride ?? 0, data.sdltSurcharge ?? false);
       const refurb = num(String(data.refurbBudget));
       const profFees = refurb * (num(String(data.professionalFeesPct)) / 100);
       const contingency = refurb * (num(String(data.contingencyPct)) / 100);
@@ -448,7 +511,6 @@ function AppraisalPage() {
       result = await supabase.from("appraisals").update(payload).eq("id", appraisalId).select().single();
     } else {
       if (!projectId) {
-        // Create a project first
         const { data: proj } = await supabase.from("projects").insert({
           name: data.name || "New Project",
           location: data.location || "",
@@ -529,14 +591,12 @@ function AppraisalPage() {
 
         {/* ── Left: Tabs + Inputs ── */}
         <div style={{ borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column" }}>
-          {/* Tab bar */}
           <div style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", overflowX: "auto", padding: "0 16px" }}>
             {TABS.map(t => (
               <button key={t} className={`tab ${activeTab === t ? "active" : ""}`} onClick={() => setActiveTab(t)}>{TAB_LABELS[t]}</button>
             ))}
           </div>
 
-          {/* Tab content */}
           <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
 
             {/* ── GENERAL TAB ── */}
@@ -598,7 +658,6 @@ function AppraisalPage() {
             {activeTab === "revenue" && assetType === "BTR" && (
               <div>
                 <div className="section-title">Unit Mix & Rents</div>
-                {/* Header */}
                 <div className="unit-row" style={{ borderBottom: "1px solid var(--gold)44" }}>
                   {["Unit Type", "Count", "Rent (pcm)", "Size (sqft)", "Gross Pa", ""].map((h, i) => (
                     <div key={i} style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".07em" }}>{h}</div>
@@ -618,7 +677,6 @@ function AppraisalPage() {
                   );
                 })}
                 <button className="btn-ghost" onClick={addUnit} style={{ marginTop: 12, fontSize: 11 }}>+ Add Unit Type</button>
-
                 <div className="section-title" style={{ marginTop: 28 }}>Exit Assumptions</div>
                 <div className="inp-row-3">
                   <div className="inp-group">
@@ -730,7 +788,7 @@ function AppraisalPage() {
               </div>
             )}
 
-            {/* ── COSTS TAB ── */}
+            {/* ── COSTS TAB — BTR & BTS ── */}
             {activeTab === "costs" && assetType !== "Flip" && assetType !== "Hotel" && (
               <div>
                 <div className="section-title">Land</div>
@@ -739,10 +797,7 @@ function AppraisalPage() {
                     <label className="inp-label">Land Cost ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.landCost} onChange={e => set("landCost", e.target.value)} />
                   </div>
-                  <div className="inp-group">
-                    <label className="inp-label">SDLT (auto-calculated)</label>
-                    <div className="inp" style={{ color: "var(--amber)", cursor: "not-allowed" }}>{fmt(r.sdlt || 0, currencySymbol)}</div>
-                  </div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
                 </div>
                 <div className="section-title" style={{ marginTop: 24 }}>Build Costs</div>
                 <div className="inp-row">
@@ -772,6 +827,7 @@ function AppraisalPage() {
               </div>
             )}
 
+            {/* ── COSTS TAB — Hotel ── */}
             {activeTab === "costs" && assetType === "Hotel" && (
               <div>
                 <div className="section-title">Acquisition</div>
@@ -780,71 +836,7 @@ function AppraisalPage() {
                     <label className="inp-label">Purchase Price ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} />
                   </div>
-                  <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
-  <label className="inp-label">SDLT</label>
-  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-    <button
-      onClick={() => set("sdltMode", "auto")}
-      style={{
-        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
-        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
-        background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
-        color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-muted)",
-      }}
-    >Auto</button>
-    <button
-      onClick={() => set("sdltMode", "manual")}
-      style={{
-        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
-        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
-        background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
-        color: data.sdltMode === "manual" ? "#06070a" : "var(--text-muted)",
-      }}
-    >Override</button>
-  </div>
-
-  {data.sdltMode !== "manual" && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <select
-        className="inp"
-        value={data.sdltTransactionType ?? "residential"}
-        onChange={e => set("sdltTransactionType", e.target.value)}
-      >
-        <option value="residential">Residential</option>
-        <option value="commercial">Commercial / Non-Residential</option>
-        <option value="mixed">Mixed-Use</option>
-        <option value="spv">SPV Share Deal (Exempt)</option>
-      </select>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          type="checkbox"
-          id="sdltSurcharge"
-          checked={data.sdltSurcharge ?? true}
-          onChange={e => set("sdltSurcharge", e.target.checked)}
-        />
-        <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
-          +3% surcharge (additional dwelling / company purchase)
-        </label>
-      </div>
-      <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
-        {fmt(r.sdlt || 0, currencySymbol)}
-        {data.sdltTransactionType === "spv" && (
-          <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>
-        )}
-      </div>
-    </div>
-  )}
-
-  {data.sdltMode === "manual" && (
-    <input
-      className="inp"
-      type="number"
-      placeholder="Enter SDLT amount"
-      value={data.sdltOverride ?? 0}
-      onChange={e => set("sdltOverride", +e.target.value)}
-    />
-  )}
-</div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
                 </div>
                 <div className="section-title" style={{ marginTop: 24 }}>CapEx & Costs</div>
                 <div className="inp-row">
@@ -870,6 +862,7 @@ function AppraisalPage() {
               </div>
             )}
 
+            {/* ── COSTS TAB — Flip ── */}
             {activeTab === "costs" && assetType === "Flip" && (
               <div>
                 <div className="section-title">Acquisition</div>
@@ -878,90 +871,8 @@ function AppraisalPage() {
                     <label className="inp-label">Purchase Price ({currencySymbol})</label>
                     <input className="inp" type="number" value={data.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} />
                   </div>
-                  <div className="inp-group" style={{ gridColumn: "1 / -1" }}>
-  <label className="inp-label">SDLT</label>
-  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-    <button
-      onClick={() => set("sdltMode", "auto")}
-      style={{
-        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
-        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
-        background: data.sdltMode !== "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
-        color: data.sdltMode !== "manual" ? "#06070a" : "var(--text-muted)",
-      }}
-    >Auto</button>
-    <button
-      onClick={() => set("sdltMode", "manual")}
-      style={{
-        padding: "4px 14px", borderRadius: 6, border: "none", cursor: "pointer",
-        fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600,
-        background: data.sdltMode === "manual" ? "var(--gold)" : "rgba(255,255,255,0.07)",
-        color: data.sdltMode === "manual" ? "#06070a" : "var(--text-muted)",
-      }}
-    >Override</button>
-  </div>
-
-  {data.sdltMode !== "manual" && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <select
-        className="inp"
-        value={data.sdltTransactionType ?? "residential"}
-        onChange={e => set("sdltTransactionType", e.target.value)}
-      >
-        <option value="residential">Residential</option>
-        <option value="commercial">Commercial / Non-Residential</option>
-        <option value="mixed">Mixed-Use</option>
-        <option value="spv">SPV Share Deal (Exempt)</option>
-      </select>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          type="checkbox"
-          id="sdltSurcharge"
-          checked={data.sdltSurcharge ?? true}
-          onChange={e => set("sdltSurcharge", e.target.checked)}
-        />
-        <label htmlFor="sdltSurcharge" className="inp-label" style={{ marginBottom: 0, fontSize: 12 }}>
-                  +3% surcharge (additional dwelling / company purchase)
-                </label>
-              </div>
-            <div className="inp" style={{ color: "var(--gold)", cursor: "not-allowed" }}>
-              {fmt(r.sdlt || 0, currencySymbol)}
-              {data.sdltTransactionType === "spv" && (
-                <span style={{ marginLeft: 8, fontSize: 11, color: "var(--green)", fontFamily: "var(--font-mono)" }}>EXEMPT</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {data.sdltMode === "manual" && (
-```
-
-So the final structure of the whole block should be:
-```
-line 881: <div className="inp-group" ...>        ← outer wrapper
-line 882:   <label>SDLT</label>
-line 883:   <div> Auto/Override buttons </div>   ← closes line 902
-line 904:   {data.sdltMode !== "manual" && (
-line 905:     <div flexColumn>                   ← closes line 927
-                <select>...</select>
-                <div flexRow checkbox>...</div>  ← closes line 926
-                <div computed value />
-            </div>
-          )}
-line 936:   {data.sdltMode === "manual" && (
-line 937:     <input />
-line 943:   )}
-line 945: </div>                                 ← closes outer inp-group
-          {data.sdltMode === "manual" && (
-            <input
-              className="inp"
-              type="number"
-              placeholder="Enter SDLT amount"
-              value={data.sdltOverride ?? 0}
-              onChange={e => set("sdltOverride", +e.target.value)}
-            />
-          )}
-        </div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol} />
+                </div>
                 <div className="section-title" style={{ marginTop: 24 }}>Refurbishment</div>
                 <div className="inp-row">
                   <div className="inp-group">
@@ -1138,9 +1049,7 @@ line 945: </div>                                 ← closes outer inp-group
                   })}
                   <div className="cf-row" style={{ background: "rgba(201,168,76,.05)", borderTop: "1px solid var(--gold)44" }}>
                     <div style={{ color: "var(--gold)", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600 }}>EXIT</div>
-                    <div />
-                    <div />
-                    <div />
+                    <div /><div /><div />
                     <div style={{ color: "var(--green)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(r.gdv || 0, currencySymbol)}</div>
                     <div />
                     <div style={{ color: "var(--green)" }}>100%</div>
@@ -1238,7 +1147,6 @@ line 945: </div>                                 ← closes outer inp-group
                   )}
                 </div>
 
-                {/* Sensitivity Matrix (BTR only) */}
                 {assetType === "BTR" && sensMatrix && (
                   <div>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
@@ -1291,7 +1199,6 @@ line 945: </div>                                 ← closes outer inp-group
             {data.location || "No location"} · {assetType} · {data.currency}
           </div>
 
-          {/* Key metrics */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
             {assetType === "BTR" && [
               { label: "GDV", value: fmt(r.gdv, currencySymbol), color: "var(--gold)" },
@@ -1339,7 +1246,6 @@ line 945: </div>                                 ← closes outer inp-group
             ))}
           </div>
 
-          {/* Cost breakdown */}
           <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Cost Breakdown</div>
             {assetType === "BTR" && [
@@ -1367,7 +1273,6 @@ line 945: </div>                                 ← closes outer inp-group
             ))}
           </div>
 
-          {/* PoC progress bar */}
           {(r.poc !== undefined) && (
             <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 11 }}>
@@ -1386,7 +1291,9 @@ line 945: </div>                                 ← closes outer inp-group
       </div>
     </div>
   );
-}export default function AppraisalPageWrapper() {
+}
+
+export default function AppraisalPageWrapper() {
   return (
     <Suspense fallback={
       <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
