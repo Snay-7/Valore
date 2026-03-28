@@ -160,6 +160,7 @@ export default function Dashboard() {
       <nav style={{ background: "var(--bg1)", borderBottom: "1px solid var(--border)", padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</span>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => router.push("/pipeline")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Pipeline</button>
           <span style={{ fontSize: 12, color: "var(--text-d)", fontFamily: "var(--font-mono)" }}>{user?.email}</span>
           <button onClick={signOut} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Sign Out</button>
         </div>
