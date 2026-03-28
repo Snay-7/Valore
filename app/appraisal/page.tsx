@@ -221,6 +221,238 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
   );
 }
 
+/* ─── PDF Generator ─── */
+async function generatePDF(data:any, results:any, assetType:string, currencySymbol:string, userEmail:string){
+  // Dynamically load jsPDF from CDN
+  if(!(window as any).jspdf){
+    await new Promise<void>((resolve,reject)=>{
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      s.onload=()=>resolve();
+      s.onerror=()=>reject();
+      document.head.appendChild(s);
+    });
+  }
+  const{jsPDF}=(window as any).jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const W=210,M=20;
+  let y=M;
+
+  const gold=[201,168,76];
+  const dark=[6,7,10];
+  const grey=[125,133,144];
+  const white=[255,255,255];
+  const green=[61,220,132];
+  const red=[244,100,95];
+
+  // Background
+  doc.setFillColor(...dark as [number,number,number]);
+  doc.rect(0,0,210,297,"F");
+
+  // Gold header bar
+  doc.setFillColor(...gold as [number,number,number]);
+  doc.rect(0,0,210,2,"F");
+
+  // VALORA wordmark
+  doc.setTextColor(...gold as [number,number,number]);
+  doc.setFontSize(22);
+  doc.setFont("helvetica","bold");
+  doc.text("VALORA",M,y+8);
+
+  // Date + user
+  doc.setTextColor(...grey as [number,number,number]);
+  doc.setFontSize(8);
+  doc.setFont("helvetica","normal");
+  doc.text(`Generated ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}`,W-M,y+8,{align:"right"});
+  doc.text(userEmail||"",W-M,y+14,{align:"right"});
+  y+=24;
+
+  // Project title
+  doc.setTextColor(...white as [number,number,number]);
+  doc.setFontSize(20);
+  doc.setFont("helvetica","bold");
+  doc.text(data.name||"Untitled Appraisal",M,y);
+  y+=8;
+  doc.setFontSize(10);
+  doc.setFont("helvetica","normal");
+  doc.setTextColor(...grey as [number,number,number]);
+  doc.text(`${data.location||"No location"} · ${assetType} · ${data.currency||"GBP"}`,M,y);
+  y+=10;
+
+  // Divider
+  doc.setDrawColor(...gold as [number,number,number]);
+  doc.setLineWidth(0.3);
+  doc.line(M,y,W-M,y);
+  y+=8;
+
+  // Key metrics boxes
+  const r=results as any;
+  const metrics=assetType==="BTR"?[
+    {label:"GDV",value:fmt(r.gdv,currencySymbol)},
+    {label:"Profit on Cost",value:fmtPct(r.poc)},
+    {label:"IRR",value:fmtPct(r.irr)},
+    {label:"Yield on Cost",value:fmtPct(r.yoc)},
+  ]:assetType==="BTS"?[
+    {label:"GDV",value:fmt(r.gdv,currencySymbol)},
+    {label:"Profit on Cost",value:fmtPct(r.poc)},
+    {label:"IRR",value:fmtPct(r.irr)},
+    {label:"Profit on GDV",value:fmtPct(r.margin)},
+  ]:assetType==="Hotel"?[
+    {label:"Exit Value",value:fmt(r.exitValue,currencySymbol)},
+    {label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol)},
+    {label:"IRR",value:fmtPct(r.irr)},
+    {label:"Return on Cost",value:fmtPct(r.poc)},
+  ]:[
+    {label:"Sale Price",value:fmt(r.salePrice,currencySymbol)},
+    {label:"Profit",value:fmt(r.profit,currencySymbol)},
+    {label:"ROI on Cost",value:fmtPct(r.roi)},
+    {label:"IRR",value:fmtPct(r.irr)},
+  ];
+
+  const boxW=(W-M*2-9)/4;
+  metrics.forEach((m,i)=>{
+    const x=M+i*(boxW+3);
+    doc.setFillColor(18,21,26);
+    doc.roundedRect(x,y,boxW,18,2,2,"F");
+    doc.setTextColor(...grey as [number,number,number]);
+    doc.setFontSize(7);
+    doc.text(m.label.toUpperCase(),x+3,y+6);
+    doc.setTextColor(...gold as [number,number,number]);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text(m.value,x+3,y+14);
+    doc.setFont("helvetica","normal");
+  });
+  y+=26;
+
+  // Section: Returns Summary
+  const drawSection=(title:string,rows:[string,string,boolean?][], startY:number)=>{
+    doc.setTextColor(...gold as [number,number,number]);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text(title,M,startY);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(...gold as [number,number,number]);
+    doc.line(M,startY+2,W-M,startY+2);
+    let ry=startY+8;
+    rows.forEach(([label,value,isPositive],idx)=>{
+      if(ry>270){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");ry=20;}
+      if(idx%2===0){doc.setFillColor(12,14,18);doc.rect(M,ry-4,W-M*2,7,"F");}
+      doc.setTextColor(...grey as [number,number,number]);
+      doc.setFontSize(9);
+      doc.setFont("helvetica","normal");
+      doc.text(label,M+2,ry);
+      const col=isPositive===undefined?white:isPositive?green:red;
+      doc.setTextColor(...col as [number,number,number]);
+      doc.setFont("helvetica","bold");
+      doc.text(value,W-M-2,ry,{align:"right"});
+      doc.setFont("helvetica","normal");
+      ry+=7;
+    });
+    return ry+4;
+  };
+
+  if(assetType==="BTR"){
+    y=drawSection("Returns Summary",[
+      ["GDV (Exit)",fmt(r.gdv,currencySymbol)],
+      ["Gross NOI pa",fmt(r.noi,currencySymbol)],
+      ["Total Cost",fmt(r.totalCost,currencySymbol)],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
+      ["Profit on Cost",fmtPct(r.poc),r.poc>0.1],
+      ["Yield on Cost",fmtPct(r.yoc)],
+      ["IRR (Unlevered)",fmtPct(r.irr)],
+      ["Residual Land Value",fmt(r.rlv,currencySymbol)],
+    ],y);
+    y=drawSection("Cost Breakdown",[
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol)],
+      ["SDLT",fmt(r.sdlt,currencySymbol)],
+      ["Build Cost",fmt(r.buildCost,currencySymbol)],
+      ["Professional Fees + Contingency",fmt((r.devCost-r.buildCost-(num(String(data.otherCosts)))),currencySymbol)],
+      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
+      ["Total Cost",fmt(r.totalCost,currencySymbol)],
+    ],y);
+    // Unit mix
+    if(data.units?.length){
+      y=drawSection("Unit Mix",[
+        ...data.units.map((u:any)=>[
+          `${u.type}`,
+          `${u.count} units · ${currencySymbol}${u.rentPcm}pcm`,
+        ] as [string,string]),
+      ],y);
+    }
+  }else if(assetType==="BTS"){
+    y=drawSection("Returns Summary",[
+      ["GDV",fmt(r.gdv,currencySymbol)],
+      ["Total Units",r.totalUnits?.toString()||"—"],
+      ["Total Cost",fmt(r.totalCost,currencySymbol)],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
+      ["Profit on Cost",fmtPct(r.poc),r.poc>0.1],
+      ["Profit on GDV",fmtPct(r.margin),r.margin>0.1],
+      ["IRR (Unlevered)",fmtPct(r.irr)],
+    ],y);
+    y=drawSection("Cost Breakdown",[
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol)],
+      ["SDLT",fmt(r.sdlt,currencySymbol)],
+      ["Build Cost",fmt(r.buildCost,currencySymbol)],
+      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
+      ["Total Cost",fmt(r.totalCost,currencySymbol)],
+    ],y);
+  }else if(assetType==="Hotel"){
+    y=drawSection("Returns Summary",[
+      ["RevPAR",fmt(r.revpar,currencySymbol)],
+      ["Total Revenue pa",fmt(r.revenuePa,currencySymbol)],
+      ["EBITDA pa",fmt(r.ebitda,currencySymbol)],
+      ["Exit Value",fmt(r.exitValue,currencySymbol)],
+      ["Total Investment",fmt(r.totalInvestment,currencySymbol)],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
+      ["Return on Cost",fmtPct(r.poc),r.poc>0.1],
+      ["IRR",fmtPct(r.irr)],
+    ],y);
+    y=drawSection("Cost Breakdown",[
+      ["Purchase Price",fmt(r.purchasePrice,currencySymbol)],
+      ["SDLT",fmt(r.sdlt,currencySymbol)],
+      ["CapEx",fmt(r.capex,currencySymbol)],
+      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
+      ["Total Investment",fmt(r.totalInvestment,currencySymbol)],
+    ],y);
+  }else{
+    y=drawSection("Returns Summary",[
+      ["Purchase Price",fmt(r.purchase,currencySymbol)],
+      ["SDLT",fmt(r.sdlt,currencySymbol)],
+      ["Refurb Budget",fmt(r.refurb,currencySymbol)],
+      ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol)],
+      ["Total Cost",fmt(r.totalCost,currencySymbol)],
+      ["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol)],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0],
+      ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.1],
+      ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.2],
+      ["IRR (Annualised)",fmtPct(r.irr)],
+    ],y);
+  }
+
+  // Project details
+  y=drawSection("Project Details",[
+    ["Asset Type",assetType],
+    ["Location",data.location||"—"],
+    ["Currency",data.currency||"GBP"],
+    ["Programme",`${data.programmMonths} months`],
+    ["Benchmark Rate",`${data.benchmark} + ${data.marginOverBenchmark}%`],
+  ],y);
+
+  // Footer
+  doc.setFillColor(...gold as [number,number,number]);
+  doc.rect(0,292,210,5,"F");
+  doc.setTextColor(...dark as [number,number,number]);
+  doc.setFontSize(7);
+  doc.setFont("helvetica","bold");
+  doc.text("VALORA · Institutional Development Appraisal",M,296);
+  doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,296,{align:"right"});
+
+  // Save
+  const filename=`Valora_${(data.name||"Appraisal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
+  doc.save(filename);
+}
+
 function AppraisalPage(){
   const router=useRouter();
   const searchParams=useSearchParams();
@@ -242,6 +474,7 @@ function AppraisalPage(){
   const[liveLink,setLiveLink]=useState<string|null>(null);
   const[generatingLink,setGeneratingLink]=useState(false);
   const[linkCopied,setLinkCopied]=useState(false);
+  const[generatingPDF,setGeneratingPDF]=useState(false);
 
   useEffect(()=>{
     const init=async()=>{
@@ -252,7 +485,6 @@ function AppraisalPage(){
     init();
   },[router]);
 
-  // Load snapshot when appraisal param is present
   useEffect(()=>{
     if(!appraisalParam||!user)return;
     const load=async()=>{
@@ -267,6 +499,9 @@ function AppraisalPage(){
           setAssetType(type);
           setData(snap);
           setSaved(true);
+        }
+        if(appr.share_token){
+          setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
         }
       }
       setLoading(false);
@@ -445,7 +680,6 @@ function AppraisalPage(){
 
   const sensMatrix=sensitivity();
 
-  /* ─── SAVE with snapshot ─── */
   const save=async()=>{
     if(!user){setSaveError("Not logged in");return;}
     setSaving(true);setSaveError(null);
@@ -476,7 +710,7 @@ function AppraisalPage(){
         irr_unlevered:r.irr||0,
         programme_months:num(String(data.programmMonths)),
         firm_id:null,
-        snapshot:{...data,assetType}, // ← full input state
+        snapshot:{...data,assetType},
       };
       let apprResult;
       if(appraisalId){
@@ -493,7 +727,6 @@ function AppraisalPage(){
     setSaving(false);
   };
 
-  /* ─── LIVE LINK ─── */
   const generateLiveLink=async()=>{
     if(!appraisalId){setSaveError("Save the appraisal first");return;}
     setGeneratingLink(true);
@@ -520,6 +753,15 @@ function AppraisalPage(){
     if(!liveLink)return;
     const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);
     window.open(`https://wa.me/?text=${text}`);
+  };
+
+  const handleGeneratePDF=async()=>{
+    setGeneratingPDF(true);
+    try{
+      const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+      await generatePDF(data,results,assetType,currSym,user?.email||"");
+    }catch(e){console.error("PDF error:",e);}
+    setGeneratingPDF(false);
   };
 
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
@@ -971,11 +1213,15 @@ function AppraisalPage(){
                       <span className="share-btn-icon">🔗</span>
                       <span className="share-btn-label">Live Link</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}shareEmail();}}>
+                    <button className="share-btn" onClick={handleGeneratePDF} disabled={generatingPDF}>
+                      <span className="share-btn-icon">{generatingPDF?"⏳":"📄"}</span>
+                      <span className="share-btn-label">{generatingPDF?"Generating…":"Plain PDF"}</span>
+                    </button>
+                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}if(!liveLink){setSaveError("Generate live link first");return;}shareEmail();}}>
                       <span className="share-btn-icon">✉️</span>
                       <span className="share-btn-label">Email</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}shareWhatsApp();}}>
+                    <button className="share-btn" onClick={()=>{if(!appraisalId){setSaveError("Save first");return;}if(!liveLink){setSaveError("Generate live link first");return;}shareWhatsApp();}}>
                       <span className="share-btn-icon">💬</span>
                       <span className="share-btn-label">WhatsApp</span>
                     </button>
@@ -1110,7 +1356,7 @@ function AppraisalPage(){
         </div>
       </div>
 
-      {/* ── SHARE MODAL ── */}
+      {/* SHARE MODAL */}
       {shareModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShareModal(false);}}>
           <div className="modal">
@@ -1119,8 +1365,6 @@ function AppraisalPage(){
               <button onClick={()=>setShareModal(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:20}}>×</button>
             </div>
             <p style={{fontSize:13,color:"var(--text-d)",marginBottom:28}}>{data.name||"Untitled"} · {assetType} · {data.location||"No location"}</p>
-
-            {/* Live Link */}
             <div style={{background:"var(--bg3)",borderRadius:10,padding:16,marginBottom:16}}>
               <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Live Link</div>
               {!liveLink?(
@@ -1131,9 +1375,7 @@ function AppraisalPage(){
                 <>
                   <div style={{background:"var(--bg4)",borderRadius:7,padding:"10px 12px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--gold)",wordBreak:"break-all",marginBottom:10}}>{liveLink}</div>
                   <div style={{display:"flex",gap:8}}>
-                    <button className="btn-primary" onClick={copyLink} style={{flex:1,justifyContent:"center"}}>
-                      {linkCopied?"✓ Copied!":"Copy Link"}
-                    </button>
+                    <button className="btn-primary" onClick={copyLink} style={{flex:1,justifyContent:"center"}}>{linkCopied?"✓ Copied!":"Copy Link"}</button>
                     <button className="btn-ghost" onClick={shareEmail} style={{flex:1,justifyContent:"center"}}>Email</button>
                     <button className="btn-ghost" onClick={shareWhatsApp} style={{flex:1,justifyContent:"center"}}>WhatsApp</button>
                   </div>
@@ -1141,8 +1383,6 @@ function AppraisalPage(){
               )}
               <p style={{fontSize:11,color:"var(--text-d)",marginTop:10}}>Anyone with this link can view the full appraisal — no login required.</p>
             </div>
-
-            {/* Quick share */}
             <div style={{display:"flex",gap:8}}>
               <button className="share-btn" onClick={shareEmail}>
                 <span className="share-btn-icon">✉️</span>
