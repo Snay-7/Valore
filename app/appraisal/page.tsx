@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = 'force-dynamic'
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -171,7 +171,7 @@ const DEFAULTS = {
 
 type AssetType = "BTR" | "BTS" | "Hotel" | "Flip";
 
-export default function AppraisalPage() {
+function AppraisalPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
@@ -1202,5 +1202,16 @@ export default function AppraisalPage() {
         </div>
       </div>
     </div>
+  );
+}export default function AppraisalPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ width:32, height:32, border:"2px solid rgba(201,168,76,.2)", borderTopColor:"#c9a84c", borderRadius:"50%", animation:"spin .7s linear infinite" }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <AppraisalPage/>
+    </Suspense>
   );
 }
