@@ -96,9 +96,13 @@ export default function Dashboard() {
 
   // Close menu on outside click
   useEffect(() => {
-    const handler = () => setOpenMenuId(null);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".card-menu")) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const loadProjects = async (userId: string) => {
@@ -400,15 +404,19 @@ export default function Dashboard() {
                       <div className="card-menu" onClick={e => e.stopPropagation()}>
                         <button
                           className="menu-btn"
-                          onClick={e => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : p.id); }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setOpenMenuId(menuOpen ? null : p.id);
+                          }}
                         >⋯</button>
                         {menuOpen && (
-                          <div className="dropdown">
-                            <button className="dropdown-item" onClick={() => openProject(p)}>
+                          <div className="dropdown" onClick={e => e.stopPropagation()}>
+                            <button className="dropdown-item" onClick={e => { e.stopPropagation(); openProject(p); }}>
                               <span>↗</span> Open Appraisal
                             </button>
                             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }}/>
-                            <button className="dropdown-item danger" onClick={() => { moveToTrash(p.id); }}>
+                            <button className="dropdown-item danger" onClick={e => { e.stopPropagation(); moveToTrash(p.id); }}>
                               <span>🗑</span> Move to Trash
                             </button>
                           </div>
