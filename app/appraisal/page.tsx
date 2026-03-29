@@ -747,23 +747,6 @@ function AppraisalPage(){
   },[assetType,data,calc]);
   const sensMatrix=sensitivity();
 
-  // Auto-run static sense check whenever inputs change (debounced 600ms)
-  useEffect(()=>{
-    if(!data.programmMonths)return;
-    const timer=setTimeout(()=>{
-      // Trigger static check automatically
-      const event=new CustomEvent("valora:runsense");
-      window.dispatchEvent(event);
-    },600);
-    return()=>clearTimeout(timer);
-  },[data,assetType]);
-
-  useEffect(()=>{
-    const handler=()=>runStaticChecks();
-    window.addEventListener("valora:runsense",handler);
-    return()=>window.removeEventListener("valora:runsense",handler);
-  },[runStaticChecks]);
-
   /* ─── SENSE CHECK ─── */
   const runStaticChecks=useCallback(()=>{
     setSenseError(null);
@@ -898,6 +881,13 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
     }catch(err:any){setSenseError("AI check failed — static rules still apply.");console.error(err);}
     setSenseRunning(false);
   };
+
+  // Auto-run static sense check on every input change (debounced 600ms)
+  useEffect(()=>{
+    if(!data.programmMonths)return;
+    const timer=setTimeout(()=>runStaticChecks(),600);
+    return()=>clearTimeout(timer);
+  },[data,assetType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── SAVE ─── */
   const save=async()=>{
