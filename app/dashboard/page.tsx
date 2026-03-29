@@ -415,6 +415,12 @@ export default function Dashboard() {
                             <button className="dropdown-item" onClick={e => { e.stopPropagation(); openProject(p); }}>
                               <span>↗</span> Open Appraisal
                             </button>
+                            <button className="dropdown-item" onClick={e => { e.stopPropagation(); router.push("/pipeline"); }}>
+                              <span>✚</span> Create Task
+                            </button>
+                            <button className="dropdown-item" onClick={e => { e.stopPropagation(); router.push("/pipeline"); }}>
+                              <span>⟶</span> View in Pipeline
+                            </button>
                             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }}/>
                             <button className="dropdown-item danger" onClick={e => { e.stopPropagation(); moveToTrash(p.id); }}>
                               <span>🗑</span> Move to Trash
