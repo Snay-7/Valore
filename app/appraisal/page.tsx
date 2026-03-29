@@ -747,9 +747,26 @@ function AppraisalPage(){
   },[assetType,data,calc]);
   const sensMatrix=sensitivity();
 
+  // Auto-run static sense check whenever inputs change (debounced 600ms)
+  useEffect(()=>{
+    if(!data.programmMonths)return;
+    const timer=setTimeout(()=>{
+      // Trigger static check automatically
+      const event=new CustomEvent("valora:runsense");
+      window.dispatchEvent(event);
+    },600);
+    return()=>clearTimeout(timer);
+  },[data,assetType]);
+
+  useEffect(()=>{
+    const handler=()=>runStaticChecks();
+    window.addEventListener("valora:runsense",handler);
+    return()=>window.removeEventListener("valora:runsense",handler);
+  },[runStaticChecks]);
+
   /* ─── SENSE CHECK ─── */
   const runStaticChecks=useCallback(()=>{
-    setSenseResult(null);setSenseError(null);
+    setSenseError(null);
     const flags:any[]=[];
     const loc=(data.location||"").toLowerCase();
     const isLondon=loc.includes("london")||loc.includes("ec")||loc.includes("sw")||loc.includes("se")||loc.includes("n1")||loc.includes("e1")||loc.includes("w1");
@@ -761,7 +778,6 @@ function AppraisalPage(){
       const ltc=num(String(data.ltc));
       const opexPsf=num(String(data.opexPsf));
       const units=data.units||[];
-      const avgRentPcm=units.length?units.reduce((s:number,u:any)=>s+num(String(u.rentPcm)),0)/units.length:0;
       // Build cost
       const bcLow=isLondon?280:isMidlands?200:180;const bcHigh=isLondon?450:isMidlands?320:280;
       if(buildCostPsf<bcLow)flags.push({severity:"warning",field:"Build Cost psf",message:`£${buildCostPsf}psf looks low for ${isLondon?"London":isMidlands?"the Midlands":"this location"} BTR. May underestimate actual costs.`,benchmark:`Typical range: £${bcLow}–£${bcHigh}psf`});
@@ -775,8 +791,41 @@ function AppraisalPage(){
       if(voidPct>10)flags.push({severity:"warning",field:"Void %",message:`${voidPct}% void is high — this significantly suppresses GDV. Is this intentional?`,benchmark:"Typical stabilised void: 2–5%"});
       // LTC
       if(ltc>75)flags.push({severity:"error",field:"LTC Ratio",message:`${ltc}% LTC exceeds most lender limits. Senior lenders typically cap at 65–70%.`,benchmark:"Typical senior debt: 55–70% LTC"});
-      // Rents
-      if(isLondon&&avgRentPcm<1500)flags.push({severity:"warning",field:"Rents",message:`Average rent of £${Math.round(avgRentPcm)}pcm looks low for London. Check against local comparables.`,benchmark:"London BTR: £1,800–£3,500pcm depending on location"});
+      // Per-unit rent checks — location-aware benchmarks
+      const rentBenchmarks:Record<string,{low:number;high:number}>=isLondon?{
+        "1":{ low:1600, high:3500},
+        "2":{ low:2200, high:5000},
+        "3":{ low:3000, high:7000},
+        "studio":{low:1200,high:2500},
+        "penthouse":{low:4000,high:12000},
+      }:isMidlands?{
+        "1":{low:800, high:1400},
+        "2":{low:1000,high:1800},
+        "3":{low:1200,high:2200},
+        "studio":{low:600,high:1000},
+        "penthouse":{low:1500,high:3000},
+      }:{
+        "1":{low:600, high:1200},
+        "2":{low:800, high:1600},
+        "3":{low:1000,high:2000},
+        "studio":{low:500,high:900},
+        "penthouse":{low:1200,high:2500},
+      };
+      units.forEach((u:any)=>{
+        const rent=num(String(u.rentPcm));
+        const size=num(String(u.size));
+        const type=(u.type||"").toLowerCase();
+        // Determine bed type from unit type string
+        const bedKey=type.includes("studio")?"studio":type.includes("penthouse")?"penthouse":type.includes("3")?"3":type.includes("2")?"2":"1";
+        const bench=rentBenchmarks[bedKey];
+        if(rent>bench.high)flags.push({severity:"warning",field:`${u.type} Rent`,message:`£${rent}pcm for ${u.type} is above typical market range${isLondon?" for London":isMidlands?" for the Midlands":""}. A lender will stress test at lower rents.`,benchmark:`Typical ${u.type}: £${bench.low}–£${bench.high}pcm`});
+        if(rent<bench.low)flags.push({severity:"info",field:`${u.type} Rent`,message:`£${rent}pcm for ${u.type} looks below market. Is this intentional (e.g. affordable or DMR)?`,benchmark:`Typical ${u.type}: £${bench.low}–£${bench.high}pcm`});
+        // Rent per sqft sanity check
+        if(size>0){
+          const rentPsf=rent/size;
+          if(rentPsf>5)flags.push({severity:"warning",field:`${u.type} Rent/sqft`,message:`${u.type} rent of £${rent}pcm on ${size}sqft implies £${rentPsf.toFixed(2)}/sqft/month — very high. Verify unit size is correct.`,benchmark:"Typical BTR: £2.50–£4.50/sqft/month in London"});
+        }
+      });
       // Opex
       if(opexPsf<4)flags.push({severity:"warning",field:"OpEx psf",message:`£${opexPsf}psf OpEx looks low. Institutional BTR typically runs £6–12psf including management fees.`,benchmark:"Typical BTR OpEx: £6–12psf pa"});
     }
