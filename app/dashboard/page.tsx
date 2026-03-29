@@ -121,9 +121,12 @@ export default function Dashboard() {
         const daysInTrash = (now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24);
         if (daysInTrash < TRASH_DAYS) {
           trashed.push({ ...p, _daysLeft: Math.ceil(TRASH_DAYS - daysInTrash) });
+        } else {
+          // Auto-purge expired trash
+          supabase.from("appraisals").delete().eq("project_id", p.id).then(() =>
+            supabase.from("projects").delete().eq("id", p.id)
+          );
         }
-        // If > 3 days old, auto-purge (fire and forget)
-        else { supabase.from("projects").delete().eq("id", p.id); }
       }
     });
 
@@ -158,21 +161,32 @@ export default function Dashboard() {
 
   const moveToTrash = async (projectId: string) => {
     setOpenMenuId(null);
-    await supabase.from("projects").update({ deleted_at: new Date().toISOString() }).eq("id", projectId);
-    await loadProjects(user.id);
+    const now = new Date().toISOString();
+    await supabase.from("projects").update({ deleted_at: now }).eq("id", projectId);
+    // Update state immediately — move from active to trashed
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setTrashedProjects(prev => [...prev, { ...project, deleted_at: now, _daysLeft: TRASH_DAYS }]);
+    }
   };
 
   const restoreProject = async (projectId: string) => {
     await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
-    await loadProjects(user.id);
+    // Update state immediately — move from trashed to active
+    const project = trashedProjects.find(p => p.id === projectId);
+    if (project) {
+      const { _daysLeft, deleted_at, ...restored } = project;
+      setTrashedProjects(prev => prev.filter(p => p.id !== projectId));
+      setProjects(prev => [{ ...restored, deleted_at: null }, ...prev]);
+    }
   };
 
   const permanentlyDelete = async (projectId: string) => {
-    // Delete appraisals first, then project
     await supabase.from("appraisals").delete().eq("project_id", projectId);
     await supabase.from("projects").delete().eq("id", projectId);
+    setTrashedProjects(prev => prev.filter(p => p.id !== projectId));
     setConfirmDelete(null);
-    await loadProjects(user.id);
   };
 
   const emptyTrash = async () => {
@@ -180,8 +194,8 @@ export default function Dashboard() {
       await supabase.from("appraisals").delete().eq("project_id", p.id);
       await supabase.from("projects").delete().eq("id", p.id);
     }
+    setTrashedProjects([]);
     setConfirmDelete(null);
-    await loadProjects(user.id);
   };
 
   const filteredProjects = filter === "all" ? projects : projects.filter(p => p.asset_type === filter);
