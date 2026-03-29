@@ -887,7 +887,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
     if(!data.programmMonths)return;
     const timer=setTimeout(()=>runStaticChecks(),600);
     return()=>clearTimeout(timer);
-  },[data,assetType]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[JSON.stringify(data),assetType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── SAVE ─── */
   const save=async()=>{
