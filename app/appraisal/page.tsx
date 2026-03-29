@@ -79,7 +79,10 @@ select.inp{cursor:pointer}
   .inp-row-3{grid-template-columns:1fr 1fr}
   .unit-row{grid-template-columns:1fr 1fr 1fr 28px}
   .editor-layout{grid-template-columns:1fr !important}
-  .output-panel{position:static !important;height:auto !important}
+  .output-panel{position:static !important;height:auto !important;border-left:none !important;border-top:1px solid var(--border)}
+  .modal{width:calc(100vw - 24px) !important;padding:20px !important;max-height:85vh}
+  .share-btn{padding:10px 6px}
+  .share-btn-label{font-size:8px}
 }
 `;
 

@@ -45,7 +45,16 @@ select.inp{cursor:pointer}
 .dropdown-item:hover{background:var(--bg4);color:var(--text)}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
-.trash-banner{background:rgba(244,100,95,.06);border:1px solid rgba(244,100,95,.15);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.trash-banner{background:rgba(244,100,95,.06);border:1px solid rgba(244,100,95,.15);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:36px}
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+  .cards-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  nav{padding:0 16px !important}
+  .portfolio-pad{padding:24px 16px !important}
+}
 `;
 
 const fmt = (n: number, prefix = "£") => {
@@ -244,7 +253,8 @@ export default function Dashboard() {
       </nav>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 40px" }}>
-
+        <button onClick={() => router.push("/pricing")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Upgrade</button>
+```
         {/* ── TRASH VIEW ── */}
         {view === "trash" && (
           <div>
@@ -267,7 +277,7 @@ export default function Dashboard() {
                 <p style={{ fontSize: 16, color: "var(--text-d)", fontFamily: "var(--font-display)" }}>Trash is empty</p>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+              <div className="cards-grid">
                 {trashedProjects.map((p, i) => {
                   const latest = p.appraisals?.[0];
                   const sym = CURRENCY_SYMBOLS[p.currency] || "£";
@@ -340,7 +350,7 @@ export default function Dashboard() {
 
             {/* Portfolio stats */}
             {projects.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 36 }}>
+              <div className="stats-grid">
                 {[
                   { label: "Total Projects", value: projects.length.toString(), color: "var(--text)" },
                   { label: "Total GDV", value: fmt(totalGDV), color: "var(--gold)" },
@@ -387,7 +397,7 @@ export default function Dashboard() {
 
             {/* Project grid */}
             {filteredProjects.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+              <div className="cards-grid">
                 {filteredProjects.map((p, i) => {
                   const latest = p.appraisals?.[0];
                   const poc = latest?.profit_on_cost;
