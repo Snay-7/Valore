@@ -573,6 +573,11 @@ function AppraisalPage(){
   const[generatingBrochure,setGeneratingBrochure]=useState(false);
   const[brochureError,setBrochureError]=useState<string|null>(null);
   const[downloadingBrochure,setDownloadingBrochure]=useState(false);
+  // Sense Check
+  const[senseResult,setSenseResult]=useState<{overall:string;summary:string;flags:{severity:string;field:string;message:string;benchmark:string}[]}|null>(null);
+  const[senseRunning,setSenseRunning]=useState(false);
+  const[senseError,setSenseError]=useState<string|null>(null);
+  const[senseOpen,setSenseOpen]=useState(true);
 
   useEffect(()=>{
     const init=async()=>{
@@ -739,6 +744,108 @@ function AppraisalPage(){
     }));
   },[assetType,data,calc]);
   const sensMatrix=sensitivity();
+
+  /* ─── SENSE CHECK ─── */
+  const runStaticChecks=useCallback(()=>{
+    const flags:any[]=[];
+    const loc=(data.location||"").toLowerCase();
+    const isLondon=loc.includes("london")||loc.includes("ec")||loc.includes("sw")||loc.includes("se")||loc.includes("n1")||loc.includes("e1")||loc.includes("w1");
+    const isMidlands=loc.includes("birmingham")||loc.includes("manchester")||loc.includes("leeds")||loc.includes("sheffield")||loc.includes("nottingham");
+    if(assetType==="BTR"){
+      const buildCostPsf=num(String(data.buildCostPsf));
+      const exitYield=num(String(data.exitYield));
+      const voidPct=num(String(data.voidPct));
+      const ltc=num(String(data.ltc));
+      const opexPsf=num(String(data.opexPsf));
+      const units=data.units||[];
+      const avgRentPcm=units.length?units.reduce((s:number,u:any)=>s+num(String(u.rentPcm)),0)/units.length:0;
+      // Build cost
+      const bcLow=isLondon?280:isMidlands?200:180;const bcHigh=isLondon?450:isMidlands?320:280;
+      if(buildCostPsf<bcLow)flags.push({severity:"warning",field:"Build Cost psf",message:`£${buildCostPsf}psf looks low for ${isLondon?"London":isMidlands?"the Midlands":"this location"} BTR. May underestimate actual costs.`,benchmark:`Typical range: £${bcLow}–£${bcHigh}psf`});
+      if(buildCostPsf>bcHigh)flags.push({severity:"warning",field:"Build Cost psf",message:`£${buildCostPsf}psf is above typical range. Confirm this includes all prelims and externals.`,benchmark:`Typical range: £${bcLow}–£${bcHigh}psf`});
+      // Exit yield
+      const yLow=isLondon?3.5:isMidlands?4.5:5.0;const yHigh=isLondon?5.5:isMidlands?6.5:7.0;
+      if(exitYield<yLow)flags.push({severity:"warning",field:"Exit Yield",message:`${exitYield}% exit yield is very compressed. A lender may stress test at a higher yield.`,benchmark:`Typical BTR exit yield: ${yLow}–${yHigh}%`});
+      if(exitYield>yHigh)flags.push({severity:"info",field:"Exit Yield",message:`${exitYield}% exit yield is above market. Consider whether this reflects the asset quality.`,benchmark:`Typical BTR exit yield: ${yLow}–${yHigh}%`});
+      // Void
+      if(voidPct<1)flags.push({severity:"info",field:"Void %",message:`${voidPct}% void is very optimistic. Most lenders will stress at 5–8%.`,benchmark:"Typical stabilised void: 2–5%"});
+      if(voidPct>10)flags.push({severity:"warning",field:"Void %",message:`${voidPct}% void is high — this significantly suppresses GDV. Is this intentional?`,benchmark:"Typical stabilised void: 2–5%"});
+      // LTC
+      if(ltc>75)flags.push({severity:"error",field:"LTC Ratio",message:`${ltc}% LTC exceeds most lender limits. Senior lenders typically cap at 65–70%.`,benchmark:"Typical senior debt: 55–70% LTC"});
+      // Rents
+      if(isLondon&&avgRentPcm<1500)flags.push({severity:"warning",field:"Rents",message:`Average rent of £${Math.round(avgRentPcm)}pcm looks low for London. Check against local comparables.`,benchmark:"London BTR: £1,800–£3,500pcm depending on location"});
+      // Opex
+      if(opexPsf<4)flags.push({severity:"warning",field:"OpEx psf",message:`£${opexPsf}psf OpEx looks low. Institutional BTR typically runs £6–12psf including management fees.`,benchmark:"Typical BTR OpEx: £6–12psf pa"});
+    }
+    if(assetType==="BTS"){
+      const buildCostPsf=num(String(data.buildCostPsf));const ltc=num(String(data.ltc));
+      const units=data.units||[];
+      const avgPsf=units.length?units.reduce((s:number,u:any)=>s+num(String(u.salePricePsf)),0)/units.length:0;
+      const bcLow=isLondon?260:180;const bcHigh=isLondon?420:280;
+      if(buildCostPsf<bcLow)flags.push({severity:"warning",field:"Build Cost psf",message:`£${buildCostPsf}psf build cost may be understated for ${isLondon?"London":"this location"}.`,benchmark:`Typical range: £${bcLow}–£${bcHigh}psf`});
+      if(ltc>70)flags.push({severity:"error",field:"LTC Ratio",message:`${ltc}% LTC is above typical senior debt limits for BTS.`,benchmark:"Typical senior debt: 55–65% LTC"});
+      if(isLondon&&avgPsf<700)flags.push({severity:"warning",field:"Sale Price psf",message:`Average sale price of £${Math.round(avgPsf)}psf is low for London. Verify against recent comparables.`,benchmark:"London residential: £800–£2,000psf+ depending on zone"});
+      const absMonths=num(String(data.absorptionMonths));
+      const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
+      const salesPerMonth=absMonths>0?totalUnits/absMonths:0;
+      if(salesPerMonth>8)flags.push({severity:"warning",field:"Absorption Period",message:`Selling ${Math.round(salesPerMonth)} units/month implies very fast absorption. Consider market depth.`,benchmark:"Typical: 3–6 units/month for new build residential"});
+    }
+    if(assetType==="Hotel"){
+      const occupancy=num(String(data.occupancy));const adr=num(String(data.adr));const ltc=num(String(data.ltc));
+      if(occupancy>85)flags.push({severity:"warning",field:"Occupancy",message:`${occupancy}% stabilised occupancy is very high. Lenders typically underwrite at 70–78%.`,benchmark:"Typical stabilised hotel: 68–80% occupancy"});
+      if(occupancy<50)flags.push({severity:"error",field:"Occupancy",message:`${occupancy}% occupancy would make this hotel unviable. Check inputs.`,benchmark:"Minimum viable: ~60% occupancy"});
+      if(ltc>65)flags.push({severity:"warning",field:"LTC Ratio",message:`${ltc}% LTC is aggressive for hotel financing. Most lenders cap at 55–60%.`,benchmark:"Hotel senior debt: 50–60% LTC"});
+      const stars=num(String(data.starRating));
+      if(stars===5&&adr<250)flags.push({severity:"warning",field:"ADR",message:`£${adr} ADR is low for a 5-star hotel. Typically 5-star rates exceed £300/night.`,benchmark:"5-star ADR: £300–£800+ depending on location"});
+      if(stars===3&&adr>200)flags.push({severity:"info",field:"ADR",message:`£${adr} ADR is high for a 3-star hotel. Verify this is achievable.`,benchmark:"3-star ADR: £80–£150 typical"});
+    }
+    if(assetType==="Flip"){
+      const bridgingRate=num(String(data.bridgingRatePct));const purchase=num(String(data.purchasePrice));const sale=num(String(data.salePrice));
+      if(bridgingRate>1.2)flags.push({severity:"warning",field:"Bridging Rate",message:`${bridgingRate}%pm is above typical bridging rates. Shop around — most lenders are at 0.6–0.9%pm.`,benchmark:"Typical bridging: 0.6–1.0%pm"});
+      if(sale<purchase)flags.push({severity:"error",field:"Sale Price",message:"Sale price is below purchase price — this deal will make a loss before costs.",benchmark:"Sale price must exceed total cost"});
+      const uplift=purchase>0?(sale-purchase)/purchase*100:0;
+      if(uplift>40)flags.push({severity:"warning",field:"Sale Price",message:`${uplift.toFixed(0)}% price uplift from refurbishment is very high. Verify with local agent comparables.`,benchmark:"Typical refurb uplift: 15–30%"});
+    }
+    // General checks
+    const programme=num(String(data.programmMonths));
+    if(programme<6&&(assetType==="BTR"||assetType==="BTS"))flags.push({severity:"error",field:"Programme",message:`${programme} month programme is too short for a ${assetType} scheme. Minimum realistic is 18–24 months.`,benchmark:`Typical ${assetType} programme: 24–48 months`});
+    const margin=num(String(data.marginOverBenchmark));
+    if(margin<1.5)flags.push({severity:"info",field:"Finance Margin",message:`${margin}% margin over benchmark is tight. Current market spreads are typically 2.0–3.5%.`,benchmark:"Typical development finance margin: 2.0–3.5% over benchmark"});
+    const overall=flags.filter(f=>f.severity==="error").length>0?"red":flags.filter(f=>f.severity==="warning").length>=2?"amber":flags.length===0?"green":"amber";
+    const summary=overall==="green"?"All assumptions look credible — no major issues identified.":overall==="amber"?`${flags.length} assumption${flags.length!==1?"s":""} to review before presenting to a lender.`:`${flags.filter((f:any)=>f.severity==="error").length} critical issue${flags.filter((f:any)=>f.severity==="error").length!==1?"s":""} identified — address before proceeding.`;
+    setSenseResult({overall,summary,flags});
+  },[assetType,data]);
+
+  const runAISenseCheck=async()=>{
+    setSenseRunning(true);setSenseError(null);
+    const r=results as any;
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    const dealSummary=`
+Asset Type: ${assetType} | Location: ${data.location||"Not specified"} | Currency: ${data.currency}
+Programme: ${data.programmMonths} months ${assetType==="BTS"?`+ ${data.absorptionMonths}m absorption`:""}
+${assetType==="BTR"?`Units: ${(data.units||[]).map((u:any)=>`${u.count}x ${u.type} @ £${u.rentPcm}pcm (${u.size}sqft)`).join(", ")}
+Exit Yield: ${data.exitYield}% | Void: ${data.voidPct}% | OpEx: £${data.opexPsf}psf
+Build Cost: £${data.buildCostPsf}psf | Site: ${data.siteAreaSqft}sqft`:""}
+${assetType==="BTS"?`Units: ${(data.units||[]).map((u:any)=>`${u.count}x ${u.type} @ £${u.salePricePsf}psf (${u.size}sqft)`).join(", ")}
+Build Cost: £${data.buildCostPsf}psf | Site: ${data.siteAreaSqft}sqft
+Agent Fee: ${data.agentFeePct}% | Marketing: ${data.marketingPct}%`:""}
+${assetType==="Hotel"?`Rooms: ${data.rooms} | Stars: ${data.starRating} | ADR: £${data.adr} | Occupancy: ${data.occupancy}%
+RevPAR: ${fmt(r.revpar,currSym)} | EBITDA: ${fmt(r.ebitda,currSym)}pa
+Exit Cap Rate: ${data.exitCapRate}% | Stabilised Cap Rate: ${data.stabilisedCapRate}%`:""}
+${assetType==="Flip"?`Purchase: ${fmt(r.purchase,currSym)} | Refurb: ${fmt(r.refurb,currSym)} | Sale: ${fmt(r.salePrice,currSym)}
+Bridging: ${data.bridgingRatePct}%pm for ${data.bridgingTermMonths} months`:""}
+Finance: LTC ${data.ltc||data.bridgingRatePct}% | Benchmark: ${data.benchmark} + ${data.marginOverBenchmark}% | All-in: ${r.financeRate?(r.financeRate*100).toFixed(2):"N/A"}%
+Prof Fees: ${data.professionalFeesPct}% | Contingency: ${data.contingencyPct}%
+Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.totalCost||r.totalInvestment||0,currSym)} | Profit ${fmt(r.profit||0,currSym)} | PoC ${fmtPct(r.poc||r.roi||0)} | IRR ${fmtPct(r.irr||0)}
+`.trim();
+    try{
+      const response=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary})});
+      const parsed=await response.json();
+      if(parsed.error)throw new Error(parsed.error);
+      setSenseResult(parsed);
+    }catch(err:any){setSenseError("AI check failed — static rules still apply.");console.error(err);}
+    setSenseRunning(false);
+  };
 
   /* ─── SAVE ─── */
   const save=async()=>{
@@ -1435,7 +1542,7 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
           </div>
 
           {(r.poc!==undefined)&&(
-            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:11}}>
                 <span style={{color:"var(--text-d)"}}>Return vs 20% Target</span>
                 <span style={{color:r.poc>0.2?"var(--green)":"var(--amber)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmtPct(r.poc)}</span>
@@ -1448,6 +1555,63 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
               </div>
             </div>
           )}
+
+          {/* ── SENSE CHECK PANEL ── */}
+          <div style={{background:"var(--bg2)",border:`1px solid ${senseResult?senseResult.overall==="green"?"rgba(61,220,132,.3)":senseResult.overall==="red"?"rgba(244,100,95,.3)":"rgba(240,164,41,.3)":"var(--border)"}`,borderRadius:10,padding:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:senseOpen?12:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setSenseOpen(o=>!o)}>
+                <span style={{fontSize:14}}>{senseResult?senseResult.overall==="green"?"✓":senseResult.overall==="red"?"⚠":"⚡":"🔍"}</span>
+                <div>
+                  <div style={{fontSize:11,fontWeight:600,color:senseResult?senseResult.overall==="green"?"var(--green)":senseResult.overall==="red"?"var(--red)":"var(--amber)":"var(--text-m)"}}>
+                    {senseResult?senseResult.overall==="green"?"Assumptions look credible":senseResult.overall==="red"?"Critical issues found":`${senseResult.flags.length} assumption${senseResult.flags.length!==1?"s":""} to review`:"AI Sense Check"}
+                  </div>
+                  {senseResult&&<div style={{fontSize:10,color:"var(--text-d)",marginTop:1}}>{senseOpen?"click to collapse":"click to expand"}</div>}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={runStaticChecks} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-m)",fontSize:10,padding:"4px 8px",cursor:"pointer",fontFamily:"var(--font-body)"}}>Quick</button>
+                <button onClick={runAISenseCheck} disabled={senseRunning} style={{background:senseRunning?"var(--bg3)":"var(--gold)",border:"none",borderRadius:5,color:senseRunning?"var(--text-d)":"#06070a",fontSize:10,padding:"4px 8px",cursor:senseRunning?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                  {senseRunning?<><span style={{width:8,height:8,border:"1.5px solid var(--text-d)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Checking…</>:"✦ AI Check"}
+                </button>
+              </div>
+            </div>
+
+            {senseOpen&&(
+              <>
+                {!senseResult&&!senseRunning&&(
+                  <div style={{fontSize:11,color:"var(--text-d)",lineHeight:1.5}}>
+                    Run a quick static check or use AI for a deep expert review of your assumptions against market benchmarks.
+                  </div>
+                )}
+                {senseRunning&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {["Checking build costs…","Reviewing finance structure…","Validating assumptions…"].map((m,i)=>(
+                      <div key={i} style={{height:28,background:"linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%)",backgroundSize:"200% 100%",animation:"shimmer 1.5s infinite",borderRadius:5}}/>
+                    ))}
+                  </div>
+                )}
+                {senseError&&<div style={{fontSize:11,color:"var(--amber)",marginBottom:8}}>{senseError}</div>}
+                {senseResult&&!senseRunning&&(
+                  <div>
+                    <div style={{fontSize:11,color:"var(--text-m)",marginBottom:12,lineHeight:1.5}}>{senseResult.summary}</div>
+                    {senseResult.flags.length===0&&(
+                      <div style={{fontSize:11,color:"var(--green)",background:"rgba(61,220,132,.07)",borderRadius:6,padding:"8px 10px"}}>✓ No issues flagged — assumptions are within market ranges.</div>
+                    )}
+                    {senseResult.flags.map((flag:any,i:number)=>(
+                      <div key={i} style={{background:"var(--bg3)",borderRadius:7,padding:10,marginBottom:8,borderLeft:`3px solid ${flag.severity==="error"?"var(--red)":flag.severity==="warning"?"var(--amber)":"var(--blue)"}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                          <span style={{fontSize:10,fontWeight:600,color:flag.severity==="error"?"var(--red)":flag.severity==="warning"?"var(--amber)":"var(--blue)",textTransform:"uppercase",letterSpacing:".05em"}}>{flag.field}</span>
+                          <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4}}>{flag.severity}</span>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--text)",lineHeight:1.5,marginBottom:4}}>{flag.message}</div>
+                        {flag.benchmark&&<div style={{fontSize:10,color:"var(--text-d)",fontStyle:"italic"}}>{flag.benchmark}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
