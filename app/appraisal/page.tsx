@@ -611,10 +611,12 @@ function AppraisalPage(){
   const set=useCallback((field:string,value:any)=>{
     setData((prev:any)=>({...prev,[field]:value}));
     setSaved(false);setSaveError(null);
+    setSenseResult(null);setSenseError(null); // reset sense check on input change
   },[]);
 
   const switchAssetType=(type:AssetType)=>{
     setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);
+    setSenseResult(null);setSenseError(null);
   };
   const updateUnit=(index:number,field:string,value:any)=>{
     const units=[...data.units];units[index]={...units[index],[field]:value};set("units",units);
@@ -747,6 +749,7 @@ function AppraisalPage(){
 
   /* ─── SENSE CHECK ─── */
   const runStaticChecks=useCallback(()=>{
+    setSenseResult(null);setSenseError(null);
     const flags:any[]=[];
     const loc=(data.location||"").toLowerCase();
     const isLondon=loc.includes("london")||loc.includes("ec")||loc.includes("sw")||loc.includes("se")||loc.includes("n1")||loc.includes("e1")||loc.includes("w1");
@@ -817,7 +820,7 @@ function AppraisalPage(){
   },[assetType,data]);
 
   const runAISenseCheck=async()=>{
-    setSenseRunning(true);setSenseError(null);
+    setSenseRunning(true);setSenseError(null);setSenseResult(null);
     const r=results as any;
     const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
     const dealSummary=`
