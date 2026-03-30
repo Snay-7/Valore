@@ -126,7 +126,7 @@ export default function WorkspacePage() {
           .eq("user_id", u.id)
           .eq("firm_id", memberRow.firm_id);
 
-        setProjects((assigned || []).map((pm: any) => ({ ...pm.projects, id: pm.project_id })));
+        setProjects((assigned || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects })));
       }
 
       setLoading(false);
@@ -170,7 +170,7 @@ export default function WorkspacePage() {
       .from("project_members")
       .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
       .eq("firm_id", firm.id);
-    setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, id: pm.project_id, _shared: true })));
+    setProjects((sharedProjects || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects, _shared: true })));
   };
 
   const removeFromWorkspace = async (projectId: string) => {
