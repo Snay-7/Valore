@@ -262,6 +262,7 @@ export default function PipelinePage(){
           <div style={{width:1,height:18,background:"var(--border)"}}/>
           <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{fontSize:11}}>Dashboard</button>
           <button className="btn-ghost" style={{fontSize:11,borderColor:"var(--gold)",color:"var(--gold)"}}>Pipeline</button>
+          <button onClick={()=>router.push("/tasks")} className="btn-ghost" style={{fontSize:11}}>All Tasks</button>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {totalTasks>0&&(
@@ -375,6 +376,34 @@ export default function PipelinePage(){
                             style={{width:"100%",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-d)",fontFamily:"var(--font-body)",fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none"}}>
                             {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
                           </select>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{display:"flex",gap:4,marginTop:8}} onClick={e=>e.stopPropagation()}>
+                          <button
+                            onClick={e=>{e.stopPropagation();openPanel(project,"tasks");}}
+                            style={{flex:1,padding:"5px 0",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-m)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold)";e.currentTarget.style.color="var(--gold)";}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-m)";}}
+                          >
+                            + Task {projectTasks.length>0&&<span style={{background:"var(--amber)",color:"#06070a",borderRadius:8,padding:"0 4px",fontSize:8,fontWeight:700}}>{projectTasks.length}</span>}
+                          </button>
+                          <button
+                            onClick={e=>{e.stopPropagation();openPanel(project,"notes");}}
+                            style={{flex:1,padding:"5px 0",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-m)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--blue)";e.currentTarget.style.color="var(--blue)";}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-m)";}}
+                          >
+                            + Note {projectNotes>0&&<span style={{background:"var(--blue)",color:"#fff",borderRadius:8,padding:"0 4px",fontSize:8,fontWeight:700}}>{projectNotes}</span>}
+                          </button>
+                          <button
+                            onClick={e=>{e.stopPropagation();const latest=project.appraisals?.[0];if(latest)router.push(`/appraisal?project=${project.id}&appraisal=${latest.id}`);else router.push(`/appraisal?project=${project.id}`);}}
+                            style={{flex:1,padding:"5px 0",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-m)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s"}}
+                            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--green)";e.currentTarget.style.color="var(--green)";}}
+                            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-m)";}}
+                          >
+                            Open →
+                          </button>
                         </div>
                       </div>
                     );
