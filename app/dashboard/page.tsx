@@ -92,6 +92,13 @@ export default function Dashboard() {
   const [view, setView] = useState<"portfolio"|"trash">("portfolio");
   const [openMenuId, setOpenMenuId] = useState<string|null>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
+
+  // Derived tier helpers
+  const tier = subscription?.tier || "free";
+  const isPro = tier === "professional" || tier === "enterprise";
+  const isStarter = tier === "starter";
+  const activeProjectLimit = isPro ? Infinity : isStarter ? 5 : 3;
 
   useEffect(() => {
     const init = async () => {
@@ -99,6 +106,9 @@ export default function Dashboard() {
       if (!session) { router.push("/"); return; }
       setUser(session.user);
       await loadProjects(session.user.id);
+      // Load subscription
+      const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
+      setSubscription(sub);
     };
     init();
   }, [router]);
@@ -253,8 +263,7 @@ export default function Dashboard() {
       </nav>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 40px" }}>
-        <button onClick={() => router.push("/pricing")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Upgrade</button>
-```
+
         {/* ── TRASH VIEW ── */}
         {view === "trash" && (
           <div>
@@ -333,10 +342,42 @@ export default function Dashboard() {
                   {projects.length > 0 && ` · ${fmt(totalGDV)} total GDV · avg ${fmtPct(avgPoC)} PoC`}
                 </p>
               </div>
-              <button onClick={() => setShowNewModal(true)} className="btn-primary" style={{ padding: "12px 24px", fontSize: 13 }}>
-                + New Appraisal
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    if (!isPro && projects.length >= activeProjectLimit) { router.push("/pricing"); return; }
+                    setShowNewModal(true);
+                  }}
+                  className="btn-primary"
+                  style={{ padding: "12px 24px", fontSize: 13 }}
+                >
+                  + New Appraisal
+                </button>
+                {!isPro && (
+                  <div style={{ fontSize: 11, color: "var(--text-d)" }}>
+                    {projects.length}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit} projects
+                    {projects.length >= activeProjectLimit && <span style={{ color: "var(--amber)", marginLeft: 6 }}>· <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => router.push("/pricing")}>Upgrade to add more</span></span>}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Upgrade banner for free/starter users */}
+            {!isPro && !subscription?.status?.includes("trial") && (
+              <div style={{ background: "linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.04))", border: "1px solid var(--gold-border)", borderRadius: 10, padding: "14px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", marginBottom: 3 }}>
+                    {tier === "free" ? "Start your free trial" : "Upgrade to Professional"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-d)" }}>
+                    {tier === "free" ? "14-day free trial — unlock AI Sense Check, AI Brochures and unlimited projects" : "Unlock AI Sense Check, AI Brochures and unlimited projects"}
+                  </div>
+                </div>
+                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "8px 18px", fontSize: 12, flexShrink: 0 }}>
+                  {tier === "free" ? "Start Free Trial →" : "Upgrade →"}
+                </button>
+              </div>
+            )}
 
             {/* Trash banner */}
             {trashedProjects.length > 0 && (
@@ -566,3 +607,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

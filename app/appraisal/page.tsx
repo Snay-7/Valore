@@ -581,15 +581,23 @@ function AppraisalPage(){
   const[senseRunning,setSenseRunning]=useState(false);
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
+  // Subscription
+  const[subscription,setSubscription]=useState<any>(null);
 
   useEffect(()=>{
     const init=async()=>{
       const{data:{session}}=await supabase.auth.getSession();
       if(!session){router.push("/");return;}
       setUser(session.user);
+      const{data:sub}=await supabase.from("subscriptions").select("*").eq("user_id",session.user.id).maybeSingle();
+      setSubscription(sub);
     };
     init();
   },[router]);
+
+  const tier=subscription?.tier||"free";
+  const isPro=tier==="professional"||tier==="enterprise";
+  const isTrialing=subscription?.status==="trialing";
 
   useEffect(()=>{
     if(!appraisalParam||!user)return;
@@ -1482,9 +1490,14 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                       }
                       <span className="share-btn-label">{generatingPDF?"Generating…":"Plain PDF"}</span>
                     </button>
-                    <button className="share-btn" onClick={()=>{setBrochureModal(true);setBrochureContent(null);setBrochurePhotos([]);setBrochureError(null);}} style={{borderColor:"rgba(201,168,76,.25)"}}>
+                    <button className="share-btn" onClick={()=>{
+                      if(!isPro&&!isTrialing){router.push("/pricing");return;}
+                      setBrochureModal(true);setBrochureContent(null);setBrochurePhotos([]);setBrochureError(null);
+                    }} style={{borderColor:"rgba(201,168,76,.25)",opacity:(!isPro&&!isTrialing)?0.6:1}}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      <span className="share-btn-label" style={{color:"var(--gold)"}}>AI Brochure</span>
+                      <span className="share-btn-label" style={{color:"var(--gold)"}}>
+                        {(!isPro&&!isTrialing)?"Upgrade":"AI Brochure"}
+                      </span>
                     </button>
                     <button className="share-btn" onClick={()=>{if(!liveLink){setSaveError("Generate live link first");return;}shareEmail();}}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -1615,8 +1628,11 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
               </div>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={runStaticChecks} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-m)",fontSize:10,padding:"4px 8px",cursor:"pointer",fontFamily:"var(--font-body)"}}>Quick</button>
-                <button onClick={runAISenseCheck} disabled={senseRunning} style={{background:senseRunning?"var(--bg3)":"var(--gold)",border:"none",borderRadius:5,color:senseRunning?"var(--text-d)":"#06070a",fontSize:10,padding:"4px 8px",cursor:senseRunning?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
-                  {senseRunning?<><span style={{width:8,height:8,border:"1.5px solid var(--text-d)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Checking…</>:"✦ AI Check"}
+                <button onClick={()=>{
+                  if(!isPro&&!isTrialing){router.push("/pricing");return;}
+                  runAISenseCheck();
+                }} disabled={senseRunning} style={{background:senseRunning?"var(--bg3)":(!isPro&&!isTrialing)?"var(--bg3)":"var(--gold)",border:(!isPro&&!isTrialing)?"1px solid var(--border)":"none",borderRadius:5,color:senseRunning||(!isPro&&!isTrialing)?"var(--text-d)":"#06070a",fontSize:10,padding:"4px 8px",cursor:senseRunning?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                  {senseRunning?<><span style={{width:8,height:8,border:"1.5px solid var(--text-d)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Checking…</>:(!isPro&&!isTrialing)?"✦ Pro only":"✦ AI Check"}
                 </button>
               </div>
             </div>
