@@ -53,19 +53,12 @@ select.inp{cursor:pointer}
 .nav-item.danger-item{color:var(--text-m)}
 .nav-item.danger-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active-danger{color:var(--red);background:rgba(244,100,95,.06);border-color:rgba(244,100,95,.2);font-weight:600}
-
-/* Desktop sidebar */
 .sidebar{width:220px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
-
-/* Bottom nav — hidden on desktop */
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:8px 0 env(safe-area-inset-bottom,16px)}
 .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-
-/* Mobile top bar */
 .mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
-
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .sidebar{display:none}
@@ -107,6 +100,7 @@ export default function Dashboard() {
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
+  const [hasFirm, setHasFirm] = useState(false);
 
   const tier = subscription?.tier || "free";
   const isPro = tier === "professional" || tier === "enterprise";
@@ -121,6 +115,9 @@ export default function Dashboard() {
       await loadProjects(session.user.id);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
+      // Check if user belongs to a firm
+      const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
+      setHasFirm(!!memberRow);
     };
     init();
   }, [router]);
@@ -257,11 +254,23 @@ export default function Dashboard() {
           <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
         </div>
         <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
-          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
+          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>My Work</div>
           <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>Portfolio</button>
           <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
           <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-          <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
+          {hasFirm && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Team</div>
+              <button className="nav-item" onClick={() => router.push("/workspace")} style={{ color: "var(--gold)" }}>
+                ◈ Workspace
+              </button>
+              <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
+            </>
+          )}
+          {!hasFirm && (
+            <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
+          )}
           <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
           <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
           <button className={`nav-item ${view === "trash" ? "active-danger" : "danger-item"}`} onClick={() => setView("trash")} style={{ justifyContent: "space-between" }}>
@@ -291,14 +300,11 @@ export default function Dashboard() {
         {/* Mobile top bar */}
         <div className="mobile-topbar">
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
-          <button
-            className="btn-primary"
-            style={{ padding: "8px 16px", fontSize: 12 }}
+          <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 12 }}
             onClick={() => {
               if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
               setShowNewModal(true);
-            }}
-          >
+            }}>
             + New
           </button>
         </div>
@@ -372,14 +378,11 @@ export default function Dashboard() {
                 </p>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                <button
-                  className="btn-primary"
-                  style={{ padding: "12px 24px", fontSize: 13 }}
+                <button className="btn-primary" style={{ padding: "12px 24px", fontSize: 13 }}
                   onClick={() => {
                     if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
                     setShowNewModal(true);
-                  }}
-                >
+                  }}>
                   + New Appraisal
                 </button>
                 {!isPro && (
@@ -579,6 +582,12 @@ export default function Dashboard() {
           <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
           Pipeline
         </button>
+        {hasFirm && (
+          <button className="bottom-nav-item" onClick={() => router.push("/workspace")}>
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Workspace
+          </button>
+        )}
         <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
           <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
           Tasks
@@ -586,13 +595,6 @@ export default function Dashboard() {
         <button className="bottom-nav-item" onClick={() => router.push("/team")}>
           <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
           Team
-        </button>
-        <button className={`bottom-nav-item ${view === "trash" ? "active" : ""}`} onClick={() => setView("trash")}>
-          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-          {trashedProjects.length > 0 && (
-            <span style={{ position: "absolute", top: 4, right: "calc(50% - 16px)", background: "var(--red)", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: 9, fontWeight: 700 }}>{trashedProjects.length}</span>
-          )}
-          Trash
         </button>
       </nav>
 
