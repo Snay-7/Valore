@@ -50,6 +50,7 @@ const PLANS = [
     annualPrice: 63,
     description: "For independent developers and investors getting started.",
     priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE || "",
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ANNUAL || "",
     color: "var(--text-m)",
     features: [
       { text: "Up to 5 active projects", included: true },
@@ -69,6 +70,7 @@ const PLANS = [
     annualPrice: 159,
     description: "For serious developers and investment teams.",
     priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE || "",
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ANNUAL || "",
     featured: true,
     badge: "Most Popular",
     color: "var(--gold)",
@@ -90,6 +92,7 @@ const PLANS = [
     annualPrice: 399,
     description: "For PropTech firms, agencies and institutional teams.",
     priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE || "",
+    priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ANNUAL || "",
     color: "var(--blue)",
     features: [
       { text: "Unlimited projects", included: true },
@@ -128,12 +131,15 @@ function PricingPage() {
   const handleCheckout = async (plan: typeof PLANS[0]) => {
     if (!user) { router.push("/"); return; }
     setLoading(plan.id);
+    const priceId = billing === "annual" && (plan as any).priceIdAnnual
+      ? (plan as any).priceIdAnnual
+      : plan.priceIdMonthly;
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          priceId: plan.priceIdMonthly,
+          priceId,
           userId: user.id,
           userEmail: user.email,
           tier: plan.id,
