@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [openMenuId, setOpenMenuId] = useState<string|null>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  const [totalProjectCount, setTotalProjectCount] = useState(0);
 
   // Derived tier helpers
   const tier = subscription?.tier || "free";
@@ -135,15 +136,18 @@ export default function Dashboard() {
     const now = new Date();
     const active: any[] = [];
     const trashed: any[] = [];
+    let totalCount = 0; // counts active + trashed (not auto-purged)
 
     (all || []).forEach(p => {
       if (!p.deleted_at) {
         active.push(p);
+        totalCount++;
       } else {
         const deletedAt = new Date(p.deleted_at);
         const daysInTrash = (now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24);
         if (daysInTrash < TRASH_DAYS) {
           trashed.push({ ...p, _daysLeft: Math.ceil(TRASH_DAYS - daysInTrash) });
+          totalCount++; // trashed still counts toward limit
         } else {
           // Auto-purge expired trash
           supabase.from("appraisals").delete().eq("project_id", p.id).then(() =>
@@ -155,6 +159,7 @@ export default function Dashboard() {
 
     setProjects(active);
     setTrashedProjects(trashed);
+    setTotalProjectCount(totalCount);
     setLoading(false);
   };
 
@@ -350,7 +355,7 @@ export default function Dashboard() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                 <button
                   onClick={() => {
-                    if (!isPro && projects.length >= activeProjectLimit) { router.push("/pricing"); return; }
+                    if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
                     setShowNewModal(true);
                   }}
                   className="btn-primary"
@@ -360,18 +365,18 @@ export default function Dashboard() {
                 </button>
                 {!isPro && (
                   <div style={{ fontSize: 11, color: "var(--text-d)" }}>
-                    {projects.length}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit} projects
-                    {projects.length >= activeProjectLimit && <span style={{ color: "var(--amber)", marginLeft: 6 }}>· <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => router.push("/pricing")}>Upgrade to add more</span></span>}
+                    {totalProjectCount}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit} projects
+                    {totalProjectCount >= activeProjectLimit && <span style={{ color: "var(--amber)", marginLeft: 6 }}>· <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => router.push("/pricing")}>Upgrade to add more</span></span>}
                   </div>
                 )}
               </div>
             </div>
 
             {/* Upgrade banner for free/starter users */}
-            {!isPro && projects.length >= activeProjectLimit && (
+            {!isPro && totalProjectCount >= activeProjectLimit && (
               <div style={{ background: "rgba(240,164,41,.06)", border: "1px solid rgba(240,164,41,.2)", borderRadius: 10, padding: "12px 20px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div style={{ fontSize: 13, color: "var(--amber)" }}>
-                  You've reached your {activeProjectLimit}-project limit on the {tier === "free" ? "free" : "Starter"} plan.
+                  You've reached your {activeProjectLimit}-project limit — including projects in Trash.
                 </div>
                 <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "7px 16px", fontSize: 12 }}>Upgrade →</button>
               </div>
