@@ -645,8 +645,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      </div>{/* end maxWidth wrapper */}
-      </div>{/* end main content */}
-      </div>{/* end flex container */}
+      </div>
+      </div>
+      </div>
   );
 }
