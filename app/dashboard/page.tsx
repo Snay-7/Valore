@@ -257,6 +257,11 @@ export default function Dashboard() {
               </span>
             )}
           </button>
+          {!isPro && (
+            <button onClick={() => router.push("/pricing")} style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 7, padding: "6px 14px", fontSize: 12, color: "var(--gold)", fontFamily: "var(--font-body)", cursor: "pointer", fontWeight: 600 }}>
+              ✦ Upgrade
+            </button>
+          )}
           <span style={{ fontSize: 12, color: "var(--text-d)", fontFamily: "var(--font-mono)" }}>{user?.email}</span>
           <button onClick={signOut} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Sign Out</button>
         </div>
@@ -363,19 +368,12 @@ export default function Dashboard() {
             </div>
 
             {/* Upgrade banner for free/starter users */}
-            {!isPro && !subscription?.status?.includes("trial") && (
-              <div style={{ background: "linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.04))", border: "1px solid var(--gold-border)", borderRadius: 10, padding: "14px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", marginBottom: 3 }}>
-                    {tier === "free" ? "Start your free trial" : "Upgrade to Professional"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-d)" }}>
-                    {tier === "free" ? "14-day free trial — unlock AI Sense Check, AI Brochures and unlimited projects" : "Unlock AI Sense Check, AI Brochures and unlimited projects"}
-                  </div>
+            {!isPro && projects.length >= activeProjectLimit && (
+              <div style={{ background: "rgba(240,164,41,.06)", border: "1px solid rgba(240,164,41,.2)", borderRadius: 10, padding: "12px 20px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--amber)" }}>
+                  You've reached your {activeProjectLimit}-project limit on the {tier === "free" ? "free" : "Starter"} plan.
                 </div>
-                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "8px 18px", fontSize: 12, flexShrink: 0 }}>
-                  {tier === "free" ? "Start Free Trial →" : "Upgrade →"}
-                </button>
+                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "7px 16px", fontSize: 12 }}>Upgrade →</button>
               </div>
             )}
 
@@ -607,4 +605,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
