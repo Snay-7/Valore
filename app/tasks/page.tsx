@@ -27,9 +27,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .btn-primary:hover{background:var(--gold-l)}
 .btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:8px 16px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-.task-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bg4);transition:background .15s;border-radius:8px}
+.task-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bg4);transition:background .15s;border-radius:8px;position:relative}
 .task-row:hover{background:var(--bg3)}
+.task-row:hover .task-actions{opacity:1}
 .task-row.completed{opacity:.5}
+.task-actions{opacity:0;transition:opacity .15s;display:flex;gap:4px;flex-shrink:0}
 .checkbox{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-m);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .2s}
 .checkbox.checked{background:var(--green);border-color:var(--green)}
 .priority-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
@@ -38,7 +40,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .tag-high{background:rgba(240,164,41,.1);color:var(--amber)}
 .tag-medium{background:rgba(91,156,246,.1);color:var(--blue)}
 .tag-low{background:rgba(125,133,144,.12);color:var(--text-d)}
-.overdue{color:var(--red);font-size:11px;font-family:var(--font-mono)}
 .filter-btn{padding:6px 14px;border-radius:6px;font-size:12px;background:transparent;border:1px solid var(--border);color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s}
 .filter-btn:hover{border-color:var(--gold);color:var(--gold)}
 .filter-btn.active{background:rgba(201,168,76,.08);border-color:var(--gold-border);color:var(--gold)}
@@ -47,6 +48,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--gold)}
 .inp::placeholder{color:var(--text-d)}
+.edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200}
+.edit-card{background:var(--bg2);border:1px solid var(--border-m);border-radius:14px;padding:28px;width:480px;max-width:calc(100vw - 40px)}
 `;
 
 const PRIORITY_CONFIG: Record<string, { label: string; dot: string; tag: string }> = {
@@ -74,6 +77,9 @@ export default function TasksPage() {
   const [filter, setFilter] = useState<"all"|"pending"|"completed"|"overdue">("pending");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [editingTask, setEditingTask] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ description: "", priority: "medium", due_at: "" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -107,7 +113,29 @@ export default function TasksPage() {
     setTasks(prev => prev.filter(t => t.id !== taskId));
   };
 
-  // Apply filters
+  const openEdit = (task: any) => {
+    setEditingTask(task);
+    setEditForm({
+      description: task.description,
+      priority: task.priority || "medium",
+      due_at: task.due_at ? new Date(task.due_at).toISOString().slice(0, 16) : "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingTask || !editForm.description.trim()) return;
+    setSaving(true);
+    const updates: any = {
+      description: editForm.description.trim(),
+      priority: editForm.priority,
+      due_at: editForm.due_at ? new Date(editForm.due_at).toISOString() : null,
+    };
+    await supabase.from("tasks").update(updates).eq("id", editingTask.id);
+    setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...updates } : t));
+    setEditingTask(null);
+    setSaving(false);
+  };
+
   const now = new Date();
   const filtered = tasks.filter(t => {
     if (filter === "pending" && t.completed) return false;
@@ -118,17 +146,14 @@ export default function TasksPage() {
     return true;
   });
 
-  // Group by project name
   const grouped = filtered.reduce((acc: Record<string, any[]>, task) => {
-    const projectName = task.projects?.name || "No Project";
-    if (!acc[projectName]) acc[projectName] = [];
-    acc[projectName].push(task);
+    const key = task.projects?.name || "No Project";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(task);
     return acc;
   }, {});
 
-  // Sort groups by project name
   const sortedGroups = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
-
   const pendingCount = tasks.filter(t => !t.completed).length;
   const overdueCount = tasks.filter(t => !t.completed && t.due_at && new Date(t.due_at) < now).length;
   const completedCount = tasks.filter(t => t.completed).length;
@@ -166,21 +191,18 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main */}
       <div style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>Tasks</div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, marginBottom: 6 }}>All Tasks</h1>
-            <p style={{ fontSize: 13, color: "var(--text-d)" }}>
-              {pendingCount} pending · {overdueCount > 0 && <span style={{ color: "var(--red)" }}>{overdueCount} overdue · </span>}{completedCount} completed
-            </p>
-          </div>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>Tasks</div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, marginBottom: 6 }}>All Tasks</h1>
+          <p style={{ fontSize: 13, color: "var(--text-d)" }}>
+            {pendingCount} pending · {overdueCount > 0 && <span style={{ color: "var(--red)" }}>{overdueCount} overdue · </span>}{completedCount} completed
+          </p>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
           {[
             { label: "Total Tasks", value: tasks.length, color: "var(--text)" },
@@ -201,7 +223,7 @@ export default function TasksPage() {
             {(["pending", "all", "overdue", "completed"] as const).map(f => (
               <button key={f} className={`filter-btn ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
-                {f === "overdue" && overdueCount > 0 && <span style={{ marginLeft: 4, background: "var(--red)", color: "#fff", borderRadius: 10, padding: "0px 5px", fontSize: 9, fontWeight: 700 }}>{overdueCount}</span>}
+                {f === "overdue" && overdueCount > 0 && <span style={{ marginLeft: 4, background: "var(--red)", color: "#fff", borderRadius: 10, padding: "0 5px", fontSize: 9, fontWeight: 700 }}>{overdueCount}</span>}
               </button>
             ))}
           </div>
@@ -217,7 +239,7 @@ export default function TasksPage() {
           <input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks…" style={{ width: 220, padding: "7px 12px", fontSize: 12 }} />
         </div>
 
-        {/* Task groups */}
+        {/* Groups */}
         {sortedGroups.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0" }}>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text-d)", marginBottom: 16 }}>✓</div>
@@ -229,7 +251,6 @@ export default function TasksPage() {
         ) : (
           sortedGroups.map(([projectName, projectTasks], gi) => (
             <div key={projectName} className="project-group" style={{ animationDelay: `${gi * 0.05}s` }}>
-              {/* Project header */}
               <div className="project-group-header">
                 <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600 }}>
                   {projectTasks[0]?.projects?.asset_type || "—"}
@@ -239,30 +260,21 @@ export default function TasksPage() {
                   <span style={{ fontSize: 11, color: "var(--text-d)" }}>{projectTasks[0].projects.location}</span>
                 )}
                 <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-d)" }}>
-                  {projectTasks.filter((t:any) => !t.completed).length} pending · {projectTasks.length} total
+                  {projectTasks.filter((t: any) => !t.completed).length} pending · {projectTasks.length} total
                 </span>
-                <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => {
-                  const projectId = projectTasks[0]?.project_id;
-                  if (projectId) router.push(`/pipeline`);
-                }}>View in Pipeline →</button>
+                <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => router.push("/pipeline")}>View in Pipeline →</button>
               </div>
 
-              {/* Task rows */}
               <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "4px 0" }}>
                 {projectTasks.map((task: any) => {
                   const p = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
                   const due = task.due_at ? formatDue(task.due_at) : null;
                   return (
                     <div key={task.id} className={`task-row ${task.completed ? "completed" : ""}`}>
-                      {/* Checkbox */}
                       <div className={`checkbox ${task.completed ? "checked" : ""}`} onClick={() => toggleComplete(task)}>
                         {task.completed && <span style={{ fontSize: 11, color: "#06070a", fontWeight: 700 }}>✓</span>}
                       </div>
-
-                      {/* Priority dot */}
                       <div className="priority-dot" style={{ background: p.dot }} />
-
-                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, color: task.completed ? "var(--text-d)" : "var(--text)", textDecoration: task.completed ? "line-through" : "none", marginBottom: 4, lineHeight: 1.4 }}>
                           {task.description}
@@ -270,7 +282,7 @@ export default function TasksPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span className={`tag ${p.tag}`}>{p.label}</span>
                           {due && (
-                            <span className={due.overdue ? "overdue" : ""} style={{ fontSize: 11, color: due.overdue ? "var(--red)" : "var(--text-d)", fontFamily: "var(--font-mono)" }}>
+                            <span style={{ fontSize: 11, color: due.overdue ? "var(--red)" : "var(--text-d)", fontFamily: "var(--font-mono)" }}>
                               {due.overdue && "⚠ "}{due.text}
                             </span>
                           )}
@@ -280,11 +292,25 @@ export default function TasksPage() {
                         </div>
                       </div>
 
-                      {/* Delete */}
-                      <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 16, padding: "0 4px", opacity: 0.5, transition: "opacity .2s" }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}
-                      >×</button>
+                      {/* Action buttons — visible on hover */}
+                      <div className="task-actions">
+                        <button
+                          onClick={() => openEdit(task)}
+                          style={{ padding: "4px 10px", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-m)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-m)"; }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteTask(task.id)}
+                          style={{ padding: "4px 10px", background: "var(--bg3)", border: "1px solid rgba(244,100,95,.3)", borderRadius: 5, color: "var(--red)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s" }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(244,100,95,.1)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "var(--bg3)"; }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -292,14 +318,50 @@ export default function TasksPage() {
             </div>
           ))
         )}
-
-        {tasks.length > 0 && filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-d)", fontSize: 14 }}>
-            No tasks match the current filters.
-          </div>
-        )}
-
       </div>
+
+      {/* Edit Modal */}
+      {editingTask && (
+        <div className="edit-modal" onClick={e => { if (e.target === e.currentTarget) setEditingTask(null); }}>
+          <div className="edit-card">
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 300, marginBottom: 4 }}>Edit Task</div>
+            <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24 }}>{editingTask.projects?.name}</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Description</label>
+              <textarea
+                className="inp"
+                value={editForm.description}
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                style={{ minHeight: 80, resize: "vertical", fontFamily: "var(--font-body)" }}
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Priority</label>
+                <select className="inp" value={editForm.priority} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Due Date</label>
+                <input type="datetime-local" className="inp" value={editForm.due_at} onChange={e => setEditForm(f => ({ ...f, due_at: e.target.value }))} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn-ghost" onClick={() => setEditingTask(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</button>
+              <button className="btn-primary" onClick={saveEdit} disabled={saving || !editForm.description.trim()} style={{ flex: 2, justifyContent: "center" }}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
