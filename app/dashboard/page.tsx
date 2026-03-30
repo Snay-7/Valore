@@ -49,10 +49,11 @@ select.inp{cursor:pointer}
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:36px}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){
+@media(max-width:768px){
   .cards-grid{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
-  nav{padding:0 16px !important}
+  .sidebar{width:100% !important;position:relative !important;height:auto !important;flex-direction:row !important;flex-wrap:wrap}
+  .main-content{margin-left:0 !important}
   .portfolio-pad{padding:24px 16px !important}
 }
 `;
@@ -242,38 +243,73 @@ export default function Dashboard() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
 
-      {/* Nav */}
-      <nav style={{ background: "var(--bg1)", borderBottom: "1px solid var(--border)", padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => router.push("/pipeline")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Pipeline</button>
-          <button onClick={() => router.push("/team")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Team</button>
-          <button
-            onClick={() => setView(v => v === "trash" ? "portfolio" : "trash")}
-            className="btn-ghost"
-            style={{ padding: "6px 14px", fontSize: 12, position: "relative", borderColor: view === "trash" ? "var(--red)" : undefined, color: view === "trash" ? "var(--red)" : undefined }}
+      {/* ── LEFT SIDEBAR ── */}
+      <div style={{ width: 220, background: "var(--bg1)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
+        {/* Logo */}
+        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
+        </div>
+
+        {/* Nav items */}
+        <div style={{ padding: "16px 12px", flex: 1 }}>
+          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
+
+          {[
+            { label: "Portfolio", active: view === "portfolio", onClick: () => setView("portfolio") },
+            { label: "Pipeline", active: false, onClick: () => router.push("/pipeline") },
+            { label: "Team", active: false, onClick: () => router.push("/team") },
+          ].map(item => (
+            <button key={item.label} onClick={item.onClick} style={{ width: "100%", display: "flex", alignItems: "center", padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: item.active ? 600 : 400, color: item.active ? "var(--gold)" : "var(--text-m)", background: item.active ? "rgba(201,168,76,.08)" : "transparent", border: item.active ? "1px solid var(--gold-border)" : "1px solid transparent", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s", textAlign: "left", marginBottom: 2 }}
+              onMouseEnter={e => { if (!item.active) { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg3)"; } }}
+              onMouseLeave={e => { if (!item.active) { e.currentTarget.style.color = "var(--text-m)"; e.currentTarget.style.background = "transparent"; } }}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+
+          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
+
+          <button onClick={() => setView("trash")} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 7, fontSize: 13, fontWeight: view === "trash" ? 600 : 400, color: view === "trash" ? "var(--red)" : "var(--text-m)", background: view === "trash" ? "rgba(244,100,95,.06)" : "transparent", border: view === "trash" ? "1px solid rgba(244,100,95,.2)" : "1px solid transparent", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s", textAlign: "left", marginBottom: 2 }}
+            onMouseEnter={e => { if (view !== "trash") { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.background = "var(--bg3)"; } }}
+            onMouseLeave={e => { if (view !== "trash") { e.currentTarget.style.color = "var(--text-m)"; e.currentTarget.style.background = "transparent"; } }}
           >
-            🗑 Trash
+            <span>Trash</span>
             {trashedProjects.length > 0 && (
-              <span style={{ position: "absolute", top: -4, right: -4, background: "var(--red)", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-                {trashedProjects.length}
-              </span>
+              <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{trashedProjects.length}</span>
             )}
           </button>
-          {!isPro && (
-            <button onClick={() => router.push("/pricing")} style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 7, padding: "6px 14px", fontSize: 12, color: "var(--gold)", fontFamily: "var(--font-body)", cursor: "pointer", fontWeight: 600 }}>
-              ✦ Upgrade
-            </button>
-          )}
-          <span style={{ fontSize: 12, color: "var(--text-d)", fontFamily: "var(--font-mono)" }}>{user?.email}</span>
-          <button onClick={signOut} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Sign Out</button>
-        </div>
-      </nav>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 40px" }}>
+          {!isPro && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <button onClick={() => router.push("/pricing")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, padding: "9px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s" }}>
+                ✦ Upgrade Plan
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Bottom — user info + sign out */}
+        <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
+          <button onClick={signOut} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, fontSize: 12, color: "var(--text-d)", background: "transparent", border: "1px solid var(--border)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .15s", textAlign: "left" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.borderColor = "var(--border-m)"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "var(--text-d)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ marginLeft: 220, flex: 1, minWidth: 0 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 40px" }}>
 
         {/* ── TRASH VIEW ── */}
         {view === "trash" && (
@@ -608,6 +644,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+    </div>
     </div>
   );
 }
