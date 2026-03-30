@@ -116,7 +116,7 @@ export default function WorkspacePage() {
           .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
           .eq("firm_id", memberRow.firm_id);
 
-        const shared = (sharedProjects || []).map((pm: any) => ({ ...pm.projects, id: pm.project_id, _shared: true }));
+        const shared = (sharedProjects || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects, _shared: true }));
         setProjects(shared);
       } else {
         // Member sees only assigned projects
