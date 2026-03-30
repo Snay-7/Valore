@@ -116,7 +116,7 @@ export default function WorkspacePage() {
           .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
           .eq("firm_id", memberRow.firm_id);
 
-        const shared = (sharedProjects || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects, _shared: true }));
+        const shared = (sharedProjects || []).map((pm: any) => { const { id: _, ...rest } = pm.projects || {}; return { id: pm.project_id, ...rest, _shared: true }; });
         setProjects(shared);
       } else {
         // Member sees only assigned projects
@@ -126,7 +126,7 @@ export default function WorkspacePage() {
           .eq("user_id", u.id)
           .eq("firm_id", memberRow.firm_id);
 
-        setProjects((assigned || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects })));
+        setProjects((assigned || []).map((pm: any) => { const { id: _, ...rest } = pm.projects || {}; return { id: pm.project_id, ...rest }; }));
       }
 
       setLoading(false);
