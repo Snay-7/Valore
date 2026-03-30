@@ -1,8 +1,8 @@
 "use client";
 export const dynamic = 'force-dynamic'
 import { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { useParams, useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
+import { useRouter } from "next/navigation";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -20,43 +20,30 @@ const CSS = `
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-.inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;transition:border-color .2s}
-.inp:focus{border-color:var(--gold)}
-.inp::placeholder{color:var(--text-d)}
-.btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:9px 18px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
-.btn-primary:hover{background:var(--gold-l)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
-.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-.tab-btn{padding:10px 20px;font-size:13px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s}
-.tab-btn.active{border-bottom-color:var(--gold);color:var(--gold)}
-.task-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bg4);transition:background .15s;border-radius:8px}
-.task-row:hover{background:var(--bg3)}
-.task-row.completed{opacity:.5}
-.checkbox{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-m);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .2s}
-.checkbox.checked{background:var(--green);border-color:var(--green)}
-.priority-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.comment-row{padding:14px 0;border-bottom:1px solid var(--bg4)}
-.comment-row:last-child{border-bottom:none}
-.activity-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)}
-.activity-row:last-child{border-bottom:none}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;cursor:pointer;transition:border-color .2s,transform .15s;animation:fadeIn .3s ease both;position:relative}
+.card:hover{border-color:var(--gold-border);transform:translateY(-2px)}
 .metric-pill{background:var(--bg3);border-radius:8px;padding:10px 14px}
+.btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:10px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-primary:hover{background:var(--gold-l)}
+.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:8px 16px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
 .nav-item{width:100%;display:flex;align-items:center;padding:9px 12px;border-radius:7px;font-size:13px;color:var(--text-m);background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:left;margin-bottom:2px}
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--gold);background:rgba(201,168,76,.08);border-color:var(--gold-border);font-weight:600}
 .sidebar{width:220px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:8px 0 env(safe-area-inset-bottom,16px)}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s}
+.bottom-nav-item.active{color:var(--gold)}
+.bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 @media(max-width:768px){
   .sidebar{display:none}
-  .main-content{margin-left:0!important;max-width:100vw!important;padding:20px 16px 40px!important}
+  .bottom-nav{display:flex}
+  .mobile-topbar{display:flex}
+  .main-content{margin-left:0!important;max-width:100vw!important;padding:20px 16px 100px!important}
+  .cards-grid{grid-template-columns:1fr!important}
 }
 `;
-
-const PRIORITY_CONFIG: Record<string, { dot: string; label: string }> = {
-  urgent: { dot: "#f4645f", label: "Urgent" },
-  high:   { dot: "#f0a429", label: "High" },
-  medium: { dot: "#5b9cf6", label: "Medium" },
-  low:    { dot: "#3d4249", label: "Low" },
-};
 
 const fmt = (n: number, prefix = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
@@ -69,31 +56,19 @@ const fmt = (n: number, prefix = "£") => {
 const fmtPct = (n: number) => (!n || !isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
 
-export default function WorkspaceProjectPage() {
-  const params = useParams();
+export default function WorkspacePage() {
   const router = useRouter();
-  const projectId = params?.id as string;
-
   const [user, setUser] = useState<any>(null);
-  const [project, setProject] = useState<any>(null);
-  const [appraisal, setAppraisal] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [notes, setNotes] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any[]>([]);
-  const [firmMembers, setFirmMembers] = useState<any[]>([]);
-  const [memberRole, setMemberRole] = useState("member");
   const [firm, setFirm] = useState<any>(null);
+  const [memberRole, setMemberRole] = useState<string>("member");
+  const [projects, setProjects] = useState<any[]>([]);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"overview" | "tasks" | "notes" | "activity">("overview");
-
-  // Task form
-  const [newTask, setNewTask] = useState({ description: "", priority: "medium", assigned_to: "", due_at: "" });
-  const [addingTask, setAddingTask] = useState(false);
-  const [savingTask, setSavingTask] = useState(false);
-
-  // Note form
-  const [newNote, setNewNote] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [firmMembers, setFirmMembers] = useState<any[]>([]);
+  const [projectSelections, setProjectSelections] = useState<Record<string, string[]>>({});
+  const [savingProject, setSavingProject] = useState<string | null>(null);
+  const [view, setView] = useState<"projects" | "assign">("projects");
 
   useEffect(() => {
     const init = async () => {
@@ -102,147 +77,96 @@ export default function WorkspaceProjectPage() {
       const u = session.user;
       setUser(u);
 
-      // Load project
-      const { data: proj } = await supabase
-        .from("projects")
-        .select(`*, appraisals(*)`)
-        .eq("id", projectId)
-        .single();
-      if (!proj) { router.push("/workspace"); return; }
-      setProject(proj);
-      setAppraisal(proj.appraisals?.[0] || null);
-
-      // Get firm membership
       const { data: memberRow } = await supabase
         .from("firm_members")
         .select("*, firms(*)")
         .eq("user_id", u.id)
         .maybeSingle();
-      if (memberRow) {
-        setFirm(memberRow.firms);
-        setMemberRole(memberRow.role);
 
-        // Get firm members for task assignment
+      if (!memberRow) { router.push("/dashboard"); return; }
+
+      setFirm(memberRow.firms);
+      setMemberRole(memberRow.role);
+      const admin = memberRow.role === "admin";
+      setIsAdmin(admin);
+
+      if (admin) {
+        const { data: ownProjects } = await supabase
+          .from("projects")
+          .select(`*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status)`)
+          .eq("created_by", u.id)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false });
+        setAllProjects(ownProjects || []);
+
         const { data: members } = await supabase
           .from("firm_members")
           .select("*")
-          .eq("firm_id", memberRow.firm_id);
+          .eq("firm_id", memberRow.firm_id)
+          .neq("user_id", u.id);
         setFirmMembers(members || []);
+
+        const { data: sharedProjects } = await supabase
+          .from("project_members")
+          .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
+          .eq("firm_id", memberRow.firm_id);
+        setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true })));
+      } else {
+        const { data: assigned } = await supabase
+          .from("project_members")
+          .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
+          .eq("user_id", u.id)
+          .eq("firm_id", memberRow.firm_id);
+        setProjects((assigned || []).map((pm: any) => ({ ...pm.projects })));
       }
-
-      // Load tasks
-      const { data: t } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-      setTasks(t || []);
-
-      // Load notes
-      const { data: n } = await supabase
-        .from("notes")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-      setNotes(n || []);
-
-      // Load activity
-      const { data: a } = await supabase
-        .from("activity_log")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-      setActivity(a || []);
 
       setLoading(false);
     };
     init();
-  }, [projectId, router]);
+  }, [router]);
 
-  const logActivity = async (action: string, details?: any) => {
-    if (!user || !firm) return;
-    await supabase.from("activity_log").insert({
-      project_id: projectId,
-      firm_id: firm.id,
-      user_id: user.id,
-      user_email: user.email,
-      action,
-      details: details || {},
-    });
-    const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-    setActivity(a || []);
+  const toggleMember = (projectId: string, userId: string, checked: boolean) => {
+    setProjectSelections(prev => ({
+      ...prev,
+      [projectId]: checked
+        ? [...(prev[projectId] || []), userId]
+        : (prev[projectId] || []).filter(id => id !== userId),
+    }));
   };
 
-  const addTask = async () => {
-    if (!newTask.description.trim() || !user) return;
-    setSavingTask(true);
-    const assignedMember = firmMembers.find(m => m.user_id === newTask.assigned_to);
-    const { data: task } = await supabase.from("tasks").insert({
-      project_id: projectId,
-      created_by: user.id,
-      created_by_email: user.email,
-      description: newTask.description.trim(),
-      priority: newTask.priority,
-      assigned_to: newTask.assigned_to || null,
-      assigned_to_email: assignedMember ? assignedMember.user_id : null,
-      assigned_by: user.id,
-      due_at: newTask.due_at ? new Date(newTask.due_at).toISOString() : null,
-      completed: false,
-    }).select().single();
-
-    if (task) {
-      setTasks(prev => [task, ...prev]);
-      await logActivity("task_created", { description: newTask.description, assigned_to: newTask.assigned_to || "unassigned" });
+  const shareProject = async (projectId: string) => {
+    const memberIds = projectSelections[projectId] || [];
+    if (!firm || !user || memberIds.length === 0) return;
+    setSavingProject(projectId);
+    for (const memberId of memberIds) {
+      await supabase.from("project_members").upsert({
+        project_id: projectId,
+        user_id: memberId,
+        firm_id: firm.id,
+        assigned_by: user.id,
+      }, { onConflict: "project_id,user_id" });
+      await supabase.from("activity_log").insert({
+        project_id: projectId,
+        firm_id: firm.id,
+        user_id: user.id,
+        user_email: user.email,
+        action: "project_shared",
+        details: { assigned_to: memberId },
+      });
     }
-    setNewTask({ description: "", priority: "medium", assigned_to: "", due_at: "" });
-    setAddingTask(false);
-    setSavingTask(false);
+    setProjectSelections(prev => ({ ...prev, [projectId]: [] }));
+    setSavingProject(null);
+    const { data: sharedProjects } = await supabase
+      .from("project_members")
+      .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
+      .eq("firm_id", firm.id);
+    setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true })));
   };
 
-  const toggleTask = async (task: any) => {
-    const newVal = !task.completed;
-    await supabase.from("tasks").update({ completed: newVal }).eq("id", task.id);
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newVal } : t));
-    await logActivity(newVal ? "task_completed" : "task_reopened", { description: task.description });
-  };
-
-  const addNote = async () => {
-    if (!newNote.trim() || !user) return;
-    setSavingNote(true);
-    const { data: note } = await supabase.from("notes").insert({
-      project_id: projectId,
-      created_by: user.id,
-      created_by_email: user.email,
-      content: newNote.trim(),
-    }).select().single();
-
-    if (note) {
-      setNotes(prev => [note, ...prev]);
-      await logActivity("note_added", { preview: newNote.trim().slice(0, 50) });
-    }
-    setNewNote("");
-    setSavingNote(false);
-  };
-
-  const formatTime = (ts: string) => {
-    const d = new Date(ts);
-    const now = new Date();
-    const diff = (now.getTime() - d.getTime()) / 1000;
-    if (diff < 60) return "just now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  };
-
-  const actionLabel = (action: string) => {
-    const map: Record<string, string> = {
-      task_created: "created a task",
-      task_completed: "completed a task",
-      task_reopened: "reopened a task",
-      note_added: "added a note",
-      project_shared: "shared this project",
-    };
-    return map[action] || action;
+  const removeFromWorkspace = async (projectId: string) => {
+    if (!firm) return;
+    await supabase.from("project_members").delete().eq("project_id", projectId).eq("firm_id", firm.id);
+    setProjects(prev => prev.filter(p => p.id !== projectId));
   };
 
   if (loading) return (
@@ -252,304 +176,235 @@ export default function WorkspaceProjectPage() {
     </div>
   );
 
-  const sym = CURRENCY_SYMBOLS[project?.currency] || "£";
-  const canEdit = memberRole === "admin" || memberRole === "editor";
+  const Sidebar = () => (
+    <div className="sidebar">
+      <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+        <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
+      </div>
+      <div style={{ padding: "16px 12px", flex: 1 }}>
+        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
+        <button className="nav-item active">Projects</button>
+        {isAdmin && <button className="nav-item" onClick={() => router.push("/team")}>Team</button>}
+        <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>My Account</div>
+        <button className="nav-item" onClick={() => router.push("/dashboard")}>My Portfolio</button>
+        <button className="nav-item" onClick={() => router.push("/tasks")}>My Tasks</button>
+      </div>
+      <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 6 }}>{user?.email}</div>
+        <div style={{ fontSize: 10, color: "var(--gold)", marginBottom: 8 }}>{firm?.name}</div>
+        <button className="nav-item" style={{ fontSize: 12 }} onClick={async () => { await supabase.auth.signOut(); router.push("/"); }}>Sign Out</button>
+      </div>
+    </div>
+  );
+
+  const BottomNav = () => (
+    <nav className="bottom-nav">
+      <button className="bottom-nav-item active">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Projects
+      </button>
+      <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Tasks
+      </button>
+      {isAdmin && (
+        <button className="bottom-nav-item" onClick={() => router.push("/team")}>
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+          Team
+        </button>
+      )}
+      <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Portfolio
+      </button>
+    </nav>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
+      <Sidebar />
 
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
-          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
-        </div>
-        <div style={{ padding: "16px 12px", flex: 1 }}>
-          <button className="nav-item" onClick={() => router.push("/workspace")}>← Workspace</button>
-          <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-          {["overview", "tasks", "notes", "activity"].map(t => (
-            <button key={t} className={`nav-item ${tab === t ? "active" : ""}`} onClick={() => setTab(t as any)}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-              {t === "tasks" && tasks.filter(tk => !tk.completed).length > 0 && (
-                <span style={{ marginLeft: "auto", background: "var(--amber)", color: "#06070a", borderRadius: 10, padding: "1px 6px", fontSize: 10, fontWeight: 700 }}>
-                  {tasks.filter(tk => !tk.completed).length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-        <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 6 }}>{user?.email}</div>
-          <div style={{ fontSize: 10, color: "var(--gold)" }}>{firm?.name}</div>
-        </div>
-      </div>
-
-      {/* Main */}
       <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
-
-        {/* Back + header */}
-        <div style={{ marginBottom: 8 }}>
-          <button className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px", marginBottom: 16 }} onClick={() => router.push("/workspace")}>
-            ← Back to Workspace
-          </button>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600 }}>{project?.asset_type}</span>
-                <span style={{ fontSize: 10, color: "var(--text-d)", fontFamily: "var(--font-mono)" }}>
-                  {memberRole} · {firm?.name}
-                </span>
-              </div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, marginBottom: 4 }}>{project?.name}</h1>
-              <p style={{ fontSize: 14, color: "var(--text-m)" }}>{project?.location || "No location"}</p>
-            </div>
-            {canEdit && (
-              <button className="btn-primary" onClick={() => router.push(`/appraisal?project=${projectId}`)}>
-                Open Appraisal →
-              </button>
-            )}
-          </div>
+        <div className="mobile-topbar">
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+          <div style={{ fontSize: 12, color: "var(--gold)" }}>{firm?.name}</div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 32, marginTop: 24 }}>
-          {["overview", "tasks", "notes", "activity"].map(t => (
-            <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t as any)}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-              {t === "tasks" && tasks.filter(tk => !tk.completed).length > 0 && (
-                <span style={{ marginLeft: 6, background: "var(--amber)", color: "#06070a", borderRadius: 10, padding: "0 6px", fontSize: 10, fontWeight: 700 }}>
-                  {tasks.filter(tk => !tk.completed).length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* OVERVIEW TAB */}
-        {tab === "overview" && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40, flexWrap: "wrap", gap: 16 }}>
           <div>
-            {appraisal ? (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 32 }}>
-                  {[
-                    { label: "GDV", value: fmt(appraisal.gdv, sym), color: "var(--gold)" },
-                    { label: "Total Cost", value: fmt(appraisal.total_cost, sym), color: "var(--text)" },
-                    { label: "Profit", value: fmt(appraisal.profit, sym), color: appraisal.profit > 0 ? "var(--green)" : "var(--red)" },
-                    { label: "Profit on Cost", value: fmtPct(appraisal.profit_on_cost), color: appraisal.profit_on_cost > 0.2 ? "var(--green)" : "var(--amber)" },
-                    { label: "IRR (Unlevered)", value: fmtPct(appraisal.irr_unlevered), color: "var(--blue)" },
-                    { label: "IRR (Levered)", value: fmtPct(appraisal.irr_levered), color: "var(--blue)" },
-                    { label: "Yield on Cost", value: fmtPct(appraisal.yield_on_cost), color: "var(--text-m)" },
-                    { label: "Status", value: appraisal.status || "draft", color: "var(--text-m)" },
-                  ].map(m => (
-                    <div key={m.label} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px 20px" }}>
-                      <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>{m.label}</div>
-                      <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 300, color: m.color }}>{m.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Pipeline Status</div>
-                    <div style={{ fontSize: 12, color: "var(--text-m)" }}>{project?.stage || "Prospect"}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["Prospect", "Feasibility", "Under Offer", "In Development", "Completed"].map(s => (
-                      <div key={s} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 10, background: project?.stage === s ? "var(--gold-bg)" : "var(--bg3)", color: project?.stage === s ? "var(--gold)" : "var(--text-d)", border: `1px solid ${project?.stage === s ? "var(--gold-border)" : "var(--border)"}` }}>
-                        {s}
+            <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>{firm?.name}</div>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 44, fontWeight: 300, marginBottom: 6 }}>Workspace</h1>
+            <p style={{ fontSize: 14, color: "var(--text-m)" }}>
+              {projects.length} shared project{projects.length !== 1 ? "s" : ""} · {memberRole}
+            </p>
+          </div>
+          {isAdmin && (
+            <button className="btn-primary" onClick={() => setView(view === "assign" ? "projects" : "assign")} style={{ padding: "12px 24px" }}>
+              {view === "assign" ? "← Back to Projects" : "+ Share Projects"}
+            </button>
+          )}
+        </div>
+
+        {/* ADMIN: Share projects view */}
+        {isAdmin && view === "assign" && (
+          <div>
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 300, marginBottom: 6 }}>Share Projects with Workspace</h2>
+              <p style={{ fontSize: 13, color: "var(--text-m)" }}>Tick the members for each project, then click Share.</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+              {allProjects.map((p) => {
+                const latest = p.appraisals?.[0];
+                const sym = CURRENCY_SYMBOLS[p.currency] || "£";
+                const isShared = projects.some(sp => sp.id === p.id);
+                const selected = projectSelections[p.id] || [];
+                const isSaving = savingProject === p.id;
+                return (
+                  <div key={p.id} style={{ background: "var(--bg2)", border: `1px solid ${isShared ? "var(--gold-border)" : "var(--border)"}`, borderRadius: 12, padding: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", display: "inline-block", marginBottom: 6 }}>{p.asset_type}</div>
+                        <div style={{ fontSize: 15, fontWeight: 500, fontFamily: "var(--font-display)" }}>{p.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-m)" }}>{p.location || "No location"}</div>
                       </div>
-                    ))}
+                      {isShared && (
+                        <span style={{ fontSize: 10, color: "var(--green)", background: "rgba(61,220,132,.1)", padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(61,220,132,.2)", whiteSpace: "nowrap" }}>✓ Shared</span>
+                      )}
+                    </div>
+                    {latest && (
+                      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                        <div className="metric-pill" style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", marginBottom: 2 }}>GDV</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>{fmt(latest.gdv, sym)}</div>
+                        </div>
+                        <div className="metric-pill" style={{ flex: 1 }}>
+                          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", marginBottom: 2 }}>PoC</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-m)" }}>{fmtPct(latest.profit_on_cost)}</div>
+                        </div>
+                      </div>
+                    )}
+                    {firmMembers.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Share with</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+                          {firmMembers.map(m => {
+                            const isChecked = selected.includes(m.user_id);
+                            return (
+                              <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "7px 10px", borderRadius: 6, background: isChecked ? "var(--gold-bg)" : "var(--bg3)", border: `1px solid ${isChecked ? "var(--gold-border)" : "var(--border)"}`, transition: "all .15s" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={e => toggleMember(p.id, m.user_id, e.target.checked)}
+                                  style={{ accentColor: "#c9a84c", width: 15, height: 15, flexShrink: 0 }}
+                                />
+                                <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--gold)", fontWeight: 600, flexShrink: 0 }}>
+                                  {m.role[0].toUpperCase()}
+                                </div>
+                                <span style={{ fontSize: 12, color: isChecked ? "var(--gold)" : "var(--text-m)", fontWeight: isChecked ? 600 : 400 }}>{m.role}</span>
+                                {isChecked && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--gold)" }}>✓</span>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            className="btn-primary"
+                            style={{ flex: 1, padding: "9px", fontSize: 12 }}
+                            disabled={isSaving || selected.length === 0}
+                            onClick={() => shareProject(p.id)}
+                          >
+                            {isSaving ? "Sharing…" : selected.length > 0 ? `Share with ${selected.length} member${selected.length !== 1 ? "s" : ""} →` : "Select members first"}
+                          </button>
+                          {isShared && (
+                            <button className="btn-ghost" style={{ padding: "8px 12px", fontSize: 11 }} onClick={() => removeFromWorkspace(p.id)}>
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: 12, color: "var(--text-d)" }}>
+                        No members yet.{" "}
+                        <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => router.push("/team")}>Invite team →</span>
+                      </p>
+                    )}
                   </div>
+                );
+              })}
+              {allProjects.length === 0 && (
+                <div style={{ textAlign: "center", padding: "60px 0", gridColumn: "1/-1" }}>
+                  <p style={{ fontSize: 14, color: "var(--text-d)", marginBottom: 16 }}>No projects in your portfolio yet.</p>
+                  <button className="btn-primary" onClick={() => router.push("/dashboard")}>Go to Portfolio →</button>
                 </div>
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <p style={{ fontSize: 14, color: "var(--text-d)", marginBottom: 16 }}>No appraisal data yet.</p>
-                {canEdit && <button className="btn-primary" onClick={() => router.push(`/appraisal?project=${projectId}`)}>Open Appraisal →</button>}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
-        {/* TASKS TAB */}
-        {tab === "tasks" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <div>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 300 }}>Tasks</h2>
-                <p style={{ fontSize: 12, color: "var(--text-d)", marginTop: 4 }}>
-                  {tasks.filter(t => !t.completed).length} pending · {tasks.filter(t => t.completed).length} completed
+        {/* Projects grid */}
+        {view === "projects" && (
+          <>
+            {projects.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text-d)", marginBottom: 16 }}>◈</div>
+                <p style={{ fontSize: 16, color: "var(--text-d)", marginBottom: 8 }}>
+                  {isAdmin ? "No projects shared yet" : "No projects assigned to you yet"}
                 </p>
-              </div>
-              <button className="btn-primary" onClick={() => setAddingTask(!addingTask)}>
-                {addingTask ? "Cancel" : "+ Add Task"}
-              </button>
-            </div>
-
-            {/* Add task form */}
-            {addingTask && (
-              <div style={{ background: "var(--bg2)", border: "1px solid var(--gold-border)", borderRadius: 12, padding: 20, marginBottom: 24, animation: "fadeIn .2s ease" }}>
-                <div style={{ marginBottom: 12 }}>
-                  <input className="inp" value={newTask.description} onChange={e => setNewTask(p => ({ ...p, description: e.target.value }))} placeholder="Task description…" autoFocus onKeyDown={e => e.key === "Enter" && addTask()} />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div>
-                    <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 4 }}>Priority</label>
-                    <select className="inp" value={newTask.priority} onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))}>
-                      <option value="urgent">Urgent</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 4 }}>Assign to</label>
-                    <select className="inp" value={newTask.assigned_to} onChange={e => setNewTask(p => ({ ...p, assigned_to: e.target.value }))}>
-                      <option value="">Unassigned</option>
-                      {firmMembers.map(m => (
-                        <option key={m.id} value={m.user_id}>{m.user_id === user?.id ? "Me" : `${m.role} (${m.user_id.slice(0, 8)})`}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 4 }}>Due Date</label>
-                    <input type="datetime-local" className="inp" value={newTask.due_at} onChange={e => setNewTask(p => ({ ...p, due_at: e.target.value }))} />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn-ghost" onClick={() => setAddingTask(false)} style={{ flex: 1 }}>Cancel</button>
-                  <button className="btn-primary" onClick={addTask} disabled={savingTask || !newTask.description.trim()} style={{ flex: 2 }}>
-                    {savingTask ? "Adding…" : "Add Task"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Task list */}
-            {tasks.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <p style={{ fontSize: 14, color: "var(--text-d)" }}>No tasks yet — add the first one!</p>
+                <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24 }}>
+                  {isAdmin ? "Share your appraisals with the team using the button above." : "Your workspace admin will assign projects to you."}
+                </p>
+                {isAdmin && <button className="btn-primary" onClick={() => setView("assign")}>+ Share Projects</button>}
               </div>
             ) : (
-              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "4px 0" }}>
-                {tasks.map(task => {
-                  const p = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-                  const due = task.due_at ? new Date(task.due_at) : null;
-                  const overdue = due && due < new Date() && !task.completed;
+              <div className="cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+                {projects.map((p, i) => {
+                  const latest = p.appraisals?.[0];
+                  const sym = CURRENCY_SYMBOLS[p.currency] || "£";
+                  const pocColor = latest?.profit_on_cost > 0.2 ? "var(--green)" : latest?.profit_on_cost > 0.1 ? "var(--amber)" : "var(--red)";
                   return (
-                    <div key={task.id} className={`task-row ${task.completed ? "completed" : ""}`}>
-                      <div className={`checkbox ${task.completed ? "checked" : ""}`} onClick={() => toggleTask(task)}>
-                        {task.completed && <span style={{ fontSize: 11, color: "#06070a", fontWeight: 700 }}>✓</span>}
+                    <div key={p.id} className="card" style={{ animationDelay: `${i * 0.04}s` }} onClick={() => router.push(`/workspace/${p.id}`)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600 }}>{p.asset_type}</span>
+                        <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "rgba(125,133,144,.12)", color: "var(--text-m)" }}>{latest?.status || "draft"}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-d)", marginLeft: "auto", fontFamily: "var(--font-mono)" }}>
+                          {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}
+                        </span>
                       </div>
-                      <div className="priority-dot" style={{ background: p.dot }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: task.completed ? "var(--text-d)" : "var(--text)", textDecoration: task.completed ? "line-through" : "none", marginBottom: 4 }}>
-                          {task.description}
+                      <h3 style={{ fontSize: 17, fontWeight: 500, marginBottom: 4, fontFamily: "var(--font-display)" }}>{p.name || "Untitled"}</h3>
+                      <p style={{ fontSize: 12, color: "var(--text-m)", marginBottom: 18 }}>{p.location || "No location"}</p>
+                      {latest ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                          {[
+                            { label: "GDV", value: fmt(latest.gdv, sym), color: "var(--gold)" },
+                            { label: "Profit", value: fmt(latest.profit, sym), color: latest?.profit > 0 ? "var(--green)" : "var(--red)" },
+                            { label: "PoC", value: fmtPct(latest.profit_on_cost), color: pocColor },
+                          ].map(m => (
+                            <div key={m.label} className="metric-pill">
+                              <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", marginBottom: 3 }}>{m.label}</div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 500, color: m.color }}>{m.value}</div>
+                            </div>
+                          ))}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 8, background: "var(--bg3)", color: "var(--text-d)" }}>{p.label}</span>
-                          {task.assigned_to_email && (
-                            <span style={{ fontSize: 11, color: "var(--blue)" }}>→ {task.assigned_to === user?.id ? "You" : task.assigned_to?.slice(0, 8)}</span>
-                          )}
-                          {due && (
-                            <span style={{ fontSize: 11, color: overdue ? "var(--red)" : "var(--text-d)", fontFamily: "var(--font-mono)" }}>
-                              {overdue ? "⚠ " : ""}{due.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                            </span>
-                          )}
-                          <span style={{ fontSize: 10, color: "var(--text-d)", marginLeft: "auto" }}>
-                            by {task.created_by_email || task.created_by?.slice(0, 8)} · {formatTime(task.created_at)}
-                          </span>
-                        </div>
+                      ) : (
+                        <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--text-d)" }}>No appraisal saved yet</div>
+                      )}
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--bg4)", display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 11, color: "var(--text-d)" }}>{p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}</span>
+                        <span style={{ fontSize: 11, color: "var(--gold)" }}>Open →</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* NOTES TAB */}
-        {tab === "notes" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 300 }}>Notes & Comments</h2>
-            </div>
-
-            {/* Add note */}
-            <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <textarea
-                className="inp"
-                value={newNote}
-                onChange={e => setNewNote(e.target.value)}
-                placeholder="Add a note or comment…"
-                style={{ minHeight: 80, resize: "vertical", fontFamily: "var(--font-body)", marginBottom: 12 }}
-              />
-              <button className="btn-primary" onClick={addNote} disabled={savingNote || !newNote.trim()}>
-                {savingNote ? "Posting…" : "Post Note →"}
-              </button>
-            </div>
-
-            {/* Notes list */}
-            {notes.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <p style={{ fontSize: 14, color: "var(--text-d)" }}>No notes yet — be the first to add one!</p>
-              </div>
-            ) : (
-              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "4px 20px" }}>
-                {notes.map(note => (
-                  <div key={note.id} className="comment-row">
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "var(--gold)", flexShrink: 0 }}>
-                        {(note.created_by_email || note.created_by || "?")[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text)" }}>
-                          {note.created_by === user?.id ? "You" : note.created_by_email || `Member ${note.created_by?.slice(0, 8)}`}
-                        </span>
-                        <span style={{ fontSize: 11, color: "var(--text-d)", marginLeft: 8 }}>{formatTime(note.created_at)}</span>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: 13, color: "var(--text-m)", lineHeight: 1.6, paddingLeft: 38 }}>{note.content}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ACTIVITY TAB */}
-        {tab === "activity" && (
-          <div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 300, marginBottom: 24 }}>Activity Log</h2>
-            {activity.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <p style={{ fontSize: 14, color: "var(--text-d)" }}>No activity yet.</p>
-              </div>
-            ) : (
-              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "4px 20px" }}>
-                {activity.map(a => (
-                  <div key={a.id} className="activity-row">
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--bg3)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--text-d)", flexShrink: 0 }}>
-                      {(a.user_email || "?")[0].toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-                        <strong style={{ color: a.user_id === user?.id ? "var(--gold)" : "var(--text)" }}>
-                          {a.user_id === user?.id ? "You" : a.user_email || `Member ${a.user_id?.slice(0, 8)}`}
-                        </strong>{" "}
-                        {actionLabel(a.action)}
-                        {a.details?.description && <span style={{ color: "var(--text-m)" }}> — "{a.details.description}"</span>}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2, fontFamily: "var(--font-mono)" }}>{formatTime(a.created_at)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
+
+      <BottomNav />
     </div>
   );
 }

@@ -62,12 +62,12 @@ export default function WorkspacePage() {
   const [firm, setFirm] = useState<any>(null);
   const [memberRole, setMemberRole] = useState<string>("member");
   const [projects, setProjects] = useState<any[]>([]);
-  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [allProjects, setAllProjects] = useState<any[]>([]); // admin: all firm projects
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [assigningProject, setAssigningProject] = useState<any>(null);
   const [firmMembers, setFirmMembers] = useState<any[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [assigningProject, setAssigningProject] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"projects" | "assign">("projects");
 
@@ -78,6 +78,7 @@ export default function WorkspacePage() {
       const u = session.user;
       setUser(u);
 
+      // Get firm membership
       const { data: memberRow } = await supabase
         .from("firm_members")
         .select("*, firms(*)")
@@ -92,6 +93,7 @@ export default function WorkspacePage() {
       setIsAdmin(admin);
 
       if (admin) {
+        // Admin sees all their projects + can assign
         const { data: ownProjects } = await supabase
           .from("projects")
           .select(`*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status)`)
@@ -100,6 +102,7 @@ export default function WorkspacePage() {
           .order("created_at", { ascending: false });
         setAllProjects(ownProjects || []);
 
+        // Get firm members for assignment
         const { data: members } = await supabase
           .from("firm_members")
           .select("*")
@@ -107,18 +110,23 @@ export default function WorkspacePage() {
           .neq("user_id", u.id);
         setFirmMembers(members || []);
 
+        // Also show projects shared with workspace
         const { data: sharedProjects } = await supabase
           .from("project_members")
           .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
           .eq("firm_id", memberRow.firm_id);
-        setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true })));
+
+        const shared = (sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true, _pm_id: pm.id }));
+        setProjects(shared);
       } else {
+        // Member sees only assigned projects
         const { data: assigned } = await supabase
           .from("project_members")
           .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
           .eq("user_id", u.id)
           .eq("firm_id", memberRow.firm_id);
-        setProjects((assigned || []).map((pm: any) => ({ ...pm.projects })));
+
+        setProjects((assigned || []).map((pm: any) => ({ ...pm.projects, _pm_id: pm.id })));
       }
 
       setLoading(false);
@@ -126,9 +134,14 @@ export default function WorkspacePage() {
     init();
   }, [router]);
 
+  const openProject = (project: any) => {
+    router.push(`/workspace/${project.id}`);
+  };
+
   const shareProject = async (projectId: string, memberIds: string[]) => {
     if (!firm || !user) return;
     setSaving(true);
+
     for (const memberId of memberIds) {
       await supabase.from("project_members").upsert({
         project_id: projectId,
@@ -136,6 +149,8 @@ export default function WorkspacePage() {
         firm_id: firm.id,
         assigned_by: user.id,
       }, { onConflict: "project_id,user_id" });
+
+      // Log activity
       await supabase.from("activity_log").insert({
         project_id: projectId,
         firm_id: firm.id,
@@ -145,14 +160,17 @@ export default function WorkspacePage() {
         details: { assigned_to: memberId },
       });
     }
+
     setSaving(false);
     setAssigningProject(null);
     setSelectedMembers([]);
+
+    // Refresh
     const { data: sharedProjects } = await supabase
       .from("project_members")
       .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
       .eq("firm_id", firm.id);
-    setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true })));
+    setProjects((sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true, _pm_id: pm.id })));
   };
 
   const removeFromWorkspace = async (projectId: string) => {
@@ -201,12 +219,10 @@ export default function WorkspacePage() {
         <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Tasks
       </button>
-      {isAdmin && (
-        <button className="bottom-nav-item" onClick={() => router.push("/team")}>
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
-          Team
-        </button>
-      )}
+      {isAdmin && <button className="bottom-nav-item" onClick={() => router.push("/team")}>
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+        Team
+      </button>}
       <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
         <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
         Portfolio
@@ -220,6 +236,7 @@ export default function WorkspacePage() {
       <Sidebar />
 
       <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
+
         <div className="mobile-topbar">
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
           <div style={{ fontSize: 12, color: "var(--gold)" }}>{firm?.name}</div>
@@ -228,14 +245,22 @@ export default function WorkspacePage() {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40, flexWrap: "wrap", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>{firm?.name}</div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 44, fontWeight: 300, marginBottom: 6 }}>Workspace</h1>
+            <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>
+              {firm?.name}
+            </div>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 44, fontWeight: 300, marginBottom: 6 }}>
+              Workspace
+            </h1>
             <p style={{ fontSize: 14, color: "var(--text-m)" }}>
               {projects.length} shared project{projects.length !== 1 ? "s" : ""} · {memberRole}
             </p>
           </div>
           {isAdmin && (
-            <button className="btn-primary" onClick={() => setView(view === "assign" ? "projects" : "assign")} style={{ padding: "12px 24px" }}>
+            <button
+              className="btn-primary"
+              onClick={() => setView(view === "assign" ? "projects" : "assign")}
+              style={{ padding: "12px 24px" }}
+            >
               {view === "assign" ? "← Back to Projects" : "+ Share Projects"}
             </button>
           )}
@@ -261,9 +286,7 @@ export default function WorkspacePage() {
                         <div style={{ fontSize: 15, fontWeight: 500, fontFamily: "var(--font-display)" }}>{p.name}</div>
                         <div style={{ fontSize: 12, color: "var(--text-m)" }}>{p.location || "No location"}</div>
                       </div>
-                      {isShared && (
-                        <span style={{ fontSize: 10, color: "var(--green)", background: "rgba(61,220,132,.1)", padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(61,220,132,.2)", whiteSpace: "nowrap" }}>Shared</span>
-                      )}
+                      {isShared && <span style={{ fontSize: 10, color: "var(--green)", background: "rgba(61,220,132,.1)", padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(61,220,132,.2)" }}>Shared</span>}
                     </div>
                     {latest && (
                       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
@@ -277,6 +300,8 @@ export default function WorkspacePage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Member selection */}
                     {firmMembers.length > 0 ? (
                       <div>
                         <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Share with</div>
@@ -288,12 +313,12 @@ export default function WorkspacePage() {
                                 checked={assigningProject === p.id && selectedMembers.includes(m.user_id)}
                                 onChange={e => {
                                   setAssigningProject(p.id);
-                                  setSelectedMembers(prev => e.target.checked ? [...prev, m.user_id] : prev.filter((id: string) => id !== m.user_id));
+                                  setSelectedMembers(prev => e.target.checked ? [...prev, m.user_id] : prev.filter(id => id !== m.user_id));
                                 }}
-                                style={{ accentColor: "#c9a84c" }}
+                                style={{ accentColor: "var(--gold)" }}
                               />
                               <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "var(--gold)", fontWeight: 600 }}>
-                                {m.role[0].toUpperCase()}
+                                {m.user_id.toString()[0].toUpperCase()}
                               </div>
                               <span style={{ fontSize: 12, color: "var(--text-m)" }}>{m.role}</span>
                             </label>
@@ -316,10 +341,7 @@ export default function WorkspacePage() {
                         </div>
                       </div>
                     ) : (
-                      <p style={{ fontSize: 12, color: "var(--text-d)" }}>
-                        No members yet.{" "}
-                        <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => router.push("/team")}>Invite team →</span>
-                      </p>
+                      <p style={{ fontSize: 12, color: "var(--text-d)" }}>No members to share with yet. <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => router.push("/team")}>Invite team →</span></p>
                     )}
                   </div>
                 );
@@ -344,7 +366,7 @@ export default function WorkspacePage() {
                   {isAdmin ? "No projects shared yet" : "No projects assigned to you yet"}
                 </p>
                 <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24 }}>
-                  {isAdmin ? "Share your appraisals with the team using the button above." : "Your workspace admin will assign projects to you."}
+                  {isAdmin ? "Click "+ Share Projects" to share your appraisals with the team." : "Your workspace admin will assign projects to you."}
                 </p>
                 {isAdmin && (
                   <button className="btn-primary" onClick={() => setView("assign")}>+ Share Projects</button>
@@ -357,7 +379,7 @@ export default function WorkspacePage() {
                   const sym = CURRENCY_SYMBOLS[p.currency] || "£";
                   const pocColor = latest?.profit_on_cost > 0.2 ? "var(--green)" : latest?.profit_on_cost > 0.1 ? "var(--amber)" : "var(--red)";
                   return (
-                    <div key={p.id} className="card" style={{ animationDelay: `${i * 0.04}s` }} onClick={() => router.push(`/workspace/${p.id}`)}>
+                    <div key={p.id} className="card" style={{ animationDelay: `${i * 0.04}s` }} onClick={() => openProject(p)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                         <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600 }}>{p.asset_type}</span>
                         <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "rgba(125,133,144,.12)", color: "var(--text-m)" }}>{latest?.status || "draft"}</span>
@@ -383,7 +405,7 @@ export default function WorkspacePage() {
                       ) : (
                         <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--text-d)" }}>No appraisal saved yet</div>
                       )}
-                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--bg4)", display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--bg4)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontSize: 11, color: "var(--text-d)" }}>{p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}</span>
                         <span style={{ fontSize: 11, color: "var(--gold)" }}>Open →</span>
                       </div>
