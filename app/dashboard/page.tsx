@@ -239,6 +239,7 @@ export default function Dashboard() {
         <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
         <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>Portfolio</button>
         <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
+        <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
         <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
         <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
         <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
