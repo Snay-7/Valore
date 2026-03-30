@@ -562,7 +562,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {
                 name:"Enterprise",price:"£499",period:"/mo",
                 desc:"For PropTech firms, agencies and institutional teams.",
-                features:["Everything in Professional","Team collaboration (coming soon)","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],
+                features:["Everything in Professional","Team collaboration","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],
                 featured:false,cta:"Start Free Trial"
               },
             ].map((plan,i)=>(

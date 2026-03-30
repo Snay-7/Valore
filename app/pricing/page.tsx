@@ -98,7 +98,7 @@ const PLANS = [
       { text: "Unlimited projects", included: true },
       { text: "All 4 asset types (BTR, BTS, Hotel, Flip)", included: true },
       { text: "All Professional features", included: true },
-      { text: "Team collaboration (coming soon)", included: true },
+      { text: "Team collaboration", included: true },
       { text: "White label PDF exports", included: true },
       { text: "Custom benchmarks", included: true },
       { text: "Dedicated onboarding", included: true },
