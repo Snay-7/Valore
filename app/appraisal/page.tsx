@@ -1070,8 +1070,12 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
       <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 24px",display:"flex",alignItems:"center",gap:8,height:46}}>
         <span style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginRight:8}}>Asset Type:</span>
         {(["BTR","BTS","Hotel","Flip"] as AssetType[]).map(t=>(
-          <button key={t} onClick={()=>switchAssetType(t)} style={{padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s"}}>{t}</button>
+          <button key={t} onClick={()=>{
+            if(appraisalId){return;} // locked once saved
+            switchAssetType(t);
+          }} style={{padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1}}>{t}</button>
         ))}
+        {appraisalId&&<span style={{fontSize:10,color:"var(--text-d)",marginLeft:4}}>· locked after save</span>}
         <div style={{flex:1}}/>
         <input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Appraisal name…" style={{width:240,padding:"6px 12px",fontSize:13}}/>
       </div>
@@ -1089,7 +1093,7 @@ Finance: LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100
                 <div className="section-title">Project Details</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Chiswick Tower"/></div>
-                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location} onChange={e=>set("location",e.target.value)} placeholder="e.g. Hammersmith, London"/></div>
+                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location} onChange={e=>set("location",e.target.value)} placeholder="e.g. Hammersmith, London" readOnly={!!appraisalId} style={{cursor:appraisalId?"not-allowed":"text",opacity:appraisalId?0.6:1}}/></div>
                 </div>
                 <div className="inp-row-3">
                   <div className="inp-group"><label className="inp-label">Currency</label><select className="inp" value={data.currency} onChange={e=>set("currency",e.target.value)}>{currencies.map(c=><option key={c}>{c}</option>)}</select></div>
