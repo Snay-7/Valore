@@ -116,7 +116,7 @@ export default function WorkspacePage() {
           .select("*, projects(*, appraisals(id, gdv, profit, profit_on_cost, irr_unlevered, status))")
           .eq("firm_id", memberRow.firm_id);
 
-        const shared = (sharedProjects || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects, _shared: true }));
+        const shared = (sharedProjects || []).map((pm: any) => ({ ...pm.projects, _shared: true, _pm_id: pm.id }));
         setProjects(shared);
       } else {
         // Member sees only assigned projects
@@ -126,7 +126,7 @@ export default function WorkspacePage() {
           .eq("user_id", u.id)
           .eq("firm_id", memberRow.firm_id);
 
-        setProjects((assigned || []).map((pm: any) => ({ id: pm.project_id, ...pm.projects })));
+        setProjects((assigned || []).map((pm: any) => ({ ...pm.projects, _pm_id: pm.id })));
       }
 
       setLoading(false);
@@ -366,7 +366,7 @@ export default function WorkspacePage() {
                   {isAdmin ? "No projects shared yet" : "No projects assigned to you yet"}
                 </p>
                 <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24 }}>
-              {isAdmin ? 'Share your appraisals with the team using the button above.' : 'Your workspace admin will assign projects to you.'}
+                  {isAdmin ? "Click "+ Share Projects" to share your appraisals with the team." : "Your workspace admin will assign projects to you."}
                 </p>
                 {isAdmin && (
                   <button className="btn-primary" onClick={() => setView("assign")}>+ Share Projects</button>
