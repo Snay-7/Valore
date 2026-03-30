@@ -111,17 +111,15 @@ export default function TeamPage() {
       // Check subscription
       const { data: sub } = await supabase.from("subscriptions").select("tier").eq("user_id", u.id).maybeSingle();
       const tier = sub?.tier || "free";
-      const enterprise = tier === "enterprise" || tier === "professional";
-      setIsEnterprise(enterprise);
+      setIsEnterprise(tier === "enterprise" || tier === "professional");
 
       // Calculate trial
-      const signupDate = new Date(u.created_at);
-      const daysElapsed = (Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24);
+      const daysElapsed = (Date.now() - new Date(u.created_at).getTime()) / (1000 * 60 * 60 * 24);
       const daysLeft = Math.max(0, Math.ceil(TRIAL_DAYS - daysElapsed));
       setTrialDaysLeft(daysLeft);
       setIsInTrial(daysLeft > 0);
 
-      // Load firm
+      // Load firm — no join to auth.users
       const { data: memberRow } = await supabase
         .from("firm_members")
         .select("*, firms(*)")
@@ -138,22 +136,25 @@ export default function TeamPage() {
     init();
   }, [router]);
 
+  // ── KEY FIX: removed "*, user:user_id(email)" join that caused 400 ──
   const loadTeam = async (firmId: string) => {
-    const { data: m } = await supabase.from("firm_members").select("*, user:user_id(email)").eq("firm_id", firmId);
+    const { data: m } = await supabase
+      .from("firm_members")
+      .select("*")
+      .eq("firm_id", firmId);
     setMembers(m || []);
-    const { data: inv } = await supabase.from("firm_invites").select("*").eq("firm_id", firmId).is("accepted_at", null);
+
+    const { data: inv } = await supabase
+      .from("firm_invites")
+      .select("*")
+      .eq("firm_id", firmId)
+      .is("accepted_at", null);
     setInvites(inv || []);
   };
 
   const createFirm = async () => {
     if (!firmName.trim() || !user) return;
-
-    // Gate: enterprise or within 14-day trial
-    if (!isEnterprise && !isInTrial) {
-      router.push("/pricing");
-      return;
-    }
-
+    if (!isEnterprise && !isInTrial) { router.push("/pricing"); return; }
     setScreen("creating");
     const { data: newFirm, error } = await supabase
       .from("firms")
@@ -181,12 +182,21 @@ export default function TeamPage() {
     if (!inviteEmail.trim() || !firm) return;
     setInviting(true); setInviteError(null); setInviteLink(null);
     const { data: invite, error } = await supabase.from("firm_invites").insert({
-      firm_id: firm.id, email: inviteEmail.trim().toLowerCase(), role: inviteRole, invited_by: user.id,
+      firm_id: firm.id,
+      email: inviteEmail.trim().toLowerCase(),
+      role: inviteRole,
+      invited_by: user.id,
     }).select().single();
     if (error) { setInviteError("Failed to create invite. This email may already be invited."); setInviting(false); return; }
     const link = `${window.location.origin}/invite/${invite.token}`;
     setInviteLink(link);
-    try { await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: inviteEmail.trim(), firmName: firm.name, inviteLink: link, inviterEmail: user.email, role: inviteRole }) }); } catch (_) {}
+    try {
+      await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), firmName: firm.name, inviteLink: link, inviterEmail: user.email, role: inviteRole }),
+      });
+    } catch (_) {}
     setInvites(prev => [...prev, invite]);
     setInviteEmail("");
     setInviting(false);
@@ -302,12 +312,8 @@ export default function TeamPage() {
           You're the admin. Invite your team, assign roles, and collaborate on appraisals together.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn-ghost" onClick={() => setScreen("main")} style={{ padding: "12px 24px", fontSize: 13 }}>
-            Invite Team Members →
-          </button>
-          <button className="btn-primary" onClick={() => router.push("/dashboard")} style={{ padding: "12px 28px", fontSize: 14 }}>
-            Go to Dashboard →
-          </button>
+          <button className="btn-ghost" onClick={() => setScreen("main")} style={{ padding: "12px 24px", fontSize: 13 }}>Invite Team Members →</button>
+          <button className="btn-primary" onClick={() => router.push("/dashboard")} style={{ padding: "12px 28px", fontSize: 14 }}>Go to Dashboard →</button>
         </div>
       </div>
     </div>
@@ -337,41 +343,24 @@ export default function TeamPage() {
           </p>
         </div>
 
-        {/* Trial / upgrade banner — only show if no firm yet */}
+        {/* Trial / upgrade banner */}
         {!firm && !isEnterprise && (
-          <div style={{
-            background: isInTrial ? "rgba(61,220,132,.06)" : "var(--gold-bg)",
-            border: `1px solid ${isInTrial ? "rgba(61,220,132,.2)" : "var(--gold-border)"}`,
-            borderRadius: 12, padding: "16px 20px", marginBottom: 28,
-            display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12
-          }}>
+          <div style={{ background: isInTrial ? "rgba(61,220,132,.06)" : "var(--gold-bg)", border: `1px solid ${isInTrial ? "rgba(61,220,132,.2)" : "var(--gold-border)"}`, borderRadius: 12, padding: "16px 20px", marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             {isInTrial ? (
               <>
                 <div>
-                  <div style={{ fontSize: 13, color: "var(--green)", fontWeight: 600, marginBottom: 2 }}>
-                    ✓ Free Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-d)" }}>
-                    Full access to all features including team workspaces. Upgrade to Enterprise to keep access after your trial.
-                  </div>
+                  <div style={{ fontSize: 13, color: "var(--green)", fontWeight: 600, marginBottom: 2 }}>✓ Free Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining</div>
+                  <div style={{ fontSize: 12, color: "var(--text-d)" }}>Full access to all features. Upgrade to Enterprise to keep access after your trial.</div>
                 </div>
-                <button className="btn-ghost" onClick={() => router.push("/pricing")} style={{ fontSize: 12, flexShrink: 0 }}>
-                  Upgrade to Enterprise →
-                </button>
+                <button className="btn-ghost" onClick={() => router.push("/pricing")} style={{ fontSize: 12, flexShrink: 0 }}>Upgrade to Enterprise →</button>
               </>
             ) : (
               <>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--gold)", marginBottom: 4 }}>
-                    Trial Ended — Enterprise Required
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-m)" }}>
-                    Upgrade to Enterprise (£499/mo) to create workspaces. Free users can still join via invite link.
-                  </div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--gold)", marginBottom: 4 }}>Trial Ended — Enterprise Required</div>
+                  <div style={{ fontSize: 12, color: "var(--text-m)" }}>Upgrade to Enterprise (£499/mo) to create workspaces. Free users can still join via invite link.</div>
                 </div>
-                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ flexShrink: 0 }}>
-                  Upgrade to Enterprise →
-                </button>
+                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ flexShrink: 0 }}>Upgrade to Enterprise →</button>
               </>
             )}
           </div>
@@ -388,52 +377,29 @@ export default function TeamPage() {
                     Create a shared workspace for your firm. Invited members need a Valora account (free or paid) to join.
                   </p>
                   <div style={{ display: "flex", gap: 10 }}>
-                    <input
-                      className="inp"
-                      value={firmName}
-                      onChange={e => setFirmName(e.target.value)}
-                      placeholder="e.g. Harrington Capital"
-                      style={{ flex: 1 }}
-                      onKeyDown={e => e.key === "Enter" && createFirm()}
-                      autoFocus
-                    />
+                    <input className="inp" value={firmName} onChange={e => setFirmName(e.target.value)} placeholder="e.g. Harrington Capital" style={{ flex: 1 }} onKeyDown={e => e.key === "Enter" && createFirm()} autoFocus />
                     <button className="btn-primary" onClick={createFirm} disabled={!firmName.trim()}>
                       {canCreate ? "Create Workspace" : "Upgrade to Create"}
                     </button>
                   </div>
-                  {/* Trial / access note */}
                   <p style={{ fontSize: 11, marginTop: 10, color: isEnterprise ? "var(--gold)" : isInTrial ? "var(--green)" : "var(--text-d)" }}>
-                    {isEnterprise
-                      ? "✦ Enterprise plan — unlimited workspaces"
-                      : isInTrial
-                      ? `✓ Free trial active — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining`
-                      : "Workspace creation requires an Enterprise plan · £499/mo · Free users can join via invite"}
+                    {isEnterprise ? "✦ Enterprise plan — unlimited workspaces" : isInTrial ? `✓ Free trial active — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining` : "Workspace creation requires an Enterprise plan · £499/mo · Free users can join via invite"}
                   </p>
                 </div>
               ) : (
                 <div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", flexShrink: 0 }}>
-                      {firm.name[0]}
-                    </div>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", flexShrink: 0 }}>{firm.name[0]}</div>
                     <input className="inp" value={firmName} onChange={e => setFirmName(e.target.value)} readOnly={!isAdmin} style={{ flex: 1 }} />
                     {isAdmin && <button className="btn-ghost" onClick={saveFirmName} disabled={savingFirm}>{savingFirm ? "Saving…" : "Save"}</button>}
                   </div>
                   <div style={{ background: "var(--bg3)", borderRadius: 10, padding: "14px 16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 11, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em" }}>Seats Used</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--text-m)" }}>
-                        {seatsUsed} / {SEAT_LIMIT} included
-                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--text-m)" }}>{seatsUsed} / {SEAT_LIMIT} included</span>
                     </div>
-                    <div className="seat-bar">
-                      <div className="seat-bar-fill" style={{ width: `${seatPct}%`, background: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--gold)" }} />
-                    </div>
-                    {extraSeats > 0 && (
-                      <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 8 }}>
-                        +{extraSeats} extra seat{extraSeats > 1 ? "s" : ""} · £{extraCost}/mo additional
-                      </div>
-                    )}
+                    <div className="seat-bar"><div className="seat-bar-fill" style={{ width: `${seatPct}%`, background: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--gold)" }} /></div>
+                    {extraSeats > 0 && <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 8 }}>+{extraSeats} extra seat{extraSeats > 1 ? "s" : ""} · £{extraCost}/mo additional</div>}
                   </div>
                 </div>
               )}
@@ -447,9 +413,9 @@ export default function TeamPage() {
                   ? <div style={{ fontSize: 13, color: "var(--text-d)", textAlign: "center", padding: "24px 0" }}>No members yet — invite your team.</div>
                   : members.map(m => (
                     <div key={m.id} className="member-row">
-                      <div className="avatar">{(m.user?.email || "?")[0].toUpperCase()}</div>
+                      <div className="avatar">{m.user_id?.toString()[0]?.toUpperCase() || "?"}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.user?.email || "—"}</div>
+                        <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.user_id === user?.id ? user?.email : `Member ${m.user_id?.toString().slice(0, 8)}`}</div>
                         <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>Joined {new Date(m.joined_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
                       </div>
                       {isAdmin && m.user_id !== user?.id
@@ -537,12 +503,7 @@ export default function TeamPage() {
             ) : !firm ? (
               <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
                 <div style={{ fontSize: 11, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 16 }}>How it works</div>
-                {[
-                  ["✦", "Create your workspace", "Give your firm a name to get started"],
-                  ["✉", "Invite by email or link", "Team members sign in with their Valora account"],
-                  ["◈", "Assign roles", "Admin · Editor · Viewer · Commenter"],
-                  ["▦", "Collaborate", "Members see their assigned appraisals & tasks"],
-                ].map(([icon, title, desc]) => (
+                {[["✦","Create your workspace","Give your firm a name to get started"],["✉","Invite by email or link","Team members sign in with their Valora account"],["◈","Assign roles","Admin · Editor · Viewer · Commenter"],["▦","Collaborate","Members see their assigned appraisals & tasks"]].map(([icon, title, desc]) => (
                   <div key={title as string} style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "flex-start" }}>
                     <div style={{ width: 28, height: 28, borderRadius: 7, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--gold)", flexShrink: 0 }}>{icon}</div>
                     <div>
