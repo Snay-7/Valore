@@ -48,20 +48,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .role-select:focus{border-color:var(--gold)}
 .seat-bar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-top:8px}
 .seat-bar-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .4s ease}
-
-/* Desktop sidebar */
 .sidebar{width:220px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
 .nav-item{width:100%;display:flex;align-items:center;padding:9px 12px;border-radius:7px;font-size:13px;color:var(--text-m);background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:left;margin-bottom:2px}
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--gold);background:rgba(201,168,76,.08);border-color:var(--gold-border);font-weight:600}
-
-/* Mobile */
 .mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:8px 0 env(safe-area-inset-bottom,16px)}
 .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:flex}
@@ -72,14 +67,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 `;
 
 const ROLES = [
-  { value: "admin",     label: "Admin",     desc: "Full access — manage members, all projects", color: "var(--gold)" },
-  { value: "editor",    label: "Editor",    desc: "Can create & edit appraisals",               color: "var(--blue)" },
-  { value: "viewer",    label: "Viewer",    desc: "Read-only access to assigned projects",       color: "var(--text-m)" },
-  { value: "commenter", label: "Commenter", desc: "Can add notes & comments only",              color: "var(--purple)" },
+  { value: "admin",     label: "Admin",     desc: "Full access — manage members & all projects", color: "var(--gold)" },
+  { value: "editor",    label: "Editor",    desc: "Can create & edit appraisals",                color: "var(--blue)" },
+  { value: "viewer",    label: "Viewer",    desc: "Read-only access to assigned projects",        color: "var(--text-m)" },
+  { value: "commenter", label: "Commenter", desc: "Can add notes & comments only",               color: "var(--purple)" },
 ];
 
 const SEAT_LIMIT = 5;
 const EXTRA_SEAT_PRICE = 50;
+
+type Screen = "main" | "creating" | "success";
 
 export default function TeamPage() {
   const router = useRouter();
@@ -94,24 +91,25 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
-  const [inviteLink, setInviteLink] = useState<string|null>(null);
-  const [inviteError, setInviteError] = useState<string|null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [newFirmName, setNewFirmName] = useState("");
+  const [screen, setScreen] = useState<Screen>("main");
+  const [createdFirmName, setCreatedFirmName] = useState("");
 
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/"); return; }
       setUser(session.user);
-      const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
-      setSubscription(sub);
-      const { data: memberRow } = await supabase.from("firm_members").select("*, firms(*)").eq("user_id", session.user.id).maybeSingle();
-      if (memberRow) {
+      const { data: memberRow } = await supabase
+        .from("firm_members")
+        .select("*, firms(*)")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (memberRow?.firms) {
         setFirm(memberRow.firms);
-        setFirmName(memberRow.firms?.name || "");
+        setFirmName(memberRow.firms.name || "");
         setIsAdmin(memberRow.role === "admin");
         await loadTeam(memberRow.firm_id);
       }
@@ -129,16 +127,15 @@ export default function TeamPage() {
 
   const createFirm = async () => {
     if (!firmName.trim() || !user) return;
-    setSavingFirm(true);
+    setScreen("creating");
     const { data: newFirm, error } = await supabase.from("firms").insert({ name: firmName.trim(), owner_id: user.id }).select().single();
-    if (error || !newFirm) { setSavingFirm(false); return; }
+    if (error || !newFirm) { console.error(error); setScreen("main"); return; }
     await supabase.from("firm_members").insert({ firm_id: newFirm.id, user_id: user.id, role: "admin", invited_by: user.id });
-    setNewFirmName(firmName.trim());
+    setCreatedFirmName(firmName.trim());
     setFirm(newFirm);
     setIsAdmin(true);
     await loadTeam(newFirm.id);
-    setSavingFirm(false);
-    setShowSuccess(true);
+    setScreen("success");
   };
 
   const saveFirmName = async () => {
@@ -153,21 +150,12 @@ export default function TeamPage() {
     if (!inviteEmail.trim() || !firm) return;
     setInviting(true); setInviteError(null); setInviteLink(null);
     const { data: invite, error } = await supabase.from("firm_invites").insert({
-      firm_id: firm.id,
-      email: inviteEmail.trim().toLowerCase(),
-      role: inviteRole,
-      invited_by: user.id,
+      firm_id: firm.id, email: inviteEmail.trim().toLowerCase(), role: inviteRole, invited_by: user.id,
     }).select().single();
     if (error) { setInviteError("Failed to create invite. This email may already be invited."); setInviting(false); return; }
     const link = `${window.location.origin}/invite/${invite.token}`;
     setInviteLink(link);
-    try {
-      await fetch("/api/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim(), firmName: firm.name, inviteLink: link, inviterEmail: user.email, role: inviteRole }),
-      });
-    } catch (e) {}
+    try { await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: inviteEmail.trim(), firmName: firm.name, inviteLink: link, inviterEmail: user.email, role: inviteRole }) }); } catch (_) {}
     setInvites(prev => [...prev, invite]);
     setInviteEmail("");
     setInviting(false);
@@ -194,22 +182,63 @@ export default function TeamPage() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const tier = subscription?.tier || "free";
-  const isEnterprise = tier === "enterprise";
-  const totalSeats = members.length + invites.length;
   const seatsUsed = members.length;
+  const totalSeats = members.length + invites.length;
   const seatPct = Math.min((seatsUsed / SEAT_LIMIT) * 100, 100);
   const extraSeats = Math.max(0, totalSeats - SEAT_LIMIT);
   const extraCost = extraSeats * EXTRA_SEAT_PRICE;
 
-  const getRoleBadgeClass = (role: string) => {
-    if (role === "admin") return "role-admin";
-    if (role === "editor") return "role-editor";
-    if (role === "viewer") return "role-viewer";
-    if (role === "commenter") return "role-commenter";
-    return "role-viewer";
-  };
+  const getRoleBadgeClass = (role: string) => ({ admin: "role-admin", editor: "role-editor", viewer: "role-viewer", commenter: "role-commenter" }[role] || "role-viewer");
 
+  const Sidebar = () => (
+    <div className="sidebar">
+      <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+        <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
+      </div>
+      <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
+        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
+        <button className="nav-item" onClick={() => router.push("/dashboard")}>Portfolio</button>
+        <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
+        <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
+        <button className="nav-item active">Team</button>
+        <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
+        <button className="nav-item" onClick={() => router.push("/dashboard")}>Trash</button>
+      </div>
+      <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
+        <button className="nav-item" style={{ fontSize: 12 }} onClick={async () => { await supabase.auth.signOut(); router.push("/"); }}>Sign Out</button>
+      </div>
+    </div>
+  );
+
+  const BottomNav = () => (
+    <nav className="bottom-nav">
+      <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Portfolio
+      </button>
+      <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        Pipeline
+      </button>
+      <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Tasks
+      </button>
+      <button className="bottom-nav-item active">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
+        Team
+      </button>
+      <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Trash
+      </button>
+    </nav>
+  );
+
+  // LOADING
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
@@ -217,21 +246,32 @@ export default function TeamPage() {
     </div>
   );
 
-  // ── SUCCESS SCREEN ──
-  if (showSuccess) return (
+  // CREATING
+  if (screen === "creating") return (
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{CSS}</style>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 40, height: 40, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 16px" }} />
+        <p style={{ fontSize: 14, color: "var(--text-d)" }}>Creating workspace…</p>
+      </div>
+    </div>
+  );
+
+  // SUCCESS
+  if (screen === "success") return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-body)" }}>
       <style>{CSS}</style>
       <div style={{ textAlign: "center", maxWidth: 480, padding: "0 24px", animation: "scaleIn .4s ease" }}>
-        <div style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 36 }}>✦</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 44, fontWeight: 300, color: "var(--gold)", marginBottom: 12, letterSpacing: ".02em" }}>Workspace Created</h1>
-        <p style={{ fontSize: 15, color: "var(--text-m)", lineHeight: 1.7, marginBottom: 8 }}>
-          <strong style={{ color: "var(--text)" }}>{newFirmName}</strong> is ready.
+        <div style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--gold-bg)", border: "2px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 28px", fontSize: 32, color: "var(--gold)" }}>✦</div>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 52, fontWeight: 300, color: "var(--gold)", marginBottom: 14, letterSpacing: ".02em" }}>Workspace Created</h1>
+        <p style={{ fontSize: 16, color: "var(--text-m)", lineHeight: 1.7, marginBottom: 8 }}>
+          <strong style={{ color: "var(--text)" }}>{createdFirmName}</strong> is ready.
         </p>
-        <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 40, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 48, lineHeight: 1.7 }}>
           You're the admin. Invite your team, assign roles, and collaborate on appraisals together.
         </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-          <button className="btn-ghost" onClick={() => setShowSuccess(false)} style={{ padding: "12px 24px" }}>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <button className="btn-ghost" onClick={() => setScreen("main")} style={{ padding: "12px 24px", fontSize: 13 }}>
             Invite Team Members →
           </button>
           <button className="btn-primary" onClick={() => router.push("/dashboard")} style={{ padding: "12px 28px", fontSize: 14 }}>
@@ -242,44 +282,13 @@ export default function TeamPage() {
     </div>
   );
 
+  // MAIN
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
+      <Sidebar />
 
-      {/* ── DESKTOP SIDEBAR ── */}
-      <div className="sidebar">
-        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
-          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
-        </div>
-        <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
-          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
-          <button className="nav-item" onClick={() => router.push("/dashboard")}>Portfolio</button>
-          <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
-          <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-          <button className="nav-item active">Team</button>
-          <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
-          <button className="nav-item" onClick={() => router.push("/dashboard")}>Trash</button>
-          {!isEnterprise && (
-            <>
-              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-              <button className="nav-item" onClick={() => router.push("/pricing")} style={{ color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", fontWeight: 600, fontSize: 12 }}>
-                ✦ Upgrade Plan
-              </button>
-            </>
-          )}
-        </div>
-        <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
-          <button className="nav-item" style={{ fontSize: 12 }} onClick={async () => { await supabase.auth.signOut(); router.push("/"); }}>Sign Out</button>
-        </div>
-      </div>
-
-      {/* ── MAIN CONTENT ── */}
       <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
-
-        {/* Mobile top bar */}
         <div className="mobile-topbar">
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
           <div style={{ fontSize: 12, color: "var(--text-d)" }}>Team</div>
@@ -295,104 +304,60 @@ export default function TeamPage() {
           </p>
         </div>
 
-        {/* Enterprise gate */}
-        {!isEnterprise && (
-          <div style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 14, padding: "28px 32px", marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-            <div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: "var(--gold)", marginBottom: 6 }}>Enterprise Feature</div>
-              <p style={{ fontSize: 13, color: "var(--text-m)", maxWidth: 440, lineHeight: 1.6 }}>
-                Team collaboration is available on the Enterprise plan (£499/mo). Includes 5 seats — additional seats at £{EXTRA_SEAT_PRICE}/mo each.
-              </p>
-            </div>
-            <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "12px 24px", flexShrink: 0 }}>Upgrade to Enterprise →</button>
-          </div>
-        )}
-
-        <div className="page-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, opacity: !isEnterprise ? 0.4 : 1, pointerEvents: !isEnterprise ? "none" : "auto" }}>
-
-          {/* ── LEFT COLUMN ── */}
+        <div className="page-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}>
           <div>
-
-            {/* Workspace setup / name */}
+            {/* Workspace card */}
             <div className="card">
               <div className="section-title">{firm ? "Workspace" : "Create Your Workspace"}</div>
               {!firm ? (
                 <div>
                   <p style={{ fontSize: 13, color: "var(--text-m)", marginBottom: 20, lineHeight: 1.6 }}>
-                    Create a shared workspace for your firm. Team members you invite will need a Valora account (free or paid) to join.
+                    Create a shared workspace for your firm. Invited members need a Valora account (free or paid) to join.
                   </p>
                   <div style={{ display: "flex", gap: 10 }}>
                     <input className="inp" value={firmName} onChange={e => setFirmName(e.target.value)} placeholder="e.g. Harrington Capital" style={{ flex: 1 }} onKeyDown={e => e.key === "Enter" && createFirm()} autoFocus />
-                    <button className="btn-primary" onClick={createFirm} disabled={savingFirm || !firmName.trim()}>
-                      {savingFirm ? "Creating…" : "Create Workspace"}
-                    </button>
+                    <button className="btn-primary" onClick={createFirm} disabled={!firmName.trim()}>Create Workspace</button>
                   </div>
                 </div>
               ) : (
                 <div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", flexShrink: 0 }}>
-                      {firm.name[0]}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <input className="inp" value={firmName} onChange={e => setFirmName(e.target.value)} style={{ flex: 1 }} readOnly={!isAdmin} />
-                    </div>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", flexShrink: 0 }}>{firm.name[0]}</div>
+                    <input className="inp" value={firmName} onChange={e => setFirmName(e.target.value)} readOnly={!isAdmin} style={{ flex: 1 }} />
                     {isAdmin && <button className="btn-ghost" onClick={saveFirmName} disabled={savingFirm}>{savingFirm ? "Saving…" : "Save"}</button>}
                   </div>
-
-                  {/* Seat usage */}
                   <div style={{ background: "var(--bg3)", borderRadius: 10, padding: "14px 16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 11, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em" }}>Seats Used</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--text-m)" }}>
-                        {seatsUsed} / {SEAT_LIMIT} included
-                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--text-m)" }}>{seatsUsed} / {SEAT_LIMIT} included</span>
                     </div>
-                    <div className="seat-bar">
-                      <div className="seat-bar-fill" style={{ width: `${seatPct}%`, background: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--gold)" }} />
-                    </div>
-                    {extraSeats > 0 && (
-                      <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 8 }}>
-                        +{extraSeats} extra seat{extraSeats > 1 ? "s" : ""} · £{extraCost}/mo additional
-                      </div>
-                    )}
+                    <div className="seat-bar"><div className="seat-bar-fill" style={{ width: `${seatPct}%`, background: seatsUsed >= SEAT_LIMIT ? "var(--amber)" : "var(--gold)" }} /></div>
+                    {extraSeats > 0 && <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 8 }}>+{extraSeats} extra seat{extraSeats > 1 ? "s" : ""} · £{extraCost}/mo additional</div>}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Members list */}
+            {/* Members */}
             {firm && (
               <div className="card">
                 <div className="section-title">Team Members ({members.length})</div>
-                {members.length === 0 ? (
-                  <div style={{ fontSize: 13, color: "var(--text-d)", textAlign: "center", padding: "20px 0" }}>No members yet — invite your team.</div>
-                ) : (
-                  members.map(m => (
+                {members.length === 0
+                  ? <div style={{ fontSize: 13, color: "var(--text-d)", textAlign: "center", padding: "24px 0" }}>No members yet — invite your team.</div>
+                  : members.map(m => (
                     <div key={m.id} className="member-row">
                       <div className="avatar">{(m.user?.email || "?")[0].toUpperCase()}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.user?.email || "—"}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>
-                          Joined {new Date(m.joined_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>Joined {new Date(m.joined_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
                       </div>
-                      {isAdmin && m.user_id !== user?.id ? (
-                        <select className="role-select" value={m.role} onChange={e => updateMemberRole(m.id, e.target.value)}>
-                          {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                      ) : (
-                        <span className={`role-badge ${getRoleBadgeClass(m.role)}`}>{m.role}</span>
-                      )}
-                      {m.user_id === user?.id && (
-                        <span style={{ fontSize: 11, color: "var(--text-d)" }}>You</span>
-                      )}
-                      {isAdmin && m.user_id !== user?.id && (
-                        <button className="btn-danger" onClick={() => removeMember(m.id)}>Remove</button>
-                      )}
+                      {isAdmin && m.user_id !== user?.id
+                        ? <select className="role-select" value={m.role} onChange={e => updateMemberRole(m.id, e.target.value)}>{ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select>
+                        : <span className={`role-badge ${getRoleBadgeClass(m.role)}`}>{m.role}</span>}
+                      {m.user_id === user?.id && <span style={{ fontSize: 11, color: "var(--text-d)" }}>You</span>}
+                      {isAdmin && m.user_id !== user?.id && <button className="btn-danger" onClick={() => removeMember(m.id)}>Remove</button>}
                     </div>
-                  ))
-                )}
+                  ))}
               </div>
             )}
 
@@ -405,14 +370,10 @@ export default function TeamPage() {
                     <div className="avatar" style={{ background: "rgba(240,164,41,.1)", borderColor: "rgba(240,164,41,.2)", color: "var(--amber)" }}>✉</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.email}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>
-                        {inv.role} · Invited {new Date(inv.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>{inv.role} · Invited {new Date(inv.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
                     </div>
                     <span className="tag-pending">Pending</span>
-                    <button className="btn-ghost" onClick={() => copyLink(`${window.location.origin}/invite/${inv.token}`)} style={{ fontSize: 11, padding: "4px 10px" }}>
-                      {copiedLink ? "✓" : "Copy Link"}
-                    </button>
+                    <button className="btn-ghost" onClick={() => copyLink(`${window.location.origin}/invite/${inv.token}`)} style={{ fontSize: 11, padding: "4px 10px" }}>{copiedLink ? "✓" : "Copy Link"}</button>
                     {isAdmin && <button className="btn-danger" onClick={() => revokeInvite(inv.id)}>Revoke</button>}
                   </div>
                 ))}
@@ -420,74 +381,62 @@ export default function TeamPage() {
             )}
           </div>
 
-          {/* ── RIGHT COLUMN ── */}
+          {/* RIGHT */}
           <div>
-            {firm && isAdmin && (
+            {firm && isAdmin ? (
               <div className="card" style={{ position: "sticky", top: 24 }}>
                 <div className="section-title">Invite a Team Member</div>
-
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Email Address</label>
                   <input className="inp" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="colleague@firm.com" onKeyDown={e => e.key === "Enter" && sendInvite()} />
                 </div>
-
-                {/* Role picker */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 8 }}>Role</label>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {ROLES.map(r => (
-                      <div
-                        key={r.value}
-                        onClick={() => setInviteRole(r.value)}
-                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${inviteRole === r.value ? "var(--gold-border)" : "var(--border)"}`, background: inviteRole === r.value ? "var(--gold-bg)" : "var(--bg3)", cursor: "pointer", transition: "all .15s" }}
-                      >
+                      <div key={r.value} onClick={() => setInviteRole(r.value)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${inviteRole === r.value ? "var(--gold-border)" : "var(--border)"}`, background: inviteRole === r.value ? "var(--gold-bg)" : "var(--bg3)", cursor: "pointer", transition: "all .15s" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 12, fontWeight: 600, color: inviteRole === r.value ? "var(--gold)" : "var(--text)" }}>{r.label}</div>
                           <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 1 }}>{r.desc}</div>
                         </div>
-                        {inviteRole === r.value && <span style={{ fontSize: 14, color: "var(--gold)" }}>✓</span>}
+                        {inviteRole === r.value && <span style={{ color: "var(--gold)", fontSize: 14 }}>✓</span>}
                       </div>
                     ))}
                   </div>
                 </div>
-
                 <button className="btn-primary" onClick={sendInvite} disabled={inviting || !inviteEmail.trim()} style={{ width: "100%", justifyContent: "center", padding: "12px" }}>
-                  {inviting
-                    ? <><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />Sending…</>
-                    : "Send Invite →"}
+                  {inviting ? <><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} /> Sending…</> : "Send Invite →"}
                 </button>
-
-                {inviteError && (
-                  <div style={{ marginTop: 12, background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.2)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--red)" }}>{inviteError}</div>
-                )}
-
+                {inviteError && <div style={{ marginTop: 12, background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.2)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--red)" }}>{inviteError}</div>}
                 {inviteLink && (
                   <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 11, color: "var(--green)", marginBottom: 8 }}>✓ Invite created — share this link:</div>
                     <div style={{ background: "var(--bg3)", borderRadius: 7, padding: "9px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", wordBreak: "break-all", marginBottom: 8 }}>{inviteLink}</div>
-                    <button className="btn-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 12 }} onClick={() => copyLink(inviteLink)}>
-                      {copiedLink ? "✓ Copied!" : "Copy Invite Link"}
-                    </button>
-                    <p style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, lineHeight: 1.5 }}>
-                      The invitee must sign in to Valora to accept. They get a free account if they don't have one.
-                    </p>
+                    <button className="btn-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 12 }} onClick={() => copyLink(inviteLink)}>{copiedLink ? "✓ Copied!" : "Copy Invite Link"}</button>
+                    <p style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, lineHeight: 1.5 }}>The invitee must sign in to Valora to accept. They'll get a free account if they don't have one.</p>
                   </div>
                 )}
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Seat Pricing</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-m)", marginBottom: 6 }}>
+                    <span>Included seats</span><span style={{ color: "var(--gold)", fontFamily: "var(--font-mono)" }}>5 seats</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-m)" }}>
+                    <span>Additional seats</span><span style={{ color: "var(--gold)", fontFamily: "var(--font-mono)" }}>£{EXTRA_SEAT_PRICE}/mo each</span>
+                  </div>
+                  {extraSeats > 0 && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                      <span style={{ color: "var(--text-m)" }}>Extra charges</span><span style={{ color: "var(--amber)", fontFamily: "var(--font-mono)" }}>£{extraCost}/mo</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-
-            {/* How it works */}
-            {!firm && (
+            ) : !firm ? (
               <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
                 <div style={{ fontSize: 11, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 16 }}>How it works</div>
-                {[
-                  ["✦", "Create your workspace", "Give your firm a name to get started"],
-                  ["✉", "Invite by email or link", "Team members sign in with their Valora account"],
-                  ["◈", "Assign roles", "Admin · Editor · Viewer · Commenter"],
-                  ["▦", "Collaborate", "Members see their assigned appraisals & tasks"],
-                ].map(([icon, title, desc]) => (
-                  <div key={title} style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "flex-start" }}>
+                {[["✦","Create your workspace","Give your firm a name to get started"],["✉","Invite by email or link","Team members sign in with their Valora account"],["◈","Assign roles","Admin · Editor · Viewer · Commenter"],["▦","Collaborate","Members see their assigned appraisals & tasks"]].map(([icon, title, desc]) => (
+                  <div key={title as string} style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "flex-start" }}>
                     <div style={{ width: 28, height: 28, borderRadius: 7, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--gold)", flexShrink: 0 }}>{icon}</div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", marginBottom: 2 }}>{title}</div>
@@ -496,58 +445,12 @@ export default function TeamPage() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {/* Pricing reminder */}
-            {isEnterprise && firm && (
-              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginTop: 16 }}>
-                <div style={{ fontSize: 11, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Seat Pricing</div>
-                <div style={{ fontSize: 13, color: "var(--text-m)", lineHeight: 1.7 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span>Included seats</span>
-                    <span style={{ color: "var(--gold)", fontFamily: "var(--font-mono)" }}>5 seats</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>Additional seats</span>
-                    <span style={{ color: "var(--gold)", fontFamily: "var(--font-mono)" }}>£{EXTRA_SEAT_PRICE}/mo each</span>
-                  </div>
-                  {extraSeats > 0 && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-                      <span>Extra charges</span>
-                      <span style={{ color: "var(--amber)", fontFamily: "var(--font-mono)" }}>£{extraCost}/mo</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="bottom-nav">
-        <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Portfolio
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
-          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-          Pipeline
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
-          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          Tasks
-        </button>
-        <button className="bottom-nav-item active">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
-          Team
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
-          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-          Trash
-        </button>
-      </nav>
-
+      <BottomNav />
     </div>
   );
 }
