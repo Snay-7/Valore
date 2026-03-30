@@ -619,6 +619,9 @@ export default function Dashboard() {
         </div>
       )}
 
+      </div>
+      </div>
+
       {/* Confirm Permanent Delete Modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
@@ -644,9 +647,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      </div>
-      </div>
-      </div>
+    </div>
   );
 }
