@@ -100,7 +100,7 @@ export default function Dashboard() {
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
-  const [hasFirm, setHasFirm] = useState(false);
+  const [hasFirm, setHasFirm] = useState(true);
 
   const tier = subscription?.tier || "free";
   const isPro = tier === "professional" || tier === "enterprise";
