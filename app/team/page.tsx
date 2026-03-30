@@ -428,8 +428,8 @@ export default function TeamPage() {
               </div>
             )}
 
-            {/* Pending invites */}
-            {firm && invites.length > 0 && (
+            {/* Pending invites — admin only */}
+{firm && isAdmin && invites.length > 0 && (
               <div className="card">
                 <div className="section-title">Pending Invites ({invites.length})</div>
                 {invites.map(inv => (

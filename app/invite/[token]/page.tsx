@@ -15,7 +15,6 @@ const CSS = `
   --green:#3ddc84;--red:#f4645f;--blue:#5b9cf6;--purple:#a78bfa;
   --font-display:'Cormorant Garamond',Georgia,serif;
   --font-body:'Instrument Sans',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -72,14 +71,12 @@ function InvitePage() {
 
       setInvite(inv);
 
-      // Pre-fill email if it matches
+      // Check if already logged in
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUser(session.user);
-        setEmail(session.user.email || "");
       } else if (inv.email) {
         setEmail(inv.email);
-        // If email exists in system, suggest sign in
         setAuthMode("signin");
       }
       setLoading(false);
@@ -90,6 +87,8 @@ function InvitePage() {
   const acceptInvite = async (userId: string) => {
     if (!invite) return;
     setJoining(true);
+
+    // Check not already a member
     const { data: existing } = await supabase
       .from("firm_members")
       .select("id")
@@ -105,23 +104,45 @@ function InvitePage() {
         invited_by: invite.invited_by,
       });
     }
-    await supabase.from("firm_invites").update({ accepted_at: new Date().toISOString() }).eq("id", invite.id);
+
+    // Mark invite accepted
+    await supabase.from("firm_invites")
+      .update({ accepted_at: new Date().toISOString() })
+      .eq("id", invite.id);
+
     setJoined(true);
     setJoining(false);
-    setTimeout(() => router.push("/dashboard"), 2500);
+
+    // Redirect straight to dashboard after short delay
+    setTimeout(() => router.push("/dashboard"), 2000);
   };
 
   const handleAuth = async (e: any) => {
     e.preventDefault();
     setAuthError(null);
+
     if (authMode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // Skip email confirmation — go straight to dashboard
+          emailRedirectTo: undefined,
+          data: { invited_to_firm: invite?.firm_id }
+        }
+      });
       if (error) { setAuthError(error.message); return; }
-      if (data.user) { setUser(data.user); await acceptInvite(data.user.id); }
+      if (data.user) {
+        setUser(data.user);
+        await acceptInvite(data.user.id);
+      }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setAuthError(error.message); return; }
-      if (data.user) { setUser(data.user); await acceptInvite(data.user.id); }
+      if (data.user) {
+        setUser(data.user);
+        await acceptInvite(data.user.id);
+      }
     }
   };
 
@@ -176,29 +197,29 @@ function InvitePage() {
             <p style={{ fontSize: 14, color: "var(--text-m)", lineHeight: 1.7 }}>
               You've joined <strong style={{ color: "var(--text)" }}>{invite?.firms?.name}</strong> as <strong style={{ color: roleInfo.color }}>{roleInfo.label}</strong>.
             </p>
-            <p style={{ fontSize: 12, color: "var(--text-d)", marginTop: 16 }}>Redirecting to your dashboard…</p>
-            <div style={{ width: 40, height: 2, background: "var(--gold)", borderRadius: 2, margin: "20px auto 0", animation: "fadeIn 2s ease" }} />
+            <p style={{ fontSize: 12, color: "var(--text-d)", marginTop: 16 }}>Taking you to your dashboard…</p>
+            <div style={{ marginTop: 20, height: 2, background: "var(--bg3)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", background: "var(--gold)", borderRadius: 2, animation: "grow 2s linear forwards" }} />
+            </div>
+            <style>{`@keyframes grow{from{width:0}to{width:100%}}`}</style>
           </div>
         )}
 
         {/* MAIN INVITE CARD */}
         {invite && !joined && !invalid && !alreadyAccepted && (
           <div style={{ background: "var(--bg2)", border: "1px solid var(--border-m)", borderRadius: 16, padding: 36, position: "relative", overflow: "hidden" }}>
-            {/* Top gold line */}
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,var(--gold),transparent)" }} />
 
-            {/* Invite header */}
+            {/* Header */}
             <div style={{ textAlign: "center", marginBottom: 28 }}>
               <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 10 }}>Team Invitation</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 300, marginBottom: 8, lineHeight: 1.2 }}>
-                You've been invited
-              </div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 300, marginBottom: 8, lineHeight: 1.2 }}>You've been invited</div>
               <p style={{ fontSize: 14, color: "var(--text-m)", lineHeight: 1.6 }}>
                 Join <strong style={{ color: "var(--text)" }}>{invite.firms?.name}</strong> on Valora
               </p>
             </div>
 
-            {/* Role card */}
+            {/* Role */}
             <div style={{ background: "var(--bg3)", borderRadius: 10, padding: "14px 16px", marginBottom: 28, display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: roleInfo.color, flexShrink: 0 }} />
               <div>
@@ -228,7 +249,7 @@ function InvitePage() {
               </div>
             ) : (
               <form onSubmit={handleAuth}>
-                {/* Auth mode tabs */}
+                {/* Auth tabs */}
                 <div style={{ display: "flex", background: "var(--bg3)", borderRadius: 9, padding: 3, marginBottom: 20, gap: 3 }}>
                   {(["signup", "signin"] as const).map(mode => (
                     <button key={mode} type="button" onClick={() => setAuthMode(mode)} className={`tab ${authMode === mode ? "active" : "inactive"}`}>
@@ -262,18 +283,16 @@ function InvitePage() {
 
                 <p style={{ fontSize: 11, color: "var(--text-d)", textAlign: "center", marginTop: 16, lineHeight: 1.5 }}>
                   {authMode === "signup"
-                    ? <>Already have an account? <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => setAuthMode("signin")}>Sign in</span></>
-                    : <>Don't have an account? <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => setAuthMode("signup")}>Create one free</span></>}
+                    ? <><span>Already have an account? </span><span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => setAuthMode("signin")}>Sign in</span></>
+                    : <><span>Don't have an account? </span><span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => setAuthMode("signup")}>Create one free</span></>}
                 </p>
               </form>
             )}
           </div>
         )}
 
-        {/* Footer */}
         {!invalid && (
           <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-d)", marginTop: 20, lineHeight: 1.6 }}>
-            By joining, you agree to Valora's terms of service.<br />
             <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => router.push("/")}>valoraplatform.io</span>
           </p>
         )}
