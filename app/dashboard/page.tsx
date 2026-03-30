@@ -250,6 +250,7 @@ export default function Dashboard() {
         <span style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => router.push("/pipeline")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Pipeline</button>
+          <button onClick={() => router.push("/team")} className="btn-ghost" style={{ padding: "6px 14px", fontSize: 12 }}>Team</button>
           <button
             onClick={() => setView(v => v === "trash" ? "portfolio" : "trash")}
             className="btn-ghost"

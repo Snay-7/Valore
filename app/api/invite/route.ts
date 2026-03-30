@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(req: NextRequest) {
+  try {
+    const { email, firmName, inviteLink, inviterEmail } = await req.json();
+
+    // Use Resend if configured, otherwise just return success
+    // The invite link works without email — this is optional enhancement
+    const resendKey = process.env.RESEND_API_KEY;
+
+    if (!resendKey) {
+      // No email configured — link still works
+      return NextResponse.json({ sent: false, message: "No email provider configured — share link manually" });
+    }
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${resendKey}`,
+      },
+      body: JSON.stringify({
+        from: "VALORA <noreply@valoraplatform.io>",
+        to: email,
+        subject: `You've been invited to join ${firmName} on VALORA`,
+        html: `
+          <div style="background:#06070a;color:#eceae4;font-family:system-ui,sans-serif;padding:40px;max-width:520px;margin:0 auto;border-radius:12px">
+            <div style="font-family:Georgia,serif;font-size:28px;font-weight:300;color:#c9a84c;letter-spacing:.1em;margin-bottom:8px">VALORA</div>
+            <div style="font-size:11px;color:#3d4249;text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px">Institutional Development Appraisal</div>
+            <h2 style="font-family:Georgia,serif;font-size:24px;font-weight:300;margin-bottom:12px">You've been invited</h2>
+            <p style="font-size:14px;color:#7d8590;line-height:1.7;margin-bottom:8px">
+              <strong style="color:#eceae4">${inviterEmail}</strong> has invited you to join <strong style="color:#eceae4">${firmName}</strong> on VALORA.
+            </p>
+            <p style="font-size:14px;color:#7d8590;line-height:1.7;margin-bottom:28px">
+              Click the button below to accept your invitation and access the shared workspace.
+            </p>
+            <a href="${inviteLink}" style="display:inline-block;background:#c9a84c;color:#06070a;padding:14px 28px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;margin-bottom:24px">
+              Accept Invitation →
+            </a>
+            <p style="font-size:12px;color:#3d4249;line-height:1.6">
+              Or copy this link: <span style="color:#c9a84c">${inviteLink}</span>
+            </p>
+            <div style="margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3d4249">
+              VALORA · Institutional Development Appraisal Platform
+            </div>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Resend error:", err);
+      return NextResponse.json({ sent: false, error: err });
+    }
+
+    return NextResponse.json({ sent: true });
+  } catch (err: any) {
+    return NextResponse.json({ sent: false, error: err.message });
+  }
+}
