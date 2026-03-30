@@ -53,8 +53,25 @@ select.inp{cursor:pointer}
 .nav-item.danger-item{color:var(--text-m)}
 .nav-item.danger-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active-danger{color:var(--red);background:rgba(244,100,95,.06);border-color:rgba(244,100,95,.2);font-weight:600}
+
+/* Desktop sidebar */
+.sidebar{width:220px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+
+/* Bottom nav — hidden on desktop */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:8px 0 env(safe-area-inset-bottom,16px)}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
+.bottom-nav-item.active{color:var(--gold)}
+.bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* Mobile top bar */
+.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  .mobile-topbar{display:flex}
+  .main-content{margin-left:0!important;max-width:100vw!important;padding:20px 16px 100px!important}
   .cards-grid{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
@@ -229,49 +246,62 @@ export default function Dashboard() {
     </div>
   );
 
-  const Sidebar = () => (
-    <div style={{ width: 220, background: "var(--bg1)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
-      <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
-        <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
-      </div>
-      <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
-        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
-        <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>Portfolio</button>
-        <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
-        <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-        <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
-        <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-        <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
-        <button className={`nav-item ${view === "trash" ? "active-danger" : "danger-item"}`} onClick={() => setView("trash")} style={{ justifyContent: "space-between" }}>
-          <span>Trash</span>
-          {trashedProjects.length > 0 && (
-            <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{trashedProjects.length}</span>
-          )}
-        </button>
-        {!isPro && (
-          <>
-            <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-            <button className="nav-item" onClick={() => router.push("/pricing")} style={{ color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", fontWeight: 600, fontSize: 12 }}>
-              ✦ Upgrade Plan
-            </button>
-          </>
-        )}
-      </div>
-      <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
-        <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
-        <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
 
-      <Sidebar />
+      {/* ── DESKTOP SIDEBAR ── */}
+      <div className="sidebar">
+        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
+        </div>
+        <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
+          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Workspace</div>
+          <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>Portfolio</button>
+          <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
+          <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
+          <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
+          <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Manage</div>
+          <button className={`nav-item ${view === "trash" ? "active-danger" : "danger-item"}`} onClick={() => setView("trash")} style={{ justifyContent: "space-between" }}>
+            <span>Trash</span>
+            {trashedProjects.length > 0 && (
+              <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{trashedProjects.length}</span>
+            )}
+          </button>
+          {!isPro && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <button className="nav-item" onClick={() => router.push("/pricing")} style={{ color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", fontWeight: 600, fontSize: 12 }}>
+                ✦ Upgrade Plan
+              </button>
+            </>
+          )}
+        </div>
+        <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
+          <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
+        </div>
+      </div>
 
-      <div style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px", maxWidth: "calc(100vw - 220px)" }}>
+      {/* ── MAIN CONTENT ── */}
+      <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px", maxWidth: "calc(100vw - 220px)" }}>
+
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+          <button
+            className="btn-primary"
+            style={{ padding: "8px 16px", fontSize: 12 }}
+            onClick={() => {
+              if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
+              setShowNewModal(true);
+            }}
+          >
+            + New
+          </button>
+        </div>
 
         {/* TRASH VIEW */}
         {view === "trash" && (
@@ -391,11 +421,11 @@ export default function Dashboard() {
             )}
 
             {/* Filter tabs */}
-            <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
               {["all", ...ASSET_TYPES].map(f => {
                 const count = f === "all" ? projects.length : projects.filter(p => p.asset_type === f).length;
                 return (
-                  <button key={f} onClick={() => setFilter(f)} style={{ padding: "10px 16px", fontSize: 12, background: "none", border: "none", borderBottom: `2px solid ${filter === f ? "var(--gold)" : "transparent"}`, color: filter === f ? "var(--gold)" : "var(--text-d)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .2s", textTransform: f === "all" ? "uppercase" : "none", letterSpacing: ".04em" }}>
+                  <button key={f} onClick={() => setFilter(f)} style={{ padding: "10px 16px", fontSize: 12, background: "none", border: "none", borderBottom: `2px solid ${filter === f ? "var(--gold)" : "transparent"}`, color: filter === f ? "var(--gold)" : "var(--text-d)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .2s", textTransform: f === "all" ? "uppercase" : "none", letterSpacing: ".04em", whiteSpace: "nowrap", flexShrink: 0 }}>
                     {f === "all" ? "ALL" : f} ({count})
                   </button>
                 );
@@ -415,7 +445,6 @@ export default function Dashboard() {
                   const sym = CURRENCY_SYMBOLS[p.currency] || "£";
                   const pocColor = latest?.profit_on_cost > 0.2 ? "var(--green)" : latest?.profit_on_cost > 0.1 ? "var(--amber)" : "var(--red)";
                   const statusStyle = { bg: "rgba(125,133,144,.12)", color: "#7d8590" };
-
                   return (
                     <div key={p.id} className="card" style={{ animationDelay: `${i * 0.04}s` }} onClick={() => openProject(p)}>
                       <div className="card-menu" onClick={e => e.stopPropagation()}>
@@ -428,7 +457,6 @@ export default function Dashboard() {
                           </div>
                         )}
                       </div>
-
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                         <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>{p.asset_type}</span>
                         <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 10, background: statusStyle.bg, color: statusStyle.color }}>{latest?.status || "draft"}</span>
@@ -436,10 +464,8 @@ export default function Dashboard() {
                           {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 17, fontWeight: 500, marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: ".02em" }}>{p.name || "Untitled"}</h3>
                       <p style={{ fontSize: 12, color: "var(--text-m)", marginBottom: 18 }}>{p.location || "No location set"}</p>
-
                       {latest ? (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                           {[
@@ -458,7 +484,6 @@ export default function Dashboard() {
                           No appraisal saved yet — click to open
                         </div>
                       )}
-
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--bg4)" }}>
                         <span style={{ fontSize: 11, color: "var(--text-d)" }}>
                           {p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}
@@ -543,6 +568,34 @@ export default function Dashboard() {
         )}
 
       </div>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="bottom-nav">
+        <button className={`bottom-nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Portfolio
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          Pipeline
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Tasks
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/team")}>
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
+          Team
+        </button>
+        <button className={`bottom-nav-item ${view === "trash" ? "active" : ""}`} onClick={() => setView("trash")}>
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          {trashedProjects.length > 0 && (
+            <span style={{ position: "absolute", top: 4, right: "calc(50% - 16px)", background: "var(--red)", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: 9, fontWeight: 700 }}>{trashedProjects.length}</span>
+          )}
+          Trash
+        </button>
+      </nav>
+
     </div>
   );
 }
