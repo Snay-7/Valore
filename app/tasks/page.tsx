@@ -40,16 +40,39 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .tag-high{background:rgba(240,164,41,.1);color:var(--amber)}
 .tag-medium{background:rgba(91,156,246,.1);color:var(--blue)}
 .tag-low{background:rgba(125,133,144,.12);color:var(--text-d)}
-.filter-btn{padding:6px 14px;border-radius:6px;font-size:12px;background:transparent;border:1px solid var(--border);color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s}
+.filter-btn{padding:6px 14px;border-radius:6px;font-size:12px;background:transparent;border:1px solid var(--border);color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s;white-space:nowrap}
 .filter-btn:hover{border-color:var(--gold);color:var(--gold)}
 .filter-btn.active{background:rgba(201,168,76,.08);border-color:var(--gold-border);color:var(--gold)}
 .project-group{margin-bottom:32px;animation:fadeIn .3s ease both}
-.project-group-header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px 10px 0 0;border-bottom:none}
+.project-group-header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px 10px 0 0;border-bottom:none;flex-wrap:wrap}
 .inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--gold)}
 .inp::placeholder{color:var(--text-d)}
 .edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200}
 .edit-card{background:var(--bg2);border:1px solid var(--border-m);border-radius:14px;padding:28px;width:480px;max-width:calc(100vw - 40px)}
+
+/* Desktop sidebar */
+.sidebar{width:220px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+
+/* Mobile top bar */
+.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+
+/* Bottom nav */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:8px 0 env(safe-area-inset-bottom,16px)}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
+.bottom-nav-item.active{color:var(--gold)}
+.bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+@media(max-width:768px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  .mobile-topbar{display:flex}
+  .main-content{margin-left:0!important;max-width:100vw!important;padding:20px 16px 100px!important}
+  .task-actions{opacity:1!important}
+  .filters-row{flex-direction:column;align-items:stretch!important}
+  .filters-row .inp{width:100%!important}
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+}
 `;
 
 const PRIORITY_CONFIG: Record<string, { label: string; dot: string; tag: string }> = {
@@ -169,8 +192,8 @@ export default function TasksPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
 
-      {/* Sidebar */}
-      <div style={{ width: 220, background: "var(--bg1)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
+      {/* ── DESKTOP SIDEBAR ── */}
+      <div className="sidebar">
         <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
           <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
@@ -191,8 +214,14 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Main */}
-      <div style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
+      {/* ── MAIN CONTENT ── */}
+      <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, padding: "48px 40px" }}>
+
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
+          <div style={{ fontSize: 12, color: "var(--text-d)" }}>{pendingCount} pending</div>
+        </div>
 
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>Tasks</div>
@@ -203,7 +232,7 @@ export default function TasksPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
+        <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
           {[
             { label: "Total Tasks", value: tasks.length, color: "var(--text)" },
             { label: "Pending", value: pendingCount, color: "var(--amber)" },
@@ -218,8 +247,8 @@ export default function TasksPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 6 }}>
+        <div className="filters-row" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {(["pending", "all", "overdue", "completed"] as const).map(f => (
               <button key={f} className={`filter-btn ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -228,14 +257,14 @@ export default function TasksPage() {
             ))}
           </div>
           <div style={{ width: 1, height: 20, background: "var(--border)" }} />
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {["all", "urgent", "high", "medium", "low"].map(p => (
               <button key={p} className={`filter-btn ${priorityFilter === p ? "active" : ""}`} onClick={() => setPriorityFilter(p)} style={{ fontSize: 11 }}>
                 {p === "all" ? "All Priority" : PRIORITY_CONFIG[p]?.label}
               </button>
             ))}
           </div>
-          <div style={{ flex: 1 }} />
+          <div style={{ flex: 1, minWidth: 160 }} />
           <input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks…" style={{ width: 220, padding: "7px 12px", fontSize: 12 }} />
         </div>
 
@@ -262,9 +291,8 @@ export default function TasksPage() {
                 <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-d)" }}>
                   {projectTasks.filter((t: any) => !t.completed).length} pending · {projectTasks.length} total
                 </span>
-                <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => router.push("/pipeline")}>View in Pipeline →</button>
+                <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => router.push("/pipeline")}>Pipeline →</button>
               </div>
-
               <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "4px 0" }}>
                 {projectTasks.map((task: any) => {
                   const p = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
@@ -291,8 +319,6 @@ export default function TasksPage() {
                           </span>
                         </div>
                       </div>
-
-                      {/* Action buttons — visible on hover */}
                       <div className="task-actions">
                         <button
                           onClick={() => openEdit(task)}
@@ -320,13 +346,36 @@ export default function TasksPage() {
         )}
       </div>
 
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="bottom-nav">
+        <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Portfolio
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          Pipeline
+        </button>
+        <button className="bottom-nav-item active">
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Tasks
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/team")}>
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
+          Team
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Trash
+        </button>
+      </nav>
+
       {/* Edit Modal */}
       {editingTask && (
         <div className="edit-modal" onClick={e => { if (e.target === e.currentTarget) setEditingTask(null); }}>
           <div className="edit-card">
             <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 300, marginBottom: 4 }}>Edit Task</div>
             <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24 }}>{editingTask.projects?.name}</div>
-
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Description</label>
               <textarea
@@ -336,7 +385,6 @@ export default function TasksPage() {
                 style={{ minHeight: 80, resize: "vertical", fontFamily: "var(--font-body)" }}
               />
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div>
                 <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", display: "block", marginBottom: 6 }}>Priority</label>
@@ -352,7 +400,6 @@ export default function TasksPage() {
                 <input type="datetime-local" className="inp" value={editForm.due_at} onChange={e => setEditForm(f => ({ ...f, due_at: e.target.value }))} />
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn-ghost" onClick={() => setEditingTask(null)} style={{ flex: 1, justifyContent: "center" }}>Cancel</button>
               <button className="btn-primary" onClick={saveEdit} disabled={saving || !editForm.description.trim()} style={{ flex: 2, justifyContent: "center" }}>
@@ -362,6 +409,7 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
