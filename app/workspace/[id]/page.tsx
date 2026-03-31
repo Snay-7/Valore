@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = 'force-dynamic'
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useRouter, useParams } from "next/navigation";
 
@@ -149,44 +149,7 @@ export default function ProjectDetailPage() {
     init();
   }, [router, projectId]);
 
-  const isAdminRef = useRef(false);
-  const userIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    isAdminRef.current = isAdmin;
-  }, [isAdmin]);
-
-  useEffect(() => {
-    userIdRef.current = user?.id || null;
-  }, [user]);
-
-  useEffect(() => {
-    if (!projectId) return;
-
-    const interval = setInterval(async () => {
-      const uid = userIdRef.current;
-      const adm = isAdminRef.current;
-      if (!uid) return;
-
-      let t;
-      if (adm) {
-        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-        t = data;
-      } else {
-        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${uid},created_by.eq.${uid}`).order("created_at", { ascending: false });
-        t = data;
-      }
-      setTasks(t || []);
-
-      const { data: n } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-      setNotes(n || []);
-
-      const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-      setActivity(a || []);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [projectId]);
 
   const logActivity = async (action: string, details: any = {}) => {
     if (!user || !firm) return;
@@ -195,6 +158,23 @@ export default function ProjectDetailPage() {
     });
     const { data } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
     setActivity(data || []);
+  };
+
+  const refreshData = async () => {
+    if (!user || !projectId) return;
+    let t;
+    if (isAdmin) {
+      const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      t = data;
+    } else {
+      const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`).order("created_at", { ascending: false });
+      t = data;
+    }
+    setTasks(t || []);
+    const { data: n } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+    setNotes(n || []);
+    const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+    setActivity(a || []);
   };
 
   const addTask = async () => {
@@ -314,7 +294,7 @@ export default function ProjectDetailPage() {
 
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)", marginBottom:32 }}>
           {(["overview","tasks","notes","activity"] as const).map(t => (
-            <button key={t} className={`tab${tab===t?" active":""}`} onClick={() => setTab(t)}>
+            <button key={t} className={`tab${tab===t?" active":""}`} onClick={() => { setTab(t); refreshData(); }}>
               {t.charAt(0).toUpperCase()+t.slice(1)}
             </button>
           ))}
@@ -373,6 +353,9 @@ export default function ProjectDetailPage() {
 
         {tab === "tasks" && (
           <div style={{ animation:"fadeIn .3s ease" }}>
+            <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
+              <button className="btn-ghost" onClick={refreshData} style={{ fontSize:11 }}>↻ Refresh</button>
+            </div>
             {canEdit && (
               <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:10, padding:20, marginBottom:24 }}>
                 <div style={{ fontSize:13, color:"var(--text-m)", marginBottom:12, fontWeight:500 }}>Add Task</div>
