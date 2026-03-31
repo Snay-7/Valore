@@ -448,6 +448,12 @@ export default function ProjectDetailPage() {
                   ) : (
                     <span style={{ fontSize:11, color:"var(--text-d)" }}>{t.status||"not started"}</span>
                   )}
+                  {canEdit && t.status === "done" && !t.completed && (
+                    <button onClick={async () => {
+                      await supabase.from("tasks").update({ completed: true }).eq("id", t.id);
+                      setTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: true } : x));
+                    }} style={{ background:"rgba(61,220,132,.1)", border:"1px solid rgba(61,220,132,.3)", borderRadius:5, color:"var(--green)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>↓ Move to Completed</button>
+                  )}
                   {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>Delete</button>}
                 </div>
               </div>
