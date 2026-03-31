@@ -150,18 +150,22 @@ export default function ProjectDetailPage() {
   }, [router, projectId]);
 
   useEffect(() => {
-    if (!projectId || !user) return;
+    if (!projectId) return;
 
-    const refresh = async () => {
-      console.log('polling tasks...', projectId, 'isAdmin:', isAdmin);
-      const { data: tCheck, error: tErr } = await supabase.from('tasks').select('*').eq('project_id', projectId);
-      console.log('raw tasks:', tCheck?.length, 'error:', tErr);
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const uid = session.user.id;
+
+      const { data: mr } = await supabase.from("firm_members").select("role").eq("user_id", uid).maybeSingle();
+      const adm = mr?.role === "admin";
+
       let t;
-      if (isAdmin) {
+      if (adm) {
         const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
         t = data;
-      } else if (user?.id) {
-        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`).order("created_at", { ascending: false });
+      } else {
+        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${uid},created_by.eq.${uid}`).order("created_at", { ascending: false });
         t = data;
       }
       setTasks(t || []);
@@ -171,11 +175,10 @@ export default function ProjectDetailPage() {
 
       const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       setActivity(a || []);
-    };
+    }, 5000);
 
-    const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
-  }, [projectId, user, isAdmin]);
+  }, [projectId]);
 
   const logActivity = async (action: string, details: any = {}) => {
     if (!user || !firm) return;
