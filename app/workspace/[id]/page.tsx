@@ -121,13 +121,14 @@ export default function ProjectDetailPage() {
         .eq("firm_id", memberRow.firm_id);
       setFirmMembers(members || []);
 
-      const taskQuery = supabase
-        .from("tasks")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-      if (!admin && u?.id) { taskQuery.or(`assigned_to.eq.${u.id},created_by.eq.${u.id}`); }
-      const { data: taskData } = await taskQuery;
+      let taskData;
+      if (admin) {
+        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+        taskData = data;
+      } else {
+        const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${u.id},created_by.eq.${u.id}`).order("created_at", { ascending: false });
+        taskData = data;
+      }
       setTasks(taskData || []);
 
       const { data: noteData } = await supabase
