@@ -264,7 +264,7 @@ export default function ProjectDetailPage() {
               <p style={{ fontSize:14, color:"var(--text-m)" }}>{project?.location} · <span style={{ color:"var(--gold)" }}>{memberRole}</span></p>
             </div>
             {canEdit && latest && (
-              <button className="btn-primary" onClick={() => router.push(`/appraisal/${latest.id}`)}>Open Appraisal →</button>
+              <button className="btn-primary" onClick={() => router.push(`/appraisal?project=${projectId}&appraisal=${latest.id}`)}>Open Appraisal →</button>
             )}
           </div>
         </div>
