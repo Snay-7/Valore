@@ -126,7 +126,7 @@ export default function ProjectDetailPage() {
         .select("*")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
-      if (!admin) taskQuery.or(`assigned_to.eq.${u.id},created_by.eq.${u.id}`);
+      if (!admin && u?.id) { taskQuery.or(`assigned_to.eq.${u.id},created_by.eq.${u.id}`); }
       const { data: taskData } = await taskQuery;
       setTasks(taskData || []);
 
@@ -155,7 +155,7 @@ export default function ProjectDetailPage() {
     const refresh = async () => {
       console.log('polling tasks...', projectId, 'isAdmin:', isAdmin);
       const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-      if (!isAdmin) q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
+      if (!isAdmin && user?.id) { q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`); }
       const { data: t } = await q;
       setTasks(t || []);
 
