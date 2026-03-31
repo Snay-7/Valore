@@ -121,11 +121,13 @@ export default function ProjectDetailPage() {
         .eq("firm_id", memberRow.firm_id);
       setFirmMembers(members || []);
 
-      const { data: taskData } = await supabase
+      const taskQuery = supabase
         .from("tasks")
         .select("*")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
+      if (!admin) taskQuery.or(`assigned_to.eq.${u.id},created_by.eq.${u.id}`);
+      const { data: taskData } = await taskQuery;
       setTasks(taskData || []);
 
       const { data: noteData } = await supabase
@@ -146,6 +148,49 @@ export default function ProjectDetailPage() {
     };
     init();
   }, [router, projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    const tasksSub = supabase
+      .channel(`tasks:${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
+        async () => {
+          const { data: u } = await supabase.auth.getUser();
+          const uid = u?.user?.id;
+          const { data: mr } = await supabase.from("firm_members").select("role").eq("user_id", uid).maybeSingle();
+          const isAdm = mr?.role === "admin";
+          const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+          if (!isAdm && uid) q.or(`assigned_to.eq.${uid},created_by.eq.${uid}`);
+          const { data } = await q;
+          setTasks(data || []);
+        })
+      .subscribe();
+
+    const notesSub = supabase
+      .channel(`notes:${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `project_id=eq.${projectId}` },
+        async () => {
+          const { data } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+          setNotes(data || []);
+        })
+      .subscribe();
+
+    const actSub = supabase
+      .channel(`activity:${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log', filter: `project_id=eq.${projectId}` },
+        async () => {
+          const { data } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+          setActivity(data || []);
+        })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tasksSub);
+      supabase.removeChannel(notesSub);
+      supabase.removeChannel(actSub);
+    };
+  }, [projectId]);
 
   const logActivity = async (action: string, details: any = {}) => {
     if (!user || !firm) return;
