@@ -119,8 +119,8 @@ export default function TasksPage() {
     const { data } = await supabase
       .from("tasks")
       .select(`*, projects(id, name, asset_type, location)`)
-      .eq("created_by", userId)
-      .order("due_at", { ascending: true, nullsFirst: false });
+      .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
+      .order("created_at", { ascending: false });
     setTasks(data || []);
     setLoading(false);
   };

@@ -191,10 +191,15 @@ export default function PipelinePage(){
     if(!newTask.description.trim()||!selectedProject||!user)return;
     setSavingTask(true);
     const{data}=await supabase.from("tasks").insert({
-      project_id:selectedProject.id,created_by:user.id,
+      project_id:selectedProject.id,
+      created_by:user.id,
+      created_by_email:user.email,
+      title:newTask.description.trim(),
       description:newTask.description.trim(),
       due_at:newTask.due_at||null,
+      due_date:newTask.due_at||null,
       priority:newTask.priority,
+      status:"not_started",
       completed:false,
     }).select().single();
     if(data){
