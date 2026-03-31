@@ -150,47 +150,24 @@ export default function ProjectDetailPage() {
   }, [router, projectId]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !user) return;
 
-    const tasksSub = supabase
-      .channel(`tasks:${projectId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
-        async () => {
-          const { data: u } = await supabase.auth.getUser();
-          const uid = u?.user?.id;
-          const { data: mr } = await supabase.from("firm_members").select("role").eq("user_id", uid).maybeSingle();
-          const isAdm = mr?.role === "admin";
-          const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-          if (!isAdm && uid) q.or(`assigned_to.eq.${uid},created_by.eq.${uid}`);
-          const { data } = await q;
-          setTasks(data || []);
-        })
-      .subscribe();
+    const refresh = async () => {
+      const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      if (!isAdmin) q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
+      const { data: t } = await q;
+      setTasks(t || []);
 
-    const notesSub = supabase
-      .channel(`notes:${projectId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `project_id=eq.${projectId}` },
-        async () => {
-          const { data } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-          setNotes(data || []);
-        })
-      .subscribe();
+      const { data: n } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      setNotes(n || []);
 
-    const actSub = supabase
-      .channel(`activity:${projectId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log', filter: `project_id=eq.${projectId}` },
-        async () => {
-          const { data } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-          setActivity(data || []);
-        })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(tasksSub);
-      supabase.removeChannel(notesSub);
-      supabase.removeChannel(actSub);
+      const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      setActivity(a || []);
     };
-  }, [projectId]);
+
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [projectId, user, isAdmin]);
 
   const logActivity = async (action: string, details: any = {}) => {
     if (!user || !firm) return;
