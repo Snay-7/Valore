@@ -160,13 +160,15 @@ export default function ProjectDetailPage() {
     if (!newTask.trim() || !user) return;
     setAddingTask(true);
     const assignee = firmMembers.find(m => m.user_id === newTaskAssignee);
-    await supabase.from("tasks").insert({
+    const { error: insertError } = await supabase.from("tasks").insert({
       project_id: projectId, firm_id: firm?.id, title: newTask.trim(),
       assigned_to: newTaskAssignee || null, assigned_to_email: assignee?.email || null,
       priority: newTaskPriority, due_date: newTaskDue || null, completed: false,
       created_by: user.id, created_by_email: user.email,
     });
-    const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+    console.log("insert error:", insertError);
+    const { data, error } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+    console.log("tasks after insert:", data, "error:", error);
     setTasks(data || []);
     await logActivity("task_created", { title: newTask.trim() });
     setNewTask(""); setNewTaskAssignee(""); setNewTaskPriority("medium"); setNewTaskDue("");
