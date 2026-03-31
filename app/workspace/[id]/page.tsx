@@ -154,6 +154,8 @@ export default function ProjectDetailPage() {
 
     const refresh = async () => {
       console.log('polling tasks...', projectId, 'isAdmin:', isAdmin);
+      const { data: tCheck, error: tErr } = await supabase.from('tasks').select('*').eq('project_id', projectId);
+      console.log('raw tasks:', tCheck?.length, 'error:', tErr);
       const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       if (!isAdmin && user?.id) { q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`); }
       const { data: t } = await q;
