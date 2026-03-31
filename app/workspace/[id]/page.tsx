@@ -183,8 +183,10 @@ export default function ProjectDetailPage() {
   };
 
   const updateTaskStatus = async (taskId: string, status: string) => {
-    await supabase.from("tasks").update({ status }).eq("id", taskId);
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
+    const completed = status === "done";
+    await supabase.from("tasks").update({ status, completed }).eq("id", taskId);
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, completed } : t));
+    if (completed) await logActivity("task_completed", { title: tasks.find(t=>t.id===taskId)?.title });
   };
 
   const deleteTask = async (taskId: string) => {
@@ -403,42 +405,44 @@ export default function ProjectDetailPage() {
             ) : (
             <>
             {tasks.filter(t => !t.completed).map(t => (
-              <div key={t.id} className="task-row" style={{ opacity:t.completed?0.5:1 }}>
-                <input type="checkbox" checked={t.completed} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
+              <div key={t.id} className="task-row" style={{ borderLeft:`3px solid ${
+                t.due_date && new Date(t.due_date) < new Date() ? "var(--red)" :
+                t.status==="working_on_it" ? "var(--blue)" :
+                t.status==="stuck" ? "var(--red)" :
+                t.status==="pending" ? "var(--amber)" :
+                "var(--border)"
+              }`, paddingLeft:14 }}>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, textDecoration:t.completed?"line-through":"none", color:t.completed?"var(--text-d)":"var(--text)" }}>{t.title}</div>
-                  <div style={{ display:"flex", gap:8, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
+                  <div style={{ fontSize:13, color:"var(--text)", fontWeight:500, marginBottom:4 }}>{t.title}</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                     {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-d)" }}>→ {t.assigned_to_email}</span>}
-                    {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() && !t.completed ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
+                    {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
+                    <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em", background:"var(--bg3)", padding:"1px 7px", borderRadius:8 }}>{t.priority}</span>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-                  {(() => {
-                    const isOverdue = t.due_date && new Date(t.due_date) < new Date() && !t.completed;
-                    const status = t.completed ? "completed" : isOverdue ? "overdue" : (t.status || "not_started");
-                    const statusConfig: Record<string,{label:string,color:string,bg:string}> = {
-                      not_started: { label:"Not Started", color:"var(--text-d)", bg:"rgba(125,133,144,.1)" },
-                      pending: { label:"Pending", color:"var(--amber)", bg:"rgba(240,164,41,.1)" },
-                      stuck: { label:"Stuck", color:"var(--red)", bg:"rgba(244,100,95,.1)" },
-                      overdue: { label:"Overdue", color:"var(--red)", bg:"rgba(244,100,95,.15)" },
-                      completed: { label:"Completed", color:"var(--green)", bg:"rgba(61,220,132,.1)" },
-                    };
-                    const s = statusConfig[status] || statusConfig.not_started;
-                    return <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:s.bg, color:s.color, fontWeight:500 }}>{s.label}</span>;
-                  })()}
-                  <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em" }}>{t.priority}</span>
-                  {canEdit && (
+                <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+                  {canEdit ? (
                     <select
-                      value={t.completed ? "completed" : (t.status || "not_started")}
+                      value={t.status || "not_started"}
                       onChange={e => updateTaskStatus(t.id, e.target.value)}
-                      style={{ background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:6, padding:"3px 6px", color:"var(--text-m)", fontFamily:"var(--font-body)", fontSize:11, cursor:"pointer" }}
+                      style={{ 
+                        background: t.status==="working_on_it" ? "rgba(91,156,246,.15)" : t.status==="stuck" ? "rgba(244,100,95,.15)" : t.status==="pending" ? "rgba(240,164,41,.15)" : "var(--bg3)",
+                        border: `1px solid ${t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--border)"}`,
+                        borderRadius:8, padding:"5px 10px",
+                        color: t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--text-m)",
+                        fontFamily:"var(--font-body)", fontSize:12, cursor:"pointer", fontWeight:500
+                      }}
                     >
-                      <option value="not_started">Not Started</option>
-                      <option value="pending">Pending</option>
-                      <option value="stuck">Stuck</option>
+                      <option value="not_started">⚪ Not Started</option>
+                      <option value="working_on_it">🔵 Working on it</option>
+                      <option value="pending">🟡 Pending</option>
+                      <option value="stuck">🔴 Stuck</option>
+                      <option value="done">✅ Done</option>
                     </select>
+                  ) : (
+                    <span style={{ fontSize:11, color:"var(--text-d)" }}>{t.status||"not started"}</span>
                   )}
-                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:12, padding:"2px 7px", lineHeight:1 }} title="Delete permanently">Delete</button>}
+                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>Delete</button>}
                 </div>
               </div>
             ))}
