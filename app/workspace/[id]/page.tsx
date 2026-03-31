@@ -153,6 +153,7 @@ export default function ProjectDetailPage() {
     if (!projectId || !user) return;
 
     const refresh = async () => {
+      console.log('polling tasks...', projectId, 'isAdmin:', isAdmin);
       const q = supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       if (!isAdmin) q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
       const { data: t } = await q;
