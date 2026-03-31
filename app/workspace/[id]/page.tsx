@@ -421,7 +421,8 @@ export default function ProjectDetailPage() {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, color:"var(--text)", fontWeight:500, marginBottom:4 }}>{t.title}</div>
                   <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                    {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-d)" }}>→ {t.assigned_to_email}</span>}
+                    <span style={{ fontSize:11, color:"var(--text-d)" }}>👤 {t.created_by_email || "Unknown"}</span>
+                    {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-m)" }}>→ {t.assigned_to_email}</span>}
                     {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
                     <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em", background:"var(--bg3)", padding:"1px 7px", borderRadius:8 }}>{t.priority}</span>
                   </div>
