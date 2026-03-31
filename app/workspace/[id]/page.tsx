@@ -182,6 +182,11 @@ export default function ProjectDetailPage() {
     setActivity(a || []);
   };
 
+  const updateTaskStatus = async (taskId: string, status: string) => {
+    await supabase.from("tasks").update({ status }).eq("id", taskId);
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
+  };
+
   const deleteTask = async (taskId: string) => {
     await supabase.from("tasks").delete().eq("id", taskId);
     setTasks(prev => prev.filter(t => t.id !== taskId));
@@ -395,7 +400,9 @@ export default function ProjectDetailPage() {
             )}
             {tasks.length===0 ? (
               <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-d)", fontSize:14 }}>No tasks yet.</div>
-            ) : tasks.map(t => (
+            ) : (
+            <>
+            {tasks.filter(t => !t.completed).map(t => (
               <div key={t.id} className="task-row" style={{ opacity:t.completed?0.5:1 }}>
                 <input type="checkbox" checked={t.completed} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
                 <div style={{ flex:1 }}>
@@ -420,10 +427,40 @@ export default function ProjectDetailPage() {
                     return <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:s.bg, color:s.color, fontWeight:500 }}>{s.label}</span>;
                   })()}
                   <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em" }}>{t.priority}</span>
-                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"none", color:"var(--text-d)", cursor:"pointer", fontSize:14, padding:"0 4px", lineHeight:1 }} title="Delete">×</button>}
+                  {canEdit && (
+                    <select
+                      value={t.completed ? "completed" : (t.status || "not_started")}
+                      onChange={e => updateTaskStatus(t.id, e.target.value)}
+                      style={{ background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:6, padding:"3px 6px", color:"var(--text-m)", fontFamily:"var(--font-body)", fontSize:11, cursor:"pointer" }}
+                    >
+                      <option value="not_started">Not Started</option>
+                      <option value="pending">Pending</option>
+                      <option value="stuck">Stuck</option>
+                    </select>
+                  )}
+                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:12, padding:"2px 7px", lineHeight:1 }} title="Delete permanently">Delete</button>}
                 </div>
               </div>
             ))}
+            {tasks.filter(t => t.completed).length > 0 && (
+              <div style={{ marginTop:32 }}>
+                <div style={{ fontSize:11, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", marginBottom:12, padding:"0 4px" }}>
+                  ✓ Completed ({tasks.filter(t => t.completed).length})
+                </div>
+                {tasks.filter(t => t.completed).map(t => (
+                  <div key={t.id} className="task-row" style={{ opacity:0.4 }}>
+                    <input type="checkbox" checked={true} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, textDecoration:"line-through", color:"var(--text-d)" }}>{t.title}</div>
+                    </div>
+                    <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:"rgba(61,220,132,.1)", color:"var(--green)", fontWeight:500 }}>Completed</span>
+                    {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:14, padding:"0 4px" }} title="Delete permanently">×</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            </>
+            )}
           </div>
         )}
 
