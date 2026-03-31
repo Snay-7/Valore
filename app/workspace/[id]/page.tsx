@@ -162,6 +162,7 @@ export default function ProjectDetailPage() {
   };
 
   const refreshData = async () => {
+    console.log('refreshData isAdmin:', isAdmin, 'user:', user?.id);
     if (!user || !projectId) return;
     let t;
     if (isAdmin) {
