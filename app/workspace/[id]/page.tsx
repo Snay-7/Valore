@@ -168,7 +168,7 @@ export default function ProjectDetailPage() {
     if (isAdmin) {
       const { data, error } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       console.log("admin tasks:", data?.length, "error:", error);
-      t = data;
+      t = [...(data || [])];
     } else {
       const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`).order("created_at", { ascending: false });
       t = data;
