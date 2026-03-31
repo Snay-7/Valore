@@ -183,10 +183,16 @@ export default function ProjectDetailPage() {
   };
 
   const updateTaskStatus = async (taskId: string, status: string) => {
-    const completed = status === "done";
-    await supabase.from("tasks").update({ status, completed }).eq("id", taskId);
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, completed } : t));
-    if (completed) await logActivity("task_completed", { title: tasks.find(t=>t.id===taskId)?.title });
+    if (status === "done") {
+      const task = tasks.find(t => t.id === taskId);
+      const move = window.confirm(`Move "${task?.title}" to completed? Click OK to move it, Cancel to mark done but keep it here.`);
+      await supabase.from("tasks").update({ status: "done", completed: move }).eq("id", taskId);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "done", completed: move } : t));
+      await logActivity("task_completed", { title: task?.title });
+    } else {
+      await supabase.from("tasks").update({ status, completed: false }).eq("id", taskId);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, completed: false } : t));
+    }
   };
 
   const deleteTask = async (taskId: string) => {
