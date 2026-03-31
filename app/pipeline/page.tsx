@@ -196,7 +196,6 @@ export default function PipelinePage(){
       created_by_email:user.email,
       title:newTask.description.trim(),
       description:newTask.description.trim(),
-      due_at:newTask.due_at||null,
       due_date:newTask.due_at||null,
       priority:newTask.priority,
       status:"not_started",
