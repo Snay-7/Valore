@@ -440,11 +440,11 @@ export default function ProjectDetailPage() {
                         fontFamily:"var(--font-body)", fontSize:12, cursor:"pointer", fontWeight:500
                       }}
                     >
-                      <option value="not_started">⚪ Not Started</option>
-                      <option value="working_on_it">🔵 Working on it</option>
-                      <option value="pending">🟡 Pending</option>
-                      <option value="stuck">🔴 Stuck</option>
-                      <option value="done">✅ Done</option>
+                      <option value="not_started">Not Started</option>
+                      <option value="working_on_it">Working on it</option>
+                      <option value="pending">Pending</option>
+                      <option value="stuck">Stuck</option>
+                      <option value="done">Done</option>
                     </select>
                   ) : (
                     <span style={{ fontSize:11, color:"var(--text-d)" }}>{t.status||"not started"}</span>
