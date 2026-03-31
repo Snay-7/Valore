@@ -1428,7 +1428,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     const loanBal=r.monthlyDrawArr?.slice(0,m+1).reduce((a:number,b:number)=>a+b,0)||0;
                     const netCf=-(draw*(1-(r.loanAmount||0)/(r.totalCost||1)))-interest;
                     const cumCf=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                    const pct=r.buildProfile?.(r.buildProfile[m]||0):(m+1)/(r.buildMonths||36);
+                    const pct=r.buildProfile?r.buildProfile[m]||0:(m+1)/(r.buildMonths||36);
                     const cumPct=(r.buildProfile||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
                     return(<div key={`b${m}`} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
                       <div style={{color:"var(--text-d)"}}>B{m+1}</div>
