@@ -124,7 +124,7 @@ export default function PipelinePage(){
     setLoading(true);
     const[{data:projData},{data:taskData},{data:noteData},{data:actData}]=await Promise.all([
       supabase.from("projects").select(`*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)`).eq("created_by",userId).is("deleted_at",null).order("created_at",{ascending:false}),
-      supabase.from("tasks").select("*").eq("created_by",userId).order("due_at",{ascending:true}),
+      supabase.from("tasks").select("*").or(`created_by.eq.${userId},assigned_to.eq.${userId}`).order("created_at",{ascending:false}),
       supabase.from("notes").select("*").eq("created_by",userId).order("created_at",{ascending:false}),
       supabase.from("activity").select("*").eq("created_by",userId).order("created_at",{ascending:false}).limit(50),
     ]);
