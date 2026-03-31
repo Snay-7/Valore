@@ -984,7 +984,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
         rent_omr_pcm:assetType==="BTR"?(data.units?.[0]?.rentPcm||0):0,
         exit_yield:num(String(data.exitYield||0))/100,land_cost:num(String(data.landCost||data.purchasePrice||0)),
         gdv:r.gdv||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:r.profit||0,
-        profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,programme_months:num(String(data.programmMonths)),firm_id:null,
+        profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,irr_levered:r.irrLevered||0,programme_months:num(String(data.programmMonths)),firm_id:null,
         snapshot:{...data,assetType},
       };
       let apprResult;
@@ -1428,7 +1428,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     const loanBal=r.monthlyDrawArr?.slice(0,m+1).reduce((a:number,b:number)=>a+b,0)||0;
                     const netCf=-(draw*(1-(r.loanAmount||0)/(r.totalCost||1)))-interest;
                     const cumCf=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                    const pct=r.buildProfile?r.buildProfile[m]||0:(m+1)/(r.buildMonths||36);
+                    const pct=r.buildProfile?.(r.buildProfile[m]||0):(m+1)/(r.buildMonths||36);
                     const cumPct=(r.buildProfile||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
                     return(<div key={`b${m}`} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
                       <div style={{color:"var(--text-d)"}}>B{m+1}</div>
