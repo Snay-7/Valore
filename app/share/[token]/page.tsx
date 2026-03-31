@@ -1,9 +1,9 @@
+}
 "use client";
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useParams } from "next/navigation";
-
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -20,18 +20,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .output-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg4);gap:12px}
+.output-row:last-child{border-bottom:none}
 .output-label{font-size:13px;color:var(--text-m);flex-shrink:0}
 .output-value{font-family:var(--font-mono);font-size:13px;font-weight:500;text-align:right}
+.output-row-total{display:flex;justify-content:space-between;align-items:center;padding:10px 0;gap:12px;margin-top:4px}
 .section-title{font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--text);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;animation:fadeIn .3s ease both}
 .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:36px}
 .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.content-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:24px}
 .page-pad{padding:40px}
 .nav-pad{padding:0 40px}
 .title-size{font-size:44px}
 @media(max-width:768px){
   .metrics-grid{grid-template-columns:1fr 1fr}
   .content-grid{grid-template-columns:1fr}
+  .content-grid-3{grid-template-columns:1fr}
   .page-pad{padding:24px 16px}
   .nav-pad{padding:0 16px}
   .title-size{font-size:28px}
@@ -52,6 +56,69 @@ const fmt=(n:number,prefix="£")=>{
   return`${prefix}${n.toFixed(0)}`;
 };
 const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${(n*100).toFixed(1)}%`);
+const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${n.toFixed(2)}×`);
+const num=(v:string)=>parseFloat(String(v).replace(/[£,%\s]/g,""))||0;
+
+// Recalculate costs from snapshot so share page always reflects current model
+function calcCostsFromSnap(snap:any,currencySymbol:string){
+  const assetType=snap.assetType||"BTR";
+  if(assetType==="BTR"||assetType==="BTS"){
+    const units=snap.units||[];
+    const totalSqft=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size)),0);
+    const buildCost=totalSqft*num(String(snap.buildCostPsf||0));
+    const profFees=buildCost*(num(String(snap.professionalFeesPct||0))/100);
+    const contingency=buildCost*(num(String(snap.contingencyPct||0))/100);
+    const otherCosts=num(String(snap.otherCosts||0));
+    const landCost=num(String(snap.landCost||0));
+    const agentFees=assetType==="BTS"?num(String(snap.agentFeePct||0))/100:0;
+    const marketing=assetType==="BTS"?num(String(snap.marketingPct||0))/100:0;
+    const gdvBts=assetType==="BTS"?units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf)),0):0;
+    return{
+      landCost,
+      buildCost,
+      profFees,
+      contingency,
+      otherCosts,
+      agentAndMarketing:assetType==="BTS"?(gdvBts*(agentFees+marketing)):0,
+      totalSqft,
+      buildCostPsf:num(String(snap.buildCostPsf||0)),
+      siteAreaSqft:num(String(snap.siteAreaSqft||0)),
+    };
+  }
+  if(assetType==="Hotel"){
+    const capex=num(String(snap.capexBudget||0));
+    const profFees=capex*(num(String(snap.professionalFeesPct||0))/100);
+    const contingency=capex*(num(String(snap.contingencyPct||0))/100);
+    return{
+      landCost:num(String(snap.purchasePrice||0)),
+      buildCost:capex,
+      profFees,
+      contingency,
+      otherCosts:num(String(snap.otherCosts||0)),
+      agentAndMarketing:0,
+      totalSqft:0,
+      buildCostPsf:0,
+      siteAreaSqft:0,
+    };
+  }
+  if(assetType==="Flip"){
+    const refurb=num(String(snap.refurbBudget||0));
+    const profFees=refurb*(num(String(snap.professionalFeesPct||0))/100);
+    const contingency=refurb*(num(String(snap.contingencyPct||0))/100);
+    return{
+      landCost:num(String(snap.purchasePrice||0)),
+      buildCost:refurb,
+      profFees,
+      contingency,
+      otherCosts:num(String(snap.otherCosts||0)),
+      agentAndMarketing:0,
+      totalSqft:0,
+      buildCostPsf:0,
+      siteAreaSqft:0,
+    };
+  }
+  return{landCost:0,buildCost:0,profFees:0,contingency:0,otherCosts:0,agentAndMarketing:0,totalSqft:0,buildCostPsf:0,siteAreaSqft:0};
+}
 
 function SharePage(){
   const params=useParams();
@@ -89,7 +156,6 @@ function SharePage(){
   const snap=appraisal?.snapshot||{};
   const assetType=snap.assetType||"BTR";
   const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[snap.currency]||"£";
-
   const gdv=appraisal.gdv||0;
   const totalCost=appraisal.total_cost||0;
   const profit=appraisal.profit||0;
@@ -97,26 +163,40 @@ function SharePage(){
   const irr=appraisal.irr_unlevered||0;
   const pocColor=poc>0.2?"var(--green)":poc>0.1?"var(--amber)":"var(--red)";
 
+  // Recalculate costs from snapshot
+  const costs=calcCostsFromSnap(snap,currencySymbol);
+
+  // Finance
+  const ltcPct=num(String(snap.ltc||65))/100;
+  const annualRate=(num(String(snap.benchmarkRate||3.97))+num(String(snap.marginOverBenchmark||2.5)))/100;
+  const loanBase=costs.landCost+costs.buildCost;
+  const loanAmount=loanBase*ltcPct;
+  const arrangementFee=loanAmount*(num(String(snap.arrangementFeePct||1))/100);
+  const buildMonths=Math.max(1,Math.round(num(String(snap.programmMonths||24))));
+  const interestEst=loanAmount*annualRate*(buildMonths/12)*0.55; // weighted average drawn
+  const totalFinanceCost=arrangementFee+interestEst;
+
   const returnsRows=assetType==="BTR"?[
     ["GDV (Exit)",fmt(gdv,currencySymbol),"var(--gold)"],
     ["Total Cost",fmt(totalCost,currencySymbol),"var(--text-m)"],
     ["Profit",fmt(profit,currencySymbol),profit>0?"var(--green)":"var(--red)"],
     ["Profit on Cost",fmtPct(poc),pocColor],
     ["IRR (Unlevered)",fmtPct(irr),"var(--blue)"],
-    ["Programme",`${appraisal.programme_months} months`,"var(--text-m)"],
+    ["Programme",`${snap.programmMonths||"—"}m build · ${snap.stabilisationMonths||"—"}m stab`,"var(--text-m)"],
   ]:assetType==="BTS"?[
     ["GDV",fmt(gdv,currencySymbol),"var(--gold)"],
     ["Total Cost",fmt(totalCost,currencySymbol),"var(--text-m)"],
     ["Profit",fmt(profit,currencySymbol),profit>0?"var(--green)":"var(--red)"],
     ["Profit on Cost",fmtPct(poc),pocColor],
     ["IRR (Unlevered)",fmtPct(irr),"var(--blue)"],
-    ["Programme",`${snap.programmMonths||"—"} months`,"var(--text-m)"],
+    ["Programme",`${snap.programmMonths||"—"}m build · ${snap.absorptionMonths||"—"}m absorption`,"var(--text-m)"],
   ]:assetType==="Hotel"?[
     ["Exit Value",fmt(gdv,currencySymbol),"var(--gold)"],
     ["Total Investment",fmt(totalCost,currencySymbol),"var(--text-m)"],
     ["Profit",fmt(profit,currencySymbol),profit>0?"var(--green)":"var(--red)"],
     ["Return on Cost",fmtPct(poc),pocColor],
     ["IRR",fmtPct(irr),"var(--blue)"],
+    ["Programme",`${snap.programmMonths||"—"} months`,"var(--text-m)"],
   ]:[
     ["Sale Price",fmt(gdv,currencySymbol),"var(--gold)"],
     ["Total Cost",fmt(totalCost,currencySymbol),"var(--text-m)"],
@@ -129,27 +209,53 @@ function SharePage(){
     ["Asset Type",assetType,"var(--gold)"],
     ["Location",snap.location||"—","var(--text-m)"],
     ["Currency",snap.currency||"GBP","var(--text-m)"],
-    ["Programme",`${snap.programmMonths||"—"} months`,"var(--text-m)"],
-    snap.stabilisationMonths?["Stabilisation",`${snap.stabilisationMonths} months`,"var(--text-m)"]:null,
     snap.exitYield?["Exit Yield",`${snap.exitYield}%`,"var(--text-m)"]:null,
-    snap.landCost?["Asset / Acquisition",fmt(snap.landCost||snap.purchasePrice||0,currencySymbol),"var(--text-m)"]:null,
+    snap.ltc?["LTC Ratio",`${snap.ltc}%`,"var(--text-m)"]:null,
+    snap.benchmarkRate?["Finance Rate",`${annualRate*100 > 0 ? (annualRate*100).toFixed(2)+"% all-in" : "—"}`,"var(--text-m)"]:null,
   ].filter(Boolean) as string[][];
+
+  // Cost breakdown rows — shown for all asset types
+  const costRows=assetType==="BTR"||assetType==="BTS"?[
+    {label:assetType==="Hotel"?"Purchase Price":"Land / Acquisition",value:costs.landCost,color:"var(--text-m)"},
+    {label:"Build Cost",value:costs.buildCost,color:"var(--text-m)",sub:costs.buildCostPsf>0?`${currencySymbol}${costs.buildCostPsf}psf · ${Math.round(costs.totalSqft).toLocaleString()}sqft`:undefined},
+    {label:"Professional Fees",value:costs.profFees,color:"var(--text-m)"},
+    {label:"Contingency",value:costs.contingency,color:"var(--text-m)"},
+    costs.otherCosts>0?{label:"Other Costs",value:costs.otherCosts,color:"var(--text-m)"}:null,
+    costs.agentAndMarketing>0?{label:"Agent & Marketing",value:costs.agentAndMarketing,color:"var(--text-m)"}:null,
+    {label:"Arrangement Fee",value:arrangementFee,color:"var(--amber)"},
+    {label:"Interest (Est.)",value:interestEst,color:"var(--amber)"},
+    {label:"Total Cost",value:totalCost,color:"var(--gold)",bold:true},
+  ].filter(Boolean) as any[]:assetType==="Hotel"?[
+    {label:"Purchase Price",value:costs.landCost,color:"var(--text-m)"},
+    {label:"CapEx Budget",value:costs.buildCost,color:"var(--text-m)"},
+    {label:"Professional Fees",value:costs.profFees,color:"var(--text-m)"},
+    {label:"Contingency",value:costs.contingency,color:"var(--text-m)"},
+    costs.otherCosts>0?{label:"Other Costs",value:costs.otherCosts,color:"var(--text-m)"}:null,
+    {label:"Arrangement Fee",value:arrangementFee,color:"var(--amber)"},
+    {label:"Interest (Est.)",value:interestEst,color:"var(--amber)"},
+    {label:"Total Investment",value:totalCost,color:"var(--gold)",bold:true},
+  ].filter(Boolean) as any[]:[
+    {label:"Purchase Price",value:costs.landCost,color:"var(--text-m)"},
+    {label:"Refurb Budget",value:costs.buildCost,color:"var(--text-m)"},
+    {label:"Professional Fees",value:costs.profFees,color:"var(--text-m)"},
+    {label:"Contingency",value:costs.contingency,color:"var(--text-m)"},
+    costs.otherCosts>0?{label:"Other Costs",value:costs.otherCosts,color:"var(--text-m)"}:null,
+    {label:"Finance Cost",value:totalFinanceCost,color:"var(--amber)"},
+    {label:"Total Cost",value:totalCost,color:"var(--gold)",bold:true},
+  ].filter(Boolean) as any[];
 
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-body)"}}>
       <style>{CSS}</style>
-
       {/* Nav */}
       <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",height:56,display:"flex",alignItems:"center",justifyContent:"space-between"}} className="nav-pad">
         <span style={{fontFamily:"var(--font-display)",fontSize:20,color:"var(--gold)",letterSpacing:".1em",fontWeight:300}}>VALORA</span>
         <span style={{fontSize:11,color:"var(--text-d)",background:"rgba(255,255,255,.05)",padding:"4px 10px",borderRadius:6}}>Read-only</span>
       </div>
-
       {/* Gold accent */}
       <div style={{height:3,background:"linear-gradient(90deg,var(--gold),transparent)"}}/>
 
-      <div style={{maxWidth:900,margin:"0 auto"}} className="page-pad">
-
+      <div style={{maxWidth:960,margin:"0 auto"}} className="page-pad">
         {/* Title block */}
         <div style={{marginBottom:32,animation:"fadeIn .4s ease"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexWrap:"wrap"}}>
@@ -203,7 +309,6 @@ function SharePage(){
               ))}
             </div>
           </div>
-
           <div>
             <div className="section-title">Project Details</div>
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"4px 16px"}}>
@@ -214,25 +319,57 @@ function SharePage(){
                 </div>
               ))}
             </div>
-
-            {/* Unit mix for BTR/BTS */}
-            {snap.units?.length>0&&(
-              <div style={{marginTop:20}}>
-                <div className="section-title">Unit Mix</div>
-                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"4px 16px"}}>
-                  {snap.units.map((u:any,i:number)=>(
-                    <div key={i} className="output-row">
-                      <span className="output-label">{u.type}</span>
-                      <span className="output-value" style={{color:"var(--text-m)",fontSize:11}}>
-                        {u.count} × {assetType==="BTS"?`${currencySymbol}${u.salePricePsf}psf`:`${currencySymbol}${u.rentPcm}pcm`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Cost Breakdown — full width */}
+        <div style={{marginTop:28}}>
+          <div className="section-title">Cost Breakdown</div>
+          <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"4px 16px"}}>
+            {costRows.map((item:any)=>(
+              <div key={item.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:item.bold?"none":"1px solid var(--bg4)",gap:12}}>
+                <div>
+                  <span style={{fontSize:13,color:item.bold?"var(--gold)":"var(--text-m)",fontWeight:item.bold?600:400}}>{item.label}</span>
+                  {item.sub&&<span style={{fontSize:10,color:"var(--text-d)",marginLeft:8,fontFamily:"var(--font-mono)"}}>{item.sub}</span>}
+                </div>
+                <span style={{fontFamily:"var(--font-mono)",fontSize:13,fontWeight:item.bold?600:400,color:item.color}}>{fmt(item.value||0,currencySymbol)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Build cost psf callout for BTR/BTS */}
+        {(assetType==="BTR"||assetType==="BTS")&&costs.buildCostPsf>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginTop:16}}>
+            {[
+              {label:"Build Cost psf",value:`${currencySymbol}${costs.buildCostPsf}psf`},
+              {label:"Total GIA",value:`${Math.round(costs.totalSqft).toLocaleString()} sqft`},
+              {label:"LTC Ratio",value:`${snap.ltc||65}%`},
+            ].map(item=>(
+              <div key={item.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>{item.label}</div>
+                <div style={{fontFamily:"var(--font-mono)",fontSize:16,color:"var(--text-m)",fontWeight:500}}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Unit mix for BTR/BTS */}
+        {snap.units?.length>0&&(
+          <div style={{marginTop:28}}>
+            <div className="section-title">Unit Mix</div>
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"4px 16px"}}>
+              {snap.units.map((u:any,i:number)=>(
+                <div key={i} className="output-row">
+                  <span className="output-label">{u.type}</span>
+                  <span className="output-value" style={{color:"var(--text-m)",fontSize:11}}>
+                    {u.count} units · {assetType==="BTS"?`${currencySymbol}${u.salePricePsf}psf · ${u.size}sqft`:`${currencySymbol}${u.rentPcm}pcm · ${u.size}sqft`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{marginTop:48,paddingTop:20,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
