@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = 'force-dynamic'
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useRouter, useParams } from "next/navigation";
 
@@ -149,16 +149,24 @@ export default function ProjectDetailPage() {
     init();
   }, [router, projectId]);
 
+  const isAdminRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
+  useEffect(() => {
+    userIdRef.current = user?.id || null;
+  }, [user]);
+
   useEffect(() => {
     if (!projectId) return;
 
     const interval = setInterval(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const uid = session.user.id;
-
-      const { data: mr } = await supabase.from("firm_members").select("role").eq("user_id", uid).maybeSingle();
-      const adm = mr?.role === "admin";
+      const uid = userIdRef.current;
+      const adm = isAdminRef.current;
+      if (!uid) return;
 
       let t;
       if (adm) {
