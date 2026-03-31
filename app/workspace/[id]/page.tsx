@@ -80,6 +80,8 @@ export default function ProjectDetailPage() {
   const [newTaskAssignee, setNewTaskAssignee] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [newTaskTime, setNewTaskTime] = useState("");
+  const [newTaskStatus, setNewTaskStatus] = useState("not_started");
   const [addingTask, setAddingTask] = useState(false);
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState("");
@@ -180,6 +182,12 @@ export default function ProjectDetailPage() {
     setActivity(a || []);
   };
 
+  const deleteTask = async (taskId: string) => {
+    await supabase.from("tasks").delete().eq("id", taskId);
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    await logActivity("task_deleted", {});
+  };
+
   const addTask = async () => {
     if (!newTask.trim() || !user) return;
     setAddingTask(true);
@@ -187,7 +195,8 @@ export default function ProjectDetailPage() {
     const { error: insertError } = await supabase.from("tasks").insert({
       project_id: projectId, firm_id: firm?.id, title: newTask.trim(),
       assigned_to: newTaskAssignee || null, assigned_to_email: assignee?.email || null,
-      priority: newTaskPriority, due_date: newTaskDue || null, completed: false,
+      priority: newTaskPriority, due_date: newTaskDue || null, due_time: newTaskTime || null,
+      status: newTaskStatus, completed: false,
       created_by: user.id, created_by_email: user.email,
     });
     console.log("insert error:", insertError);
@@ -195,7 +204,7 @@ export default function ProjectDetailPage() {
     console.log("tasks after insert:", data, "error:", error);
     setTasks(data || []);
     await logActivity("task_created", { title: newTask.trim() });
-    setNewTask(""); setNewTaskAssignee(""); setNewTaskPriority("medium"); setNewTaskDue("");
+    setNewTask(""); setNewTaskAssignee(""); setNewTaskPriority("medium"); setNewTaskDue(""); setNewTaskTime(""); setNewTaskStatus("not_started");
     setAddingTask(false);
   };
 
@@ -374,6 +383,12 @@ export default function ProjectDetailPage() {
                     <option value="high">High</option>
                   </select>
                   <input className="input" style={{ width:140 }} type="date" value={newTaskDue} onChange={e=>setNewTaskDue(e.target.value)} />
+                  <input className="input" style={{ width:120 }} type="time" value={newTaskTime} onChange={e=>setNewTaskTime(e.target.value)} />
+                  <select className="select" value={newTaskStatus} onChange={e=>setNewTaskStatus(e.target.value)}>
+                    <option value="not_started">Not Started</option>
+                    <option value="pending">Pending</option>
+                    <option value="stuck">Stuck</option>
+                  </select>
                   <button className="btn-primary" onClick={addTask} disabled={addingTask||!newTask.trim()}>{addingTask?"Adding…":"Add Task"}</button>
                 </div>
               </div>
@@ -385,10 +400,28 @@ export default function ProjectDetailPage() {
                 <input type="checkbox" checked={t.completed} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, textDecoration:t.completed?"line-through":"none", color:t.completed?"var(--text-d)":"var(--text)" }}>{t.title}</div>
-                  {t.assigned_to_email&&<div style={{ fontSize:11, color:"var(--text-d)", marginTop:2 }}>→ {t.assigned_to_email}</div>}
+                  <div style={{ display:"flex", gap:8, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
+                    {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-d)" }}>→ {t.assigned_to_email}</span>}
+                    {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() && !t.completed ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
+                  </div>
                 </div>
-                <span style={{ fontSize:10, color:t.priority==="high"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em" }}>{t.priority}</span>
-                {t.due_date&&<span style={{ fontSize:11, color:"var(--text-d)", fontFamily:"var(--font-mono)" }}>{new Date(t.due_date).toLocaleDateString("en-GB")}</span>}
+                <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                  {(() => {
+                    const isOverdue = t.due_date && new Date(t.due_date) < new Date() && !t.completed;
+                    const status = t.completed ? "completed" : isOverdue ? "overdue" : (t.status || "not_started");
+                    const statusConfig: Record<string,{label:string,color:string,bg:string}> = {
+                      not_started: { label:"Not Started", color:"var(--text-d)", bg:"rgba(125,133,144,.1)" },
+                      pending: { label:"Pending", color:"var(--amber)", bg:"rgba(240,164,41,.1)" },
+                      stuck: { label:"Stuck", color:"var(--red)", bg:"rgba(244,100,95,.1)" },
+                      overdue: { label:"Overdue", color:"var(--red)", bg:"rgba(244,100,95,.15)" },
+                      completed: { label:"Completed", color:"var(--green)", bg:"rgba(61,220,132,.1)" },
+                    };
+                    const s = statusConfig[status] || statusConfig.not_started;
+                    return <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:s.bg, color:s.color, fontWeight:500 }}>{s.label}</span>;
+                  })()}
+                  <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em" }}>{t.priority}</span>
+                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"none", color:"var(--text-d)", cursor:"pointer", fontSize:14, padding:"0 4px", lineHeight:1 }} title="Delete">×</button>}
+                </div>
               </div>
             ))}
           </div>
