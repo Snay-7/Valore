@@ -122,7 +122,7 @@ a{text-decoration:none;color:inherit}
   .stats-grid{grid-template-columns:1fr !important}
 }
 `;
-
+const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 const FEATURES = [
   { icon:"⟳", label:"Monthly Cash Flow Engine", desc:"Full month-by-month P&L from acquisition to exit. S-curve, straight-line and front-loaded cost profiles. Interest capitalised using live benchmark forward curves.", tag:"Core" },
   { icon:"◈", label:"Residual Land Value", desc:"Real-time RLV calculation that updates as you type. Set your target return as % of GDV or % of costs. Uses actual cashflow interest for maximum accuracy.", tag:"Valuation" },
@@ -238,6 +238,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
           {isHome ? [["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["For Lenders","#lenders"]].map(([l,h])=><a key={l} href={h}>{l}</a>) : <a onClick={()=>onPage("landing")}>← Back to Home</a>}
         </div>
         <div className="nav-btns">
+          <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"8px 18px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>📅 Book a Demo</button>
           <button className="btn-ghost" onClick={onLogin} style={{padding:"8px 18px"}}>Sign In</button>
           <button className="btn-primary" onClick={onLogin} style={{padding:"9px 20px"}}>Start Free Trial</button>
         </div>
