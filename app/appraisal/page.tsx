@@ -78,15 +78,31 @@ select.inp{cursor:pointer}
 .badge-green{background:rgba(61,220,132,.1);color:var(--green)}
 .badge-red{background:rgba(244,100,95,.12);color:var(--red)}
 .badge-amber{background:rgba(240,164,41,.1);color:var(--amber)}
+.panel-toggle{display:none;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--gold);font-family:var(--font-body);font-weight:600;user-select:none}
+.sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 @media(max-width:768px){
   .inp-row{grid-template-columns:1fr}
   .inp-row-3{grid-template-columns:1fr 1fr}
-  .unit-row{grid-template-columns:1fr 1fr 1fr 28px}
-  .editor-layout{grid-template-columns:1fr !important}
-  .output-panel{position:static !important;height:auto !important;border-left:none !important;border-top:1px solid var(--border)}
-  .modal{width:calc(100vw - 24px) !important;padding:20px !important;max-height:85vh}
-  .share-btn{padding:10px 6px}
+  .unit-row{grid-template-columns:1fr 1fr 60px 28px;gap:4px}
+  .unit-row .unit-gross{display:none}
+  .editor-layout{grid-template-columns:1fr !important;display:flex !important;flex-direction:column !important}
+  .output-panel{position:static !important;height:auto !important;border-left:none !important;border-top:1px solid var(--border) !important;order:2}
+  .editor-main{order:1}
+  .modal{width:calc(100vw - 20px) !important;padding:18px !important;max-height:88vh}
+  .share-btn{padding:10px 4px;min-width:0}
   .share-btn-label{font-size:8px}
+  .share-btn svg{width:16px;height:16px}
+  .sens-cell{padding:5px 2px;font-size:10px}
+  .tab{padding:8px 12px;font-size:11px}
+  .section-title{font-size:16px}
+  .waterfall-tier{padding:12px}
+  .cf-row{grid-template-columns:40px repeat(4,1fr);font-size:10px}
+  .cf-col-hide{display:none}
+  .panel-toggle{display:flex !important}
+}
+@media(max-width:480px){
+  .inp-row-3{grid-template-columns:1fr}
+  .share-btn-label{display:none}
 }
 `;
 
@@ -1058,6 +1074,8 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
     setDownloadingBrochure(false);
   };
 
+  const[panelOpen,setPanelOpen]=useState(true);
+
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_BTS=["general","revenue","costs","finance","analysis"];
   const TABS_HOTEL=["general","revenue","costs","finance","analysis"];
@@ -1069,8 +1087,10 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
   const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
 
   if(loading)return(
-    <div style={{minHeight:"100vh",background:"#06070a",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.2)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+    <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+      <div style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:24,color:"#c9a84c",letterSpacing:".12em",fontWeight:300}}>VALORA</div>
+      <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.15)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+      <div style={{fontSize:12,color:"#3d4249",letterSpacing:".06em"}}>Loading appraisal…</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
@@ -1080,34 +1100,34 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
       <style>{CSS}</style>
 
       {/* Nav */}
-      <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 24px",height:56,display:"flex",alignItems:"center",gap:16}}>
-        <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",color:"var(--gold)",fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,cursor:"pointer",letterSpacing:".1em"}}>VALORA</button>
-        <div style={{width:1,height:18,background:"var(--border)"}}/>
-        <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{padding:"5px 12px",fontSize:11}}>Dashboard</button>
+      <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 16px",height:56,display:"flex",alignItems:"center",gap:12,position:"sticky",top:0,zIndex:100}}>
+        <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",color:"var(--gold)",fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,cursor:"pointer",letterSpacing:".1em",flexShrink:0}}>VALORA</button>
+        <div style={{width:1,height:18,background:"var(--border)",flexShrink:0}}/>
+        <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{padding:"5px 10px",fontSize:11,flexShrink:0}}>← Back</button>
         <div style={{flex:1}}/>
-        <div className="save-indicator">
-          {saving&&<span style={{width:12,height:12,border:"1.5px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>}
-          {saved&&!saving&&<><span style={{color:"var(--green)",fontSize:12}}>✓</span><span>Saved</span></>}
-          {saveError&&!saving&&<span style={{color:"var(--red)",fontSize:11}}>{saveError}</span>}
-          {!saved&&!saving&&!saveError&&<span style={{animation:"pulse 2s infinite"}}>Unsaved changes</span>}
+        <div className="save-indicator" style={{flexShrink:0}}>
+          {saving&&<><span style={{width:12,height:12,border:"1.5px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite",flexShrink:0}}/><span style={{display:"none",fontSize:11}}>Saving…</span></>}
+          {saved&&!saving&&<><span style={{color:"var(--green)",fontSize:14}}>✓</span><span style={{fontSize:11}}>Saved</span></>}
+          {saveError&&!saving&&<span style={{color:"var(--red)",fontSize:10,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{saveError}</span>}
+          {!saved&&!saving&&!saveError&&<span style={{fontSize:11,animation:"pulse 2s infinite",color:"var(--amber)"}}>Unsaved</span>}
         </div>
-        {appraisalId&&saved&&<button className="btn-danger" onClick={()=>setDeleteModal(true)}>Delete</button>}
-        <button className="btn-primary" onClick={save} disabled={saving} style={{padding:"8px 18px",fontSize:12}}>{saving?"Saving…":"Save Appraisal"}</button>
+        {appraisalId&&saved&&<button className="btn-danger" onClick={()=>setDeleteModal(true)} style={{flexShrink:0,padding:"5px 10px",fontSize:11}}>Delete</button>}
+        <button className="btn-primary" onClick={save} disabled={saving} style={{padding:"8px 14px",fontSize:12,flexShrink:0}}>{saving?"…":"Save"}</button>
       </div>
 
       {/* Asset switcher */}
-      <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 24px",display:"flex",alignItems:"center",gap:8,height:46}}>
-        <span style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginRight:8}}>Asset Type:</span>
+      <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 16px",display:"flex",alignItems:"center",gap:6,height:46,overflowX:"auto",flexShrink:0}}>
+        <span style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginRight:4,flexShrink:0}}>Type:</span>
         {(["BTR","BTS","Hotel","Flip"] as AssetType[]).map(t=>(
-          <button key={t} onClick={()=>{if(appraisalId)return;switchAssetType(t);}} style={{padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1}}>{t}</button>
+          <button key={t} onClick={()=>{if(appraisalId)return;switchAssetType(t);}} style={{padding:"4px 12px",borderRadius:6,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1,flexShrink:0,whiteSpace:"nowrap"}}>{t}</button>
         ))}
-        {appraisalId&&<span style={{fontSize:10,color:"var(--text-d)",marginLeft:4}}>· locked after save</span>}
-        <div style={{flex:1}}/>
-        <input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Appraisal name…" style={{width:240,padding:"6px 12px",fontSize:13}}/>
+        {appraisalId&&<span style={{fontSize:10,color:"var(--text-d)",marginLeft:2,flexShrink:0}}>· locked</span>}
+        <div style={{flex:1,minWidth:8}}/>
+        <input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Appraisal name…" style={{width:200,padding:"5px 10px",fontSize:12,flexShrink:1,minWidth:100}}/>
       </div>
 
       <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
-        <div style={{borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
+        <div className="editor-main" style={{borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
           <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",overflowX:"auto",padding:"0 16px"}}>
             {TABS.map(t=><button key={t} className={`tab ${activeTab===t?"active":""}`} onClick={()=>setActiveTab(t)}>{TAB_LABELS[t]}</button>)}
           </div>
@@ -1139,7 +1159,9 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
               <div>
                 <div className="section-title">Unit Mix & Rents</div>
                 <div className="unit-row" style={{borderBottom:"1px solid var(--gold)44"}}>
-                  {["Unit Type","Count","Rent (pcm)","Size (sqft)","Gross Pa",""].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
+                  {["Unit Type","Count","Rent (pcm)","Size (sqft)"].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
+                  <div className="unit-gross" style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>Gross Pa</div>
+                  <div/>
                 </div>
                 {(data.units||[]).map((u:any,i:number)=>{
                   const grossPa=num(String(u.count))*num(String(u.rentPcm))*12;
@@ -1148,7 +1170,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     <input className="inp" type="number" value={u.count} onChange={e=>updateUnit(i,"count",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
                     <input className="inp" type="number" value={u.rentPcm} onChange={e=>updateUnit(i,"rentPcm",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
                     <input className="inp" type="number" value={u.size} onChange={e=>updateUnit(i,"size",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
-                    <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(grossPa,currencySymbol)}</div>
+                    <div className="unit-gross" style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(grossPa,currencySymbol)}</div>
                     <button onClick={()=>removeUnit(i)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:16,padding:0}}>×</button>
                   </div>);
                 })}
@@ -1168,7 +1190,9 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
               <div>
                 <div className="section-title">Unit Mix & Sales</div>
                 <div className="unit-row" style={{borderBottom:"1px solid var(--gold)44"}}>
-                  {["Unit Type","Count","Price (psf)","Size (sqft)","Revenue",""].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
+                  {["Unit Type","Count","Price (psf)","Size (sqft)"].map((h,i)=><div key={i} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{h}</div>)}
+                  <div className="unit-gross" style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>Revenue</div>
+                  <div/>
                 </div>
                 {(data.units||[]).map((u:any,i:number)=>{
                   const rev=num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf));
@@ -1177,7 +1201,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     <input className="inp" type="number" value={u.count} onChange={e=>updateUnit(i,"count",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
                     <input className="inp" type="number" value={u.salePricePsf} onChange={e=>updateUnit(i,"salePricePsf",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
                     <input className="inp" type="number" value={u.size} onChange={e=>updateUnit(i,"size",e.target.value)} style={{padding:"6px 8px",fontSize:12}}/>
-                    <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(rev,currencySymbol)}</div>
+                    <div className="unit-gross" style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-m)"}}>{fmt(rev,currencySymbol)}</div>
                     <button onClick={()=>removeUnit(i)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:16,padding:0}}>×</button>
                   </div>);
                 })}
@@ -1555,7 +1579,8 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit yield (rows) × rent shift (columns) · uses full S-curve finance model</div>
-                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10}}>
+                    <div className="sens-wrap">
+                    <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                       <div/>
                       {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
                       {sensMatrix.map((row:number[],yi:number)=>{
@@ -1567,6 +1592,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                           ))}
                         </>);
                       })}
+                    </div>
                     </div>
                     <div style={{display:"flex",gap:16,marginTop:12}}>
                       {[["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]].map(([bg,l])=>(
@@ -1609,8 +1635,14 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
           </div>
         </div>
 
+        {/* RIGHT PANEL TOGGLE (mobile only) */}
+        <div className="panel-toggle" onClick={()=>setPanelOpen(o=>!o)}>
+          <span>Results & Metrics</span>
+          <span style={{fontSize:16,transform:panelOpen?"rotate(180deg)":"none",transition:"transform .2s"}}>▾</span>
+        </div>
+
         {/* RIGHT PANEL */}
-        <div className="output-panel" style={{padding:20,position:"sticky",top:0,height:"calc(100vh - 102px)",overflowY:"auto",background:"var(--bg1)"}}>
+        <div className="output-panel" style={{padding:20,position:"sticky",top:0,height:"calc(100vh - 102px)",overflowY:"auto",background:"var(--bg1)",display:panelOpen?"block":"none"}}>
           <div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,color:"var(--text)",marginBottom:4}}>{data.name||"New Appraisal"}</div>
           <div style={{fontSize:11,color:"var(--text-d)",marginBottom:20}}>{data.location||"No location"} · {assetType} · {data.currency}</div>
 
