@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
-
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -53,6 +52,7 @@ a{text-decoration:none;color:inherit}
 .inp::placeholder{color:var(--text-d)}
 .badge{display:inline-flex;align-items:center;gap:6px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.05em}
 .badge-blue{background:rgba(91,156,246,.08);border-color:rgba(91,156,246,.2);color:var(--blue)}
+.badge-green{background:rgba(61,220,132,.08);border-color:rgba(61,220,132,.2);color:var(--green)}
 .section{padding:100px 0}
 .container{max-width:1140px;margin:0 auto;padding:0 40px}
 .testi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;display:flex;flex-direction:column;gap:20px}
@@ -70,7 +70,7 @@ a{text-decoration:none;color:inherit}
 .tab-btn{flex:1;padding:9px 16px;border-radius:7px;font-size:12px;font-weight:500;background:transparent;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s}
 .tab-btn.active{background:var(--bg4);color:var(--text);border:1px solid var(--border)}
 .ticker-wrap{overflow:hidden;white-space:nowrap;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 0}
-.ticker-inner{display:inline-flex;gap:60px;animation:ticker 40s linear infinite}
+.ticker-inner{display:inline-flex;gap:60px;animation:ticker 50s linear infinite}
 .ticker-item{display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--text-m);letter-spacing:.04em}
 .grad-text{background:linear-gradient(135deg,var(--gold-l) 0%,var(--gold) 50%,#a07030 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .glow{position:absolute;border-radius:50%;pointer-events:none}
@@ -89,6 +89,8 @@ a{text-decoration:none;color:inherit}
 .legal-content ul li{font-size:14px;color:var(--text-m);line-height:1.8;padding:6px 0 6px 16px;position:relative;border-bottom:1px solid var(--bg2)}
 .legal-content ul li::before{content:"◆";position:absolute;left:0;color:var(--gold);font-size:8px;top:11px}
 .legal-content a{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+.workspace-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:border-color .2s}
+.workspace-card:hover{border-color:var(--gold-border)}
 @media(max-width:768px){
   .nav{padding:0 20px;height:56px}
   .nav-links,.nav-btns{display:none}
@@ -111,6 +113,7 @@ a{text-decoration:none;color:inherit}
   .why-grid{grid-template-columns:1fr !important}
   .lender-grid{grid-template-columns:1fr !important}
   .pipeline-section{grid-template-columns:1fr !important}
+  .workspace-section{grid-template-columns:1fr !important}
   .support-grid{grid-template-columns:1fr !important}
   .hero-btns{flex-direction:column !important}
   .hero-btns button{width:100%}
@@ -122,17 +125,22 @@ a{text-decoration:none;color:inherit}
   .stats-grid{grid-template-columns:1fr !important}
 }
 `;
+
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
+
 const FEATURES = [
-  { icon:"⟳", label:"Monthly Cash Flow Engine", desc:"Full month-by-month P&L from acquisition to exit. S-curve, straight-line and front-loaded cost profiles. Interest capitalised using live benchmark forward curves.", tag:"Core" },
-  { icon:"◈", label:"Residual Land Value", desc:"Real-time RLV calculation that updates as you type. Set your target return as % of GDV or % of costs. Uses actual cashflow interest for maximum accuracy.", tag:"Valuation" },
-  { icon:"▦", label:"Sensitivity Matrices", desc:"45-scenario yield vs rent matrices with colour-coded RAG. Exit yield, levered profit, and profit on cost — all updated live.", tag:"Risk" },
-  { icon:"◎", label:"Live Benchmark Curves", desc:"SONIA, SOFR, EURIBOR, EIBOR, SORA, AONIA, TONA, SARON, CORRA, HONIA. Finance costs calculated against the actual forward curve.", tag:"Finance" },
+  { icon:"⟳", label:"True Monthly Cash Flow Engine", desc:"Full month-by-month P&L from acquisition to exit. S-curve drawdown model with interest rolled monthly on actual drawn balances — no approximations.", tag:"Core" },
+  { icon:"◈", label:"Residual Land Value", desc:"Real-time RLV calculation that updates as you type. Uses exact cashflow interest for maximum accuracy. Instantly shows what you can afford to pay for land.", tag:"Valuation" },
+  { icon:"▦", label:"Sensitivity Matrices", desc:"45-scenario yield vs rent matrices with colour-coded RAG. Exit yield, levered profit, and profit on cost — all recalculated live using the full finance model.", tag:"Risk" },
+  { icon:"◎", label:"Live Benchmark Curves", desc:"SONIA, SOFR, EURIBOR, EIBOR, SORA, AONIA, TONA, SARON, CORRA, HONIA. Finance costs calculated against the actual forward curve, not a flat estimate.", tag:"Finance" },
   { icon:"◉", label:"3-Tier Promote Waterfall", desc:"Configurable IRR hurdles with developer and investor allocations across all tiers. Visual split bar per hurdle. Fully scenario-aware.", tag:"JV" },
-  { icon:"⬡", label:"AI Sense Check", desc:"Automatically benchmarks your assumptions against market data. Flags what a senior lender would challenge — before you walk into credit committee.", tag:"AI" },
+  { icon:"⊛", label:"DSCR / ICR & Equity Multiple", desc:"Debt service cover ratio, ICR, equity multiple (MOIC), payback period and break-even yield — the exact metrics a lender or equity partner will stress test.", tag:"Institutional" },
+  { icon:"⬡", label:"AI Sense Check", desc:"Automatically benchmarks your assumptions against market data. Flags DSCR breaches, aggressive exit yields, LTC limits, and build cost issues before credit committee.", tag:"AI" },
   { icon:"⬛", label:"AI Investor Brochures", desc:"Upload photos, generate a full investment memorandum with Claude AI. Branded PDF with live share links — investors always see the latest version.", tag:"AI" },
-  { icon:"◫", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline with tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion.", tag:"PM" },
-  { icon:"⊞", label:"Auto SDLT Calculator", desc:"Full UK SDLT banding — residential, commercial, mixed-use and SPV share deal modes. Calculated automatically from purchase price.", tag:"Tax" },
+  { icon:"◫", label:"Team Workspace", desc:"Collaborate on appraisals with your team. Shared workspace with notes, tasks, activity feed and role-based permissions — everything linked to the deal.", tag:"Team" },
+  { icon:"⊞", label:"Auto SDLT Calculator", desc:"Full UK SDLT banding — residential, commercial, mixed-use and SPV share deal modes. +3% surcharge toggle. Calculated automatically from purchase price.", tag:"Tax" },
+  { icon:"⊡", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline with tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion with your whole team.", tag:"PM" },
+  { icon:"⬙", label:"IRR — Levered & Unlevered", desc:"True levered IRR using monthly equity cash flows with progressive loan repayment. Unlevered IRR includes the full stabilisation ramp — not a simplified endpoint model.", tag:"Returns" },
 ];
 
 const TESTIMONIALS = [
@@ -180,7 +188,7 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
 const AppraisalMock = () => (
   <div className="float" style={{background:"var(--bg3)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"20px 22px",width:290,boxShadow:"0 40px 80px rgba(0,0,0,.7)",position:"absolute"}}>
     <div style={{fontSize:10,color:"var(--text-d)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:10}}>Chiswick Tower · BTR</div>
-    {[["GDV (Exit)","£208.5m","var(--text)"],["Profit on Cost","43.7%","var(--green)"],["IRR (Unlevered)","39.7%","var(--blue)"],["Yield on Cost","5.67%","var(--gold)"]].map(([l,v,c])=>(
+    {[["GDV (Exit)","£208.5m","var(--text)"],["Profit on Cost","43.7%","var(--green)"],["IRR (Unlevered)","24.3%","var(--blue)"],["Equity Multiple","2.14×","var(--gold)"],["DSCR / ICR","1.62×","var(--green)"]].map(([l,v,c])=>(
       <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid var(--bg5)",fontSize:12}}>
         <span style={{color:"var(--text-m)"}}>{l}</span><span style={{color:c,fontFamily:"var(--font-mono)",fontWeight:500}}>{v}</span>
       </div>
@@ -239,9 +247,9 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
         </div>
         <div className="nav-btns">
           <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"8px 18px",borderColor:"var(--gold-border)",color:"var(--gold)",gap:8}}>
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-  Book a Demo
-</button>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Book a Demo
+          </button>
           <button className="btn-ghost" onClick={onLogin} style={{padding:"8px 18px"}}>Sign In</button>
           <button className="btn-primary" onClick={onLogin} style={{padding:"9px 20px"}}>Start Free Trial</button>
         </div>
@@ -255,6 +263,10 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
         <div style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:300,color:"var(--gold)",letterSpacing:".1em",marginBottom:24,cursor:"pointer"}} onClick={()=>{setMenuOpen(false);onPage("landing")}}>VALORA</div>
         {isHome ? [["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["Support","support"],["Privacy","privacy"],["Terms","terms"]].map(([l,h])=>h.startsWith("#")?<a key={l} href={h} onClick={()=>setMenuOpen(false)}>{l}</a>:<a key={l} onClick={()=>{setMenuOpen(false);onPage(h)}}>{l}</a>) : <a onClick={()=>{setMenuOpen(false);onPage("landing")}}>← Home</a>}
         <div style={{marginTop:32,display:"flex",flexDirection:"column",gap:12}}>
+          <button className="btn-ghost" onClick={()=>{setMenuOpen(false);window.open(CALENDLY,"_blank")}} style={{justifyContent:"center",borderColor:"var(--gold-border)",color:"var(--gold)"}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Book a Demo
+          </button>
           <button className="btn-ghost" onClick={()=>{setMenuOpen(false);onLogin()}} style={{justifyContent:"center"}}>Sign In</button>
           <button className="btn-primary" onClick={()=>{setMenuOpen(false);onLogin()}} style={{justifyContent:"center"}}>Start Free Trial</button>
         </div>
@@ -331,11 +343,14 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 The appraisal platform<br/><em className="grad-text" style={{fontStyle:"italic"}}>serious developers</em><br/>actually use
               </h1>
               <p className="fu" style={{fontSize:17,color:"var(--text-m)",lineHeight:1.75,maxWidth:500,marginBottom:36,animationDelay:".3s"}}>
-                Model BTR, BTS, hotel and residential flip projects with investment-bank rigour. Monthly cash flows, live benchmark curves, AI sense check, and branded investor brochures — all in one platform.
+                Model BTR, BTS, hotel and residential flip projects with investment-bank rigour. True monthly cash flows, live benchmark curves, DSCR checking, team workspace, AI sense check — all in one platform.
               </p>
               <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44,animationDelay:".4s"}}>
                 <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"14px 30px"}}>Start Free Trial — No Card Needed</button>
-                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px"}} onClick={()=>router.push("/pricing")}>View Pricing</button>
+                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px",borderColor:"var(--gold-border)",color:"var(--gold)"}} onClick={()=>window.open(CALENDLY,"_blank")}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Book a Demo
+                </button>
               </div>
               <div className="fu" style={{display:"flex",gap:28,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
                 {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["14 days","Free trial"]].map(([v,l])=>(
@@ -357,7 +372,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
       {/* TICKER */}
       <div className="ticker-wrap">
         <div className="ticker-inner">
-          {[...Array(2)].map((_,ri)=>["Monthly Cash Flow","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","3-Tier Waterfall","AI Sense Check","AI Brochures","Auto SDLT","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Share Links"].map((item,i)=>(
+          {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple (MOIC)","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Auto SDLT","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Break-even Analysis","Payback Period","Share Links"].map((item,i)=>(
             <span key={`${ri}-${i}`} className="ticker-item"><span style={{color:"var(--gold)",fontSize:10}}>◆</span>{item}</span>
           )))}
         </div>
@@ -400,14 +415,84 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+      {/* WORKSPACE SECTION — NEW */}
+      <section id="workspace" style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+        <div className="container">
+          <div className="workspace-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
+            <div>
+              <div className="badge badge-green" style={{marginBottom:20}}>Team Collaboration</div>
+              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:20}}>Your whole team,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one workspace</em></h2>
+              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:32}}>Invite your analysts, asset managers and JV partners into a shared workspace. Everyone works on the same live appraisal — no more emailing spreadsheet versions.</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {[
+                  ["Shared appraisals","Every team member sees the live model, not a stale copy."],
+                  ["Role permissions","Viewer, editor, commenter and admin roles per project."],
+                  ["Notes & activity","Threaded notes and full activity log on every deal."],
+                  ["Task management","Assign tasks with due dates — linked directly to the deal."],
+                  ["Invite by email","Add team members instantly with a single email invite."],
+                  ["Multi-firm support","Separate workspaces for different firms or fund structures."],
+                ].map(([title,sub],i)=>(
+                  <div key={i} className="workspace-card">
+                    <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:4}}>{title}</div>
+                    <div style={{fontSize:12,color:"var(--text-d)",lineHeight:1.5}}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Workspace mock UI */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:20,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>BTR · London W1 · 4 members</div>
+                </div>
+                <div style={{display:"flex",gap:-6}}>
+                  {["JH","PS","MA","SC"].map((ini,i)=>(
+                    <div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>
+                  ))}
+                </div>
+              </div>
+              {/* Tabs */}
+              <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:"1px solid var(--border)"}}>
+                {["Overview","Tasks","Notes","Activity"].map((t,i)=>(
+                  <div key={t} style={{padding:"8px 14px",fontSize:11,color:i===1?"var(--gold)":"var(--text-d)",borderBottom:i===1?"2px solid var(--gold)":"2px solid transparent",cursor:"pointer"}}>{t}</div>
+                ))}
+              </div>
+              {/* Tasks mock */}
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {[
+                  {task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},
+                  {task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},
+                  {task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},
+                  {task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"},
+                ].map((item,i)=>(
+                  <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div>
+                      <div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div>
+                    </div>
+                    <span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:12,padding:"10px 12px",background:"var(--bg3)",borderRadius:8,border:"1px dashed var(--border)"}}>
+                <div style={{fontSize:11,color:"var(--text-d)",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{color:"var(--gold)"}}>+</span> Add task or note…
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* PIPELINE */}
-      <section style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+      <section style={{padding:"90px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="pipeline-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,alignItems:"flex-start",marginBottom:48}}>
             <div>
-              <div className="badge" style={{marginBottom:20}}>Project Management</div>
+              <div className="badge" style={{marginBottom:20}}>Deal Pipeline</div>
               <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:18}}>Your entire deal pipeline,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one place</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8}}>Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Every appraisal linked, always in sync.</p>
+              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8}}>Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Every appraisal linked, always in sync with your team.</p>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 24px",alignContent:"start",paddingTop:8}}>
               {[["Customisable stages","Name your stages to match your workflow."],["Tasks & notes","Add tasks with priorities and notes to every deal."],["Activity feed","Automatic log of every stage move and update."],["Multiple scenarios","Link several appraisals to a single deal card."]].map(([title,sub],i)=>(
@@ -433,10 +518,10 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
           <div className="asset-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
             {[
-              {abbr:"BTR",color:"var(--gold)",label:"Build to Rent",desc:"OMR/DMR unit tables, NIY, exit yields, OpEx budget, stabilisation ramp, promote waterfall, benchmark curves",badge:"Most Popular"},
-              {abbr:"BTS",color:"var(--blue)",label:"Build to Sell",desc:"£/sqft sales price, unit absorption schedule, phased drawdowns, agent fees, margin by phase",badge:""},
-              {abbr:"HTL",color:"var(--amber)",label:"Hotel Acquisition",desc:"ADR, occupancy, RevPAR, EBITDA margin, cap rate, CapEx repositioning budget, stabilisation timeline",badge:""},
-              {abbr:"FLP",color:"var(--green)",label:"House Flip",desc:"Purchase price, SDLT, refurb budget, bridging finance, hold period, ROI on equity deployed",badge:""},
+              {abbr:"BTR",color:"var(--gold)",label:"Build to Rent",desc:"OMR/DMR unit tables, NIY, exit yields, OpEx, stabilisation void ramp, DSCR/ICR, promote waterfall, break-even yield, RLV",badge:"Most Popular"},
+              {abbr:"BTS",color:"var(--blue)",label:"Build to Sell",desc:"£/sqft sales price, unit absorption schedule, phased drawdowns, agent fees, progressive loan repayment, break-even psf",badge:""},
+              {abbr:"HTL",color:"var(--amber)",label:"Hotel Acquisition",desc:"ADR, occupancy, RevPAR, EBITDA by stream (rooms, F&B, spa, gym, meetings), cap rate, CapEx budget, DSCR/ICR",badge:""},
+              {abbr:"FLP",color:"var(--green)",label:"House Flip",desc:"Purchase price, SDLT, refurb budget, bridging finance, hold period, ROI on equity deployed, equity multiple",badge:""},
             ].map((t,i)=>(
               <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,padding:24,position:"relative",transition:"border-color .25s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=t.color+"66"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
                 {t.badge&&<div className="badge" style={{position:"absolute",top:16,right:16,fontSize:9}}>{t.badge}</div>}
@@ -458,9 +543,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
           <div className="why-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
             {[
-              {problem:"Spreadsheet errors cost deals",stat:"80%",statLabel:"of spreadsheets contain at least one material error",solution:"Valora's engine produces consistent results with live updating — no broken formulas, no version confusion.",icon:"⚠",color:"var(--red)"},
-              {problem:"Generic tools don't speak property",stat:"0",statLabel:"standard finance tools understand NIY, OMR/DMR splits, or promote waterfalls",solution:"Every input is purpose-built for property development — from SDLT bands to stabilisation ramps to JV distributions.",icon:"⊠",color:"var(--amber)"},
-              {problem:"Investors and lenders need more",stat:"1",statLabel:"link is all it takes for investors to see your live appraisal",solution:"AI brochures, live investor portals, and AI sense check — all from the same model.",icon:"◈",color:"var(--gold)"},
+              {problem:"Spreadsheet errors cost deals",stat:"80%",statLabel:"of spreadsheets contain at least one material error",solution:"Valora's engine produces consistent, auditable results with live updating — no broken formulas, no version confusion.",icon:"⚠",color:"var(--red)"},
+              {problem:"Generic tools don't speak property",stat:"0",statLabel:"standard finance tools understand DSCR covenants, NIY, OMR/DMR splits, or promote waterfalls",solution:"Every input is purpose-built for property — from SDLT bands to stabilisation ramps, DSCR checks to JV distributions.",icon:"⊠",color:"var(--amber)"},
+              {problem:"Investors and lenders need more",stat:"1",statLabel:"link is all it takes for investors to see your live appraisal, DSCR and break-even analysis",solution:"AI brochures, DSCR/ICR checking, live investor portals, and AI sense check — all from the same model.",icon:"◈",color:"var(--gold)"},
             ].map((card,i)=>(
               <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:32,display:"flex",flexDirection:"column",gap:20}}>
                 <div style={{width:44,height:44,borderRadius:11,background:card.color+"12",border:`1px solid ${card.color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:card.color}}>{card.icon}</div>
@@ -489,8 +574,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
             <div>
               <div className="badge badge-blue" style={{marginBottom:20}}>For Lenders & Banks</div>
               <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.12,marginBottom:20}}>Reports your underwriting<br/>team will <em style={{color:"var(--gold)",fontStyle:"italic"}}>actually trust</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:28}}>The monthly cashflow shows exactly how your facility will be drawn down, with interest calculated on actual drawn balances — giving you and your lender a precise, defensible cost of finance.</p>
-              {[["Cashflow-based interest","Calculated on drawn balances, not estimated lump-sum"],["Live share links","Lenders always see the latest version"],["AI Sense Check","Flags exit yield, LTC, and build cost issues upfront"],["Lender-formatted reports","Professional PDF with standardised data"]].map(([title,sub],i)=>(
+              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:28}}>The monthly cashflow shows exactly how your facility will be drawn down, with interest rolled on actual drawn balances. DSCR and ICR checked automatically against your covenant level.</p>
+              {[["Cashflow-based interest","Rolled monthly on drawn balances — not an estimated lump-sum"],["DSCR / ICR checking","Auto-flagged when debt service cover drops below 1.25×"],["Live share links","Lenders always see the latest version of the model"],["AI Sense Check","Flags exit yield, LTC, build cost and DSCR issues upfront"],["Lender-formatted reports","Professional PDF with standardised data"]].map(([title,sub],i)=>(
                 <div key={i} style={{display:"flex",gap:14,marginBottom:18}}>
                   <div style={{width:36,height:36,borderRadius:8,background:"var(--gold-bg)",border:"1px solid var(--gold-border)",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--gold)",fontSize:14,flexShrink:0}}>✓</div>
                   <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:3}}>{title}</div><div style={{fontSize:12,color:"var(--text-d)"}}>{sub}</div></div>
@@ -498,17 +583,20 @@ function Landing({onLogin,onPage,scrolled}:any) {
               ))}
             </div>
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,padding:24}}>
-              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:16}}>Finance Calculation — Cashflow Method</div>
-              {[["Month","Drawn Balance","Interest","Net CF"],["Oct 2028","£8.2m","£44,733","(£892k)"],["Nov 2028","£11.7m","£63,788","(£1.2m)"],["Dec 2028","£16.4m","£89,400","(£1.7m)"],["Jan 2029","£22.1m","£120,495","(£2.1m)"],["Feb 2029","£29.8m","£162,455","(£3.1m)"]].map((row,i)=>(
+              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:16}}>Finance Calculation — True Drawdown Model</div>
+              {[["Month","Drawn Balance","Interest (Rolled)","Net CF"],["Oct 2028","£8.2m","£44,733","(£892k)"],["Nov 2028","£11.7m","£63,788","(£1.2m)"],["Dec 2028","£16.4m","£89,400","(£1.7m)"],["Jan 2029","£22.1m","£120,495","(£2.1m)"],["Feb 2029","£29.8m","£162,455","(£3.1m)"]].map((row,i)=>(
                 <div key={i} style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:`${i===0?6:8}px 0`,borderBottom:"1px solid var(--bg4)",fontSize:i===0?9:11}}>
                   {row.map((cell,j)=><div key={j} style={{color:i===0?"var(--text-d)":j===2?"var(--amber)":j===3?"var(--red)":"var(--text-m)",fontFamily:i>0?"var(--font-mono)":"var(--font-body)",textTransform:i===0?"uppercase":"none",letterSpacing:i===0?".07em":"0"}}>{cell}</div>)}
                 </div>
               ))}
               <div style={{marginTop:14,padding:"10px 0",borderTop:"1px solid var(--gold)44",display:"flex",justifyContent:"space-between",fontSize:12}}>
-                <span style={{color:"var(--text-m)"}}>Total interest (cashflow method)</span>
+                <span style={{color:"var(--text-m)"}}>Total interest (S-curve rolled model)</span>
                 <span style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontWeight:600}}>£22,155,314</span>
               </div>
-              <div style={{fontSize:10,color:"var(--green)",marginTop:6}}>✓ More accurate than half-facility estimate</div>
+              <div style={{marginTop:10,display:"flex",justifyContent:"space-between",padding:"8px 10px",background:"rgba(61,220,132,.06)",borderRadius:6,border:"1px solid rgba(61,220,132,.15)"}}>
+                <span style={{fontSize:11,color:"var(--text-m)"}}>DSCR / ICR (stabilised)</span>
+                <span style={{fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>1.62× ✓ Above 1.25× covenant</span>
+              </div>
             </div>
           </div>
         </div>
@@ -554,19 +642,19 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {
                 name:"Starter",price:"£79",period:"/mo",
                 desc:"For independent developers and investors getting started.",
-                features:["Up to 5 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","Plain PDF export","Deal Pipeline & Tasks","Live share links","14-day free trial"],
+                features:["Up to 5 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","True monthly CF engine","DSCR / ICR & equity multiple","Plain PDF export","Deal Pipeline & Tasks","Live share links","14-day free trial"],
                 featured:false,cta:"Start Free Trial"
               },
               {
                 name:"Professional",price:"£199",period:"/mo",
                 desc:"For serious developers and investment teams.",
-                features:["Unlimited projects","All 4 asset types","Plain PDF export","Deal Pipeline & Tasks","Live share links","AI Brochure PDF","AI Sense Check","Priority support","14-day free trial"],
+                features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Team Workspace collaboration","AI Brochure PDF","AI Sense Check","Priority support","14-day free trial"],
                 featured:true,cta:"Start Free Trial"
               },
               {
                 name:"Enterprise",price:"£499",period:"/mo",
                 desc:"For PropTech firms, agencies and institutional teams.",
-                features:["Everything in Professional","Team collaboration","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],
+                features:["Everything in Professional","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],
                 featured:false,cta:"Start Free Trial"
               },
             ].map((plan,i)=>(
@@ -606,6 +694,10 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <div className="cta-btns" style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
             <button className="btn-primary" onClick={onLogin} style={{fontSize:15,padding:"15px 36px"}}>Start 14-Day Free Trial →</button>
             <button className="btn-ghost" onClick={()=>router.push("/pricing")} style={{fontSize:15,padding:"14px 28px"}}>View Pricing</button>
+            <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{fontSize:15,padding:"14px 28px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Book a Demo
+            </button>
           </div>
           <div style={{marginTop:32,fontSize:12,color:"var(--text-d)",display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
             {["No credit card required","Setup in 5 minutes","Full feature access","Cancel anytime"].map(t=>(
@@ -623,7 +715,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
 function LegalPage({title,lastUpdated,children,onLogin,onPage,scrolled}:any) {
   return (<div><Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="legal"/><div className="legal-content"><h1>{title}</h1><div className="meta">Last updated: {lastUpdated} · Valora Technologies Ltd · Registered in England & Wales</div>{children}</div><Footer onPage={onPage}/></div>);
 }
-
 function PrivacyContent(){return(<><p>Valora Technologies Ltd is committed to protecting your personal data. We collect account data (name, email, firm), appraisal data you create, anonymised usage data, and payment confirmation from Stripe. We do not store card details or use your appraisals to train AI models.</p><h2>Your Rights</h2><p>Under UK GDPR you have rights to access, correct, delete, and port your data. Contact <a href="mailto:privacy@valoraplatform.io">privacy@valoraplatform.io</a>.</p></>);}
 function TermsContent(){return(<><p>These Terms govern your use of the Valora platform. Subscriptions are billed monthly or annually. 14-day free trial on all plans. Cancel anytime. Prices exclude VAT. The platform and AI features provide information only — not financial advice. Governed by the laws of England and Wales.</p><p>Contact: <a href="mailto:legal@valoraplatform.io">legal@valoraplatform.io</a></p></>);}
 function CookiesContent(){return(<><p>We use essential cookies to keep you logged in and protect against CSRF. Analytics cookies are anonymised. Stripe sets cookies for payment security. Contact <a href="mailto:privacy@valoraplatform.io">privacy@valoraplatform.io</a> with questions.</p></>);}
@@ -635,7 +726,9 @@ function SupportPage({onLogin,onPage,scrolled}:any){
     {q:"How do I create my first appraisal?",a:"Click 'New Appraisal' from your dashboard, choose your asset type, select currency and benchmark rate, and follow the tabs. Most users complete their first appraisal in under 15 minutes."},
     {q:"Which currencies and benchmark rates are supported?",a:"GBP (SONIA), USD (SOFR), EUR (EURIBOR), AED (EIBOR), SGD (SORA), AUD (AONIA), JPY (TONA), CHF (SARON), CAD (CORRA), HKD (HONIA)."},
     {q:"Can I share appraisals with investors?",a:"Yes. From any appraisal click Share to generate a live link. Investors see the latest version without needing to log in."},
-    {q:"How does AI Sense Check work?",a:"It benchmarks your assumptions against market data — build costs, exit yields, LTC ratios, rents — and flags what a senior lender would challenge. Runs automatically as you type."},
+    {q:"How does the DSCR check work?",a:"DSCR and ICR are calculated automatically from your stabilised NOI (or EBITDA for hotels) against annual debt service on the peak loan balance. A flag appears in the Sense Check panel if DSCR drops below 1.25×."},
+    {q:"How does AI Sense Check work?",a:"It benchmarks your assumptions against market data — build costs, exit yields, LTC ratios, DSCR levels, rents — and flags what a senior lender would challenge. Runs automatically as you type."},
+    {q:"How does the Team Workspace work?",a:"Invite team members by email. Each project has a shared workspace with tasks, notes, activity feed and role-based permissions. All members see the live appraisal — no more emailing spreadsheet versions."},
     {q:"How does AI Brochure work?",a:"Upload up to 3 photos, click Generate — Claude AI writes a professional investment memo. Edit each section before downloading the PDF."},
     {q:"Can I cancel my subscription at any time?",a:"Yes. Cancel from account settings. Subscription remains active until end of current billing period."},
     {q:"Is my data secure?",a:"All data is encrypted in transit and at rest. Your appraisal data is never shared or used to train AI models."},
@@ -683,7 +776,6 @@ function Login({onBack}:any){
   const [loading,setLoading]=useState(false);
   const [success,setSuccess]=useState(false);
   const [errors,setErrors]=useState<any>({});
-
   const validate=()=>{ const e:any={}; if(!email||!email.includes("@"))e.email="Valid email required"; if(tab!=="reset"&&password.length<8)e.password="8+ characters required"; if(tab==="signup"&&!firm.trim())e.firm="Firm name required"; setErrors(e); return Object.keys(e).length===0; };
   const submit=async(ev:any)=>{
     ev.preventDefault(); if(!validate())return; setLoading(true);
@@ -691,7 +783,6 @@ function Login({onBack}:any){
     else if(tab==="signup"){const{error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,firm_name:firm}}}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
     else if(tab==="reset"){const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback`}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
   };
-
   return(
     <div className="login-wrap">
       <div className="login-left">
@@ -703,9 +794,9 @@ function Login({onBack}:any){
         <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",position:"relative",zIndex:1}}>
           <div className="badge" style={{marginBottom:20,width:"fit-content"}}>◆ Institutional Appraisal</div>
           <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(30px,3vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:20}}>Model with the<br/><em className="grad-text" style={{fontStyle:"italic"}}>precision of a<br/>trading floor</em></h2>
-          <p style={{fontSize:14,color:"var(--text-m)",lineHeight:1.8,maxWidth:360,marginBottom:40}}>Monthly cash flows against live benchmark curves. AI sense check. Branded investor brochures. Everything your deal team needs.</p>
+          <p style={{fontSize:14,color:"var(--text-m)",lineHeight:1.8,maxWidth:360,marginBottom:40}}>True monthly cash flows. DSCR checking. AI sense check. Team workspace. Branded investor brochures. Everything your deal team needs.</p>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {[{icon:"⟳",text:"Monthly CF Engine",sub:"SONIA / SOFR / EURIBOR forward curves"},{icon:"▦",text:"Sensitivity Matrices",sub:"45-scenario yield vs rent analysis"},{icon:"⬡",text:"AI Sense Check",sub:"Flags lender challenges automatically"},{icon:"⬛",text:"AI Investor Brochures",sub:"Branded PDF with live share links"}].map((item,i)=>(
+            {[{icon:"⟳",text:"True Monthly CF Engine",sub:"S-curve rolled interest on drawn balances"},{icon:"⊛",text:"DSCR / ICR & Equity Multiple",sub:"Institutional metrics, auto-flagged"},{icon:"⬡",text:"AI Sense Check",sub:"Flags lender challenges automatically"},{icon:"◫",text:"Team Workspace",sub:"Collaborate on live appraisals"}].map((item,i)=>(
               <div key={i} style={{display:"flex",gap:14,alignItems:"center",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"12px 16px"}}>
                 <div className="ficon" style={{width:36,height:36,borderRadius:8,margin:0,fontSize:14}}>{item.icon}</div>
                 <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:2}}>{item.text}</div><div style={{fontSize:11,color:"var(--text-d)"}}>{item.sub}</div></div>
