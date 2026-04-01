@@ -80,25 +80,35 @@ select.inp{cursor:pointer}
 .badge-amber{background:rgba(240,164,41,.1);color:var(--amber)}
 .panel-toggle{display:none;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--gold);font-family:var(--font-body);font-weight:600;user-select:none}
 .sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.editor-pad{padding:24px}
+@media(max-width:768px){.editor-pad{padding:16px 14px}.output-panel{padding:14px !important}}
 @media(max-width:768px){
+  .inp{padding:8px 10px;font-size:12px}
+  .inp-group{margin-bottom:10px}
   .inp-row{grid-template-columns:1fr}
   .inp-row-3{grid-template-columns:1fr 1fr}
+  .inp-label{font-size:9px;margin-bottom:3px}
   .unit-row{grid-template-columns:1fr 1fr 60px 28px;gap:4px}
   .unit-row .unit-gross{display:none}
   .editor-layout{grid-template-columns:1fr !important;display:flex !important;flex-direction:column !important}
   .output-panel{position:static !important;height:auto !important;border-left:none !important;border-top:1px solid var(--border) !important;order:2}
   .editor-main{order:1}
   .modal{width:calc(100vw - 20px) !important;padding:18px !important;max-height:88vh}
-  .share-btn{padding:10px 4px;min-width:0}
+  .share-btn{padding:8px 4px;min-width:0}
   .share-btn-label{font-size:8px}
   .share-btn svg{width:16px;height:16px}
   .sens-cell{padding:5px 2px;font-size:10px}
-  .tab{padding:8px 12px;font-size:11px}
-  .section-title{font-size:16px}
-  .waterfall-tier{padding:12px}
+  .tab{padding:7px 11px;font-size:11px}
+  .section-title{font-size:15px;margin-bottom:14px;padding-bottom:8px}
+  .waterfall-tier{padding:10px}
   .cf-row{grid-template-columns:40px repeat(4,1fr);font-size:10px}
   .cf-col-hide{display:none}
   .panel-toggle{display:flex !important}
+  .rev-stream-hdr{padding:10px 12px}
+  .rev-stream-body{padding:12px}
+  .output-row{padding:6px 0}
+  .output-label{font-size:11px}
+  .output-value{font-size:12px}
 }
 @media(max-width:480px){
   .inp-row-3{grid-template-columns:1fr}
@@ -1131,7 +1141,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
           <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",overflowX:"auto",padding:"0 16px"}}>
             {TABS.map(t=><button key={t} className={`tab ${activeTab===t?"active":""}`} onClick={()=>setActiveTab(t)}>{TAB_LABELS[t]}</button>)}
           </div>
-          <div style={{padding:24,overflowY:"auto",flex:1}}>
+          <div style={{padding:24,overflowY:"auto",flex:1}} className="editor-pad">
 
             {/* GENERAL */}
             {activeTab==="general"&&(
