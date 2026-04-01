@@ -81,7 +81,8 @@ select.inp{cursor:pointer}
 .panel-toggle{display:none;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--gold);font-family:var(--font-body);font-weight:600;user-select:none}
 .sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .editor-pad{padding:24px}
-@media(max-width:768px){.editor-pad{padding:16px 14px}.output-panel{padding:14px !important}}
+@media(max-width:768px){.editor-pad{padding:16px 14px}.output-panel{padding:14px !important}.name-inp{width:100px !important;font-size:11px !important}}
+@media(max-width:420px){.name-inp{display:none !important}}
 @media(max-width:768px){
   .inp{padding:8px 10px;font-size:12px}
   .inp-group{margin-bottom:10px}
@@ -1126,14 +1127,14 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
       </div>
 
       {/* Asset switcher */}
-      <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 16px",display:"flex",alignItems:"center",gap:6,height:46,overflowX:"auto",flexShrink:0}}>
-        <span style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginRight:4,flexShrink:0}}>Type:</span>
+      <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 12px",display:"flex",alignItems:"center",gap:5,height:42,overflowX:"auto",flexShrink:0}}>
+        <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginRight:2,flexShrink:0}}>Type:</span>
         {(["BTR","BTS","Hotel","Flip"] as AssetType[]).map(t=>(
-          <button key={t} onClick={()=>{if(appraisalId)return;switchAssetType(t);}} style={{padding:"4px 12px",borderRadius:6,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1,flexShrink:0,whiteSpace:"nowrap"}}>{t}</button>
+          <button key={t} onClick={()=>{if(appraisalId)return;switchAssetType(t);}} style={{padding:"3px 10px",borderRadius:5,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1,flexShrink:0,whiteSpace:"nowrap"}}>{t}</button>
         ))}
-        {appraisalId&&<span style={{fontSize:10,color:"var(--text-d)",marginLeft:2,flexShrink:0}}>· locked</span>}
-        <div style={{flex:1,minWidth:8}}/>
-        <input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Appraisal name…" style={{width:200,padding:"5px 10px",fontSize:12,flexShrink:1,minWidth:100}}/>
+        {appraisalId&&<span style={{fontSize:9,color:"var(--text-d)",flexShrink:0}}>· locked</span>}
+        <div style={{flex:1,minWidth:6}}/>
+        <input className="inp name-inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Name…" style={{padding:"4px 8px",fontSize:12,flexShrink:1,minWidth:0,width:120}}/>
       </div>
 
       <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
