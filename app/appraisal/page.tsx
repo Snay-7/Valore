@@ -985,7 +985,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
         exit_yield:num(String(data.exitYield||0))/100,land_cost:num(String(data.landCost||data.purchasePrice||0)),
         gdv:r.gdv||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:r.profit||0,
         profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,irr_levered:r.irrLevered||0,programme_months:num(String(data.programmMonths)),firm_id:null,
-        snapshot:{...data,assetType},
+        snapshot:{...data,assetType,moic:r.moic||0,dscr:isFinite(r.dscr)&&r.dscr!==Infinity?r.dscr:0},
       };
       let apprResult;
       if(appraisalId){
