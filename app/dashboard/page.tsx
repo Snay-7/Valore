@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
+const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -36,6 +38,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
 .btn-danger{background:transparent;color:var(--red);border:1px solid rgba(244,100,95,.3);border-radius:6px;padding:5px 10px;font-family:var(--font-body);font-size:11px;cursor:pointer;transition:all .2s}
 .btn-danger:hover{background:rgba(244,100,95,.1);border-color:var(--red)}
+.btn-demo{display:flex;align-items:center;gap:8px;background:transparent;color:var(--gold);border:1px solid var(--gold-border);border-radius:7px;padding:9px 16px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;width:100%;margin-bottom:2px}
+.btn-demo:hover{background:var(--gold-bg);border-color:var(--gold)}
 select.inp{cursor:pointer}
 .menu-btn{background:none;border:none;color:var(--text-d);cursor:pointer;padding:4px 8px;border-radius:4px;font-size:16px;line-height:1;transition:all .2s;position:relative;z-index:2}
 .menu-btn:hover{background:var(--bg4);color:var(--text)}
@@ -59,6 +63,7 @@ select.inp{cursor:pointer}
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.demo-banner{background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:10px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .sidebar{display:none}
@@ -115,7 +120,6 @@ export default function Dashboard() {
       await loadProjects(session.user.id);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
-      // Check if user belongs to a firm
       const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
       setHasFirm(!!memberRow);
     };
@@ -262,9 +266,7 @@ export default function Dashboard() {
             <>
               <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
               <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 12px", marginBottom: 8 }}>Team</div>
-              <button className="nav-item" onClick={() => router.push("/workspace")} style={{ color: "var(--gold)" }}>
-                ◈ Workspace
-              </button>
+              <button className="nav-item" onClick={() => router.push("/workspace")} style={{ color: "var(--gold)" }}>◈ Workspace</button>
               <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
             </>
           )}
@@ -288,9 +290,16 @@ export default function Dashboard() {
             </>
           )}
         </div>
-        <div style={{ padding: "16px 16px 20px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
-          <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
+        {/* Book a Demo — bottom of sidebar */}
+        <div style={{ padding: "12px 12px 0", borderTop: "1px solid var(--border)" }}>
+          <button className="btn-demo" onClick={() => window.open(CALENDLY, "_blank")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Book a Demo
+          </button>
+          <div style={{ padding: "12px 0 16px", borderTop: "none" }}>
+            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
+            <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
+          </div>
         </div>
       </div>
 
@@ -300,13 +309,16 @@ export default function Dashboard() {
         {/* Mobile top bar */}
         <div className="mobile-topbar">
           <div style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
-          <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 12 }}
-            onClick={() => {
-              if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
-              setShowNewModal(true);
-            }}>
-            + New
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn-ghost" style={{ padding: "7px 12px", fontSize: 11 }} onClick={() => window.open(CALENDLY, "_blank")}>Book Demo</button>
+            <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 12 }}
+              onClick={() => {
+                if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
+                setShowNewModal(true);
+              }}>
+              + New
+            </button>
+          </div>
         </div>
 
         {/* TRASH VIEW */}
@@ -369,7 +381,7 @@ export default function Dashboard() {
         {/* PORTFOLIO VIEW */}
         {view === "portfolio" && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
               <div>
                 <h1 style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, marginBottom: 6, letterSpacing: ".02em" }}>Portfolio</h1>
                 <p style={{ fontSize: 13, color: "var(--text-d)" }}>
@@ -398,10 +410,36 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Book a Demo banner — shown to free/starter users */}
+            {!isPro && projects.length > 0 && (
+              <div className="demo-banner">
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", marginBottom: 2 }}>Want a guided walkthrough?</div>
+                  <div style={{ fontSize: 12, color: "var(--text-m)" }}>Book a free 30-min demo with our team — we'll walk through your deals live.</div>
+                </div>
+                <button className="btn-primary" style={{ padding: "9px 20px", fontSize: 12, flexShrink: 0 }} onClick={() => window.open(CALENDLY, "_blank")}>
+                  📅 Book a Demo
+                </button>
+              </div>
+            )}
+
+            {/* Empty state with demo CTA */}
+            {projects.length === 0 && (
+              <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text-d)", marginBottom: 16 }}>◈</div>
+                <p style={{ fontSize: 16, color: "var(--text-d)", marginBottom: 8 }}>No projects yet</p>
+                <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 32 }}>Create your first appraisal or book a demo to get started.</p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="btn-primary" onClick={() => setShowNewModal(true)} style={{ padding: "14px 32px", fontSize: 14 }}>+ Create First Appraisal</button>
+                  <button className="btn-ghost" onClick={() => window.open(CALENDLY, "_blank")} style={{ padding: "13px 24px", fontSize: 14 }}>📅 Book a Demo</button>
+                </div>
+              </div>
+            )}
+
             {!isPro && totalProjectCount >= activeProjectLimit && (
               <div style={{ background: "rgba(240,164,41,.06)", border: "1px solid rgba(240,164,41,.2)", borderRadius: 10, padding: "12px 20px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div style={{ fontSize: 13, color: "var(--amber)" }}>
-                  You've reached your {activeProjectLimit}-project limit — including projects in Trash.
+                  You've reached your {activeProjectLimit}-project limit.
                 </div>
                 <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "7px 16px", fontSize: 12 }}>Upgrade →</button>
               </div>
@@ -424,24 +462,20 @@ export default function Dashboard() {
             )}
 
             {/* Filter tabs */}
-            <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
-              {["all", ...ASSET_TYPES].map(f => {
-                const count = f === "all" ? projects.length : projects.filter(p => p.asset_type === f).length;
-                return (
-                  <button key={f} onClick={() => setFilter(f)} style={{ padding: "10px 16px", fontSize: 12, background: "none", border: "none", borderBottom: `2px solid ${filter === f ? "var(--gold)" : "transparent"}`, color: filter === f ? "var(--gold)" : "var(--text-d)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .2s", textTransform: f === "all" ? "uppercase" : "none", letterSpacing: ".04em", whiteSpace: "nowrap", flexShrink: 0 }}>
-                    {f === "all" ? "ALL" : f} ({count})
-                  </button>
-                );
-              })}
-            </div>
-
-            {filteredProjects.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "80px 0" }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text-d)", marginBottom: 16 }}>◈</div>
-                <p style={{ fontSize: 16, color: "var(--text-d)", marginBottom: 24 }}>No projects yet</p>
-                <button className="btn-primary" onClick={() => setShowNewModal(true)} style={{ padding: "14px 32px", fontSize: 14 }}>+ Create First Appraisal</button>
+            {projects.length > 0 && (
+              <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
+                {["all", ...ASSET_TYPES].map(f => {
+                  const count = f === "all" ? projects.length : projects.filter(p => p.asset_type === f).length;
+                  return (
+                    <button key={f} onClick={() => setFilter(f)} style={{ padding: "10px 16px", fontSize: 12, background: "none", border: "none", borderBottom: `2px solid ${filter === f ? "var(--gold)" : "transparent"}`, color: filter === f ? "var(--gold)" : "var(--text-d)", cursor: "pointer", fontFamily: "var(--font-body)", transition: "all .2s", textTransform: f === "all" ? "uppercase" : "none", letterSpacing: ".04em", whiteSpace: "nowrap", flexShrink: 0 }}>
+                      {f === "all" ? "ALL" : f} ({count})
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
+            )}
+
+            {filteredProjects.length > 0 && (
               <div className="cards-grid">
                 {filteredProjects.map((p, i) => {
                   const latest = p.appraisals?.[0];
@@ -592,9 +626,9 @@ export default function Dashboard() {
           <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
           Tasks
         </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/team")}>
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
-          Team
+        <button className="bottom-nav-item" onClick={() => window.open(CALENDLY, "_blank")}>
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Demo
         </button>
       </nav>
 
