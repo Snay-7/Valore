@@ -225,8 +225,8 @@ const fmt=(n:number,prefix="£")=>{
   if(abs>=1e3)return`${prefix}${(n/1e3).toFixed(0)}k`;
   return`${prefix}${n.toFixed(0)}`;
 };
-const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${(n*100).toFixed(1)}%`);
-const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)?"—":`${n.toFixed(2)}×`);
+const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>100?"—":`${(n*100).toFixed(1)}%`);
+const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>1000?"—":`${n.toFixed(2)}×`);
 const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
 
 function calcHotelRev(d:any){
@@ -320,7 +320,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     lCfs[totalMonths-1]+=gdv-fin.peakLoanBalance;
 
     const irr=Math.pow(1+calcIRR(uCfs),12)-1;
-    const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
+    const rawIrrLBTR=equity>0?calcIRR(lCfs):0;
+    const irrLevered=equity>0&&isFinite(rawIrrLBTR)&&rawIrrLBTR>-1&&rawIrrLBTR<100?Math.pow(1+rawIrrLBTR,12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
     const breakEvenYield=findBreakEvenYield(noi,totalCost);
 
@@ -348,7 +349,11 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
     const contingency=buildCost*(num(String(data.contingencyPct))/100);
     const otherCosts=num(String(data.otherCosts));
-    const devCost=buildCost+profFees+contingency+otherCosts+agentFees+marketing;
+    // buildCosts = costs drawn during construction (go into loan base)
+    // sellCosts = agent fees + marketing (paid from sale proceeds, not financed)
+    const buildCosts=buildCost+profFees+contingency+otherCosts;
+    const sellCosts=agentFees+marketing;
+    const devCost=buildCosts+sellCosts;
 
     const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
     const ltcPct=num(String(data.ltc))/100;
@@ -356,8 +361,9 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const absMonths=Math.max(1,Math.round(num(String(data.absorptionMonths))));
     const totalMonths=buildMonths+absMonths;
 
+    // Loan base = land + build costs only (not agent/marketing — those come from sales)
     const fin=calcFinanceCostMonthly({
-      landCost,sdlt,buildCost,buildMonths,annualRate,ltcPct,
+      landCost,sdlt,buildCost:buildCosts,buildMonths,annualRate,ltcPct,
       arrangementFeePct:num(String(data.arrangementFeePct))/100,
       costProfile:data.costProfile??"scurve",
     });
@@ -371,7 +377,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
     const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
     const equityRatio=totalCost>0?equity/totalCost:1;
-    const salesPmGross=gdv/absMonths;
+    // Net sale proceeds per month = gross sales minus agent/marketing costs
+    const netSalesPm=(gdv-sellCosts)/absMonths;
     const loanRepayPm=fin.peakLoanBalance/absMonths;
 
     const uCfs:number[]=Array(totalMonths).fill(0);
@@ -381,7 +388,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
 
     for(let m=0;m<buildMonths;m++){
-      const devDraw=devCost*buildProfile[m];
+      const devDraw=buildCosts*buildProfile[m];
       uCfs[m]-=devDraw;
       lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);
     }
@@ -389,12 +396,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     for(let m=0;m<absMonths;m++){
       const idx=buildMonths+m;
       const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);
-      uCfs[idx]+=salesPmGross;
-      lCfs[idx]+=salesPmGross-loanRepayPm-(remainingLoan*annualRate)/12;
+      uCfs[idx]+=netSalesPm;
+      lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;
     }
 
-    const irr=Math.pow(1+calcIRR(uCfs),12)-1;
-    const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
+    const rawIrr=calcIRR(uCfs);
+    const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
+    const rawIrrL=equity>0?calcIRR(lCfs):0;
+    const irrLevered=equity>0&&isFinite(rawIrrL)&&rawIrrL>-1&&rawIrrL<100?Math.pow(1+rawIrrL,12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
     const breakEvenPsf=findBreakEvenSalePsf(
       units.map((u:any)=>({count:num(String(u.count)),size:num(String(u.size)),salePricePsf:num(String(u.salePricePsf))})),
