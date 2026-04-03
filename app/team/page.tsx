@@ -268,7 +268,7 @@ export default function TeamPage(){
         <span style={{fontSize:11,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{user?.email}</span>
       </nav>
 
-      <div className="main" style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
+      <div className="main" style={{maxWidth:720,margin:"0 auto",padding:"32px 24px",overflowX:"hidden"}}>
 
         {/* No firm */}
         {!firm&&(
