@@ -36,11 +36,10 @@ select.inp{cursor:pointer}
 .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;letter-spacing:.02em}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
 .modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:28px;width:480px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto}
-.role-card{flex:1;padding:12px 10px;borderRadius:8px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;text-align:center}
 @media(max-width:768px){
   .main{padding:16px !important}
-  .member-row{flex-wrap:wrap}
-  .member-actions{width:100%;justify-content:flex-start !important;margin-left:0 !important}
+  .member-row{flex-wrap:wrap;gap:10px}
+  .member-actions{width:100% !important;margin-left:0 !important}
   .page-header{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}
 }
 `;
@@ -60,11 +59,12 @@ const AVATAR_BG=[
 ];
 
 function initials(email:string){
+  if(!email)return"?";
   const p=email.split("@")[0].split(/[._-]/);
   return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():email.slice(0,2).toUpperCase();
 }
-function avColor(email:string){
-  let h=0;for(let i=0;i<email.length;i++)h=email.charCodeAt(i)+((h<<5)-h);
+function avColor(str:string){
+  let h=0;for(let i=0;i<str.length;i++)h=str.charCodeAt(i)+((h<<5)-h);
   return AVATAR_BG[Math.abs(h)%AVATAR_BG.length];
 }
 function fmtDate(d:string){return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"});}
@@ -74,8 +74,8 @@ export default function TeamPage(){
   const[user,setUser]=useState<any>(null);
   const[firm,setFirm]=useState<any>(null);
   const[members,setMembers]=useState<any[]>([]);
+  const[userProfiles,setUserProfiles]=useState<Record<string,string>>({});
   const[loading,setLoading]=useState(true);
-  const[error,setError]=useState<string|null>(null);
 
   // Invite
   const[showInvite,setShowInvite]=useState(false);
@@ -94,7 +94,7 @@ export default function TeamPage(){
   const[removeModal,setRemoveModal]=useState<any>(null);
   const[removing,setRemoving]=useState(false);
 
-  // Firm name edit
+  // Firm name
   const[editName,setEditName]=useState(false);
   const[nameVal,setNameVal]=useState("");
   const[savingName,setSavingName]=useState(false);
@@ -115,19 +115,38 @@ export default function TeamPage(){
   },[router]);
 
   const load=async(uid:string)=>{
-    setLoading(true);setError(null);
-    try{
-      const{data:mem}=await supabase.from("firm_members").select("*,firms(*)").eq("user_id",uid).maybeSingle();
-      if(mem?.firms){
-        const f=mem.firms as any;
-        setFirm(f);setNameVal(f.name||"");
-        const{data:all}=await supabase.from("firm_members").select("*").eq("firm_id",f.id).order("created_at",{ascending:true});
-        setMembers(all||[]);
-      }else{
-        setFirm(null);setMembers([]);
+    setLoading(true);
+    // Find firm membership for this user
+    const{data:myRow}=await supabase.from("firm_members").select("*,firms(*)").eq("user_id",uid).maybeSingle();
+    if(myRow?.firms){
+      const f=myRow.firms as any;
+      setFirm(f);setNameVal(f.name||"");
+      // Load all members
+      const{data:allMembers}=await supabase.from("firm_members").select("*").eq("firm_id",f.id).order("joined_at",{ascending:true});
+      setMembers(allMembers||[]);
+      // Load email addresses for all user_ids from auth.users via profiles or use email from member row
+      // Try to get emails from a profiles table if it exists
+      const uids=(allMembers||[]).map((m:any)=>m.user_id).filter(Boolean);
+      if(uids.length>0){
+        const{data:profiles}=await supabase.from("profiles").select("id,email").in("id",uids);
+        if(profiles){
+          const map:Record<string,string>={};
+          profiles.forEach((p:any)=>{if(p.id&&p.email)map[p.id]=p.email;});
+          setUserProfiles(map);
+        }
       }
-    }catch(e){setError("Failed to load team data");}
+    }else{
+      setFirm(null);setMembers([]);
+    }
     setLoading(false);
+  };
+
+  const getMemberEmail=(member:any):string=>{
+    // Try various sources for email
+    if(member.email)return member.email;
+    if(userProfiles[member.user_id])return userProfiles[member.user_id];
+    if(member.user_id===user?.id)return user.email||"—";
+    return member.user_id?.slice(0,8)+"…"||"—";
   };
 
   const createFirm=async()=>{
@@ -135,7 +154,7 @@ export default function TeamPage(){
     setCreating(true);
     const{data:f,error:fe}=await supabase.from("firms").insert({name:newFirmName.trim(),created_by:user.id}).select().single();
     if(fe||!f){setCreating(false);return;}
-    await supabase.from("firm_members").insert({firm_id:f.id,user_id:user.id,email:user.email,role:"admin",status:"active",invited_by:user.id});
+    await supabase.from("firm_members").insert({firm_id:f.id,user_id:user.id,role:"admin",invited_by:user.id});
     setCreating(false);setCreateModal(false);setNewFirmName("");
     await load(user.id);
   };
@@ -144,13 +163,22 @@ export default function TeamPage(){
     const email=inviteEmail.trim().toLowerCase();
     if(!email||!firm||!user)return;
     setInviting(true);setInviteErr(null);
-    if(members.find(m=>m.email.toLowerCase()===email)){
-      setInviteErr("This person is already in your team.");setInviting(false);return;
+    // Look up user by email to get their user_id
+    const{data:found}=await supabase.from("profiles").select("id,email").eq("email",email).maybeSingle();
+    if(!found){
+      // Insert with email stored directly — they can join later
+      const{error:ie}=await supabase.from("firm_members").insert({
+        firm_id:firm.id,user_id:null,email,role:inviteRole,invited_by:user.id,
+      });
+      if(ie){setInviteErr(ie.message||"Failed to send invite.");setInviting(false);return;}
+    }else{
+      // Check not already a member
+      if(members.find(m=>m.user_id===found.id)){setInviteErr("This person is already in your team.");setInviting(false);return;}
+      const{error:ie}=await supabase.from("firm_members").insert({
+        firm_id:firm.id,user_id:found.id,email,role:inviteRole,invited_by:user.id,
+      });
+      if(ie){setInviteErr(ie.message||"Failed to send invite.");setInviting(false);return;}
     }
-    const{error:ie}=await supabase.from("firm_members").insert({
-      firm_id:firm.id,email,role:inviteRole,status:"pending",invited_by:user.id,
-    });
-    if(ie){setInviteErr("Failed to send — please try again.");setInviting(false);return;}
     setInviteOk(true);
     await load(user.id);
     setTimeout(()=>{setInviteOk(false);setShowInvite(false);setInviteEmail("");setInviteRole("editor");},1600);
@@ -183,8 +211,6 @@ export default function TeamPage(){
 
   const myMember=members.find(m=>m.user_id===user?.id);
   const isAdmin=myMember?.role==="admin";
-  const active=members.filter(m=>m.status==="active");
-  const pending=members.filter(m=>m.status==="pending");
 
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
@@ -213,14 +239,12 @@ export default function TeamPage(){
 
       <div className="main" style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
 
-        {error&&<div style={{background:"rgba(244,100,95,.08)",border:"1px solid rgba(244,100,95,.25)",borderRadius:8,padding:"12px 16px",fontSize:13,color:"var(--red)",marginBottom:20}}>{error}</div>}
-
         {/* No firm */}
         {!firm&&(
           <div style={{textAlign:"center",padding:"80px 0"}}>
             <div style={{fontFamily:"var(--font-display)",fontSize:44,fontWeight:300,color:"var(--text-d)",marginBottom:16}}>◈</div>
             <h1 style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:300,marginBottom:8}}>No team workspace yet</h1>
-            <p style={{fontSize:13,color:"var(--text-d)",marginBottom:32,maxWidth:380,margin:"0 auto 32px"}}>Create a workspace to invite your team, assign roles and collaborate on deals.</p>
+            <p style={{fontSize:13,color:"var(--text-d)",marginBottom:32,maxWidth:360,margin:"0 auto 32px"}}>Create a workspace to invite your team, assign roles and collaborate on deals.</p>
             <button className="btn-primary" style={{padding:"12px 28px",fontSize:13}} onClick={()=>setCreateModal(true)}>+ Create Team Workspace</button>
           </div>
         )}
@@ -232,9 +256,9 @@ export default function TeamPage(){
             <div className="page-header" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28,gap:12}}>
               <div>
                 {editName?(
-                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
                     <input className="inp" value={nameVal} onChange={e=>setNameVal(e.target.value)}
-                      style={{fontSize:22,padding:"6px 12px",fontFamily:"var(--font-display)",fontWeight:300,width:260}}
+                      style={{fontSize:22,padding:"6px 12px",fontFamily:"var(--font-display)",fontWeight:300,width:240}}
                       onKeyDown={e=>{if(e.key==="Enter")saveName();if(e.key==="Escape"){setEditName(false);setNameVal(firm.name);}}}
                       autoFocus/>
                     <button className="btn-primary" onClick={saveName} disabled={savingName||!nameVal.trim()} style={{padding:"7px 14px",fontSize:12}}>{savingName?"Saving…":"Save"}</button>
@@ -242,52 +266,51 @@ export default function TeamPage(){
                   </div>
                 ):(
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-                    <h1 style={{fontFamily:"var(--font-display)",fontSize:30,fontWeight:300,letterSpacing:".02em"}}>{firm.name||"My Team"}</h1>
-                    {isAdmin&&(
-                      <button onClick={()=>setEditName(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-d)",cursor:"pointer",fontSize:11,fontFamily:"var(--font-body)",padding:"2px 8px",transition:"all .2s"}}
-                        onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold)";e.currentTarget.style.color="var(--gold)";}}
-                        onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-d)";}}>
-                        Rename
-                      </button>
-                    )}
+                    <h1 style={{fontFamily:"var(--font-display)",fontSize:30,fontWeight:300,letterSpacing:".02em",textTransform:"none"}}>{firm.name||"My Team"}</h1>
+                    <button onClick={()=>setEditName(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-d)",cursor:"pointer",fontSize:11,fontFamily:"var(--font-body)",padding:"2px 8px",transition:"all .2s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold)";e.currentTarget.style.color="var(--gold)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-d)";}}>
+                      Rename
+                    </button>
                   </div>
                 )}
-                <p style={{fontSize:12,color:"var(--text-d)"}}>
-                  {active.length} active member{active.length!==1?"s":""}
-                  {pending.length>0?` · ${pending.length} pending invite${pending.length!==1?"s":""}`:""}</p>
+                <p style={{fontSize:12,color:"var(--text-d)"}}>{members.length} member{members.length!==1?"s":""} · {isAdmin?"Admin":"Member"}</p>
               </div>
-              {isAdmin&&(
-                <button className="btn-primary" onClick={()=>{setShowInvite(true);setInviteErr(null);setInviteOk(false);setInviteEmail("");setInviteRole("editor");}}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-                  Invite Member
-                </button>
-              )}
+              <button className="btn-primary" onClick={()=>{setShowInvite(true);setInviteErr(null);setInviteOk(false);setInviteEmail("");setInviteRole("editor");}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                Invite Member
+              </button>
             </div>
 
-            {/* Active members */}
-            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"0 20px",marginBottom:16}}>
+            {/* Members list */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"0 20px",marginBottom:20}}>
               <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".09em",padding:"14px 0 12px",borderBottom:"1px solid var(--border)"}}>
-                Active Members ({active.length})
+                Team Members ({members.length})
               </div>
-              {active.length===0&&<div style={{textAlign:"center",padding:"28px 0",color:"var(--text-d)",fontSize:13}}>No active members yet — invite your team above</div>}
-              {active.map(m=>{
-                const ac=avColor(m.email||"");
+              {members.length===0&&(
+                <div style={{textAlign:"center",padding:"28px 0",color:"var(--text-d)",fontSize:13}}>No members yet — invite your team</div>
+              )}
+              {members.map(m=>{
+                const email=getMemberEmail(m);
+                const ac=avColor(email);
                 const role=ROLES.find(r=>r.id===m.role)||ROLES[1];
                 const isMe=m.user_id===user?.id;
                 return(
                   <div key={m.id} className="member-row">
-                    <div className="avatar" style={{background:ac.bg,color:ac.c}}>{initials(m.email||"?")}</div>
+                    <div className="avatar" style={{background:ac.bg,color:ac.c}}>{initials(email)}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                        <span style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.email}</span>
-                        {isMe&&<span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4}}>you</span>}
+                        <span style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{email}</span>
+                        {isMe&&<span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4,flexShrink:0}}>you</span>}
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginTop:5,flexWrap:"wrap"}}>
                         <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:role.bg,color:role.color}}>{role.label}</span>
-                        <span style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>Joined {fmtDate(m.created_at)}</span>
+                        <span style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>
+                          {m.joined_at?`Joined ${fmtDate(m.joined_at)}`:"Pending"}
+                        </span>
                       </div>
                     </div>
-                    {isAdmin&&!isMe&&(
+                    {!isMe&&(
                       <div className="member-actions" style={{display:"flex",gap:6,flexShrink:0,marginLeft:"auto"}}>
                         <button className="btn-ghost" style={{fontSize:11,padding:"5px 12px"}}
                           onClick={()=>{setRoleModal(m);setNewRole(m.role);}}>
@@ -301,40 +324,11 @@ export default function TeamPage(){
               })}
             </div>
 
-            {/* Pending invites */}
-            {pending.length>0&&(
-              <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"0 20px"}}>
-                <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".09em",padding:"14px 0 12px",borderBottom:"1px solid var(--border)"}}>
-                  Pending Invites ({pending.length})
-                </div>
-                {pending.map(m=>{
-                  const role=ROLES.find(r=>r.id===m.role)||ROLES[1];
-                  return(
-                    <div key={m.id} className="member-row" style={{opacity:.75}}>
-                      <div className="avatar" style={{background:"var(--bg4)",color:"var(--text-d)",fontSize:16}}>✉</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:13,color:"var(--text-m)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.email}</div>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
-                          <span style={{fontSize:9,padding:"2px 7px",borderRadius:4,fontWeight:500,background:"rgba(240,164,41,.1)",color:"var(--amber)"}}>Pending</span>
-                          <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:role.bg,color:role.color}}>{role.label}</span>
-                        </div>
-                      </div>
-                      {isAdmin&&(
-                        <div className="member-actions" style={{display:"flex",gap:6,flexShrink:0,marginLeft:"auto"}}>
-                          <button className="btn-danger" onClick={()=>setRemoveModal(m)}>Cancel Invite</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
             {/* Role guide */}
-            <div style={{display:"flex",gap:8,marginTop:20,flexWrap:"wrap"}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {ROLES.map(r=>(
-                <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,flex:1,minWidth:180}}>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:4,fontWeight:600,background:r.bg,color:r.color,flexShrink:0}}>{r.label}</span>
+                <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,flex:1,minWidth:180}}>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:r.bg,color:r.color,flexShrink:0}}>{r.label}</span>
                   <span style={{fontSize:11,color:"var(--text-d)"}}>{r.desc}</span>
                 </div>
               ))}
@@ -345,18 +339,17 @@ export default function TeamPage(){
 
       {/* ── INVITE MODAL ── */}
       {showInvite&&(
-        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget){setShowInvite(false);}}}>
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowInvite(false);}}>
           <div className="modal">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <div style={{fontFamily:"var(--font-display)",fontSize:24,fontWeight:300}}>Invite Member</div>
-              <button onClick={()=>setShowInvite(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1,padding:"0 2px"}}>×</button>
+              <button onClick={()=>setShowInvite(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
             </div>
-            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:22}}>Invite someone to join <strong style={{color:"var(--text)",fontWeight:500}}>{firm?.name}</strong> on Valora.</p>
-
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:22}}>Invite someone to join <strong style={{color:"var(--text)",fontWeight:500}}>{firm?.name}</strong>.</p>
             {inviteOk?(
-              <div style={{textAlign:"center",padding:"28px 0"}}>
-                <div style={{fontSize:36,marginBottom:8,color:"var(--green)"}}>✓</div>
-                <div style={{fontSize:14,color:"var(--green)",fontWeight:500}}>Invite sent successfully</div>
+              <div style={{textAlign:"center",padding:"32px 0"}}>
+                <div style={{fontSize:40,color:"var(--green)",marginBottom:8}}>✓</div>
+                <div style={{fontSize:14,color:"var(--green)",fontWeight:500}}>Member added successfully</div>
               </div>
             ):(
               <>
@@ -366,32 +359,23 @@ export default function TeamPage(){
                     value={inviteEmail} onChange={e=>{setInviteEmail(e.target.value);setInviteErr(null);}}
                     onKeyDown={e=>e.key==="Enter"&&sendInvite()} autoFocus/>
                 </div>
-
                 <div style={{marginBottom:20}}>
                   <label style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:10}}>Role</label>
                   <div style={{display:"flex",gap:8}}>
                     {ROLES.map(r=>(
                       <button key={r.id} onClick={()=>setInviteRole(r.id)}
                         style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${inviteRole===r.id?r.color+"88":"var(--border)"}`,background:inviteRole===r.id?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none"}}>
-                        <div style={{fontSize:11,fontWeight:600,color:inviteRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:4}}>{r.label}</div>
-                        <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.35}}>{r.desc}</div>
+                        <div style={{fontSize:11,fontWeight:600,color:inviteRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                        <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{r.desc}</div>
                       </button>
                     ))}
                   </div>
                 </div>
-
-                {inviteErr&&(
-                  <div style={{background:"rgba(244,100,95,.08)",border:"1px solid rgba(244,100,95,.25)",borderRadius:7,padding:"10px 14px",fontSize:12,color:"var(--red)",marginBottom:16}}>{inviteErr}</div>
-                )}
-
+                {inviteErr&&<div style={{background:"rgba(244,100,95,.08)",border:"1px solid rgba(244,100,95,.25)",borderRadius:7,padding:"10px 14px",fontSize:12,color:"var(--red)",marginBottom:14}}>{inviteErr}</div>}
                 <div style={{display:"flex",gap:8}}>
                   <button className="btn-ghost" onClick={()=>setShowInvite(false)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
-                  <button className="btn-primary" onClick={sendInvite}
-                    disabled={!inviteEmail.trim()||inviting}
-                    style={{flex:2,justifyContent:"center"}}>
-                    {inviting?(
-                      <><span style={{width:12,height:12,border:"1.5px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Sending…</>
-                    ):"Send Invite →"}
+                  <button className="btn-primary" onClick={sendInvite} disabled={!inviteEmail.trim()||inviting} style={{flex:2,justifyContent:"center"}}>
+                    {inviting?<><span style={{width:12,height:12,border:"1.5px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Adding…</>:"Add Member →"}
                   </button>
                 </div>
               </>
@@ -408,13 +392,13 @@ export default function TeamPage(){
               <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300}}>Change Role</div>
               <button onClick={()=>setRoleModal(null)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
             </div>
-            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:20}}>{roleModal.email}</p>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:20}}>{getMemberEmail(roleModal)}</p>
             <div style={{display:"flex",gap:8,marginBottom:20}}>
               {ROLES.map(r=>(
                 <button key={r.id} onClick={()=>setNewRole(r.id)}
                   style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${newRole===r.id?r.color+"88":"var(--border)"}`,background:newRole===r.id?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none"}}>
-                  <div style={{fontSize:11,fontWeight:600,color:newRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:4}}>{r.label}</div>
-                  <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.35}}>{r.desc}</div>
+                  <div style={{fontSize:11,fontWeight:600,color:newRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                  <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{r.desc}</div>
                 </button>
               ))}
             </div>
@@ -432,22 +416,14 @@ export default function TeamPage(){
       {removeModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setRemoveModal(null);}}>
           <div className="modal" style={{width:400}}>
-            <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,marginBottom:8,color:"var(--red)"}}>
-              {removeModal.status==="pending"?"Cancel Invite":"Remove Member"}
-            </div>
-            <p style={{fontSize:13,color:"var(--text-m)",marginBottom:6}}>
-              {removeModal.status==="pending"
-                ?`Cancel invite sent to ${removeModal.email}?`
-                :`Remove ${removeModal.email} from ${firm?.name}?`}
-            </p>
+            <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,marginBottom:8,color:"var(--red)"}}>Remove Member</div>
+            <p style={{fontSize:13,color:"var(--text-m)",marginBottom:6}}>Remove {getMemberEmail(removeModal)} from {firm?.name}?</p>
             <p style={{fontSize:12,color:"var(--text-d)",marginBottom:24}}>They will lose access to all shared projects immediately.</p>
             <div style={{display:"flex",gap:8}}>
               <button className="btn-ghost" onClick={()=>setRemoveModal(null)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
               <button onClick={removeMember} disabled={removing}
                 style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:7,padding:"9px 18px",fontFamily:"var(--font-body)",fontSize:13,fontWeight:600,cursor:"pointer",opacity:removing?.6:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                {removing?(
-                  <><span style={{width:12,height:12,border:"1.5px solid rgba(255,255,255,.4)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Removing…</>
-                ):removeModal.status==="pending"?"Cancel Invite":"Remove"}
+                {removing?<><span style={{width:12,height:12,border:"1.5px solid rgba(255,255,255,.4)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Removing…</>:"Remove"}
               </button>
             </div>
           </div>
