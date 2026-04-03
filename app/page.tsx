@@ -390,7 +390,7 @@ function BuiltForSection() {
             <h3 style={{fontFamily:"var(--font-display)",fontSize:"clamp(22px,2.5vw,34px)",fontWeight:300,lineHeight:1.15,marginBottom:18,color:"var(--text)"}}>{p.headline}</h3>
             <p style={{fontSize:14,color:"var(--text-m)",lineHeight:1.8,marginBottom:0}}>{p.desc}</p>
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:0,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,overflow:"hidden"}}>
+          <div style={{display:"flex",flexDirection:"column",paddingTop:8}}>
             {p.points.map(([icon,title,sub],j)=>(
               <div key={j} style={{display:"flex",gap:14,padding:"14px 0",borderBottom:j<p.points.length-1?"1px solid var(--border)":"none"}}>
                 <span style={{color:p.color,fontSize:8,marginTop:5,flexShrink:0}}>◆</span>
