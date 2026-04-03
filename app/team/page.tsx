@@ -257,7 +257,7 @@ export default function TeamPage(){
       <style>{CSS}</style>
 
       {/* Nav */}
-      <nav style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 20px",height:52,display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:40}}>
+      <nav style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 20px",height:52,display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:40,overflowX:"auto"
         <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",color:"var(--gold)",fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,cursor:"pointer",letterSpacing:".1em"}}>VALORA</button>
         <div style={{width:1,height:16,background:"var(--border)"}}/>
         <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{fontSize:11,padding:"4px 10px"}}>Dashboard</button>
