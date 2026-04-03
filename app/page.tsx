@@ -355,7 +355,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 </button>
               </div>
               <div className="fu" style={{display:"flex",gap:28,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
-                {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["14 days","Free trial"]].map(([v,l])=>(
+                {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["14 days","Enterprise trial"]].map(([v,l])=>(
                   <div key={l}><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:500,color:"var(--gold-l)"}}>{v}</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>{l}</div></div>
                 ))}
               </div>
@@ -587,9 +587,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,maxWidth:920,margin:"0 auto"}}>
             {[
-              {name:"Starter",price:"£79",period:"/mo",desc:"For independent developers and investors getting started.",features:["Up to 5 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","True monthly CF engine","DSCR / ICR & equity multiple","Plain PDF export","Deal Pipeline & Tasks","Live share links","14-day free trial"],featured:false,cta:"Start Free Trial"},
-              {name:"Professional",price:"£199",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Team Workspace collaboration","AI Brochure PDF","AI Sense Check","Priority support","14-day free trial"],featured:true,cta:"Start Free Trial"},
-              {name:"Enterprise",price:"£499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Professional","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Start Free Trial"},
+              {name:"Starter",price:"£79",period:"/mo",desc:"For independent developers and investors getting started.",features:["Up to 10 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","True monthly CF engine","DSCR / ICR & equity multiple","Deal Pipeline, Tasks & Notes","Live share links","Plain PDF export","14-day Enterprise trial included"],featured:false,cta:"Start Free Trial"},
+              {name:"Professional",price:"£199",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Invite Pro collaborators","AI Brochure PDF","AI Sense Check","Priority support","14-day Enterprise trial included"],featured:true,cta:"Start Free Trial"},
+              {name:"Enterprise",price:"£499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Professional","Full team workspace with roles","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Start Free Trial"},
             ].map((plan,i)=>(
               <div key={i} className={`price-card ${plan.featured?"featured":""}`}>
                 {plan.featured&&<div className="badge" style={{position:"absolute",top:18,right:18,fontSize:9}}>Most Popular</div>}
