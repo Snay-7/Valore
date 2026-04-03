@@ -139,7 +139,7 @@ const FEATURES = [
   { icon:"⬛", label:"AI Investor Brochures", desc:"Upload photos, generate a full investment memorandum with Claude AI. Branded PDF with live share links — investors always see the latest version.", tag:"AI" },
   { icon:"◫", label:"Team Workspace", desc:"Collaborate on appraisals with your team. Shared workspace with notes, tasks, activity feed and role-based permissions — everything linked to the deal.", tag:"Team" },
   { icon:"⊞", label:"Auto SDLT Calculator", desc:"Full UK SDLT banding — residential, commercial, mixed-use and SPV share deal modes. +3% surcharge toggle. Calculated automatically from purchase price.", tag:"Tax" },
-  { icon:"⊡", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline with tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion with your whole team.", tag:"PM" },
+  { icon:"⊡", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion.", tag:"PM" },
   { icon:"⬙", label:"IRR — Levered & Unlevered", desc:"True levered IRR using monthly equity cash flows with progressive loan repayment. Unlevered IRR includes the full stabilisation ramp — not a simplified endpoint model.", tag:"Returns" },
 ];
 
@@ -263,10 +263,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
         <div style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:300,color:"var(--gold)",letterSpacing:".1em",marginBottom:24,cursor:"pointer"}} onClick={()=>{setMenuOpen(false);onPage("landing")}}>VALORA</div>
         {isHome ? [["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["Support","support"],["Privacy","privacy"],["Terms","terms"]].map(([l,h])=>h.startsWith("#")?<a key={l} href={h} onClick={()=>setMenuOpen(false)}>{l}</a>:<a key={l} onClick={()=>{setMenuOpen(false);onPage(h)}}>{l}</a>) : <a onClick={()=>{setMenuOpen(false);onPage("landing")}}>← Home</a>}
         <div style={{marginTop:32,display:"flex",flexDirection:"column",gap:12}}>
-          <button className="btn-ghost" onClick={()=>{setMenuOpen(false);window.open(CALENDLY,"_blank")}} style={{justifyContent:"center",borderColor:"var(--gold-border)",color:"var(--gold)"}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Book a Demo
-          </button>
+          <button className="btn-ghost" onClick={()=>{setMenuOpen(false);window.open(CALENDLY,"_blank")}} style={{justifyContent:"center",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a Demo</button>
           <button className="btn-ghost" onClick={()=>{setMenuOpen(false);onLogin()}} style={{justifyContent:"center"}}>Sign In</button>
           <button className="btn-primary" onClick={()=>{setMenuOpen(false);onLogin()}} style={{justifyContent:"center"}}>Start Free Trial</button>
         </div>
@@ -311,6 +308,13 @@ export default function App() {
   const scrolled=useScrolled();
   const toLogin=useCallback(()=>{ setPage("login"); window.scrollTo(0,0); },[]);
   const toPage=useCallback((p:string)=>{ setPage(p); window.scrollTo(0,0); },[]);
+
+  // Auto-open login if invite link
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("invited")==="true") toLogin();
+  },[toLogin]);
+
   return (
     <>
       <style>{CSS}</style>
@@ -330,8 +334,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
   return (
     <div>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
-
-      {/* HERO */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
         <div className="glow" style={{width:800,height:600,top:"10%",left:"40%",background:"radial-gradient(ellipse,rgba(201,168,76,.06) 0%,transparent 65%)"}}/>
         <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
@@ -368,8 +370,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* TICKER */}
       <div className="ticker-wrap">
         <div className="ticker-inner">
           {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple (MOIC)","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Auto SDLT","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Break-even Analysis","Payback Period","Share Links"].map((item,i)=>(
@@ -377,8 +377,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           )))}
         </div>
       </div>
-
-      {/* STATS */}
       <section style={{padding:"70px 0",background:"var(--bg1)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="stats-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:0}}>
@@ -391,8 +389,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* FEATURES */}
       <section id="features" className="section">
         <div className="container">
           <div style={{textAlign:"center",marginBottom:70}}>
@@ -414,8 +410,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* WORKSPACE SECTION — NEW */}
       <section id="workspace" style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="workspace-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
@@ -424,14 +418,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:20}}>Your whole team,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one workspace</em></h2>
               <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:32}}>Invite your analysts, asset managers and JV partners into a shared workspace. Everyone works on the same live appraisal — no more emailing spreadsheet versions.</p>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                {[
-                  ["Shared appraisals","Every team member sees the live model, not a stale copy."],
-                  ["Role permissions","Viewer, editor, commenter and admin roles per project."],
-                  ["Notes & activity","Threaded notes and full activity log on every deal."],
-                  ["Task management","Assign tasks with due dates — linked directly to the deal."],
-                  ["Invite by email","Add team members instantly with a single email invite."],
-                  ["Multi-firm support","Separate workspaces for different firms or fund structures."],
-                ].map(([title,sub],i)=>(
+                {[["Shared appraisals","Every team member sees the live model, not a stale copy."],["Role permissions","Viewer, editor and admin roles per workspace."],["Notes & activity","Threaded notes and full activity log on every deal."],["Task management","Assign tasks with due dates — linked directly to the deal."],["Invite by email","Add team members instantly with a single email invite."],["Multi-firm support","Separate workspaces for different firms or fund structures."]].map(([title,sub],i)=>(
                   <div key={i} className="workspace-card">
                     <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:4}}>{title}</div>
                     <div style={{fontSize:12,color:"var(--text-d)",lineHeight:1.5}}>{sub}</div>
@@ -439,53 +426,32 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 ))}
               </div>
             </div>
-            {/* Workspace mock UI */}
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:20,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
-                <div>
-                  <div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>BTR · London W1 · 4 members</div>
-                </div>
-                <div style={{display:"flex",gap:-6}}>
+                <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>BTR · London W1 · 4 members</div></div>
+                <div style={{display:"flex"}}>
                   {["JH","PS","MA","SC"].map((ini,i)=>(
                     <div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>
                   ))}
                 </div>
               </div>
-              {/* Tabs */}
               <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:"1px solid var(--border)"}}>
                 {["Overview","Tasks","Notes","Activity"].map((t,i)=>(
                   <div key={t} style={{padding:"8px 14px",fontSize:11,color:i===1?"var(--gold)":"var(--text-d)",borderBottom:i===1?"2px solid var(--gold)":"2px solid transparent",cursor:"pointer"}}>{t}</div>
                 ))}
               </div>
-              {/* Tasks mock */}
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {[
-                  {task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},
-                  {task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},
-                  {task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},
-                  {task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"},
-                ].map((item,i)=>(
+                {[{task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},{task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},{task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},{task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"}].map((item,i)=>(
                   <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div>
-                      <div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div>
-                    </div>
+                    <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div></div>
                     <span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span>
                   </div>
                 ))}
-              </div>
-              <div style={{marginTop:12,padding:"10px 12px",background:"var(--bg3)",borderRadius:8,border:"1px dashed var(--border)"}}>
-                <div style={{fontSize:11,color:"var(--text-d)",display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{color:"var(--gold)"}}>+</span> Add task or note…
-                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      {/* PIPELINE */}
       <section style={{padding:"90px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="pipeline-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,alignItems:"flex-start",marginBottom:48}}>
@@ -508,8 +474,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* ASSET TYPES */}
       <section style={{padding:"90px 0"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:60}}>
@@ -533,8 +497,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* WHY VALORA */}
       <section id="why" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:72}}>
@@ -549,25 +511,17 @@ function Landing({onLogin,onPage,scrolled}:any) {
             ].map((card,i)=>(
               <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:32,display:"flex",flexDirection:"column",gap:20}}>
                 <div style={{width:44,height:44,borderRadius:11,background:card.color+"12",border:`1px solid ${card.color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:card.color}}>{card.icon}</div>
-                <div>
-                  <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:6}}>The Problem</div>
-                  <div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,color:"var(--text)",lineHeight:1.2}}>{card.problem}</div>
-                </div>
+                <div><div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:6}}>The Problem</div><div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,color:"var(--text)",lineHeight:1.2}}>{card.problem}</div></div>
                 <div style={{background:card.color+"08",border:`1px solid ${card.color}20`,borderRadius:10,padding:"14px 16px"}}>
                   <div style={{fontFamily:"var(--font-display)",fontSize:36,fontWeight:300,color:card.color,lineHeight:1,marginBottom:6}}>{card.stat}</div>
                   <div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.5}}>{card.statLabel}</div>
                 </div>
-                <div>
-                  <div style={{fontSize:10,color:"var(--green)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>The Valora Solution</div>
-                  <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.7}}>{card.solution}</p>
-                </div>
+                <div><div style={{fontSize:10,color:"var(--green)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>The Valora Solution</div><p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.7}}>{card.solution}</p></div>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      {/* FOR LENDERS */}
       <section id="lenders" style={{padding:"90px 0"}}>
         <div className="container">
           <div className="lender-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
@@ -601,8 +555,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* TESTIMONIALS */}
       <section style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:56}}>
@@ -626,37 +578,18 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
-      {/* PRICING */}
       <section id="pricing" style={{padding:"90px 0",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:60}}>
             <div className="badge" style={{marginBottom:20}}>Pricing</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,marginBottom:14}}>
-              Institutional-grade appraisals.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Without the enterprise price tag.</em>
-            </h2>
+            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,marginBottom:14}}>Institutional-grade appraisals.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Without the enterprise price tag.</em></h2>
             <p style={{fontSize:15,color:"var(--text-m)"}}>14-day free trial on all plans. No credit card required.</p>
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,maxWidth:920,margin:"0 auto"}}>
             {[
-              {
-                name:"Starter",price:"£79",period:"/mo",
-                desc:"For independent developers and investors getting started.",
-                features:["Up to 5 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","True monthly CF engine","DSCR / ICR & equity multiple","Plain PDF export","Deal Pipeline & Tasks","Live share links","14-day free trial"],
-                featured:false,cta:"Start Free Trial"
-              },
-              {
-                name:"Professional",price:"£199",period:"/mo",
-                desc:"For serious developers and investment teams.",
-                features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Team Workspace collaboration","AI Brochure PDF","AI Sense Check","Priority support","14-day free trial"],
-                featured:true,cta:"Start Free Trial"
-              },
-              {
-                name:"Enterprise",price:"£499",period:"/mo",
-                desc:"For PropTech firms, agencies and institutional teams.",
-                features:["Everything in Professional","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],
-                featured:false,cta:"Start Free Trial"
-              },
+              {name:"Starter",price:"£79",period:"/mo",desc:"For independent developers and investors getting started.",features:["Up to 5 active projects","All 4 asset types (BTR, BTS, Hotel, Flip)","True monthly CF engine","DSCR / ICR & equity multiple","Plain PDF export","Deal Pipeline & Tasks","Live share links","14-day free trial"],featured:false,cta:"Start Free Trial"},
+              {name:"Professional",price:"£199",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Team Workspace collaboration","AI Brochure PDF","AI Sense Check","Priority support","14-day free trial"],featured:true,cta:"Start Free Trial"},
+              {name:"Enterprise",price:"£499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Professional","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Start Free Trial"},
             ].map((plan,i)=>(
               <div key={i} className={`price-card ${plan.featured?"featured":""}`}>
                 {plan.featured&&<div className="badge" style={{position:"absolute",top:18,right:18,fontSize:9}}>Most Popular</div>}
@@ -683,8 +616,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <p style={{textAlign:"center",marginTop:28,fontSize:12,color:"var(--text-d)"}}>All prices exclude VAT. Annual billing available at 20% discount.</p>
         </div>
       </section>
-
-      {/* CTA */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",position:"relative",overflow:"hidden"}}>
         <div className="glow" style={{width:700,height:500,top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"radial-gradient(ellipse,rgba(201,168,76,.09) 0%,transparent 65%)"}}/>
         <div className="container" style={{textAlign:"center",position:"relative",zIndex:1}}>
@@ -706,7 +637,6 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-
       <Footer onPage={onPage}/>
     </div>
   );
@@ -776,6 +706,16 @@ function Login({onBack}:any){
   const [loading,setLoading]=useState(false);
   const [success,setSuccess]=useState(false);
   const [errors,setErrors]=useState<any>({});
+
+  // Pre-fill email if coming from invite link
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const inviteEmail=params.get("email");
+    const inviteFirm=params.get("firm");
+    if(inviteEmail)setEmail(decodeURIComponent(inviteEmail));
+    if(inviteFirm)setTab("signup");
+  },[]);
+
   const validate=()=>{ const e:any={}; if(!email||!email.includes("@"))e.email="Valid email required"; if(tab!=="reset"&&password.length<8)e.password="8+ characters required"; if(tab==="signup"&&!firm.trim())e.firm="Firm name required"; setErrors(e); return Object.keys(e).length===0; };
   const submit=async(ev:any)=>{
     ev.preventDefault(); if(!validate())return; setLoading(true);
@@ -783,6 +723,7 @@ function Login({onBack}:any){
     else if(tab==="signup"){const{error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,firm_name:firm}}}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
     else if(tab==="reset"){const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback`}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
   };
+
   return(
     <div className="login-wrap">
       <div className="login-left">
