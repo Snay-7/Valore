@@ -111,9 +111,13 @@ export default function Dashboard() {
   const [totalProjectCount, setTotalProjectCount] = useState(0);
   const [hasFirm, setHasFirm] = useState(false);
   const tier = subscription?.tier || "free";
-  const isPro = tier === "professional" || tier === "enterprise";
+  const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
+  const isTrialing = trialEndsAt && trialEndsAt > new Date();
+  const trialDaysLeft = isTrialing ? Math.ceil((trialEndsAt!.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+  const isEnterprise = tier === "enterprise" || isTrialing;
+  const isPro = tier === "professional" || isEnterprise;
   const isStarter = tier === "starter";
-  const activeProjectLimit = isPro ? Infinity : isStarter ? 5 : 3;
+  const activeProjectLimit = isPro ? Infinity : isStarter ? 10 : 3;
 
   useEffect(() => {
     const init = async () => {
@@ -272,7 +276,7 @@ export default function Dashboard() {
           <div style={{ fontFamily: "var(--font-display)", fontSize: 19, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn-ghost" style={{ padding: "6px 10px", fontSize: 11 }} onClick={() => window.open(CALENDLY, "_blank")}>Book Demo</button>
-            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => setShowNewModal(true)}>+ New</button>
+            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>+ New</button>
           </div>
         </div>
 
@@ -345,17 +349,28 @@ export default function Dashboard() {
               </div>
               <div className="page-header-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                 <button className="btn-primary" style={{ padding: "9px 20px", fontSize: 12 }}
-                  onClick={() => setShowNewModal(true)}>
+                  onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
                   + New Appraisal
                 </button>
                 {!isPro && (
                   <div style={{ fontSize: 11, color: "var(--text-d)" }}>
-                    {totalProjectCount}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit}
+                    {totalProjectCount}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit} projects
                     {totalProjectCount >= activeProjectLimit && <span style={{ color: "var(--amber)", marginLeft: 4, cursor: "pointer", textDecoration: "underline" }} onClick={() => router.push("/pricing")}>Upgrade</span>}
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Trial banner */}
+            {isTrialing && (
+              <div style={{ background:"rgba(201,168,76,.08)", border:"1px solid var(--gold-border)", borderRadius:10, padding:"12px 16px", marginBottom:18, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:"var(--gold)", marginBottom:1 }}>✦ Enterprise Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining</div>
+                  <div style={{ fontSize:11, color:"var(--text-m)" }}>Full access to all features. Upgrade before your trial ends.</div>
+                </div>
+                <button className="btn-primary" style={{ padding:"6px 14px", fontSize:11, flexShrink:0 }} onClick={() => router.push("/pricing")}>Upgrade Now</button>
+              </div>
+            )}
 
             {/* Demo banner */}
             {!isPro && projects.length > 0 && (
