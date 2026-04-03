@@ -543,7 +543,7 @@ export default function ProjectDetailPage() {
                       </div>
 
                       {/* Everyone option */}
-                      <label className="member-check" onClick={() => setNoteVisibility([])}>
+                      <label className="member-check">
                         <input
                           type="checkbox"
                           checked={noteVisibility.length === 0}
