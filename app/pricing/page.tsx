@@ -269,10 +269,10 @@ function PricingPage() {
         <div style={{ textAlign: "center", marginTop: 64 }}>
           <div style={{ display: "flex", justifyContent: "center", gap: 40, flexWrap: "wrap", marginBottom: 32 }}>
             {[
-              { icon: "🔒", text: "Secure payments via Stripe" },
-              { icon: "↩", text: "Cancel anytime, no lock-in" },
-              { icon: "🎁", text: "14-day free trial included" },
-              { icon: "🏛", text: "Institutional-grade security" },
+              { text: "Secure payments via Stripe" },
+              { text: "Cancel anytime, no lock-in" },
+              { text: "14-day free trial included" },
+              { text: "Institutional-grade security" },
             ].map(t => (
               <div key={t.text} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-d)" }}>
                 <span>{t.icon}</span><span>{t.text}</span>
