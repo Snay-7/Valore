@@ -556,7 +556,7 @@ export default function ProjectDetailPage() {
 
                       {/* Individual members */}
                       {otherMembers.map(m => (
-                        <label key={m.id} className="member-check" onClick={() => toggleMemberVisibility(m.user_id)}>
+                        <label key={m.id} className="member-check">
                           <input
                             type="checkbox"
                             checked={noteVisibility.length === 0 || noteVisibility.includes(m.user_id)}
