@@ -124,6 +124,22 @@ a{text-decoration:none;color:inherit}
   .asset-grid{grid-template-columns:1fr !important}
   .stats-grid{grid-template-columns:1fr !important}
 }
+@keyframes revealUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
+@keyframes revealLeft{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes revealRight{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
+.reveal{opacity:0;transition:none}.reveal.visible{animation:revealUp .7s cubic-bezier(.16,1,.3,1) forwards}
+.reveal-l{opacity:0}.reveal-l.visible{animation:revealLeft .7s cubic-bezier(.16,1,.3,1) forwards}
+.reveal-r{opacity:0}.reveal-r.visible{animation:revealRight .7s cubic-bezier(.16,1,.3,1) forwards}
+.card-feature{cursor:default}.card-feature:hover .ficon{transform:scale(1.1);transition:transform .25s}
+.price-card{transition:border-color .25s,transform .25s,box-shadow .25s}.price-card:hover{transform:translateY(-4px);box-shadow:0 24px 48px rgba(0,0,0,.4)}
+.price-card.featured:hover{box-shadow:0 24px 48px rgba(201,168,76,.15)}
+.persona-card{transition:border-color .25s,transform .25s,box-shadow .25s}
+.persona-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.demo-tab{transition:all .2s;cursor:pointer;border-bottom:2px solid transparent;padding:8px 16px;font-size:12px;color:var(--text-d);background:none;border-top:none;border-left:none;border-right:none;font-family:var(--font-body);white-space:nowrap}
+.demo-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.demo-tab:hover{color:var(--text)}
+.hero-mouse{transition:transform .1s ease-out}
 `;
 
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
@@ -303,11 +319,100 @@ function Footer({onPage}:any) {
   );
 }
 
+
+function WorkspaceDemo() {
+  const [activeTab, setActiveTab] = useState(0);
+  const tabs = ["Overview","Tasks","Notes","Activity"];
+  const taskData = [
+    {task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},
+    {task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},
+    {task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},
+    {task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"},
+  ];
+  const noteData = [
+    {note:"Lender confirmed they need DSCR above 1.3× — currently 1.62×, comfortable margin.",author:"JH",time:"2h ago"},
+    {note:"QS flagged potential 8% uplift on RC frame. Sensitivity run — still viable at 41% PoC.",author:"PS",time:"5h ago"},
+  ];
+  const overviewData = [
+    {label:"GDV",value:"£208.5m",color:"var(--gold)"},
+    {label:"Profit on Cost",value:"43.7%",color:"var(--green)"},
+    {label:"IRR (Unlev.)",value:"24.3%",color:"var(--blue)"},
+    {label:"DSCR / ICR",value:"1.62×",color:"var(--green)"},
+  ];
+  return (
+    <div>
+      <div style={{display:"flex",overflowX:"auto",marginBottom:16,borderBottom:"1px solid var(--border)"}}>
+        {tabs.map((t,i)=>(
+          <button key={t} className={`demo-tab ${activeTab===i?"active":""}`} onClick={()=>setActiveTab(i)}>{t}</button>
+        ))}
+      </div>
+      {activeTab===0&&(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {overviewData.map((item,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg3)",borderRadius:8}}>
+              <span style={{fontSize:12,color:"var(--text-m)"}}>{item.label}</span>
+              <span style={{fontSize:13,fontFamily:"var(--font-mono)",fontWeight:600,color:item.color}}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {activeTab===1&&(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {taskData.map((item,i)=>(
+            <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div>
+                <div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div>
+              </div>
+              <span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {activeTab===2&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {noteData.map((item,i)=>(
+            <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6,marginBottom:8}}>{item.note}</div>
+              <div style={{fontSize:10,color:"var(--text-d)"}}>{item.author} · {item.time}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {activeTab===3&&(
+        <div style={{display:"flex",flexDirection:"column",gap:0}}>
+          {[
+            {action:"Moved to Under Offer",user:"JH",time:"1h ago",icon:"→"},
+            {action:"Task completed: Send appraisal to lender",user:"MA",time:"3h ago",icon:"✓"},
+            {action:"Note added",user:"PS",time:"5h ago",icon:"◆"},
+            {action:"Exit yield updated 5.25% → 5.0%",user:"JH",time:"Yesterday",icon:"⟳"},
+          ].map((item,i)=>(
+            <div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bg4)"}}>
+              <div style={{width:26,height:26,borderRadius:"50%",background:"var(--bg4)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"var(--gold)",flexShrink:0}}>{item.icon}</div>
+              <div><div style={{fontSize:12,color:"var(--text-m)"}}>{item.action}</div><div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>{item.user} · {item.time}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [page,setPage]=useState("landing");
   const scrolled=useScrolled();
   const toLogin=useCallback(()=>{ setPage("login"); window.scrollTo(0,0); },[]);
   const toPage=useCallback((p:string)=>{ setPage(p); window.scrollTo(0,0); },[]);
+
+  // Scroll reveal observer
+  useEffect(()=>{
+    const obs=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("visible"); obs.unobserve(e.target); } });
+    },{threshold:0.12,rootMargin:"0px 0px -40px 0px"});
+    const els=document.querySelectorAll(".reveal,.reveal-l,.reveal-r");
+    els.forEach(el=>obs.observe(el));
+    return ()=>obs.disconnect();
+  },[page]);
 
   // Auto-open login if invite link
   useEffect(()=>{
@@ -340,7 +445,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         <div className="container" style={{position:"relative",zIndex:1}}>
           <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"55% 45%",gap:60,alignItems:"center"}}>
             <div>
-              <div className="fu" style={{marginBottom:22,animationDelay:".1s"}}><span className="badge">◆ Institutional Development Appraisal Platform</span></div>
+              <div className="fu" style={{marginBottom:22,animationDelay:".1s"}}><span className="badge">◆ Deal Intelligence Platform</span></div>
               <h1 className="fu" style={{fontFamily:"var(--font-display)",fontSize:"clamp(40px,5vw,68px)",fontWeight:300,lineHeight:1.06,marginBottom:20,letterSpacing:"-.01em",animationDelay:".2s"}}>
                 The deal intelligence platform<br/>for <em className="grad-text" style={{fontStyle:"italic"}}>property professionals</em>
               </h1>
@@ -398,7 +503,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
       </div>
       <section style={{padding:"70px 0",background:"var(--bg1)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
-          <div className="stats-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:0}}>
+          <div className="stats-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:0}}>
             {STATS.map((s,i)=>(
               <div key={i} style={{textAlign:"center",padding:"20px 0",borderLeft:i>0?"1px solid var(--border)":"none"}}>
                 <div style={{fontFamily:"var(--font-display)",fontSize:52,fontWeight:300,color:"var(--gold-l)",lineHeight:1}}><Counter target={s.value} prefix={s.prefix} suffix={s.suffix} dec={s.dec||0}/></div>
@@ -411,7 +516,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
       {/* Built For Section */}
       <section style={{padding:"80px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
-          <div style={{textAlign:"center",marginBottom:52}}>
+          <div className="reveal" style={{textAlign:"center",marginBottom:52}}>
             <div className="badge" style={{marginBottom:16}}>Built For</div>
             <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:14}}>One platform.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Every professional in the room.</em></h2>
             <p style={{fontSize:15,color:"var(--text-m)",maxWidth:500,margin:"0 auto",lineHeight:1.7}}>Valora is designed for every person who touches a development deal — not just the developer.</p>
@@ -443,14 +548,14 @@ function Landing({onLogin,onPage,scrolled}:any) {
 
       <section id="features" className="section">
         <div className="container">
-          <div style={{textAlign:"center",marginBottom:70}}>
+          <div className="reveal" style={{textAlign:"center",marginBottom:70}}>
             <div className="badge" style={{marginBottom:20}}>Platform Capabilities</div>
             <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(32px,4vw,52px)",fontWeight:300,lineHeight:1.1,marginBottom:18}}>Everything you need,<br/><em className="grad-text" style={{fontStyle:"italic"}}>precisely engineered</em></h2>
             <p style={{fontSize:16,color:"var(--text-m)",maxWidth:520,margin:"0 auto",lineHeight:1.7}}>Built from real institutional appraisal models. Every calculation validated against live deal flow across BTR, BTS, hotel and residential.</p>
           </div>
           <div className="features-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
             {FEATURES.map((f,i)=>(
-              <div key={i} className="card-feature">
+              <div key={i} className="card-feature reveal" style={{animationDelay:`${i*0.05}s`}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
                   <div className="ficon">{f.icon}</div>
                   <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"3px 9px",borderRadius:20,letterSpacing:".08em",textTransform:"uppercase",marginTop:2}}>{f.tag}</span>
@@ -487,19 +592,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
                   ))}
                 </div>
               </div>
-              <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:"1px solid var(--border)"}}>
-                {["Overview","Tasks","Notes","Activity"].map((t,i)=>(
-                  <div key={t} style={{padding:"8px 14px",fontSize:11,color:i===1?"var(--gold)":"var(--text-d)",borderBottom:i===1?"2px solid var(--gold)":"2px solid transparent",cursor:"pointer"}}>{t}</div>
-                ))}
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {[{task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},{task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},{task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},{task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"}].map((item,i)=>(
-                  <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                    <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div></div>
-                    <span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
+              <WorkspaceDemo/>
             </div>
           </div>
         </div>
@@ -615,7 +708,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
           <div className="testi-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
             {TESTIMONIALS.map((t,i)=>(
-              <div key={i} className="testi">
+              <div key={i} className="testi reveal" style={{animationDelay:`${i*0.07}s`}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div className="stars">{"★".repeat(t.stars)}</div>
                   <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"2px 8px",borderRadius:20,textTransform:"uppercase"}}>{t.tag}</span>
@@ -643,7 +736,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {name:"Professional",price:"£199",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Invite Pro collaborators","AI Brochure PDF","AI Sense Check","Priority support","14-day Enterprise trial included"],featured:true,cta:"Start Free Trial"},
               {name:"Enterprise",price:"£499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Professional","Full team workspace with roles","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Start Free Trial"},
             ].map((plan,i)=>(
-              <div key={i} className={`price-card ${plan.featured?"featured":""}`}>
+              <div key={i} className={`price-card ${plan.featured?"featured":""} reveal`} style={{animationDelay:`${i*0.1}s`}}>
                 {plan.featured&&<div className="badge" style={{position:"absolute",top:18,right:18,fontSize:9}}>Most Popular</div>}
                 <div style={{marginBottom:24}}>
                   <div style={{fontSize:13,fontWeight:500,color:"var(--text-m)",marginBottom:10}}>{plan.name}</div>
