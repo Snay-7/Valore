@@ -22,6 +22,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 @keyframes spin{to{transform:rotate(360deg)}}
 .btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:10px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
 .btn-primary:hover{background:var(--gold-l)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:8px 16px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
 .nav-item{width:100%;display:flex;align-items:center;padding:9px 12px;border-radius:7px;font-size:13px;color:var(--text-m);background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:left;margin-bottom:2px}
@@ -43,6 +44,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.member-check{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s}
+.member-check:hover{background:var(--bg4)}
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:flex}
@@ -86,6 +89,9 @@ export default function ProjectDetailPage() {
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  // visibility: empty array = everyone, otherwise specific user_ids
+  const [noteVisibility, setNoteVisibility] = useState<string[]>([]); // empty = everyone
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [activity, setActivity] = useState<any[]>([]);
 
   useEffect(() => {
@@ -133,12 +139,18 @@ export default function ProjectDetailPage() {
       }
       setTasks(taskData || []);
 
-      const { data: noteData } = await supabase
+      // Load notes visible to this user
+      const { data: allNotes } = await supabase
         .from("notes")
         .select("*")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
-      setNotes(noteData || []);
+
+      // Filter: show if visible_to is empty/null (everyone) OR user's id is in visible_to
+      const visibleNotes = (allNotes || []).filter(n =>
+        !n.visible_to || n.visible_to.length === 0 || n.visible_to.includes(u.id) || n.user_id === u.id
+      );
+      setNotes(visibleNotes);
 
       const { data: actData } = await supabase
         .from("activity_log")
@@ -152,8 +164,6 @@ export default function ProjectDetailPage() {
     init();
   }, [router, projectId]);
 
-
-
   const logActivity = async (action: string, details: any = {}) => {
     if (!user || !firm) return;
     await supabase.from("activity_log").insert({
@@ -164,20 +174,23 @@ export default function ProjectDetailPage() {
   };
 
   const refreshData = async () => {
-    console.log('refreshData isAdmin:', isAdmin, 'user:', user?.id);
     if (!user || !projectId) return;
     let t;
     if (isAdmin) {
-      const { data, error } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-      console.log("admin tasks:", data?.length, "error:", error);
-      t = [...(data || [])];
+      const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      t = data;
     } else {
       const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`).order("created_at", { ascending: false });
       t = data;
     }
     setTasks(t || []);
-    const { data: n } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-    setNotes(n || []);
+
+    const { data: allNotes } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+    const visibleNotes = (allNotes || []).filter(n =>
+      !n.visible_to || n.visible_to.length === 0 || n.visible_to.includes(user.id) || n.user_id === user.id
+    );
+    setNotes(visibleNotes);
+
     const { data: a } = await supabase.from("activity_log").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
     setActivity(a || []);
   };
@@ -185,7 +198,7 @@ export default function ProjectDetailPage() {
   const updateTaskStatus = async (taskId: string, status: string) => {
     if (status === "done") {
       const task = tasks.find(t => t.id === taskId);
-      const move = window.confirm(`Move "${task?.title}" to completed? Click OK to move it, Cancel to mark done but keep it here.`);
+      const move = window.confirm(`Move "${task?.title}" to completed?`);
       await supabase.from("tasks").update({ status: "done", completed: move }).eq("id", taskId);
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: "done", completed: move } : t));
       await logActivity("task_completed", { title: task?.title });
@@ -205,16 +218,14 @@ export default function ProjectDetailPage() {
     if (!newTask.trim() || !user) return;
     setAddingTask(true);
     const assignee = firmMembers.find(m => m.user_id === newTaskAssignee);
-    const { error: insertError } = await supabase.from("tasks").insert({
+    await supabase.from("tasks").insert({
       project_id: projectId, firm_id: firm?.id, title: newTask.trim(),
       assigned_to: newTaskAssignee || null, assigned_to_email: assignee?.email || null,
       priority: newTaskPriority, due_date: newTaskDue || null, due_time: newTaskTime || null,
       status: newTaskStatus, completed: false,
       created_by: user.id, created_by_email: user.email,
     });
-    console.log("insert error:", insertError);
-    const { data, error } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-    console.log("tasks after insert:", data, "error:", error);
+    const { data } = await supabase.from("tasks").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
     setTasks(data || []);
     await logActivity("task_created", { title: newTask.trim() });
     setNewTask(""); setNewTaskAssignee(""); setNewTaskPriority("medium"); setNewTaskDue(""); setNewTaskTime(""); setNewTaskStatus("not_started");
@@ -227,19 +238,52 @@ export default function ProjectDetailPage() {
     await logActivity(task.completed ? "task_reopened" : "task_completed", { title: task.title });
   };
 
+  const toggleMemberVisibility = (userId: string) => {
+    setNoteVisibility(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const visibilityLabel = () => {
+    if (noteVisibility.length === 0) return "Everyone can see this";
+    const names = noteVisibility.map(id => {
+      const m = firmMembers.find(m => m.user_id === id);
+      return m?.email?.split("@")[0] || "member";
+    });
+    return `Visible to: you + ${names.join(", ")}`;
+  };
+
   const addNote = async () => {
     if (!newNote.trim() || !user) return;
     setAddingNote(true);
-    await supabase.from("notes").insert({
-      project_id: projectId, firm_id: firm?.id, content: newNote.trim(),
-      created_by: user.id, created_by_email: user.email,
-    });
-    const { data } = await supabase.from("notes").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
-    setNotes(data || []);
+    const now = new Date().toISOString();
+    // visible_to: empty = everyone, otherwise specific user_ids (always include creator)
+    const visibleTo = noteVisibility.length > 0 ? [...noteVisibility, user.id] : [];
+    const { data: inserted } = await supabase.from("notes").insert({
+      project_id: projectId,
+      user_id: user.id,
+      body: newNote.trim(),
+      source: "workspace",
+      visible_to: visibleTo,
+      created_at: now,
+      updated_at: now,
+    }).select().single();
+
+    if (inserted) setNotes(prev => [inserted, ...prev]);
     await logActivity("note_added", { preview: newNote.trim().slice(0, 60) });
     setNewNote("");
+    setNoteVisibility([]);
+    setVisibilityOpen(false);
     setAddingNote(false);
   };
+
+  const deleteNote = async (noteId: string, creatorId: string) => {
+    if (creatorId !== user?.id && !isAdmin) return;
+    await supabase.from("notes").delete().eq("id", noteId);
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+  };
+
+  const otherMembers = firmMembers.filter(m => m.user_id !== user?.id);
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -321,10 +365,12 @@ export default function ProjectDetailPage() {
           {(["overview","tasks","notes","activity"] as const).map(t => (
             <button key={t} className={`tab${tab===t?" active":""}`} onClick={() => { setTab(t); refreshData(); }}>
               {t.charAt(0).toUpperCase()+t.slice(1)}
+              {t === "notes" && notes.length > 0 && <span style={{ marginLeft:6, fontSize:10, color:"var(--text-d)", fontFamily:"var(--font-mono)" }}>({notes.length})</span>}
             </button>
           ))}
         </div>
 
+        {/* OVERVIEW */}
         {tab === "overview" && (
           <div style={{ animation:"fadeIn .3s ease" }}>
             {latest ? (
@@ -376,6 +422,7 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* TASKS */}
         {tab === "tasks" && (
           <div style={{ animation:"fadeIn .3s ease" }}>
             <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
@@ -410,102 +457,172 @@ export default function ProjectDetailPage() {
               <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-d)", fontSize:14 }}>No tasks yet.</div>
             ) : (
             <>
-            {tasks.filter(t => !t.completed).map(t => (
-              <div key={t.id} className="task-row" style={{ borderLeft:`3px solid ${
-                t.due_date && new Date(t.due_date) < new Date() ? "var(--red)" :
-                t.status==="working_on_it" ? "var(--blue)" :
-                t.status==="stuck" ? "var(--red)" :
-                t.status==="pending" ? "var(--amber)" :
-                "var(--border)"
-              }`, paddingLeft:14 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, color:"var(--text)", fontWeight:500, marginBottom:4 }}>{t.title}</div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                    <span style={{ fontSize:11, color:"var(--text-d)" }}>👤 {t.created_by_email || "Unknown"}</span>
-                    {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-m)" }}>→ {t.assigned_to_email}</span>}
-                    {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
-                    <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em", background:"var(--bg3)", padding:"1px 7px", borderRadius:8 }}>{t.priority}</span>
-                  </div>
-                </div>
-                <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-                  {canEdit ? (
-                    <select
-                      value={t.status || "not_started"}
-                      onChange={e => updateTaskStatus(t.id, e.target.value)}
-                      style={{ 
-                        background: t.status==="working_on_it" ? "rgba(91,156,246,.15)" : t.status==="stuck" ? "rgba(244,100,95,.15)" : t.status==="pending" ? "rgba(240,164,41,.15)" : "var(--bg3)",
-                        border: `1px solid ${t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--border)"}`,
-                        borderRadius:8, padding:"5px 10px",
-                        color: t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--text-m)",
-                        fontFamily:"var(--font-body)", fontSize:12, cursor:"pointer", fontWeight:500
-                      }}
-                    >
-                      <option value="not_started">Not Started</option>
-                      <option value="working_on_it">Working on it</option>
-                      <option value="pending">Pending</option>
-                      <option value="stuck">Stuck</option>
-                      <option value="done">Done</option>
-                    </select>
-                  ) : (
-                    <span style={{ fontSize:11, color:"var(--text-d)" }}>{t.status||"not started"}</span>
-                  )}
-                  {canEdit && t.status === "done" && !t.completed && (
-                    <button onClick={async () => {
-                      await supabase.from("tasks").update({ completed: true }).eq("id", t.id);
-                      setTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: true } : x));
-                    }} style={{ background:"rgba(61,220,132,.1)", border:"1px solid rgba(61,220,132,.3)", borderRadius:5, color:"var(--green)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>↓ Move to Completed</button>
-                  )}
-                  {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>Delete</button>}
-                </div>
-              </div>
-            ))}
-            {tasks.filter(t => t.completed).length > 0 && (
-              <div style={{ marginTop:32 }}>
-                <div style={{ fontSize:11, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", marginBottom:12, padding:"0 4px" }}>
-                  ✓ Completed ({tasks.filter(t => t.completed).length})
-                </div>
-                {tasks.filter(t => t.completed).map(t => (
-                  <div key={t.id} className="task-row" style={{ opacity:0.4 }}>
-                    <input type="checkbox" checked={true} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, textDecoration:"line-through", color:"var(--text-d)" }}>{t.title}</div>
+              {tasks.filter(t => !t.completed).map(t => (
+                <div key={t.id} className="task-row" style={{ borderLeft:`3px solid ${
+                  t.due_date && new Date(t.due_date) < new Date() ? "var(--red)" :
+                  t.status==="working_on_it" ? "var(--blue)" :
+                  t.status==="stuck" ? "var(--red)" :
+                  t.status==="pending" ? "var(--amber)" : "var(--border)"
+                }`, paddingLeft:14 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, color:"var(--text)", fontWeight:500, marginBottom:4 }}>{t.title}</div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ fontSize:11, color:"var(--text-d)" }}>👤 {t.created_by_email || "Unknown"}</span>
+                      {t.assigned_to_email&&<span style={{ fontSize:11, color:"var(--text-m)" }}>→ {t.assigned_to_email}</span>}
+                      {t.due_date&&<span style={{ fontSize:11, color: new Date(t.due_date) < new Date() ? "var(--red)" : "var(--text-d)", fontFamily:"var(--font-mono)" }}>📅 {new Date(t.due_date).toLocaleDateString("en-GB")}{t.due_time ? ` ${t.due_time}` : ""}</span>}
+                      <span style={{ fontSize:10, color:t.priority==="high"||t.priority==="urgent"?"var(--red)":t.priority==="medium"?"var(--amber)":"var(--text-d)", textTransform:"uppercase", letterSpacing:".06em", background:"var(--bg3)", padding:"1px 7px", borderRadius:8 }}>{t.priority}</span>
                     </div>
-                    <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:"rgba(61,220,132,.1)", color:"var(--green)", fontWeight:500 }}>Completed</span>
-                    {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:14, padding:"0 4px" }} title="Delete permanently">×</button>}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+                    {canEdit ? (
+                      <select value={t.status || "not_started"} onChange={e => updateTaskStatus(t.id, e.target.value)}
+                        style={{ background: t.status==="working_on_it" ? "rgba(91,156,246,.15)" : t.status==="stuck" ? "rgba(244,100,95,.15)" : t.status==="pending" ? "rgba(240,164,41,.15)" : "var(--bg3)", border: `1px solid ${t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--border)"}`, borderRadius:8, padding:"5px 10px", color: t.status==="working_on_it" ? "var(--blue)" : t.status==="stuck" ? "var(--red)" : t.status==="pending" ? "var(--amber)" : "var(--text-m)", fontFamily:"var(--font-body)", fontSize:12, cursor:"pointer", fontWeight:500 }}>
+                        <option value="not_started">Not Started</option>
+                        <option value="working_on_it">Working on it</option>
+                        <option value="pending">Pending</option>
+                        <option value="stuck">Stuck</option>
+                        <option value="done">Done</option>
+                      </select>
+                    ) : (
+                      <span style={{ fontSize:11, color:"var(--text-d)" }}>{t.status||"not started"}</span>
+                    )}
+                    {canEdit && t.status === "done" && !t.completed && (
+                      <button onClick={async () => { await supabase.from("tasks").update({ completed: true }).eq("id", t.id); setTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: true } : x)); }}
+                        style={{ background:"rgba(61,220,132,.1)", border:"1px solid rgba(61,220,132,.3)", borderRadius:5, color:"var(--green)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>↓ Move to Completed</button>
+                    )}
+                    {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"1px solid rgba(244,100,95,.3)", borderRadius:5, color:"var(--red)", cursor:"pointer", fontSize:11, padding:"4px 8px" }}>Delete</button>}
+                  </div>
+                </div>
+              ))}
+              {tasks.filter(t => t.completed).length > 0 && (
+                <div style={{ marginTop:32 }}>
+                  <div style={{ fontSize:11, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", marginBottom:12, padding:"0 4px" }}>
+                    ✓ Completed ({tasks.filter(t => t.completed).length})
+                  </div>
+                  {tasks.filter(t => t.completed).map(t => (
+                    <div key={t.id} className="task-row" style={{ opacity:0.4 }}>
+                      <input type="checkbox" checked={true} onChange={()=>toggleTask(t)} style={{ accentColor:"#c9a84c", width:16, height:16, flexShrink:0, cursor:"pointer" }} />
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, textDecoration:"line-through", color:"var(--text-d)" }}>{t.title}</div>
+                      </div>
+                      <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:"rgba(61,220,132,.1)", color:"var(--green)", fontWeight:500 }}>Completed</span>
+                      {canEdit && <button onClick={()=>deleteTask(t.id)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:14, padding:"0 4px" }}>×</button>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
             )}
           </div>
         )}
 
+        {/* NOTES */}
         {tab === "notes" && (
           <div style={{ animation:"fadeIn .3s ease" }}>
             {canEdit && (
-              <div style={{ marginBottom:24 }}>
-                <textarea className="input" rows={3} placeholder="Add a note or comment…" value={newNote} onChange={e=>setNewNote(e.target.value)} style={{ resize:"vertical", marginBottom:10 }} />
-                <button className="btn-primary" onClick={addNote} disabled={addingNote||!newNote.trim()}>{addingNote?"Saving…":"Add Note"}</button>
+              <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:10, padding:20, marginBottom:24 }}>
+                <textarea className="input" rows={3} placeholder="Add a note or comment…" value={newNote} onChange={e=>setNewNote(e.target.value)} style={{ resize:"vertical", marginBottom:14 }} />
+
+                {/* Visibility selector */}
+                <div style={{ marginBottom:14 }}>
+                  <button
+                    onClick={() => setVisibilityOpen(o => !o)}
+                    style={{ background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:7, padding:"7px 12px", color:"var(--text-m)", fontSize:12, cursor:"pointer", fontFamily:"var(--font-body)", display:"flex", alignItems:"center", gap:8, transition:"border-color .2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--gold)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    {visibilityLabel()}
+                    <span style={{ marginLeft:"auto", fontSize:10 }}>{visibilityOpen ? "▲" : "▼"}</span>
+                  </button>
+
+                  {visibilityOpen && (
+                    <div style={{ background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:8, padding:"8px 4px", marginTop:6 }}>
+                      <div style={{ fontSize:10, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".08em", padding:"4px 10px 8px" }}>
+                        Who can see this note? (all ticked = everyone)
+                      </div>
+
+                      {/* Everyone option */}
+                      <label className="member-check" onClick={() => setNoteVisibility([])}>
+                        <input
+                          type="checkbox"
+                          checked={noteVisibility.length === 0}
+                          onChange={() => setNoteVisibility([])}
+                          style={{ accentColor:"var(--gold)", width:14, height:14 }}
+                        />
+                        <div style={{ width:26, height:26, borderRadius:"50%", background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, color:"var(--gold)", fontWeight:600 }}>✦</div>
+                        <span style={{ fontSize:12, color:"var(--text)" }}>Everyone on this project</span>
+                      </label>
+
+                      {/* Individual members */}
+                      {otherMembers.map(m => (
+                        <label key={m.id} className="member-check" onClick={() => toggleMemberVisibility(m.user_id)}>
+                          <input
+                            type="checkbox"
+                            checked={noteVisibility.length === 0 || noteVisibility.includes(m.user_id)}
+                            onChange={() => {
+                              if (noteVisibility.length === 0) {
+                                // switching from "everyone" to specific — pre-select all others except this one
+                                setNoteVisibility(otherMembers.filter(x => x.user_id !== m.user_id).map(x => x.user_id));
+                              } else {
+                                toggleMemberVisibility(m.user_id);
+                              }
+                            }}
+                            style={{ accentColor:"var(--gold)", width:14, height:14 }}
+                          />
+                          <div style={{ width:26, height:26, borderRadius:"50%", background:"var(--bg4)", border:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, color:"var(--text-m)", fontWeight:600 }}>
+                            {(m.email || m.role || "?")[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <span style={{ fontSize:12, color:"var(--text)" }}>{m.email || "Team member"}</span>
+                            <span style={{ fontSize:10, color:"var(--text-d)", marginLeft:6 }}>{m.role}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button className="btn-primary" onClick={addNote} disabled={addingNote||!newNote.trim()}>
+                  {addingNote ? "Saving…" : "Add Note"}
+                </button>
               </div>
             )}
-            {notes.length===0 ? (
-              <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-d)", fontSize:14 }}>No notes yet.</div>
-            ) : notes.map(n => (
-              <div key={n.id} className="note-row">
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                  <div className="avatar">{(n.created_by_email||"?")[0].toUpperCase()}</div>
-                  <div>
-                    <div style={{ fontSize:12, color:"var(--text-m)" }}>{n.created_by_email||"Unknown"}</div>
-                    <div style={{ fontSize:11, color:"var(--text-d)" }}>{new Date(n.created_at).toLocaleString("en-GB")}</div>
+
+            {notes.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-d)", fontSize:14 }}>No notes visible to you yet.</div>
+            ) : notes.map(n => {
+              const isRestricted = n.visible_to && n.visible_to.length > 0;
+              const canDelete = n.user_id === user?.id || isAdmin;
+              return (
+                <div key={n.id} className="note-row" style={{ borderLeft: isRestricted ? "3px solid var(--amber)" : "3px solid var(--border)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, justifyContent:"space-between" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div className="avatar">{(user?.email||"?")[0].toUpperCase()}</div>
+                      <div>
+                        <div style={{ fontSize:12, color:"var(--text-m)" }}>{user?.email}</div>
+                        <div style={{ fontSize:11, color:"var(--text-d)" }}>{new Date(n.created_at).toLocaleString("en-GB")}</div>
+                      </div>
+                      {isRestricted && (
+                        <span style={{ fontSize:9, color:"var(--amber)", background:"rgba(240,164,41,.1)", padding:"2px 7px", borderRadius:4, border:"1px solid rgba(240,164,41,.2)" }}>
+                          🔒 Restricted
+                        </span>
+                      )}
+                    </div>
+                    {canDelete && (
+                      <button onClick={() => deleteNote(n.id, n.user_id)} style={{ background:"none", border:"none", color:"var(--text-d)", cursor:"pointer", fontSize:16, padding:"0 4px" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "var(--text-d)")}>×</button>
+                    )}
                   </div>
+                  <div style={{ fontSize:13, color:"var(--text)", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{n.body}</div>
                 </div>
-                <div style={{ fontSize:13, color:"var(--text)", lineHeight:1.6 }}>{n.content}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
+        {/* ACTIVITY */}
         {tab === "activity" && (
           <div style={{ animation:"fadeIn .3s ease" }}>
             {activity.length===0 ? (
@@ -526,4 +643,3 @@ export default function ProjectDetailPage() {
     </div>
   );
 }
-// force redeploy Tue 31 Mar 2026 18:54:23 BST
