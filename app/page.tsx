@@ -454,8 +454,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
               </p>
               {/* Who it's for */}
               <div className="fu" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:32,animationDelay:".35s"}}>
-                {[["🏗","Developers"],["🏦","Lenders & Banks"],["💼","Investment Managers"],["📐","Valuers & Surveyors"]].map(([icon,label])=>(
-                  <span key={label} style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:20,padding:"5px 12px",fontSize:12,color:"var(--text-m)"}}>{icon} {label}</span>
+                {[["◈","Developers"],["◎","Lenders & Banks"],["◉","Investment Managers"],["◫","Valuers & Surveyors"]].map(([icon,label])=>(
+                  <span key={label} style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border-m)",borderRadius:20,padding:"6px 14px",fontSize:12,color:"var(--text-m)",letterSpacing:".02em"}}><span style={{color:"var(--gold)",fontSize:11,fontWeight:300}}>{icon}</span>{label}</span>
                 ))}
               </div>
               {/* 3 benefit statements */}
@@ -530,8 +530,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {icon:"🤝",title:"JV Partners & Equity",color:"var(--gold)",points:["3-tier promote waterfall with configurable IRR hurdles","Visual distribution split across all tiers","Scenario-aware — updates as assumptions change","Shared workspace for transparent deal review","Live investor portal — no stale email attachments"]},
               {icon:"🏢",title:"Asset Managers",color:"var(--blue)",points:["Track live developments across your portfolio","Tasks and notes linked directly to each deal","Activity feed logs every update and stage move","Role-based access — control what your team sees","Multi-firm workspace for complex structures"]},
             ].map((persona,i)=>(
-              <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,padding:26,transition:"border-color .25s,transform .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=persona.color+"55";e.currentTarget.style.transform="translateY(-2px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="none"}}>
-                <div style={{fontSize:28,marginBottom:12}}>{persona.icon}</div>
+              <div key={i} className="persona-card reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,padding:26,animationDelay:`${i*0.08}s`}}>
+                <div style={{width:40,height:40,borderRadius:10,background:persona.color+"14",border:`1px solid ${persona.color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:persona.color,marginBottom:14,fontWeight:300}}>{persona.icon}</div>
                 <div style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:500,color:"var(--text)",marginBottom:14}}>{persona.title}</div>
                 <ul style={{listStyle:"none",display:"flex",flexDirection:"column",gap:8}}>
                   {persona.points.map((p,j)=>(
