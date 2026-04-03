@@ -163,22 +163,42 @@ export default function TeamPage(){
     const email=inviteEmail.trim().toLowerCase();
     if(!email||!firm||!user)return;
     setInviting(true);setInviteErr(null);
-    // Look up user by email to get their user_id
-    const{data:found}=await supabase.from("profiles").select("id,email").eq("email",email).maybeSingle();
-    if(!found){
-      // Insert with email stored directly — they can join later
-      const{error:ie}=await supabase.from("firm_members").insert({
-        firm_id:firm.id,user_id:null,email,role:inviteRole,invited_by:user.id,
-      });
-      if(ie){setInviteErr(ie.message||"Failed to send invite.");setInviting(false);return;}
-    }else{
-      // Check not already a member
-      if(members.find(m=>m.user_id===found.id)){setInviteErr("This person is already in your team.");setInviting(false);return;}
-      const{error:ie}=await supabase.from("firm_members").insert({
-        firm_id:firm.id,user_id:found.id,email,role:inviteRole,invited_by:user.id,
-      });
-      if(ie){setInviteErr(ie.message||"Failed to send invite.");setInviting(false);return;}
+
+    // Check not already a member
+    if(members.find(m=>m.email?.toLowerCase()===email)){
+      setInviteErr("This person is already in your team.");setInviting(false);return;
     }
+
+    // 1. Insert into firm_members — store email directly
+    const{error:ie}=await supabase.from("firm_members").insert({
+      firm_id:firm.id,email,role:inviteRole,invited_by:user.id,
+    });
+    if(ie){setInviteErr(ie.message||"Failed to add member.");setInviting(false);return;}
+
+    // 2. Send invite email via API route
+    try{
+      const inviteLink=`${window.location.origin}/login?invite=true&firm=${encodeURIComponent(firm.name)}&email=${encodeURIComponent(email)}`;
+      const res=await fetch("/api/invite",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          email,
+          firmName:firm.name,
+          inviteLink,
+          inviterEmail:user.email,
+          role:inviteRole,
+        }),
+      });
+      const result=await res.json();
+      if(!result.sent){
+        // Email failed but member was added — still show success
+        console.warn("Email not sent:",result.error||result.message);
+      }
+    }catch(emailErr){
+      console.warn("Email send failed:",emailErr);
+      // Don't block — member is already added
+    }
+
     setInviteOk(true);
     await load(user.id);
     setTimeout(()=>{setInviteOk(false);setShowInvite(false);setInviteEmail("");setInviteRole("editor");},1600);
@@ -349,7 +369,8 @@ export default function TeamPage(){
             {inviteOk?(
               <div style={{textAlign:"center",padding:"32px 0"}}>
                 <div style={{fontSize:40,color:"var(--green)",marginBottom:8}}>✓</div>
-                <div style={{fontSize:14,color:"var(--green)",fontWeight:500}}>Member added successfully</div>
+                <div style={{fontSize:14,color:"var(--green)",fontWeight:500}}>Invite sent to {inviteEmail}</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginTop:6}}>They'll receive an email with a link to join {firm?.name}</div>
               </div>
             ):(
               <>
