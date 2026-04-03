@@ -88,20 +88,26 @@ function InvitePage() {
     if (!invite) return;
     setJoining(true);
 
-    // Check not already a member
+    // Update the existing firm_members row created at invite time
     const { data: existing } = await supabase
       .from("firm_members")
       .select("id")
       .eq("firm_id", invite.firm_id)
-      .eq("user_id", userId)
+      .eq("email", invite.email)
       .maybeSingle();
 
-    if (!existing) {
+    if (existing) {
+      await supabase.from("firm_members")
+        .update({ user_id: userId, joined_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
       await supabase.from("firm_members").insert({
         firm_id: invite.firm_id,
         user_id: userId,
+        email: invite.email,
         role: invite.role || "member",
         invited_by: invite.invited_by,
+        joined_at: new Date().toISOString(),
       });
     }
 
