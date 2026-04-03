@@ -109,7 +109,7 @@ export default function Dashboard() {
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
-  const [hasFirm, setHasFirm] = useState(true);
+  const [hasFirm, setHasFirm] = useState(false);
   const tier = subscription?.tier || "free";
   const isPro = tier === "professional" || tier === "enterprise";
   const isStarter = tier === "starter";
@@ -272,7 +272,7 @@ export default function Dashboard() {
           <div style={{ fontFamily: "var(--font-display)", fontSize: 19, color: "var(--gold)", letterSpacing: ".1em", fontWeight: 300 }}>VALORA</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn-ghost" style={{ padding: "6px 10px", fontSize: 11 }} onClick={() => window.open(CALENDLY, "_blank")}>Book Demo</button>
-            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>+ New</button>
+            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => setShowNewModal(true)}>+ New</button>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export default function Dashboard() {
               </div>
               <div className="page-header-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                 <button className="btn-primary" style={{ padding: "9px 20px", fontSize: 12 }}
-                  onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
+                  onClick={() => setShowNewModal(true)}>
                   + New Appraisal
                 </button>
                 {!isPro && (
@@ -564,6 +564,10 @@ export default function Dashboard() {
         <button className="bottom-nav-item" onClick={() => window.open(CALENDLY, "_blank")}>
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Demo
+        </button>
+        <button className="bottom-nav-item" onClick={signOut}>
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
         </button>
       </nav>
     </div>
