@@ -45,9 +45,9 @@ select.inp{cursor:pointer}
 `;
 
 const ROLES=[
-  {id:"admin", label:"Admin",  desc:"Full access — manage team & all projects", bg:"rgba(201,168,76,.12)", color:"#c9a84c"},
-  {id:"editor",label:"Editor", desc:"Create and edit appraisals and tasks",      bg:"rgba(91,156,246,.12)", color:"#5b9cf6"},
-  {id:"viewer",label:"Viewer", desc:"Read-only access to shared projects",       bg:"rgba(61,220,132,.1)",  color:"#3ddc84"},
+  {id:"admin", label:"Admin",  desc:"Full access — manage team & all projects", bg:"rgba(201,168,76,.12)", color:"#c9a84c", proOnly:true},
+  {id:"editor",label:"Editor", desc:"Create and edit appraisals and tasks",      bg:"rgba(91,156,246,.12)", color:"#5b9cf6", proOnly:false},
+  {id:"viewer",label:"Viewer", desc:"Read-only access to shared projects",       bg:"rgba(61,220,132,.1)",  color:"#3ddc84", proOnly:false},
 ];
 
 const AVATAR_BG=[
@@ -76,6 +76,7 @@ export default function TeamPage(){
   const[members,setMembers]=useState<any[]>([]);
   const[userProfiles,setUserProfiles]=useState<Record<string,string>>({});
   const[loading,setLoading]=useState(true);
+  const[subscription,setSubscription]=useState<any>(null);
 
   // Invite
   const[showInvite,setShowInvite]=useState(false);
@@ -109,6 +110,8 @@ export default function TeamPage(){
       const{data:{session}}=await supabase.auth.getSession();
       if(!session){router.push("/");return;}
       setUser(session.user);
+      const{data:sub}=await supabase.from("subscriptions").select("*").eq("user_id",session.user.id).maybeSingle();
+      setSubscription(sub);
       await load(session.user.id);
     };
     init();
@@ -231,6 +234,7 @@ export default function TeamPage(){
 
   const myMember=members.find(m=>m.user_id===user?.id);
   const isAdmin=myMember?.role==="admin";
+  const isPro=(subscription?.tier==="professional"||subscription?.tier==="enterprise"||subscription?.status==="trialing");
 
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
@@ -349,6 +353,7 @@ export default function TeamPage(){
               {ROLES.map(r=>(
                 <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,flex:1,minWidth:180}}>
                   <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:r.bg,color:r.color,flexShrink:0}}>{r.label}</span>
+                  {r.proOnly&&<span style={{fontSize:9,padding:"1px 5px",borderRadius:3,fontWeight:700,background:"var(--gold)",color:"#06070a",flexShrink:0}}>PRO</span>}
                   <span style={{fontSize:11,color:"var(--text-d)"}}>{r.desc}</span>
                 </div>
               ))}
@@ -383,13 +388,17 @@ export default function TeamPage(){
                 <div style={{marginBottom:20}}>
                   <label style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:10}}>Role</label>
                   <div style={{display:"flex",gap:8}}>
-                    {ROLES.map(r=>(
-                      <button key={r.id} onClick={()=>setInviteRole(r.id)}
-                        style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${inviteRole===r.id?r.color+"88":"var(--border)"}`,background:inviteRole===r.id?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none"}}>
-                        <div style={{fontSize:11,fontWeight:600,color:inviteRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
-                        <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{r.desc}</div>
-                      </button>
-                    ))}
+                    {ROLES.map(r=>{
+                      const locked=r.proOnly&&!isPro;
+                      return(
+                        <button key={r.id} onClick={()=>locked?router.push("/pricing"):setInviteRole(r.id)}
+                          style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${inviteRole===r.id&&!locked?r.color+"88":"var(--border)"}`,background:inviteRole===r.id&&!locked?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none",position:"relative",opacity:locked?.6:1}}>
+                          {locked&&<span style={{position:"absolute",top:6,right:6,fontSize:9,background:"var(--gold)",color:"#06070a",padding:"1px 5px",borderRadius:3,fontWeight:700}}>PRO</span>}
+                          <div style={{fontSize:11,fontWeight:600,color:inviteRole===r.id&&!locked?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                          <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{locked?"Upgrade to Pro to assign":r.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 {inviteErr&&<div style={{background:"rgba(244,100,95,.08)",border:"1px solid rgba(244,100,95,.25)",borderRadius:7,padding:"10px 14px",fontSize:12,color:"var(--red)",marginBottom:14}}>{inviteErr}</div>}
@@ -415,13 +424,17 @@ export default function TeamPage(){
             </div>
             <p style={{fontSize:12,color:"var(--text-d)",marginBottom:20}}>{getMemberEmail(roleModal)}</p>
             <div style={{display:"flex",gap:8,marginBottom:20}}>
-              {ROLES.map(r=>(
-                <button key={r.id} onClick={()=>setNewRole(r.id)}
-                  style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${newRole===r.id?r.color+"88":"var(--border)"}`,background:newRole===r.id?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none"}}>
-                  <div style={{fontSize:11,fontWeight:600,color:newRole===r.id?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
-                  <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{r.desc}</div>
-                </button>
-              ))}
+              {ROLES.map(r=>{
+                const locked=r.proOnly&&!isPro;
+                return(
+                  <button key={r.id} onClick={()=>locked?router.push("/pricing"):setNewRole(r.id)}
+                    style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${newRole===r.id&&!locked?r.color+"88":"var(--border)"}`,background:newRole===r.id&&!locked?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none",position:"relative",opacity:locked?.6:1}}>
+                    {locked&&<span style={{position:"absolute",top:6,right:6,fontSize:9,background:"var(--gold)",color:"#06070a",padding:"1px 5px",borderRadius:3,fontWeight:700}}>PRO</span>}
+                    <div style={{fontSize:11,fontWeight:600,color:newRole===r.id&&!locked?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                    <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{locked?"Upgrade to Pro to assign":r.desc}</div>
+                  </button>
+                );
+              })}
             </div>
             <div style={{display:"flex",gap:8}}>
               <button className="btn-ghost" onClick={()=>setRoleModal(null)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
