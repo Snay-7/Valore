@@ -56,7 +56,6 @@ a{text-decoration:none;color:inherit}
 .section{padding:100px 0}
 .container{max-width:1140px;margin:0 auto;padding:0 40px}
 .testi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;display:flex;flex-direction:column;gap:20px}
-.stars{display:flex;gap:3px;color:var(--gold);font-size:13px}
 .price-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:36px;position:relative;overflow:hidden;transition:border-color .25s}
 .price-card.featured{border-color:rgba(201,168,76,.4);background:var(--bg3)}
 .price-card.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold) 40%,var(--gold-l),transparent)}
@@ -160,14 +159,7 @@ const FEATURES = [
   { icon:"◈", label:"IRR — Levered & Unlevered", desc:"True levered IRR using monthly equity cash flows with progressive loan repayment. Unlevered IRR includes the full stabilisation ramp — not a simplified endpoint model.", tag:"Returns" },
 ];
 
-const TESTIMONIALS = [
-  { q:"We replaced three Excel models with Valora. The monthly CF engine and sensitivity matrices are exactly what we needed for our BTR fund.", name:"James Harrington", role:"MD, Harrington Capital", stars:5, tag:"BTR" },
-  { q:"The AI sense check flagged our exit yield was aggressive before we took the appraisal to investment committee. That alone saved us.", name:"Priya Sharma", role:"Head of Development Finance, Apex Developments", stars:5, tag:"BTR" },
-  { q:"The AI brochure is extraordinary. We share a live link and investors see the model update in real time. No more stale email attachments.", name:"Marcus Al-Rashid", role:"Partner, Gulf Bridge Investments", stars:5, tag:"Hotel" },
-  { q:"The SONIA forward curve integration shows real industry understanding. Our lender reviewed the CF and approved without a single question.", name:"Sophie Chen", role:"Development Director, Meridian Homes", stars:5, tag:"BTS" },
-  { q:"Finally an appraisal tool that understands hotel repositioning. The ADR, RevPAR and cap rate logic is native, not a spreadsheet hack.", name:"Tom Reeves", role:"Principal, Atlas Real Estate", stars:5, tag:"Hotel" },
-  { q:"The promote waterfall is something no other tool offers. Our JV partners were impressed we could show the distribution split in real time.", name:"Charlotte Davies", role:"Investment Manager, NorthStar Capital", stars:5, tag:"JV" },
-];
+
 
 const STATS = [
   { value:60, suffix:"bn+", prefix:"£", label:"GDV Modelled" },
@@ -765,29 +757,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-      <section style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)"}}>
-        <div className="container">
-          <div style={{textAlign:"center",marginBottom:56}}>
-            <div className="badge" style={{marginBottom:20}}>What Developers Say</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(26px,3vw,42px)",fontWeight:300}}>Used by developers across London,<br/>the Gulf, and Southeast Asia</h2>
-          </div>
-          <div className="testi-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {TESTIMONIALS.map((t,i)=>(
-              <div key={i} className="testi reveal" style={{animationDelay:`${i*0.07}s`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div className="stars">{"★".repeat(t.stars)}</div>
-                  <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"2px 8px",borderRadius:20,textTransform:"uppercase"}}>{t.tag}</span>
-                </div>
-                <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.8,fontStyle:"italic"}}>"{t.q}"</p>
-                <div style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:36,height:36,borderRadius:"50%",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"var(--gold)",flexShrink:0}}>{t.name.split(" ").map((n:string)=>n[0]).join("")}</div>
-                  <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>{t.name}</div><div style={{fontSize:11,color:"var(--text-d)"}}>{t.role}</div></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+
       <section id="pricing" style={{padding:"90px 0",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:60}}>
