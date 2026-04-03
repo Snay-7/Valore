@@ -232,7 +232,7 @@ export default function NotesPage() {
       </div>
 
       {/* ── MAIN ── */}
-      <div className="main-wrap" style={{ marginLeft: 210, flex: 1, padding: "32px", maxWidth: "calc(100vw - 210px)" }}>
+      <div className="main-wrap">
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
