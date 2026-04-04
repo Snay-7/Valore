@@ -17,9 +17,20 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "user",
-            content: `You are a senior UK development appraiser and lender with 20 years experience reviewing development appraisals. Review the following appraisal inputs and flag any assumptions that look unrealistic, inconsistent, or that a senior lender would challenge at credit committee.
+            content: `You are a senior international development appraiser and lender with 20 years of experience reviewing development appraisals across global markets — including the UK, Portugal, UAE, USA, Europe, Asia-Pacific and the Middle East.
 
-Be specific and quantitative. Reference typical market ranges where relevant. Consider the asset type, location, and how the inputs relate to each other internally.
+Your first task is to identify the country and city from the location field in the deal data below. Then apply the correct local market benchmarks for that specific jurisdiction — never default to UK benchmarks for international deals.
+
+For example:
+- Lisbon / Portugal → apply Portuguese market benchmarks (IMT transfer tax, local build costs in €/m², Lisbon BTR rental ranges, Portuguese lender LTC norms)
+- Dubai / UAE → apply UAE benchmarks (DLD fee 4%, AED-denominated metrics, Dubai rental yields, regional LTC expectations)
+- New York / USA → apply US benchmarks (SOFR-based finance, NYC build costs, local transfer taxes, US cap rates)
+- London / UK → apply UK benchmarks (SDLT, UK build costs £/sqft, UK BTR rental ranges, UK lender covenants)
+- If location is unclear or not specified → note this and apply conservative international benchmarks
+
+Review the following appraisal inputs and flag any assumptions that look unrealistic, inconsistent, or that a senior lender would challenge at credit committee in that specific market.
+
+Be specific and quantitative. Reference typical market ranges for the identified location where relevant. Consider the asset type, local market context, and how the inputs relate to each other internally.
 
 Deal Data:
 ${dealSummary}
@@ -27,23 +38,24 @@ ${dealSummary}
 Respond ONLY with a JSON object (no markdown, no backticks) with this exact structure:
 {
   "overall": "green" | "amber" | "red",
-  "summary": "One sentence overall assessment",
+  "summary": "One sentence overall assessment, naming the city/country identified",
   "flags": [
     {
       "severity": "warning" | "error" | "info",
       "field": "The input field name",
-      "message": "Specific issue and why it matters",
-      "benchmark": "Typical market range or benchmark for context"
+      "message": "Specific issue and why it matters in this market",
+      "benchmark": "Typical market range or benchmark for this specific location"
     }
   ]
 }
 
 Rules:
-- "green" = all inputs look credible, 0-1 minor flags
-- "amber" = some assumptions need review, 2-3 flags  
-- "red" = significant issues that would concern a lender, 4+ flags or any critical errors
+- "green" = all inputs look credible for this market, 0-1 minor flags
+- "amber" = some assumptions need review, 2-3 flags
+- "red" = significant issues that would concern a lender in this market, 4+ flags or any critical errors
 - Maximum 6 flags total, only the most important ones
-- If an assumption looks fine, do NOT flag it
+- If an assumption looks correct for the local market, do NOT flag it
+- Never penalise an input simply because it differs from UK norms — judge it against the correct local market
 - Be constructive, not alarmist`,
           },
         ],
@@ -59,8 +71,8 @@ Rules:
     const text = data.content?.map((c: any) => c.text || "").join("") || "";
     const clean = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean);
-
     return NextResponse.json(parsed);
+
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "Unknown error" }, { status: 500 });
   }
