@@ -94,6 +94,12 @@ a{text-decoration:none;color:inherit}
 .asset-tile{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;position:relative}
 .asset-tile:hover{border-color:var(--gold-border);background:var(--bg4)}
 .asset-tile.selected{background:var(--gold-bg);border-color:var(--gold)}
+/* ── Video modal ── */
+.video-modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+.video-modal{position:relative;width:90vw;max-width:960px;border-radius:14px;overflow:hidden;border:1px solid rgba(201,168,76,.2);box-shadow:0 40px 80px rgba(0,0,0,.8)}
+.video-close{position:absolute;top:14px;right:14px;z-index:10;background:rgba(6,7,10,.8);border:1px solid rgba(255,255,255,.12);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-m);font-size:18px;transition:all .2s}
+.video-close:hover{border-color:var(--gold);color:var(--gold)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 /* ── Sticky CTA bar ── */
 .sticky-cta{position:fixed;bottom:0;left:0;right:0;z-index:150;background:rgba(6,7,10,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(201,168,76,.2);padding:12px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px;transform:translateY(100%);transition:transform .4s cubic-bezier(.16,1,.3,1)}
 .sticky-cta.visible{transform:translateY(0)}
@@ -130,6 +136,8 @@ a{text-decoration:none;color:inherit}
   .sticky-cta{padding:10px 16px;flex-direction:column;gap:8px}
   .sticky-cta-text{display:none}
   .cta-strip{flex-direction:column;text-align:center;padding:24px 20px}
+  .video-section-grid{grid-template-columns:1fr !important}
+  .video-modal{width:95vw !important}
 }
 @media(max-width:480px){
   .asset-grid{grid-template-columns:1fr !important}
@@ -203,6 +211,27 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
 }
 
 // ── Inline CTA strip ──────────────────────────────────────────────────────────
+function VideoModal({onClose}:{onClose:()=>void}) {
+  useEffect(()=>{
+    const fn=(e:KeyboardEvent)=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown",fn);
+    return()=>window.removeEventListener("keydown",fn);
+  },[onClose]);
+  return(
+    <div className="video-modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="video-modal">
+        <button className="video-close" onClick={onClose}>×</button>
+        <video
+          src="/videos/how-to-appraisal.mp4"
+          controls
+          autoPlay
+          style={{width:"100%",display:"block",background:"#06070a"}}
+        />
+      </div>
+    </div>
+  );
+}
+
 function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) {
   return (
     <div className="cta-strip">
@@ -492,6 +521,7 @@ export default function App() {
 function Landing({onLogin,onPage,scrolled}:any) {
   const router=useRouter();
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   useEffect(()=>{ const fn=()=>setStickyVisible(window.scrollY>600); window.addEventListener("scroll",fn,{passive:true}); return()=>window.removeEventListener("scroll",fn); },[]);
 
   return (
@@ -528,6 +558,12 @@ function Landing({onLogin,onPage,scrolled}:any) {
               </div>
               <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36,animationDelay:".4s"}}>
                 <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"14px 30px"}}>Start Free Trial — No Card Needed</button>
+                <button className="btn-ghost" onClick={()=>setVideoOpen(true)} style={{fontSize:14,padding:"13px 24px",borderColor:"rgba(201,168,76,.3)",color:"var(--gold)",gap:10}}>
+                  <div style={{width:22,height:22,borderRadius:"50%",background:"var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <svg width="8" height="10" viewBox="0 0 8 10" fill="#06070a"><polygon points="0,0 8,5 0,10"/></svg>
+                  </div>
+                  Watch 5 min demo
+                </button>
                 <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px",borderColor:"var(--gold-border)",color:"var(--gold)"}} onClick={()=>window.open(CALENDLY,"_blank")}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   Book a Demo
@@ -560,6 +596,45 @@ function Landing({onLogin,onPage,scrolled}:any) {
 
       {/* ── CTA after showcase ───────────────────────────────────────────────── */}
       <div className="container"><CTAStrip onLogin={onLogin} text="See something you need? Try it now." btn="Try it now — Free →"/></div>
+
+      {/* ── VIDEO SECTION ────────────────────────────────────────────────────── */}
+      <section style={{padding:"80px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+        <div className="container">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,alignItems:"center"}}>
+            <div>
+              <div className="badge" style={{marginBottom:20}}>See It In Action</div>
+              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:18}}>A real BTR deal,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>built in 5 minutes</em></h2>
+              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:28}}>Watch a Castlefield, Manchester BTS deal built from scratch — land cost, unit mix, cashflow engine, sensitivity matrix and AI Sense Check. No spreadsheet. No formula errors. Just institutional-grade numbers, live.</p>
+              <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:32}}>
+                {[["◈","Land cost & property tax","Set up in seconds, auto-calculated"],["⟳","Unit mix & monthly cashflow","S-curve drawdown, interest rolled live"],["◆","Sensitivity matrix","45 scenarios, RAG coded instantly"],["⬡","AI Sense Check","Benchmarked against market data"]].map(([icon,title,sub])=>(
+                  <div key={title} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                    <span style={{color:"var(--gold)",fontSize:13,marginTop:1,flexShrink:0}}>{icon}</span>
+                    <span style={{fontSize:14,color:"var(--text-m)"}}><strong style={{color:"var(--text)",fontWeight:500}}>{title}</strong> — {sub}</span>
+                  </div>
+                ))}
+              </div>
+              <button className="btn-primary" onClick={()=>setVideoOpen(true)} style={{fontSize:14,padding:"13px 28px",gap:12}}>
+                <div style={{width:24,height:24,borderRadius:"50%",background:"#06070a",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <svg width="9" height="11" viewBox="0 0 9 11" fill="#c9a84c"><polygon points="0,0 9,5.5 0,11"/></svg>
+                </div>
+                Watch now — 5 min
+              </button>
+            </div>
+            {/* Video thumbnail */}
+            <div style={{position:"relative",borderRadius:14,overflow:"hidden",border:"1px solid rgba(201,168,76,.2)",cursor:"pointer",boxShadow:"0 24px 64px rgba(0,0,0,.6)"}} onClick={()=>setVideoOpen(true)}>
+              <video src="/videos/how-to-appraisal.mp4" style={{width:"100%",display:"block"}} preload="metadata"/>
+              {/* Play overlay */}
+              <div style={{position:"absolute",inset:0,background:"rgba(6,7,10,.5)",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .2s"}} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="rgba(6,7,10,.35)"} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="rgba(6,7,10,.5)"}>
+                <div style={{width:72,height:72,borderRadius:"50%",background:"var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 32px rgba(201,168,76,.4)"}}>
+                  <svg width="24" height="28" viewBox="0 0 24 28" fill="#06070a"><polygon points="0,0 24,14 0,28"/></svg>
+                </div>
+              </div>
+              {/* Duration badge */}
+              <div style={{position:"absolute",bottom:12,right:12,background:"rgba(6,7,10,.85)",border:"1px solid rgba(255,255,255,.1)",borderRadius:6,padding:"4px 10px",fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-m)"}}>5:00</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── BUILT FOR ────────────────────────────────────────────────────────── */}
       <BuiltForSection onLogin={onLogin}/>
@@ -789,6 +864,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
       </section>
 
       <Footer onPage={onPage}/>
+
+      {/* ── VIDEO MODAL ──────────────────────────────────────────────────────── */}
+      {videoOpen&&<VideoModal onClose={()=>setVideoOpen(false)}/>}
 
       {/* ── STICKY CTA BAR ───────────────────────────────────────────────────── */}
       <div className={`sticky-cta ${stickyVisible?"visible":""}`}>
