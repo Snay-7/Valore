@@ -88,14 +88,17 @@ a{text-decoration:none;color:inherit}
 .legal-content a{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
 .workspace-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:border-color .2s}
 .workspace-card:hover{border-color:var(--gold-border)}
-/* ── Product Showcase ── */
 .showcase-tab{padding:8px 16px;border-radius:6px;font-size:12px;font-family:var(--font-body);font-weight:500;background:transparent;border:1px solid transparent;color:var(--text-d);cursor:pointer;transition:all .2s;white-space:nowrap}
 .showcase-tab:hover{color:var(--text-m)}
 .showcase-tab.active{background:var(--bg3);border-color:var(--border-m);color:var(--gold)}
-/* ── Asset selector card ── */
 .asset-tile{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;position:relative}
 .asset-tile:hover{border-color:var(--gold-border);background:var(--bg4)}
 .asset-tile.selected{background:var(--gold-bg);border-color:var(--gold)}
+/* ── Sticky CTA bar ── */
+.sticky-cta{position:fixed;bottom:0;left:0;right:0;z-index:150;background:rgba(6,7,10,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(201,168,76,.2);padding:12px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px;transform:translateY(100%);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.sticky-cta.visible{transform:translateY(0)}
+/* ── Inline CTA strip ── */
+.cta-strip{background:linear-gradient(135deg,rgba(201,168,76,.08) 0%,rgba(201,168,76,.03) 100%);border:1px solid rgba(201,168,76,.15);border-radius:14px;padding:32px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;margin:60px 0 0}
 @media(max-width:768px){
   .nav{padding:0 20px;height:56px}
   .nav-links,.nav-btns{display:none}
@@ -124,6 +127,9 @@ a{text-decoration:none;color:inherit}
   .cta-btns{flex-direction:column !important;align-items:center}
   .legal-content{padding:100px 20px 60px}
   .showcase-tabs{overflow-x:auto}
+  .sticky-cta{padding:10px 16px;flex-direction:column;gap:8px}
+  .sticky-cta-text{display:none}
+  .cta-strip{flex-direction:column;text-align:center;padding:24px 20px}
 }
 @media(max-width:480px){
   .asset-grid{grid-template-columns:1fr !important}
@@ -146,8 +152,6 @@ a{text-decoration:none;color:inherit}
 
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 
-// ── SCREENSHOT PATHS — copy your screenshots to /public/screenshots/ ──────────
-// Rename your files to match these names exactly:
 const SCREENSHOTS = {
   analysis:    "/screenshots/analysis-btr.png",
   cashflow:    "/screenshots/cashflow.png",
@@ -167,17 +171,9 @@ const FEATURES = [
   { icon:"◈", label:"AI Sense Check", desc:"Automatically benchmarks your assumptions against market data. Flags DSCR breaches, aggressive exit yields, LTC limits, and build cost issues before credit committee.", tag:"AI" },
   { icon:"◈", label:"AI Investor Brochures", desc:"Upload photos, generate a full investment memorandum with Claude AI. Branded PDF with live share links — investors always see the latest version.", tag:"AI" },
   { icon:"◈", label:"Team Workspace", desc:"Collaborate on appraisals with your team. Shared workspace with notes, tasks, activity feed and role-based permissions — everything linked to the deal.", tag:"Team" },
-  // ── CHANGE 1: Tax feature updated ──
   { icon:"◈", label:"Property Transfer Tax Engine", desc:"Auto-calculates UK SDLT — residential, commercial, mixed-use and SPV modes with +3% surcharge. International deal? Switch to Override and enter your local rate — IMT, DLD Fee, Grunderwerbsteuer and more.", tag:"Tax" },
   { icon:"◈", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion.", tag:"PM" },
   { icon:"◈", label:"IRR — Levered & Unlevered", desc:"True levered IRR using monthly equity cash flows with progressive loan repayment. Unlevered IRR includes the full stabilisation ramp — not a simplified endpoint model.", tag:"Returns" },
-];
-
-const STATS = [
-  { value:60, suffix:"bn+", prefix:"£", label:"GDV Modelled" },
-  { value:30000, suffix:"+", prefix:"", label:"Deals Analysed" },
-  { value:10, suffix:"", prefix:"", label:"Benchmark Rates" },
-  { value:99.9, suffix:"%", prefix:"", label:"Platform Uptime", dec:1 },
 ];
 
 const PIPELINE_COLS = [
@@ -206,7 +202,19 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
   return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>;
 }
 
-// ── NEW: Asset selector card (Monday.com style) ───────────────────────────────
+// ── Inline CTA strip ──────────────────────────────────────────────────────────
+function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) {
+  return (
+    <div className="cta-strip">
+      <div>
+        <div style={{fontFamily:"var(--font-display)",fontSize:"clamp(18px,2vw,26px)",fontWeight:300,color:"var(--text)",marginBottom:4}}>{text}</div>
+        <div style={{fontSize:12,color:"var(--text-d)"}}>No credit card required · 14-day free trial · Cancel anytime</div>
+      </div>
+      <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"13px 28px",flexShrink:0,whiteSpace:"nowrap"}}>{btn}</button>
+    </div>
+  );
+}
+
 function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
   const [selected, setSelected] = useState<string|null>(null);
   const assets = [
@@ -216,17 +224,7 @@ function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
     { key:"Flip", label:"House Flip", icon:"◫", color:"#3ddc84", sub:"Refurb & quick exit" },
   ];
   return (
-    <div style={{
-      background:"rgba(18,21,26,0.96)",
-      border:"1px solid rgba(255,255,255,0.12)",
-      borderRadius:18,
-      padding:28,
-      width:340,
-      boxShadow:"0 40px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(201,168,76,.08)",
-      position:"relative",
-      animation:"fadeSlideIn .7s cubic-bezier(.16,1,.3,1) .6s both",
-    }}>
-      {/* Gold top line */}
+    <div style={{background:"rgba(18,21,26,0.96)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:18,padding:28,width:340,boxShadow:"0 40px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(201,168,76,.08)",position:"relative",animation:"fadeSlideIn .7s cubic-bezier(.16,1,.3,1) .6s both"}}>
       <div style={{position:"absolute",top:0,left:"15%",right:"15%",height:1,background:"linear-gradient(90deg,transparent,#c9a84c,transparent)"}}/>
       <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:4}}>What would you like to model?</div>
       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:20}}>Choose an asset type to get started</div>
@@ -243,34 +241,14 @@ function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
           </button>
         ))}
       </div>
-      <button
-        onClick={onLogin}
-        style={{
-          width:"100%",
-          padding:"13px",
-          borderRadius:9,
-          background: selected ? "var(--gold)" : "rgba(201,168,76,0.15)",
-          border: selected ? "none" : "1px solid rgba(201,168,76,0.3)",
-          color: selected ? "#06070a" : "var(--gold)",
-          fontFamily:"var(--font-body)",
-          fontSize:13,
-          fontWeight:700,
-          cursor:"pointer",
-          transition:"all .25s",
-          display:"flex",
-          alignItems:"center",
-          justifyContent:"center",
-          gap:8,
-        }}
-      >
-        {selected ? `Start modelling ${selected} →` : "Get Started — Free Trial →"}
+      <button onClick={onLogin} style={{width:"100%",padding:"13px",borderRadius:9,background:selected?"var(--gold)":"rgba(201,168,76,0.15)",border:selected?"none":"1px solid rgba(201,168,76,0.3)",color:selected?"#06070a":"var(--gold)",fontFamily:"var(--font-body)",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .25s",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        {selected?`Start modelling ${selected} →`:"Get Started — Free Trial →"}
       </button>
       <div style={{textAlign:"center",fontSize:10,color:"var(--text-d)",marginTop:10}}>No credit card required · 14-day free trial</div>
     </div>
   );
 }
 
-// ── NEW: Product showcase (screenshot carousel) ───────────────────────────────
 function ProductShowcase() {
   const [active, setActive] = useState(0);
   const tabs = [
@@ -287,50 +265,20 @@ function ProductShowcase() {
       <div className="container">
         <div className="reveal" style={{textAlign:"center",marginBottom:40}}>
           <div className="badge" style={{marginBottom:16}}>Product Tour</div>
-          <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:12}}>
-            See every corner<br/><em className="grad-text" style={{fontStyle:"italic"}}>of the platform</em>
-          </h2>
+          <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:12}}>See every corner<br/><em className="grad-text" style={{fontStyle:"italic"}}>of the platform</em></h2>
           <p style={{fontSize:15,color:"var(--text-m)",maxWidth:440,margin:"0 auto"}}>{t.desc}</p>
         </div>
-        {/* Tabs */}
         <div className="showcase-tabs" style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginBottom:28}}>
-          {tabs.map((tab,i)=>(
-            <button key={i} className={`showcase-tab ${active===i?"active":""}`} onClick={()=>setActive(i)}>{tab.label}</button>
-          ))}
+          {tabs.map((tab,i)=>(<button key={i} className={`showcase-tab ${active===i?"active":""}`} onClick={()=>setActive(i)}>{tab.label}</button>))}
         </div>
-        {/* Screenshot */}
-        <div style={{
-          position:"relative",
-          borderRadius:"16px 16px 0 0",
-          overflow:"hidden",
-          border:"1px solid var(--border-m)",
-          borderBottom:"none",
-          boxShadow:"0 -20px 60px rgba(0,0,0,.5)",
-          background:"var(--bg1)",
-        }}>
-          {/* Browser chrome */}
+        <div style={{position:"relative",borderRadius:"16px 16px 0 0",overflow:"hidden",border:"1px solid var(--border-m)",borderBottom:"none",boxShadow:"0 -20px 60px rgba(0,0,0,.5)",background:"var(--bg1)"}}>
           <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
             <div style={{display:"flex",gap:5}}>{["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:10,height:10,borderRadius:"50%",background:c,opacity:.7}}/>)}</div>
             <div style={{flex:1,background:"var(--bg3)",borderRadius:5,padding:"4px 12px",fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",maxWidth:320,margin:"0 auto",textAlign:"center"}}>app.valoraplatform.io</div>
           </div>
-          {/* Screenshot image */}
           <div key={active} style={{animation:"screenFadeIn .35s cubic-bezier(.16,1,.3,1)",lineHeight:0}}>
-            <img
-              src={t.img}
-              alt={t.label}
-              style={{width:"100%",display:"block",objectFit:"cover",maxHeight:520,objectPosition:"top"}}
-              onError={(e)=>{
-                // Fallback if screenshot not yet added — show placeholder
-                (e.target as HTMLImageElement).style.display="none";
-                (e.target as HTMLImageElement).parentElement!.style.minHeight="400px";
-                (e.target as HTMLImageElement).parentElement!.style.background="var(--bg2)";
-                (e.target as HTMLImageElement).parentElement!.style.display="flex";
-                (e.target as HTMLImageElement).parentElement!.style.alignItems="center";
-                (e.target as HTMLImageElement).parentElement!.style.justifyContent="center";
-              }}
-            />
+            <img src={t.img} alt={t.label} style={{width:"100%",display:"block",objectFit:"cover",maxHeight:520,objectPosition:"top"}} onError={(e)=>{(e.target as HTMLImageElement).style.display="none";(e.target as HTMLImageElement).parentElement!.style.minHeight="400px";(e.target as HTMLImageElement).parentElement!.style.background="var(--bg2)";}}/>
           </div>
-          {/* Bottom gradient fade */}
           <div style={{position:"absolute",bottom:0,left:0,right:0,height:80,background:"linear-gradient(transparent,var(--bg))",pointerEvents:"none"}}/>
         </div>
       </div>
@@ -372,7 +320,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
           <span style={{fontSize:9,color:"var(--text-d)",letterSpacing:".18em",textTransform:"uppercase",marginTop:3}}>Pro</span>
         </div>
         <div className="nav-links">
-          {isHome ? [["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["For Lenders","#lenders"]].map(([l,h])=><a key={l} href={h}>{l}</a>) : <a onClick={()=>onPage("landing")}>← Back to Home</a>}
+          {isHome?[["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["For Lenders","#lenders"]].map(([l,h])=><a key={l} href={h}>{l}</a>):<a onClick={()=>onPage("landing")}>← Back to Home</a>}
         </div>
         <div className="nav-btns">
           <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"8px 18px",borderColor:"var(--gold-border)",color:"var(--gold)",gap:8}}>
@@ -390,7 +338,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
       </nav>
       <div className={`mobile-menu ${menuOpen?"open":""}`}>
         <div style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:300,color:"var(--gold)",letterSpacing:".1em",marginBottom:24,cursor:"pointer"}} onClick={()=>{setMenuOpen(false);onPage("landing")}}>VALORA</div>
-        {isHome ? [["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["Support","support"],["Privacy","privacy"],["Terms","terms"]].map(([l,h])=>h.startsWith("#")?<a key={l} href={h} onClick={()=>setMenuOpen(false)}>{l}</a>:<a key={l} onClick={()=>{setMenuOpen(false);onPage(h)}}>{l}</a>) : <a onClick={()=>{setMenuOpen(false);onPage("landing")}}>← Home</a>}
+        {isHome?[["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["Support","support"],["Privacy","privacy"],["Terms","terms"]].map(([l,h])=>h.startsWith("#")?<a key={l} href={h} onClick={()=>setMenuOpen(false)}>{l}</a>:<a key={l} onClick={()=>{setMenuOpen(false);onPage(h)}}>{l}</a>):<a onClick={()=>{setMenuOpen(false);onPage("landing")}}>← Home</a>}
         <div style={{marginTop:32,display:"flex",flexDirection:"column",gap:12}}>
           <button className="btn-ghost" onClick={()=>{setMenuOpen(false);window.open(CALENDLY,"_blank")}} style={{justifyContent:"center",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a Demo</button>
           <button className="btn-ghost" onClick={()=>{setMenuOpen(false);onLogin()}} style={{justifyContent:"center"}}>Sign In</button>
@@ -432,57 +380,32 @@ function Footer({onPage}:any) {
   );
 }
 
-function BuiltForSection() {
+function BuiltForSection({onLogin}:{onLogin:()=>void}) {
   const [active, setActive] = useState(0);
   const personas = [
     {
       icon:"◈", label:"Developers", color:"var(--gold)",
       headline:"Model any deal with investment-bank rigour",
       desc:"From a £2m house flip to a £500m BTR fund — Valora handles new-build, conversion, refurbishment and income-producing assets. True monthly cashflows, DSCR checking, promote waterfalls and AI sense check, all in one place.",
-      points:[
-        ["◆","All 4 asset types","BTR, BTS, Hotel, Flip — new-build, conversion & income-producing"],
-        ["◆","True monthly CF","S-curve drawdown with interest rolled on actual drawn balances"],
-        ["◆","DSCR / ICR & IRR","Auto-calculated. Flagged before credit committee sees it"],
-        ["◆","AI Sense Check","Benchmarks your assumptions against market data in real time"],
-        ["◆","Live share links","Investors and lenders always see the latest version"],
-      ]
+      points:[["◆","All 4 asset types","BTR, BTS, Hotel, Flip — new-build, conversion & income-producing"],["◆","True monthly CF","S-curve drawdown with interest rolled on actual drawn balances"],["◆","DSCR / ICR & IRR","Auto-calculated. Flagged before credit committee sees it"],["◆","AI Sense Check","Benchmarks your assumptions against market data in real time"],["◆","Live share links","Investors and lenders always see the latest version"]]
     },
     {
       icon:"◎", label:"Lenders & Banks", color:"var(--blue)",
       headline:"Underwriting you can trust, every time",
       desc:"Valora produces the exact format a senior underwriter needs to approve a development loan. Monthly cashflow shows precise drawdown profile, DSCR checked automatically, and the model is always current.",
-      points:[
-        ["◆","Standardised model","Every borrower appraisal in one consistent format"],
-        ["◆","Drawdown profile","Monthly cashflow shows exactly how the facility is drawn"],
-        ["◆","DSCR / ICR auto-checked","Flagged when debt service cover drops below covenant"],
-        ["◆","Live link","Always the latest model — no stale email attachments"],
-        ["◆","AI Sense Check","LTC, exit yield and build cost issues flagged upfront"],
-      ]
+      points:[["◆","Standardised model","Every borrower appraisal in one consistent format"],["◆","Drawdown profile","Monthly cashflow shows exactly how the facility is drawn"],["◆","DSCR / ICR auto-checked","Flagged when debt service cover drops below covenant"],["◆","Live link","Always the latest model — no stale email attachments"],["◆","AI Sense Check","LTC, exit yield and build cost issues flagged upfront"]]
     },
     {
       icon:"◉", label:"Investment Managers", color:"var(--green)",
       headline:"Stress test before you commit a single pound",
       desc:"Run 45-scenario sensitivity matrices, model promote waterfalls across IRR hurdles, and track your entire development pipeline from prospect to completion — all from one platform.",
-      points:[
-        ["◆","45-scenario matrices","Exit yield vs rent — RAG coded, recalculated live"],
-        ["◆","Promote waterfall","3-tier with configurable IRR hurdles and visual distribution split"],
-        ["◆","Deal pipeline","Kanban board from Prospect through to Completion"],
-        ["◆","Team workspace","Your whole team on the same live model"],
-        ["◆","Portfolio view","Track GDV, IRR and PoC across all active deals"],
-      ]
+      points:[["◆","45-scenario matrices","Exit yield vs rent — RAG coded, recalculated live"],["◆","Promote waterfall","3-tier with configurable IRR hurdles and visual distribution split"],["◆","Deal pipeline","Kanban board from Prospect through to Completion"],["◆","Team workspace","Your whole team on the same live model"],["◆","Portfolio view","Track GDV, IRR and PoC across all active deals"]]
     },
     {
       icon:"◫", label:"Valuers & Advisors", color:"var(--amber)",
       headline:"RLV, sensitivity and transfer tax — all automated",
       desc:"Residual land value updates as you type. Exit yield sensitivity matrices with colour-coded RAG. UK SDLT auto-calculated, with override for any jurisdiction globally. Branded PDF exports for client delivery.",
-      points:[
-        ["◆","Live RLV","Residual land value recalculated on every keystroke"],
-        ["◆","Sensitivity matrices","Exit yield and rent sensitivity with 45 RAG-coded scenarios"],
-        // ── CHANGE 3: Valuers persona tax bullet updated ──
-        ["◆","Transfer Tax Engine","UK SDLT auto-calculated. Override for IMT, DLD Fee, Grunderwerbsteuer and any jurisdiction."],
-        ["◆","Stabilisation modelling","Void periods and rent-free modelled in the cashflow"],
-        ["◆","Branded PDF","Professional export with your firm details for client delivery"],
-      ]
+      points:[["◆","Live RLV","Residual land value recalculated on every keystroke"],["◆","Sensitivity matrices","Exit yield and rent sensitivity with 45 RAG-coded scenarios"],["◆","Transfer Tax Engine","UK SDLT auto-calculated. Override for IMT, DLD Fee, Grunderwerbsteuer and any jurisdiction."],["◆","Stabilisation modelling","Void periods and rent-free modelled in the cashflow"],["◆","Branded PDF","Professional export with your firm details for client delivery"]]
     },
   ];
   const p = personas[active];
@@ -496,8 +419,7 @@ function BuiltForSection() {
         <div className="reveal" style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginBottom:48}}>
           {personas.map((persona,i)=>(
             <button key={i} onClick={()=>setActive(i)} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:8,border:`1px solid ${active===i?persona.color+"88":"var(--border)"}`,background:active===i?persona.color+"0f":"transparent",color:active===i?persona.color:"var(--text-m)",fontSize:13,fontFamily:"var(--font-body)",cursor:"pointer",transition:"all .2s",fontWeight:active===i?500:400}}>
-              <span style={{fontSize:14}}>{persona.icon}</span>
-              {persona.label}
+              <span style={{fontSize:14}}>{persona.icon}</span>{persona.label}
             </button>
           ))}
         </div>
@@ -505,16 +427,14 @@ function BuiltForSection() {
           <div>
             <div style={{fontSize:11,color:p.color,textTransform:"uppercase",letterSpacing:".1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>{p.icon}</span>{p.label}</div>
             <h3 style={{fontFamily:"var(--font-display)",fontSize:"clamp(22px,2.5vw,34px)",fontWeight:300,lineHeight:1.15,marginBottom:18,color:"var(--text)"}}>{p.headline}</h3>
-            <p style={{fontSize:14,color:"var(--text-m)",lineHeight:1.8,marginBottom:0}}>{p.desc}</p>
+            <p style={{fontSize:14,color:"var(--text-m)",lineHeight:1.8,marginBottom:24}}>{p.desc}</p>
+            <button className="btn-primary" onClick={onLogin} style={{fontSize:13,padding:"11px 22px"}}>Make your first appraisal →</button>
           </div>
           <div style={{display:"flex",flexDirection:"column",paddingTop:8}}>
             {p.points.map(([icon,title,sub],j)=>(
               <div key={j} style={{display:"flex",gap:14,padding:"14px 0",borderBottom:j<p.points.length-1?"1px solid var(--border)":"none"}}>
                 <span style={{color:p.color,fontSize:8,marginTop:5,flexShrink:0}}>◆</span>
-                <div>
-                  <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:3}}>{title}</div>
-                  <div style={{fontSize:12,color:"var(--text-d)",lineHeight:1.5}}>{sub}</div>
-                </div>
+                <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:3}}>{title}</div><div style={{fontSize:12,color:"var(--text-d)",lineHeight:1.5}}>{sub}</div></div>
               </div>
             ))}
           </div>
@@ -527,22 +447,9 @@ function BuiltForSection() {
 function WorkspaceDemo() {
   const [activeTab, setActiveTab] = useState(0);
   const tabs = ["Overview","Tasks","Notes","Activity"];
-  const taskData = [
-    {task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},
-    {task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},
-    {task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},
-    {task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"},
-  ];
-  const noteData = [
-    {note:"Lender confirmed they need DSCR above 1.3× — currently 1.62×, comfortable margin.",author:"JH",time:"2h ago"},
-    {note:"QS flagged potential 8% uplift on RC frame. Sensitivity run — still viable at 41% PoC.",author:"PS",time:"5h ago"},
-  ];
-  const overviewData = [
-    {label:"GDV",value:"£208.5m",color:"var(--gold)"},
-    {label:"Profit on Cost",value:"43.7%",color:"var(--green)"},
-    {label:"IRR (Unlev.)",value:"24.3%",color:"var(--blue)"},
-    {label:"DSCR / ICR",value:"1.62×",color:"var(--green)"},
-  ];
+  const taskData = [{task:"Review exit yield assumptions",assignee:"JH",due:"2 Apr",status:"Working on it",color:"var(--amber)"},{task:"Confirm build cost with QS",assignee:"PS",due:"4 Apr",status:"Not Started",color:"var(--text-d)"},{task:"Send appraisal to lender",assignee:"MA",due:"5 Apr",status:"Done",color:"var(--green)"},{task:"Update unit mix — 3 bed count",assignee:"SC",due:"3 Apr",status:"Stuck",color:"var(--red)"}];
+  const noteData = [{note:"Lender confirmed they need DSCR above 1.3× — currently 1.62×, comfortable margin.",author:"JH",time:"2h ago"},{note:"QS flagged potential 8% uplift on RC frame. Sensitivity run — still viable at 41% PoC.",author:"PS",time:"5h ago"}];
+  const overviewData = [{label:"GDV",value:"£208.5m",color:"var(--gold)"},{label:"Profit on Cost",value:"43.7%",color:"var(--green)"},{label:"IRR (Unlev.)",value:"24.3%",color:"var(--blue)"},{label:"DSCR / ICR",value:"1.62×",color:"var(--green)"}];
   return (
     <div>
       <div style={{display:"flex",overflowX:"auto",marginBottom:16,borderBottom:"1px solid var(--border)"}}>
@@ -562,17 +469,12 @@ export default function App() {
   const toLogin=useCallback(()=>{ setPage("login"); window.scrollTo(0,0); },[]);
   const toPage=useCallback((p:string)=>{ setPage(p); window.scrollTo(0,0); },[]);
   useEffect(()=>{
-    const obs=new IntersectionObserver((entries)=>{
-      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("visible"); obs.unobserve(e.target); } });
-    },{threshold:0.12,rootMargin:"0px 0px -40px 0px"});
+    const obs=new IntersectionObserver((entries)=>{ entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("visible"); obs.unobserve(e.target); } }); },{threshold:0.12,rootMargin:"0px 0px -40px 0px"});
     const els=document.querySelectorAll(".reveal,.reveal-l,.reveal-r");
     els.forEach(el=>obs.observe(el));
     return ()=>obs.disconnect();
   },[page]);
-  useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    if(params.get("invited")==="true") toLogin();
-  },[toLogin]);
+  useEffect(()=>{ const params=new URLSearchParams(window.location.search); if(params.get("invited")==="true") toLogin(); },[toLogin]);
   return (
     <>
       <style>{CSS}</style>
@@ -589,28 +491,20 @@ export default function App() {
 
 function Landing({onLogin,onPage,scrolled}:any) {
   const router=useRouter();
+  const [stickyVisible, setStickyVisible] = useState(false);
+  useEffect(()=>{ const fn=()=>setStickyVisible(window.scrollY>600); window.addEventListener("scroll",fn,{passive:true}); return()=>window.removeEventListener("scroll",fn); },[]);
+
   return (
-    <div>
+    <div style={{paddingBottom:72}}>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
 
-      {/* ── NEW HERO ─────────────────────────────────────────────────────────── */}
+      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
-        {/* Background screenshot — blurred & dimmed */}
-        <div style={{
-          position:"absolute",inset:0,zIndex:0,
-          backgroundImage:`url(${SCREENSHOTS.analysis})`,
-          backgroundSize:"cover",backgroundPosition:"top center",
-          filter:"blur(3px) brightness(0.18) saturate(0.8)",
-          transform:"scale(1.05)",
-        }}/>
-        {/* Gold radial glow */}
+        <div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:`url(${SCREENSHOTS.analysis})`,backgroundSize:"cover",backgroundPosition:"top center",filter:"blur(3px) brightness(0.18) saturate(0.8)",transform:"scale(1.05)"}}/>
         <div className="glow" style={{width:900,height:700,top:"-10%",left:"30%",background:"radial-gradient(ellipse,rgba(201,168,76,.05) 0%,transparent 65%)",zIndex:0}}/>
-        {/* Subtle grid */}
         <div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:"linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
-
         <div className="container" style={{position:"relative",zIndex:1}}>
           <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"52% 48%",gap:60,alignItems:"center"}}>
-            {/* LEFT */}
             <div>
               <div className="fu" style={{marginBottom:22,animationDelay:".1s"}}><span className="badge">◆ Deal Intelligence Platform</span></div>
               <h1 className="fu" style={{fontFamily:"var(--font-display)",fontSize:"clamp(40px,5vw,68px)",fontWeight:300,lineHeight:1.06,marginBottom:20,letterSpacing:"-.01em",animationDelay:".2s"}}>
@@ -620,30 +514,31 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 Whether you're developing, lending, investing or advising — Valora gives you institutional-grade appraisals, live cashflows, and team collaboration in one place.
               </p>
               <div className="fu" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:32,animationDelay:".35s"}}>
-                {[["◈","Developers"],["◎","Lenders & Banks"],["◉","Investment Managers"],["◫","Valuers & Surveyors"]].map(([icon,label])=>(
+                {[["◈","Developers"],["◎","Lenders & Banks"],["◉","Investment Managers"],["◫","Valuers & Advisors"]].map(([icon,label])=>(
                   <span key={label} style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border-m)",borderRadius:20,padding:"6px 14px",fontSize:12,color:"var(--text-m)",letterSpacing:".02em"}}><span style={{color:"var(--gold)",fontSize:11,fontWeight:300}}>{icon}</span>{label}</span>
                 ))}
               </div>
               <div className="fu" style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32,animationDelay:".38s"}}>
-                {[
-                  ["◈","Model any deal","BTR, BTS, Hotel, Flip — new-build, conversion or income-producing. True monthly cashflows, DSCR, IRR, sensitivity matrices."],
-                  ["⟳","Share with confidence","Live links for investors and lenders. They always see the latest version."],
-                  ["◫","Work as a team","Shared workspace, tasks, notes and role permissions — everyone on the same deal."],
-                ].map(([icon,title,desc])=>(
+                {[["◈","Model any deal","BTR, BTS, Hotel, Flip — new-build, conversion or income-producing. True monthly cashflows, DSCR, IRR, sensitivity matrices."],["⟳","Share with confidence","Live links for investors and lenders. They always see the latest version."],["◫","Work as a team","Shared workspace, tasks, notes and role permissions — everyone on the same deal."]].map(([icon,title,desc])=>(
                   <div key={title} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
                     <span style={{color:"var(--gold)",fontSize:14,marginTop:1,flexShrink:0}}>{icon}</span>
                     <span style={{fontSize:14,color:"var(--text-m)"}}><strong style={{color:"var(--text)",fontWeight:500}}>{title}</strong> — {desc}</span>
                   </div>
                 ))}
               </div>
-              <div className="fu" style={{display:"flex",gap:28,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
-                {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["14 days","Enterprise trial"]].map(([v,l])=>(
-                  <div key={l}><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:500,color:"var(--gold-l)"}}>{v}</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>{l}</div></div>
+              <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36,animationDelay:".4s"}}>
+                <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"14px 30px"}}>Start Free Trial — No Card Needed</button>
+                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px",borderColor:"var(--gold-border)",color:"var(--gold)"}} onClick={()=>window.open(CALENDLY,"_blank")}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Book a Demo
+                </button>
+              </div>
+              <div className="fu" style={{display:"flex",gap:24,paddingTop:24,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
+                {[["10","Benchmark rates supported"],["14 days","Full enterprise trial"],["99.9%","Platform uptime"],["< 5 min","To your first appraisal"]].map(([v,l])=>(
+                  <div key={l}><div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,color:"var(--gold-l)"}}>{v}</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>{l}</div></div>
                 ))}
               </div>
             </div>
-
-            {/* RIGHT — asset selector card */}
             <div className="hero-right" style={{display:"flex",justifyContent:"center",alignItems:"center"}}>
               <AssetSelectorCard onLogin={onLogin}/>
             </div>
@@ -654,32 +549,20 @@ function Landing({onLogin,onPage,scrolled}:any) {
       {/* ── TICKER ───────────────────────────────────────────────────────────── */}
       <div className="ticker-wrap">
         <div className="ticker-inner">
-          {/* ── CHANGE 2: ticker updated ── */}
           {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple (MOIC)","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Transfer Tax Engine","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Break-even Analysis","Payback Period","Share Links"].map((item,i)=>(
             <span key={`${ri}-${i}`} className="ticker-item"><span style={{color:"var(--gold)",fontSize:10}}>◆</span>{item}</span>
           )))}
         </div>
       </div>
 
-      {/* ── STATS ────────────────────────────────────────────────────────────── */}
-      <section style={{padding:"70px 0",background:"var(--bg1)",borderBottom:"1px solid var(--border)"}}>
-        <div className="container">
-          <div className="stats-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:0}}>
-            {STATS.map((s,i)=>(
-              <div key={i} style={{textAlign:"center",padding:"20px 0",borderLeft:i>0?"1px solid var(--border)":"none"}}>
-                <div style={{fontFamily:"var(--font-display)",fontSize:52,fontWeight:300,color:"var(--gold-l)",lineHeight:1}}><Counter target={s.value} prefix={s.prefix} suffix={s.suffix} dec={s.dec||0}/></div>
-                <div style={{fontSize:11,color:"var(--text-d)",marginTop:8,letterSpacing:".09em",textTransform:"uppercase"}}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRODUCT SHOWCASE (NEW) ────────────────────────────────────────────── */}
+      {/* ── PRODUCT SHOWCASE ─────────────────────────────────────────────────── */}
       <ProductShowcase/>
 
+      {/* ── CTA after showcase ───────────────────────────────────────────────── */}
+      <div className="container"><CTAStrip onLogin={onLogin} text="See something you need? Try it now." btn="Try it now — Free →"/></div>
+
       {/* ── BUILT FOR ────────────────────────────────────────────────────────── */}
-      <BuiltForSection/>
+      <BuiltForSection onLogin={onLogin}/>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
       <section id="features" className="section">
@@ -701,6 +584,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               </div>
             ))}
           </div>
+          <CTAStrip onLogin={onLogin} text="Ready to replace your Excel model?" btn="Make your first appraisal →"/>
         </div>
       </section>
 
@@ -712,7 +596,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               <div className="badge badge-green" style={{marginBottom:20}}>Team Collaboration</div>
               <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:20}}>Your whole team,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one workspace</em></h2>
               <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:32}}>Invite your analysts, asset managers and JV partners into a shared workspace. Everyone works on the same live appraisal — no more emailing spreadsheet versions.</p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:28}}>
                 {[["Shared appraisals","Every team member sees the live model, not a stale copy."],["Role permissions","Viewer, editor and admin roles per workspace."],["Notes & activity","Threaded notes and full activity log on every deal."],["Task management","Assign tasks with due dates — linked directly to the deal."],["Invite by email","Add team members instantly with a single email invite."],["Multi-firm support","Separate workspaces for different firms or fund structures."]].map(([title,sub],i)=>(
                   <div key={i} className="workspace-card">
                     <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:4}}>{title}</div>
@@ -720,13 +604,12 @@ function Landing({onLogin,onPage,scrolled}:any) {
                   </div>
                 ))}
               </div>
+              <button className="btn-primary" onClick={onLogin} style={{fontSize:13,padding:"11px 22px"}}>Invite your team — it's free →</button>
             </div>
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:20,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
                 <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>BTR · London W1 · 4 members</div></div>
-                <div style={{display:"flex"}}>
-                  {["JH","PS","MA","SC"].map((ini,i)=>(<div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>))}
-                </div>
+                <div style={{display:"flex"}}>{["JH","PS","MA","SC"].map((ini,i)=>(<div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>))}</div>
               </div>
               <WorkspaceDemo/>
             </div>
@@ -741,7 +624,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
             <div>
               <div className="badge" style={{marginBottom:20}}>Deal Pipeline</div>
               <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:18}}>Your entire deal pipeline,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one place</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8}}>Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Every appraisal linked, always in sync with your team.</p>
+              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.8,marginBottom:28}}>Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Every appraisal linked, always in sync with your team.</p>
+              <button className="btn-primary" onClick={onLogin} style={{fontSize:13,padding:"11px 22px"}}>Start tracking your pipeline →</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 24px",alignContent:"start",paddingTop:8}}>
               {[["Customisable stages","Name your stages to match your workflow."],["Tasks & notes","Add tasks with priorities and notes to every deal."],["Activity feed","Automatic log of every stage move and update."],["Multiple scenarios","Link several appraisals to a single deal card."]].map(([title,sub],i)=>(
@@ -776,7 +660,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 {t.badge&&<div className="badge" style={{position:"absolute",top:16,right:16,fontSize:9}}>{t.badge}</div>}
                 <div style={{width:48,height:48,borderRadius:10,background:t.color+"14",border:`1px solid ${t.color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:t.color,fontFamily:"var(--font-mono)",marginBottom:16}}>{t.abbr}</div>
                 <div style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:500,color:"var(--text)",marginBottom:10}}>{t.label}</div>
-                <div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.65}}>{t.desc}</div>
+                <div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.65,marginBottom:16}}>{t.desc}</div>
+                <button onClick={onLogin} style={{background:"transparent",border:`1px solid ${t.color}44`,borderRadius:6,color:t.color,fontSize:11,padding:"6px 12px",cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s"}} onMouseEnter={e=>{(e.target as HTMLElement).style.background=t.color+"14"}} onMouseLeave={e=>{(e.target as HTMLElement).style.background="transparent"}}>Try {t.abbr} model →</button>
               </div>
             ))}
           </div>
@@ -807,6 +692,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               </div>
             ))}
           </div>
+          <CTAStrip onLogin={onLogin} text="Stop fighting your spreadsheet. Start closing deals." btn="Get started free →"/>
         </div>
       </section>
 
@@ -881,7 +767,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────────────────── */}
+      {/* ── FINAL CTA ────────────────────────────────────────────────────────── */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",position:"relative",overflow:"hidden"}}>
         <div className="glow" style={{width:700,height:500,top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"radial-gradient(ellipse,rgba(201,168,76,.09) 0%,transparent 65%)"}}/>
         <div className="container" style={{textAlign:"center",position:"relative",zIndex:1}}>
@@ -897,13 +783,24 @@ function Landing({onLogin,onPage,scrolled}:any) {
             </button>
           </div>
           <div style={{marginTop:32,fontSize:12,color:"var(--text-d)",display:"flex",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
-            {["No credit card required","Setup in 5 minutes","Full feature access","Cancel anytime"].map(t=>(
-              <span key={t} style={{display:"flex",alignItems:"center",gap:6}}><span style={{color:"var(--green)",fontSize:10}}>●</span>{t}</span>
-            ))}
+            {["No credit card required","Setup in 5 minutes","Full feature access","Cancel anytime"].map(t=>(<span key={t} style={{display:"flex",alignItems:"center",gap:6}}><span style={{color:"var(--green)",fontSize:10}}>●</span>{t}</span>))}
           </div>
         </div>
       </section>
+
       <Footer onPage={onPage}/>
+
+      {/* ── STICKY CTA BAR ───────────────────────────────────────────────────── */}
+      <div className={`sticky-cta ${stickyVisible?"visible":""}`}>
+        <div className="sticky-cta-text">
+          <div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>Ready to replace your Excel model?</div>
+          <div style={{fontSize:11,color:"var(--text-d)"}}>14-day free trial · No credit card required</div>
+        </div>
+        <div style={{display:"flex",gap:10,flexShrink:0}}>
+          <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"9px 18px",fontSize:13,borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a Demo</button>
+          <button className="btn-primary" onClick={onLogin} style={{padding:"9px 22px",fontSize:13}}>Start Free Trial →</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -918,17 +815,7 @@ function AccessibilityContent(){return(<><p>We aim to meet WCAG 2.1 Level AA. Ke
 
 function SupportPage({onLogin,onPage,scrolled}:any){
   const [openFaq,setOpenFaq]=useState<any>(null);
-  const faqs=[
-    {q:"How do I create my first appraisal?",a:"Click 'New Appraisal' from your dashboard, choose your asset type, select currency and benchmark rate, and follow the tabs. Most users complete their first appraisal in under 15 minutes."},
-    {q:"Which currencies and benchmark rates are supported?",a:"GBP (SONIA), USD (SOFR), EUR (EURIBOR), AED (EIBOR), SGD (SORA), AUD (AONIA), JPY (TONA), CHF (SARON), CAD (CORRA), HKD (HONIA)."},
-    {q:"Can I share appraisals with investors?",a:"Yes. From any appraisal click Share to generate a live link. Investors see the latest version without needing to log in."},
-    {q:"How does the DSCR check work?",a:"DSCR and ICR are calculated automatically from your stabilised NOI (or EBITDA for hotels) against annual debt service on the peak loan balance. A flag appears in the Sense Check panel if DSCR drops below 1.25×."},
-    {q:"How does AI Sense Check work?",a:"It benchmarks your assumptions against market data — build costs, exit yields, LTC ratios, DSCR levels, rents — and flags what a senior lender would challenge. Runs automatically as you type."},
-    {q:"How does the Team Workspace work?",a:"Invite team members by email. Each project has a shared workspace with tasks, notes, activity feed and role-based permissions. All members see the live appraisal — no more emailing spreadsheet versions."},
-    {q:"How does AI Brochure work?",a:"Upload up to 3 photos, click Generate — Claude AI writes a professional investment memo. Edit each section before downloading the PDF."},
-    {q:"Can I cancel my subscription at any time?",a:"Yes. Cancel from account settings. Subscription remains active until end of current billing period."},
-    {q:"Is my data secure?",a:"All data is encrypted in transit and at rest. Your appraisal data is never shared or used to train AI models."},
-  ];
+  const faqs=[{q:"How do I create my first appraisal?",a:"Click 'New Appraisal' from your dashboard, choose your asset type, select currency and benchmark rate, and follow the tabs. Most users complete their first appraisal in under 15 minutes."},{q:"Which currencies and benchmark rates are supported?",a:"GBP (SONIA), USD (SOFR), EUR (EURIBOR), AED (EIBOR), SGD (SORA), AUD (AONIA), JPY (TONA), CHF (SARON), CAD (CORRA), HKD (HONIA)."},{q:"Can I share appraisals with investors?",a:"Yes. From any appraisal click Share to generate a live link. Investors see the latest version without needing to log in."},{q:"How does the DSCR check work?",a:"DSCR and ICR are calculated automatically from your stabilised NOI (or EBITDA for hotels) against annual debt service on the peak loan balance. A flag appears in the Sense Check panel if DSCR drops below 1.25×."},{q:"How does AI Sense Check work?",a:"It benchmarks your assumptions against market data — build costs, exit yields, LTC ratios, DSCR levels, rents — and flags what a senior lender would challenge. Runs automatically as you type."},{q:"How does the Team Workspace work?",a:"Invite team members by email. Each project has a shared workspace with tasks, notes, activity feed and role-based permissions. All members see the live appraisal — no more emailing spreadsheet versions."},{q:"How does AI Brochure work?",a:"Upload up to 3 photos, click Generate — Claude AI writes a professional investment memo. Edit each section before downloading the PDF."},{q:"Can I cancel my subscription at any time?",a:"Yes. Cancel from account settings. Subscription remains active until end of current billing period."},{q:"Is my data secure?",a:"All data is encrypted in transit and at rest. Your appraisal data is never shared or used to train AI models."}];
   return(
     <div>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="support"/>
@@ -945,11 +832,7 @@ function SupportPage({onLogin,onPage,scrolled}:any){
       </div>
       <div className="container" style={{padding:"60px 40px"}}>
         <div className="support-grid">
-          {[
-            {icon:"✉",title:"Email Support",desc:"For account, billing, and technical queries. We aim to respond within 24 hours.",action:"support@valoraplatform.io",link:"mailto:support@valoraplatform.io"},
-            {icon:"⚡",title:"Priority Support",desc:"Professional and Enterprise plans include 2-hour response SLA during business hours.",action:"Upgrade to Professional →",link:"#pricing"},
-            {icon:"◈",title:"Onboarding",desc:"Enterprise plans include dedicated 1-on-1 onboarding and template setup.",action:"Contact Sales →",link:"mailto:sales@valoraplatform.io"},
-          ].map((c,i)=>(<div key={i} className="support-card" onClick={()=>window.open(c.link,"_self")}><div style={{fontSize:28,marginBottom:16,color:"var(--gold)"}}>{c.icon}</div><div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,marginBottom:10,color:"var(--text)"}}>{c.title}</div><p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.7,marginBottom:16}}>{c.desc}</p><div style={{fontSize:13,color:"var(--gold)",fontWeight:500}}>{c.action}</div></div>))}
+          {[{icon:"✉",title:"Email Support",desc:"For account, billing, and technical queries. We aim to respond within 24 hours.",action:"support@valoraplatform.io",link:"mailto:support@valoraplatform.io"},{icon:"⚡",title:"Priority Support",desc:"Professional and Enterprise plans include 2-hour response SLA during business hours.",action:"Upgrade to Professional →",link:"#pricing"},{icon:"◈",title:"Onboarding",desc:"Enterprise plans include dedicated 1-on-1 onboarding and template setup.",action:"Contact Sales →",link:"mailto:sales@valoraplatform.io"}].map((c,i)=>(<div key={i} className="support-card" onClick={()=>window.open(c.link,"_self")}><div style={{fontSize:28,marginBottom:16,color:"var(--gold)"}}>{c.icon}</div><div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,marginBottom:10,color:"var(--text)"}}>{c.title}</div><p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.7,marginBottom:16}}>{c.desc}</p><div style={{fontSize:13,color:"var(--gold)",fontWeight:500}}>{c.action}</div></div>))}
         </div>
         <div style={{maxWidth:720,margin:"60px auto 0"}}>
           <h2 style={{fontFamily:"var(--font-display)",fontSize:32,fontWeight:300,marginBottom:8,textAlign:"center"}}>Frequently Asked Questions</h2>
@@ -972,13 +855,7 @@ function Login({onBack}:any){
   const [loading,setLoading]=useState(false);
   const [success,setSuccess]=useState(false);
   const [errors,setErrors]=useState<any>({});
-  useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    const inviteEmail=params.get("email");
-    const inviteFirm=params.get("firm");
-    if(inviteEmail)setEmail(decodeURIComponent(inviteEmail));
-    if(inviteFirm)setTab("signup");
-  },[]);
+  useEffect(()=>{ const params=new URLSearchParams(window.location.search); const inviteEmail=params.get("email"); const inviteFirm=params.get("firm"); if(inviteEmail)setEmail(decodeURIComponent(inviteEmail)); if(inviteFirm)setTab("signup"); },[]);
   const validate=()=>{ const e:any={}; if(!email||!email.includes("@"))e.email="Valid email required"; if(tab!=="reset"&&password.length<8)e.password="8+ characters required"; if(tab==="signup"&&!firm.trim())e.firm="Firm name required"; setErrors(e); return Object.keys(e).length===0; };
   const submit=async(ev:any)=>{
     ev.preventDefault(); if(!validate())return; setLoading(true);
