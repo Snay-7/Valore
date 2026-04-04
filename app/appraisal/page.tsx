@@ -515,7 +515,7 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
         {data.sdltTransactionType==="spv"&&<span style={{marginLeft:8,fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)"}}>EXEMPT</span>}
       </div>
     </div>)}
-    {data.sdltMode==="manual"&&<input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride??0} onChange={e=>set("sdltOverride",+e.target.value)}/>}
+    {data.sdltMode==="manual"&&<input className="inp" type="number" placeholder="Enter SDLT amount" value={data.sdltOverride===0?"":data.sdltOverride??""} onChange={e=>set("sdltOverride",+e.target.value)}/>}
   </div>);
 }
 function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
