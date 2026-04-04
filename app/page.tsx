@@ -22,14 +22,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--bg5)}
 a{text-decoration:none;color:inherit}
 @keyframes fu{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fi{from{opacity:0}to{opacity:1}}
 @keyframes float{0%,100%{transform:translateY(0) rotate(-0.5deg)}50%{transform:translateY(-14px) rotate(0.5deg)}}
 @keyframes float2{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes screenFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
 .fu{opacity:0;animation:fu .65s cubic-bezier(.16,1,.3,1) forwards}
-.float{animation:float 9s ease-in-out infinite}
-.float2{animation:float2 6s ease-in-out infinite}
 .nav{position:fixed;top:0;left:0;right:0;z-index:200;height:60px;display:flex;align-items:center;padding:0 40px;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
 .nav.on{background:rgba(6,7,10,.95);backdrop-filter:blur(24px);border-color:var(--border)}
 .nav-links{display:flex;gap:32px;margin-right:36px}
@@ -55,7 +54,6 @@ a{text-decoration:none;color:inherit}
 .badge-green{background:rgba(61,220,132,.08);border-color:rgba(61,220,132,.2);color:var(--green)}
 .section{padding:100px 0}
 .container{max-width:1140px;margin:0 auto;padding:0 40px}
-.testi{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;display:flex;flex-direction:column;gap:20px}
 .price-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:36px;position:relative;overflow:hidden;transition:border-color .25s}
 .price-card.featured{border-color:rgba(201,168,76,.4);background:var(--bg3)}
 .price-card.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold) 40%,var(--gold-l),transparent)}
@@ -90,6 +88,14 @@ a{text-decoration:none;color:inherit}
 .legal-content a{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
 .workspace-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:border-color .2s}
 .workspace-card:hover{border-color:var(--gold-border)}
+/* ── Product Showcase ── */
+.showcase-tab{padding:8px 16px;border-radius:6px;font-size:12px;font-family:var(--font-body);font-weight:500;background:transparent;border:1px solid transparent;color:var(--text-d);cursor:pointer;transition:all .2s;white-space:nowrap}
+.showcase-tab:hover{color:var(--text-m)}
+.showcase-tab.active{background:var(--bg3);border-color:var(--border-m);color:var(--gold)}
+/* ── Asset selector card ── */
+.asset-tile{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;position:relative}
+.asset-tile:hover{border-color:var(--gold-border);background:var(--bg4)}
+.asset-tile.selected{background:var(--gold-bg);border-color:var(--gold)}
 @media(max-width:768px){
   .nav{padding:0 20px;height:56px}
   .nav-links,.nav-btns{display:none}
@@ -97,11 +103,10 @@ a{text-decoration:none;color:inherit}
   .container{padding:0 20px}
   .section{padding:60px 0}
   .hero-grid{grid-template-columns:1fr !important}
-  .hero-cards{display:none !important}
+  .hero-right{display:none !important}
   .stats-grid{grid-template-columns:repeat(2,1fr) !important}
   .features-grid{grid-template-columns:1fr !important}
   .asset-grid{grid-template-columns:repeat(2,1fr) !important}
-  .testi-grid{grid-template-columns:1fr !important}
   .pricing-grid{grid-template-columns:1fr !important;max-width:100% !important}
   .footer-grid{grid-template-columns:1fr !important;gap:32px !important}
   .footer-bottom{flex-direction:column !important;gap:16px !important;text-align:center}
@@ -117,8 +122,8 @@ a{text-decoration:none;color:inherit}
   .hero-btns{flex-direction:column !important}
   .hero-btns button{width:100%}
   .cta-btns{flex-direction:column !important;align-items:center}
-  .builtfor-grid{grid-template-columns:1fr !important;gap:24px !important}
   .legal-content{padding:100px 20px 60px}
+  .showcase-tabs{overflow-x:auto}
 }
 @media(max-width:480px){
   .asset-grid{grid-template-columns:1fr !important}
@@ -134,15 +139,23 @@ a{text-decoration:none;color:inherit}
 .card-feature{cursor:default}.card-feature:hover .ficon{transform:scale(1.1);transition:transform .25s}
 .price-card{transition:border-color .25s,transform .25s,box-shadow .25s}.price-card:hover{transform:translateY(-4px);box-shadow:0 24px 48px rgba(0,0,0,.4)}
 .price-card.featured:hover{box-shadow:0 24px 48px rgba(201,168,76,.15)}
-.persona-card{transition:border-color .25s,transform .25s,box-shadow .25s}
-.persona-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.4)}
 .demo-tab{transition:all .2s;cursor:pointer;border-bottom:2px solid transparent;padding:8px 16px;font-size:12px;color:var(--text-d);background:none;border-top:none;border-left:none;border-right:none;font-family:var(--font-body);white-space:nowrap}
 .demo-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
 .demo-tab:hover{color:var(--text)}
-.hero-mouse{transition:transform .1s ease-out}
 `;
 
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
+
+// ── SCREENSHOT PATHS — copy your screenshots to /public/screenshots/ ──────────
+// Rename your files to match these names exactly:
+const SCREENSHOTS = {
+  analysis:    "/screenshots/analysis-btr.png",
+  cashflow:    "/screenshots/cashflow.png",
+  pipeline:    "/screenshots/pipeline.png",
+  portfolio:   "/screenshots/portfolio.png",
+  workspace:   "/screenshots/workspace.png",
+  sensitivity: "/screenshots/analysis-bts.png",
+};
 
 const FEATURES = [
   { icon:"◈", label:"True Monthly Cash Flow Engine", desc:"Full month-by-month P&L from acquisition to exit. S-curve drawdown model with interest rolled monthly on actual drawn balances — no approximations.", tag:"Core" },
@@ -154,12 +167,11 @@ const FEATURES = [
   { icon:"◈", label:"AI Sense Check", desc:"Automatically benchmarks your assumptions against market data. Flags DSCR breaches, aggressive exit yields, LTC limits, and build cost issues before credit committee.", tag:"AI" },
   { icon:"◈", label:"AI Investor Brochures", desc:"Upload photos, generate a full investment memorandum with Claude AI. Branded PDF with live share links — investors always see the latest version.", tag:"AI" },
   { icon:"◈", label:"Team Workspace", desc:"Collaborate on appraisals with your team. Shared workspace with notes, tasks, activity feed and role-based permissions — everything linked to the deal.", tag:"Team" },
-  { icon:"◈", label:"Auto SDLT Calculator", desc:"Full UK SDLT banding — residential, commercial, mixed-use and SPV share deal modes. +3% surcharge toggle. Calculated automatically from purchase price.", tag:"Tax" },
+  // ── CHANGE 1: Tax feature updated ──
+  { icon:"◈", label:"Property Transfer Tax Engine", desc:"Auto-calculates UK SDLT — residential, commercial, mixed-use and SPV modes with +3% surcharge. International deal? Switch to Override and enter your local rate — IMT, DLD Fee, Grunderwerbsteuer and more.", tag:"Tax" },
   { icon:"◈", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion.", tag:"PM" },
   { icon:"◈", label:"IRR — Levered & Unlevered", desc:"True levered IRR using monthly equity cash flows with progressive loan repayment. Unlevered IRR includes the full stabilisation ramp — not a simplified endpoint model.", tag:"Returns" },
 ];
-
-
 
 const STATS = [
   { value:60, suffix:"bn+", prefix:"£", label:"GDV Modelled" },
@@ -194,29 +206,137 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
   return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>;
 }
 
-const AppraisalMock = () => (
-  <div className="float" style={{background:"var(--bg3)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"20px 22px",width:290,boxShadow:"0 40px 80px rgba(0,0,0,.7)",position:"absolute"}}>
-    <div style={{fontSize:10,color:"var(--text-d)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:10}}>Chiswick Tower · BTR</div>
-    {[["GDV (Exit)","£208.5m","var(--text)"],["Profit on Cost","43.7%","var(--green)"],["IRR (Unlevered)","24.3%","var(--blue)"],["Equity Multiple","2.14×","var(--gold)"],["DSCR / ICR","1.62×","var(--green)"]].map(([l,v,c])=>(
-      <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid var(--bg5)",fontSize:12}}>
-        <span style={{color:"var(--text-m)"}}>{l}</span><span style={{color:c,fontFamily:"var(--font-mono)",fontWeight:500}}>{v}</span>
+// ── NEW: Asset selector card (Monday.com style) ───────────────────────────────
+function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
+  const [selected, setSelected] = useState<string|null>(null);
+  const assets = [
+    { key:"BTR", label:"Build to Rent", icon:"◈", color:"#c9a84c", sub:"Residential income-producing" },
+    { key:"BTS", label:"Build to Sell", icon:"◎", color:"#5b9cf6", sub:"Development & conversion" },
+    { key:"Hotel", label:"Hotel", icon:"◉", color:"#f0a429", sub:"Acquisition & repositioning" },
+    { key:"Flip", label:"House Flip", icon:"◫", color:"#3ddc84", sub:"Refurb & quick exit" },
+  ];
+  return (
+    <div style={{
+      background:"rgba(18,21,26,0.96)",
+      border:"1px solid rgba(255,255,255,0.12)",
+      borderRadius:18,
+      padding:28,
+      width:340,
+      boxShadow:"0 40px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(201,168,76,.08)",
+      position:"relative",
+      animation:"fadeSlideIn .7s cubic-bezier(.16,1,.3,1) .6s both",
+    }}>
+      {/* Gold top line */}
+      <div style={{position:"absolute",top:0,left:"15%",right:"15%",height:1,background:"linear-gradient(90deg,transparent,#c9a84c,transparent)"}}/>
+      <div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:4}}>What would you like to model?</div>
+      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:20}}>Choose an asset type to get started</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+        {assets.map(a=>(
+          <button key={a.key} className={`asset-tile ${selected===a.key?"selected":""}`} onClick={()=>setSelected(a.key)}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+              {selected===a.key&&<div style={{position:"absolute",top:10,right:10,width:16,height:16,borderRadius:"50%",background:a.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#06070a",fontWeight:700}}>✓</div>}
+              <span style={{fontSize:15,color:a.color}}>{a.icon}</span>
+              <span style={{fontSize:12,fontWeight:600,color:selected===a.key?a.color:"var(--text)"}}>{a.key}</span>
+            </div>
+            <div style={{fontSize:11,color:"var(--text-d)",lineHeight:1.4}}>{a.label}</div>
+            <div style={{fontSize:9,color:"var(--text-d)",lineHeight:1.3,marginTop:2}}>{a.sub}</div>
+          </button>
+        ))}
       </div>
-    ))}
-    <div style={{marginTop:14,height:6,background:"var(--bg5)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:"74%",background:"linear-gradient(90deg,var(--gold),var(--gold-l))",borderRadius:3}}/></div>
-    <div style={{fontSize:9,color:"var(--text-d)",marginTop:5,textAlign:"right"}}>74% toward 20% PoC target</div>
-  </div>
-);
-
-const SensitivityMock = () => (
-  <div className="float2" style={{background:"var(--bg3)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"18px 20px",width:230,boxShadow:"0 30px 60px rgba(0,0,0,.6)",position:"absolute",animationDelay:"2.5s"}}>
-    <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:10}}>Sensitivity · PoC %</div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:3}}>
-      {[["12.1%","r"],["15.4%","a"],["18.7%","a"],["16.8%","a"],["21.5%","g"],["24.2%","g"],["22.1%","g"],["27.3%","g"],["31.8%","g"]].map(([v,t],i)=>(
-        <div key={i} style={{fontSize:10,textAlign:"center",padding:"5px 2px",borderRadius:4,fontFamily:"var(--font-mono)",background:t==="r"?"rgba(244,100,95,.12)":t==="a"?"rgba(240,164,41,.1)":"rgba(61,220,132,.09)",color:t==="r"?"var(--red)":t==="a"?"var(--amber)":"var(--green)",border:i===4?"1px solid var(--gold)":"1px solid transparent",fontWeight:i===4?600:400}}>{v}</div>
-      ))}
+      <button
+        onClick={onLogin}
+        style={{
+          width:"100%",
+          padding:"13px",
+          borderRadius:9,
+          background: selected ? "var(--gold)" : "rgba(201,168,76,0.15)",
+          border: selected ? "none" : "1px solid rgba(201,168,76,0.3)",
+          color: selected ? "#06070a" : "var(--gold)",
+          fontFamily:"var(--font-body)",
+          fontSize:13,
+          fontWeight:700,
+          cursor:"pointer",
+          transition:"all .25s",
+          display:"flex",
+          alignItems:"center",
+          justifyContent:"center",
+          gap:8,
+        }}
+      >
+        {selected ? `Start modelling ${selected} →` : "Get Started — Free Trial →"}
+      </button>
+      <div style={{textAlign:"center",fontSize:10,color:"var(--text-d)",marginTop:10}}>No credit card required · 14-day free trial</div>
     </div>
-  </div>
-);
+  );
+}
+
+// ── NEW: Product showcase (screenshot carousel) ───────────────────────────────
+function ProductShowcase() {
+  const [active, setActive] = useState(0);
+  const tabs = [
+    { label:"Returns Analysis", key:"analysis", desc:"GDV, IRR, DSCR, equity multiple — all live as you type", img: SCREENSHOTS.analysis },
+    { label:"Monthly Cashflow", key:"cashflow", desc:"True S-curve drawdown with interest rolled on drawn balances", img: SCREENSHOTS.cashflow },
+    { label:"Deal Pipeline", key:"pipeline", desc:"Kanban board from Prospect to Completion with live metrics", img: SCREENSHOTS.pipeline },
+    { label:"Portfolio View", key:"portfolio", desc:"All active deals, total GDV, avg PoC and IRR at a glance", img: SCREENSHOTS.portfolio },
+    { label:"Team Workspace", key:"workspace", desc:"Tasks, notes and activity — everyone on the same deal", img: SCREENSHOTS.workspace },
+    { label:"Sensitivity Matrix", key:"sensitivity", desc:"45-scenario RAG matrix across exit yield and rent", img: SCREENSHOTS.sensitivity },
+  ];
+  const t = tabs[active];
+  return (
+    <section style={{padding:"80px 0 0",background:"var(--bg)",borderTop:"1px solid var(--border)"}}>
+      <div className="container">
+        <div className="reveal" style={{textAlign:"center",marginBottom:40}}>
+          <div className="badge" style={{marginBottom:16}}>Product Tour</div>
+          <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:12}}>
+            See every corner<br/><em className="grad-text" style={{fontStyle:"italic"}}>of the platform</em>
+          </h2>
+          <p style={{fontSize:15,color:"var(--text-m)",maxWidth:440,margin:"0 auto"}}>{t.desc}</p>
+        </div>
+        {/* Tabs */}
+        <div className="showcase-tabs" style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginBottom:28}}>
+          {tabs.map((tab,i)=>(
+            <button key={i} className={`showcase-tab ${active===i?"active":""}`} onClick={()=>setActive(i)}>{tab.label}</button>
+          ))}
+        </div>
+        {/* Screenshot */}
+        <div style={{
+          position:"relative",
+          borderRadius:"16px 16px 0 0",
+          overflow:"hidden",
+          border:"1px solid var(--border-m)",
+          borderBottom:"none",
+          boxShadow:"0 -20px 60px rgba(0,0,0,.5)",
+          background:"var(--bg1)",
+        }}>
+          {/* Browser chrome */}
+          <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",gap:5}}>{["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:10,height:10,borderRadius:"50%",background:c,opacity:.7}}/>)}</div>
+            <div style={{flex:1,background:"var(--bg3)",borderRadius:5,padding:"4px 12px",fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",maxWidth:320,margin:"0 auto",textAlign:"center"}}>app.valoraplatform.io</div>
+          </div>
+          {/* Screenshot image */}
+          <div key={active} style={{animation:"screenFadeIn .35s cubic-bezier(.16,1,.3,1)",lineHeight:0}}>
+            <img
+              src={t.img}
+              alt={t.label}
+              style={{width:"100%",display:"block",objectFit:"cover",maxHeight:520,objectPosition:"top"}}
+              onError={(e)=>{
+                // Fallback if screenshot not yet added — show placeholder
+                (e.target as HTMLImageElement).style.display="none";
+                (e.target as HTMLImageElement).parentElement!.style.minHeight="400px";
+                (e.target as HTMLImageElement).parentElement!.style.background="var(--bg2)";
+                (e.target as HTMLImageElement).parentElement!.style.display="flex";
+                (e.target as HTMLImageElement).parentElement!.style.alignItems="center";
+                (e.target as HTMLImageElement).parentElement!.style.justifyContent="center";
+              }}
+            />
+          </div>
+          {/* Bottom gradient fade */}
+          <div style={{position:"absolute",bottom:0,left:0,right:0,height:80,background:"linear-gradient(transparent,var(--bg))",pointerEvents:"none"}}/>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const PipelineMock = () => (
   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,width:"100%"}}>
@@ -312,17 +432,15 @@ function Footer({onPage}:any) {
   );
 }
 
-
-
 function BuiltForSection() {
   const [active, setActive] = useState(0);
   const personas = [
     {
       icon:"◈", label:"Developers", color:"var(--gold)",
       headline:"Model any deal with investment-bank rigour",
-      desc:"From a £2m house flip to a £500m BTR fund — Valora handles the full complexity of any development project. True monthly cashflows, DSCR checking, promote waterfalls and AI sense check, all in one place.",
+      desc:"From a £2m house flip to a £500m BTR fund — Valora handles new-build, conversion, refurbishment and income-producing assets. True monthly cashflows, DSCR checking, promote waterfalls and AI sense check, all in one place.",
       points:[
-        ["◆","All 4 asset types","BTR, BTS, Hotel, Flip — each with specialist inputs and metrics"],
+        ["◆","All 4 asset types","BTR, BTS, Hotel, Flip — new-build, conversion & income-producing"],
         ["◆","True monthly CF","S-curve drawdown with interest rolled on actual drawn balances"],
         ["◆","DSCR / ICR & IRR","Auto-calculated. Flagged before credit committee sees it"],
         ["◆","AI Sense Check","Benchmarks your assumptions against market data in real time"],
@@ -355,12 +473,13 @@ function BuiltForSection() {
     },
     {
       icon:"◫", label:"Valuers & Advisors", color:"var(--amber)",
-      headline:"RLV, sensitivity and SDLT — all automated",
-      desc:"Residual land value updates as you type. Exit yield sensitivity matrices with colour-coded RAG. Full UK SDLT calculator including SPV and mixed-use modes. Branded PDF exports for client delivery.",
+      headline:"RLV, sensitivity and transfer tax — all automated",
+      desc:"Residual land value updates as you type. Exit yield sensitivity matrices with colour-coded RAG. UK SDLT auto-calculated, with override for any jurisdiction globally. Branded PDF exports for client delivery.",
       points:[
         ["◆","Live RLV","Residual land value recalculated on every keystroke"],
         ["◆","Sensitivity matrices","Exit yield and rent sensitivity with 45 RAG-coded scenarios"],
-        ["◆","Auto SDLT","Full UK banding — residential, commercial, mixed-use, SPV"],
+        // ── CHANGE 3: Valuers persona tax bullet updated ──
+        ["◆","Transfer Tax Engine","UK SDLT auto-calculated. Override for IMT, DLD Fee, Grunderwerbsteuer and any jurisdiction."],
         ["◆","Stabilisation modelling","Void periods and rent-free modelled in the cashflow"],
         ["◆","Branded PDF","Professional export with your firm details for client delivery"],
       ]
@@ -374,7 +493,6 @@ function BuiltForSection() {
           <div className="badge" style={{marginBottom:16}}>Built For</div>
           <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,48px)",fontWeight:300,lineHeight:1.1,marginBottom:14}}>One platform.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Every professional in the room.</em></h2>
         </div>
-        {/* Role selector */}
         <div className="reveal" style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginBottom:48}}>
           {personas.map((persona,i)=>(
             <button key={i} onClick={()=>setActive(i)} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:8,border:`1px solid ${active===i?persona.color+"88":"var(--border)"}`,background:active===i?persona.color+"0f":"transparent",color:active===i?persona.color:"var(--text-m)",fontSize:13,fontFamily:"var(--font-body)",cursor:"pointer",transition:"all .2s",fontWeight:active===i?500:400}}>
@@ -383,7 +501,6 @@ function BuiltForSection() {
             </button>
           ))}
         </div>
-        {/* Content panel */}
         <div key={active} style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:48,alignItems:"center",animation:"revealUp .4s cubic-bezier(.16,1,.3,1) forwards"}}>
           <div>
             <div style={{fontSize:11,color:p.color,textTransform:"uppercase",letterSpacing:".1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>{p.icon}</span>{p.label}</div>
@@ -429,58 +546,12 @@ function WorkspaceDemo() {
   return (
     <div>
       <div style={{display:"flex",overflowX:"auto",marginBottom:16,borderBottom:"1px solid var(--border)"}}>
-        {tabs.map((t,i)=>(
-          <button key={t} className={`demo-tab ${activeTab===i?"active":""}`} onClick={()=>setActiveTab(i)}>{t}</button>
-        ))}
+        {tabs.map((t,i)=>(<button key={t} className={`demo-tab ${activeTab===i?"active":""}`} onClick={()=>setActiveTab(i)}>{t}</button>))}
       </div>
-      {activeTab===0&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {overviewData.map((item,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg3)",borderRadius:8}}>
-              <span style={{fontSize:12,color:"var(--text-m)"}}>{item.label}</span>
-              <span style={{fontSize:13,fontFamily:"var(--font-mono)",fontWeight:600,color:item.color}}>{item.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {activeTab===1&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {taskData.map((item,i)=>(
-            <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div>
-                <div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div>
-              </div>
-              <span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {activeTab===2&&(
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {noteData.map((item,i)=>(
-            <div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"12px 14px"}}>
-              <div style={{fontSize:12,color:"var(--text)",lineHeight:1.6,marginBottom:8}}>{item.note}</div>
-              <div style={{fontSize:10,color:"var(--text-d)"}}>{item.author} · {item.time}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      {activeTab===3&&(
-        <div style={{display:"flex",flexDirection:"column",gap:0}}>
-          {[
-            {action:"Moved to Under Offer",user:"JH",time:"1h ago",icon:"→"},
-            {action:"Task completed: Send appraisal to lender",user:"MA",time:"3h ago",icon:"✓"},
-            {action:"Note added",user:"PS",time:"5h ago",icon:"◆"},
-            {action:"Exit yield updated 5.25% → 5.0%",user:"JH",time:"Yesterday",icon:"⟳"},
-          ].map((item,i)=>(
-            <div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bg4)"}}>
-              <div style={{width:26,height:26,borderRadius:"50%",background:"var(--bg4)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"var(--gold)",flexShrink:0}}>{item.icon}</div>
-              <div><div style={{fontSize:12,color:"var(--text-m)"}}>{item.action}</div><div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>{item.user} · {item.time}</div></div>
-            </div>
-          ))}
-        </div>
-      )}
+      {activeTab===0&&(<div style={{display:"flex",flexDirection:"column",gap:8}}>{overviewData.map((item,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg3)",borderRadius:8}}><span style={{fontSize:12,color:"var(--text-m)"}}>{item.label}</span><span style={{fontSize:13,fontFamily:"var(--font-mono)",fontWeight:600,color:item.color}}>{item.value}</span></div>))}</div>)}
+      {activeTab===1&&(<div style={{display:"flex",flexDirection:"column",gap:8}}>{taskData.map((item,i)=>(<div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,color:"var(--text)",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.task}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{item.assignee} · {item.due}</div></div><span style={{fontSize:9,padding:"2px 8px",borderRadius:20,background:item.color+"18",color:item.color,whiteSpace:"nowrap",fontWeight:500}}>{item.status}</span></div>))}</div>)}
+      {activeTab===2&&(<div style={{display:"flex",flexDirection:"column",gap:10}}>{noteData.map((item,i)=>(<div key={i} style={{background:"var(--bg3)",borderRadius:8,padding:"12px 14px"}}><div style={{fontSize:12,color:"var(--text)",lineHeight:1.6,marginBottom:8}}>{item.note}</div><div style={{fontSize:10,color:"var(--text-d)"}}>{item.author} · {item.time}</div></div>))}</div>)}
+      {activeTab===3&&(<div style={{display:"flex",flexDirection:"column",gap:0}}>{[{action:"Moved to Under Offer",user:"JH",time:"1h ago",icon:"→"},{action:"Task completed: Send appraisal to lender",user:"MA",time:"3h ago",icon:"✓"},{action:"Note added",user:"PS",time:"5h ago",icon:"◆"},{action:"Exit yield updated 5.25% → 5.0%",user:"JH",time:"Yesterday",icon:"⟳"}].map((item,i)=>(<div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bg4)"}}><div style={{width:26,height:26,borderRadius:"50%",background:"var(--bg4)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"var(--gold)",flexShrink:0}}>{item.icon}</div><div><div style={{fontSize:12,color:"var(--text-m)"}}>{item.action}</div><div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>{item.user} · {item.time}</div></div></div>))}</div>)}
     </div>
   );
 }
@@ -490,8 +561,6 @@ export default function App() {
   const scrolled=useScrolled();
   const toLogin=useCallback(()=>{ setPage("login"); window.scrollTo(0,0); },[]);
   const toPage=useCallback((p:string)=>{ setPage(p); window.scrollTo(0,0); },[]);
-
-  // Scroll reveal observer
   useEffect(()=>{
     const obs=new IntersectionObserver((entries)=>{
       entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("visible"); obs.unobserve(e.target); } });
@@ -500,13 +569,10 @@ export default function App() {
     els.forEach(el=>obs.observe(el));
     return ()=>obs.disconnect();
   },[page]);
-
-  // Auto-open login if invite link
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     if(params.get("invited")==="true") toLogin();
   },[toLogin]);
-
   return (
     <>
       <style>{CSS}</style>
@@ -526,11 +592,25 @@ function Landing({onLogin,onPage,scrolled}:any) {
   return (
     <div>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
+
+      {/* ── NEW HERO ─────────────────────────────────────────────────────────── */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
-        <div className="glow" style={{width:800,height:600,top:"10%",left:"40%",background:"radial-gradient(ellipse,rgba(201,168,76,.06) 0%,transparent 65%)"}}/>
-        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
+        {/* Background screenshot — blurred & dimmed */}
+        <div style={{
+          position:"absolute",inset:0,zIndex:0,
+          backgroundImage:`url(${SCREENSHOTS.analysis})`,
+          backgroundSize:"cover",backgroundPosition:"top center",
+          filter:"blur(3px) brightness(0.18) saturate(0.8)",
+          transform:"scale(1.05)",
+        }}/>
+        {/* Gold radial glow */}
+        <div className="glow" style={{width:900,height:700,top:"-10%",left:"30%",background:"radial-gradient(ellipse,rgba(201,168,76,.05) 0%,transparent 65%)",zIndex:0}}/>
+        {/* Subtle grid */}
+        <div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:"linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none"}}/>
+
         <div className="container" style={{position:"relative",zIndex:1}}>
-          <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"55% 45%",gap:60,alignItems:"center"}}>
+          <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"52% 48%",gap:60,alignItems:"center"}}>
+            {/* LEFT */}
             <div>
               <div className="fu" style={{marginBottom:22,animationDelay:".1s"}}><span className="badge">◆ Deal Intelligence Platform</span></div>
               <h1 className="fu" style={{fontFamily:"var(--font-display)",fontSize:"clamp(40px,5vw,68px)",fontWeight:300,lineHeight:1.06,marginBottom:20,letterSpacing:"-.01em",animationDelay:".2s"}}>
@@ -539,16 +619,14 @@ function Landing({onLogin,onPage,scrolled}:any) {
               <p className="fu" style={{fontSize:17,color:"var(--text-m)",lineHeight:1.75,maxWidth:520,marginBottom:24,animationDelay:".3s"}}>
                 Whether you're developing, lending, investing or advising — Valora gives you institutional-grade appraisals, live cashflows, and team collaboration in one place.
               </p>
-              {/* Who it's for */}
               <div className="fu" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:32,animationDelay:".35s"}}>
                 {[["◈","Developers"],["◎","Lenders & Banks"],["◉","Investment Managers"],["◫","Valuers & Surveyors"]].map(([icon,label])=>(
                   <span key={label} style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--bg2)",border:"1px solid var(--border-m)",borderRadius:20,padding:"6px 14px",fontSize:12,color:"var(--text-m)",letterSpacing:".02em"}}><span style={{color:"var(--gold)",fontSize:11,fontWeight:300}}>{icon}</span>{label}</span>
                 ))}
               </div>
-              {/* 3 benefit statements */}
               <div className="fu" style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32,animationDelay:".38s"}}>
                 {[
-                  ["◈","Model any deal","BTR, BTS, Hotel, Flip. True monthly cashflows, DSCR, IRR, sensitivity matrices."],
+                  ["◈","Model any deal","BTR, BTS, Hotel, Flip — new-build, conversion or income-producing. True monthly cashflows, DSCR, IRR, sensitivity matrices."],
                   ["⟳","Share with confidence","Live links for investors and lenders. They always see the latest version."],
                   ["◫","Work as a team","Shared workspace, tasks, notes and role permissions — everyone on the same deal."],
                 ].map(([icon,title,desc])=>(
@@ -558,36 +636,32 @@ function Landing({onLogin,onPage,scrolled}:any) {
                   </div>
                 ))}
               </div>
-              <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:44,animationDelay:".4s"}}>
-                <button className="btn-primary" onClick={onLogin} style={{fontSize:14,padding:"14px 30px"}}>Start Free Trial — No Card Needed</button>
-                <button className="btn-ghost" style={{fontSize:14,padding:"13px 24px",borderColor:"var(--gold-border)",color:"var(--gold)"}} onClick={()=>window.open(CALENDLY,"_blank")}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Book a Demo
-                </button>
-              </div>
               <div className="fu" style={{display:"flex",gap:28,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
                 {[["£60bn+","GDV modelled"],["30,000+","Deals analysed"],["10","Benchmark rates"],["14 days","Enterprise trial"]].map(([v,l])=>(
                   <div key={l}><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:500,color:"var(--gold-l)"}}>{v}</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>{l}</div></div>
                 ))}
               </div>
             </div>
-            <div className="hero-cards fu" style={{position:"relative",height:520,animationDelay:".5s"}}>
-              <AppraisalMock/>
-              <SensitivityMock/>
-              <div style={{position:"absolute",top:0,right:20,background:"var(--bg3)",border:"1px solid var(--border-m)",borderRadius:8,padding:"7px 13px",fontSize:11,fontFamily:"var(--font-mono)",color:"var(--blue)"}}>
-                SONIA 3.97% <span style={{color:"var(--text-d)"}}>+2.5% → 6.47% all-in</span>
-              </div>
+
+            {/* RIGHT — asset selector card */}
+            <div className="hero-right" style={{display:"flex",justifyContent:"center",alignItems:"center"}}>
+              <AssetSelectorCard onLogin={onLogin}/>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ── TICKER ───────────────────────────────────────────────────────────── */}
       <div className="ticker-wrap">
         <div className="ticker-inner">
-          {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple (MOIC)","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Auto SDLT","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Break-even Analysis","Payback Period","Share Links"].map((item,i)=>(
+          {/* ── CHANGE 2: ticker updated ── */}
+          {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple (MOIC)","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Transfer Tax Engine","Deal Pipeline","Tasks & Notes","Multi-Currency","Levered IRR","Break-even Analysis","Payback Period","Share Links"].map((item,i)=>(
             <span key={`${ri}-${i}`} className="ticker-item"><span style={{color:"var(--gold)",fontSize:10}}>◆</span>{item}</span>
           )))}
         </div>
       </div>
+
+      {/* ── STATS ────────────────────────────────────────────────────────────── */}
       <section style={{padding:"70px 0",background:"var(--bg1)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="stats-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:0}}>
@@ -600,9 +674,14 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
-      {/* Built For Section — Interactive Selector */}
+
+      {/* ── PRODUCT SHOWCASE (NEW) ────────────────────────────────────────────── */}
+      <ProductShowcase/>
+
+      {/* ── BUILT FOR ────────────────────────────────────────────────────────── */}
       <BuiltForSection/>
 
+      {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
       <section id="features" className="section">
         <div className="container">
           <div className="reveal" style={{textAlign:"center",marginBottom:70}}>
@@ -624,6 +703,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
+      {/* ── WORKSPACE ────────────────────────────────────────────────────────── */}
       <section id="workspace" style={{padding:"90px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="workspace-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
@@ -644,9 +725,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
                 <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>BTR · London W1 · 4 members</div></div>
                 <div style={{display:"flex"}}>
-                  {["JH","PS","MA","SC"].map((ini,i)=>(
-                    <div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>
-                  ))}
+                  {["JH","PS","MA","SC"].map((ini,i)=>(<div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0}}>{ini}</div>))}
                 </div>
               </div>
               <WorkspaceDemo/>
@@ -654,6 +733,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
+      {/* ── PIPELINE ─────────────────────────────────────────────────────────── */}
       <section style={{padding:"90px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
           <div className="pipeline-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,alignItems:"flex-start",marginBottom:48}}>
@@ -676,6 +757,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
+      {/* ── ASSET TYPES ──────────────────────────────────────────────────────── */}
       <section style={{padding:"90px 0"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:60}}>
@@ -687,7 +770,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {abbr:"BTR",color:"var(--gold)",label:"Build to Rent",desc:"OMR/DMR unit tables, NIY, exit yields, OpEx, stabilisation void ramp, DSCR/ICR, promote waterfall, break-even yield, RLV",badge:"Most Popular"},
               {abbr:"BTS",color:"var(--blue)",label:"Build to Sell",desc:"£/sqft sales price, unit absorption schedule, phased drawdowns, agent fees, progressive loan repayment, break-even psf",badge:""},
               {abbr:"HTL",color:"var(--amber)",label:"Hotel Acquisition",desc:"ADR, occupancy, RevPAR, EBITDA by stream (rooms, F&B, spa, gym, meetings), cap rate, CapEx budget, DSCR/ICR",badge:""},
-              {abbr:"FLP",color:"var(--green)",label:"House Flip",desc:"Purchase price, SDLT, refurb budget, bridging finance, hold period, ROI on equity deployed, equity multiple",badge:""},
+              {abbr:"FLP",color:"var(--green)",label:"House Flip",desc:"Purchase price, transfer tax, refurb budget, bridging finance, hold period, ROI on equity deployed, equity multiple",badge:""},
             ].map((t,i)=>(
               <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:14,padding:24,position:"relative",transition:"border-color .25s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=t.color+"66"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
                 {t.badge&&<div className="badge" style={{position:"absolute",top:16,right:16,fontSize:9}}>{t.badge}</div>}
@@ -699,6 +782,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
+      {/* ── WHY VALORA ───────────────────────────────────────────────────────── */}
       <section id="why" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:72}}>
@@ -708,7 +793,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <div className="why-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
             {[
               {problem:"Spreadsheet errors cost deals",stat:"80%",statLabel:"of spreadsheets contain at least one material error",solution:"Valora's engine produces consistent, auditable results with live updating — no broken formulas, no version confusion.",icon:"⚠",color:"var(--red)"},
-              {problem:"Generic tools don't speak property",stat:"0",statLabel:"standard finance tools understand DSCR covenants, NIY, OMR/DMR splits, or promote waterfalls",solution:"Every input is purpose-built for property — from SDLT bands to stabilisation ramps, DSCR checks to JV distributions.",icon:"⊠",color:"var(--amber)"},
+              {problem:"Generic tools don't speak property",stat:"0",statLabel:"standard finance tools understand DSCR covenants, NIY, OMR/DMR splits, or promote waterfalls",solution:"Every input is purpose-built for property — from transfer tax bands to stabilisation ramps, DSCR checks to JV distributions.",icon:"⊠",color:"var(--amber)"},
               {problem:"Investors and lenders need more",stat:"1",statLabel:"link is all it takes for investors to see your live appraisal, DSCR and break-even analysis",solution:"AI brochures, DSCR/ICR checking, live investor portals, and AI sense check — all from the same model.",icon:"◈",color:"var(--gold)"},
             ].map((card,i)=>(
               <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:32,display:"flex",flexDirection:"column",gap:20}}>
@@ -724,6 +809,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
+      {/* ── LENDERS ──────────────────────────────────────────────────────────── */}
       <section id="lenders" style={{padding:"90px 0"}}>
         <div className="container">
           <div className="lender-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
@@ -758,6 +845,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+      {/* ── PRICING ──────────────────────────────────────────────────────────── */}
       <section id="pricing" style={{padding:"90px 0",borderTop:"1px solid var(--border)"}}>
         <div className="container">
           <div style={{textAlign:"center",marginBottom:60}}>
@@ -783,11 +871,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 </div>
                 <div style={{height:1,background:"var(--border)",marginBottom:22}}/>
                 <ul style={{listStyle:"none",marginBottom:28}}>
-                  {plan.features.map((f,j)=>(
-                    <li key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:9,fontSize:13,color:"var(--text-m)"}}>
-                      <span style={{color:"var(--green)",fontSize:11,marginTop:1,flexShrink:0}}>✓</span>{f}
-                    </li>
-                  ))}
+                  {plan.features.map((f,j)=>(<li key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:9,fontSize:13,color:"var(--text-m)"}}><span style={{color:"var(--green)",fontSize:11,marginTop:1,flexShrink:0}}>✓</span>{f}</li>))}
                 </ul>
                 <button className={plan.featured?"btn-primary":"btn-ghost"} style={{width:"100%",justifyContent:"center",padding:"13px"}} onClick={()=>router.push("/pricing")}>{plan.cta}</button>
               </div>
@@ -796,6 +880,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <p style={{textAlign:"center",marginTop:28,fontSize:12,color:"var(--text-d)"}}>All prices exclude VAT. Annual billing available at 20% discount.</p>
         </div>
       </section>
+
+      {/* ── CTA ──────────────────────────────────────────────────────────────── */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",position:"relative",overflow:"hidden"}}>
         <div className="glow" style={{width:700,height:500,top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"radial-gradient(ellipse,rgba(201,168,76,.09) 0%,transparent 65%)"}}/>
         <div className="container" style={{textAlign:"center",position:"relative",zIndex:1}}>
@@ -886,8 +972,6 @@ function Login({onBack}:any){
   const [loading,setLoading]=useState(false);
   const [success,setSuccess]=useState(false);
   const [errors,setErrors]=useState<any>({});
-
-  // Pre-fill email if coming from invite link
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const inviteEmail=params.get("email");
@@ -895,7 +979,6 @@ function Login({onBack}:any){
     if(inviteEmail)setEmail(decodeURIComponent(inviteEmail));
     if(inviteFirm)setTab("signup");
   },[]);
-
   const validate=()=>{ const e:any={}; if(!email||!email.includes("@"))e.email="Valid email required"; if(tab!=="reset"&&password.length<8)e.password="8+ characters required"; if(tab==="signup"&&!firm.trim())e.firm="Firm name required"; setErrors(e); return Object.keys(e).length===0; };
   const submit=async(ev:any)=>{
     ev.preventDefault(); if(!validate())return; setLoading(true);
@@ -903,7 +986,6 @@ function Login({onBack}:any){
     else if(tab==="signup"){const{error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,firm_name:firm}}}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
     else if(tab==="reset"){const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback`}); if(error){setErrors({email:error.message});setLoading(false);return;} setLoading(false);setSuccess(true);}
   };
-
   return(
     <div className="login-wrap">
       <div className="login-left">
