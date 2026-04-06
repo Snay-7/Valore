@@ -47,7 +47,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   .sidebar{display:none}
   .bottom-nav{display:flex}
   .mobile-topbar{display:flex}
-  .main-wrap{margin-left:0!important;padding:16px 14px 90px!important;max-width:100vw!important;width:100vw!important}
+  .main-wrap{margin-left:0!important;padding:16px 14px 90px!important;max-width:100vw!important}
   .notes-layout{grid-template-columns:1fr!important}
   .note-editor-col{display:none}
   .note-editor-col.mobile-open{display:flex!important;position:fixed;inset:0;z-index:150;padding:0;background:var(--bg)}
@@ -232,7 +232,7 @@ export default function NotesPage() {
       </div>
 
       {/* ── MAIN ── */}
-      <div className="main-wrap">
+      <div className="main-wrap" style={{ marginLeft: 210, flex: 1, padding: "32px", maxWidth: "calc(100vw - 210px)" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
