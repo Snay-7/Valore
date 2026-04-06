@@ -666,6 +666,9 @@ function AppraisalPage(){
   const[senseRunning,setSenseRunning]=useState(false);
   const[hotelComps,setHotelComps]=useState<any>(null);
   const[strategyYield,setStrategyYield]=useState<number>(5);
+  const[strategyPsf,setStrategyPsf]=useState<string>("");
+  const[strategyPsfSuggesting,setStrategyPsfSuggesting]=useState(false);
+  const[strategyPsfSuggestion,setStrategyPsfSuggestion]=useState<any>(null);
   const[hotelCompsRunning,setHotelCompsRunning]=useState(false);
   const[hotelCompsError,setHotelCompsError]=useState<string|null>(null);
   const[senseError,setSenseError]=useState<string|null>(null);
@@ -720,6 +723,20 @@ function AppraisalPage(){
     }));
   },[assetType,data]);
   const sensMatrix=sensitivity();
+  const suggestBTSPsf=async()=>{
+    if(!data.location)return;
+    setStrategyPsfSuggesting(true);setStrategyPsfSuggestion(null);
+    try{
+      const res=await fetch("/api/btspsf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,currency:data.currency||"GBP"})});
+      const d=await res.json();
+      if(d.avg){
+        setStrategyPsfSuggestion(d);
+        setStrategyPsf(String(Math.round(d.avg)));
+      }
+    }catch(e:any){console.error(e);}
+    setStrategyPsfSuggesting(false);
+  };
+
   const runHotelComps=async()=>{
     if(!data.location)return;
     setHotelCompsRunning(true);setHotelCompsError(null);setHotelComps(null);
@@ -1584,11 +1601,20 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   // BTS sale price derived from BTR rents capitalised at selected yield
                   // This gives a genuine apples-to-apples comparison on the same site
 
-                  // Derive BTS units from BTR units — capitalise rent at strategyYield
+                  // Derive BTS units from BTR units
+                  // Priority: 1) Manual psf input  2) Yield capitalisation  3) Defaults
+                  const manualPsf=num(strategyPsf);
                   const btsUnitsFromBTR=(assetType==="BTR"&&(data.units||[]).length>0)
                     ?(data.units||[]).map((u:any)=>{
-                        const annualRentPsf=num(String(u.rentPcm))*12/Math.max(num(String(u.size)),1);
-                        const salePricePsf=annualRentPsf/(strategyYield/100);
+                        let salePricePsf:number;
+                        if(manualPsf>0){
+                          // Use manual/AI suggested psf directly
+                          salePricePsf=manualPsf;
+                        } else {
+                          // Capitalise rent at selected yield
+                          const annualRentPsf=num(String(u.rentPcm))*12/Math.max(num(String(u.size)),1);
+                          salePricePsf=annualRentPsf/(strategyYield/100);
+                        }
                         return{type:u.type.replace(" OMR","").replace(" DMR",""),count:u.count,salePricePsf:Math.round(salePricePsf),size:u.size};
                       })
                     :DEFAULTS.BTS.units;
@@ -1632,20 +1658,55 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
 
                   return(
                     <div style={{marginBottom:28}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
                         <div className="section-title">Strategy Comparison</div>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontSize:10,color:"var(--text-d)"}}>BTS yield assumption:</span>
-                          <div style={{display:"flex",gap:4}}>
-                            {[4,5,6].map(y=>(
-                              <button key={y} onClick={()=>setStrategyYield(y)} style={{padding:"2px 10px",borderRadius:5,border:`1px solid ${strategyYield===y?"var(--gold)":"var(--border)"}`,background:strategyYield===y?"var(--gold-bg)":"transparent",color:strategyYield===y?"var(--gold)":"var(--text-d)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:strategyYield===y?600:400}}>{y}%</button>
-                            ))}
+                        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                          {/* Manual psf input */}
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{fontSize:10,color:"var(--text-d)"}}>Sale price psf:</span>
+                            <input
+                              type="number"
+                              value={strategyPsf}
+                              onChange={e=>{setStrategyPsf(e.target.value);setStrategyPsfSuggestion(null);}}
+                              placeholder="or use yield →"
+                              style={{width:90,padding:"3px 8px",background:"var(--bg3)",border:`1px solid ${strategyPsf?"var(--gold-border)":"var(--border)"}`,borderRadius:5,color:"var(--text)",fontFamily:"var(--font-mono)",fontSize:11,outline:"none"}}
+                            />
+                            <button
+                              onClick={suggestBTSPsf}
+                              disabled={strategyPsfSuggesting||!data.location}
+                              style={{display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:5,border:"1px solid var(--gold-border)",background:"var(--gold-bg)",color:"var(--gold)",fontSize:10,cursor:strategyPsfSuggesting||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,opacity:!data.location?0.5:1}}
+                            >
+                              {strategyPsfSuggesting?<span style={{width:8,height:8,border:"1.5px solid rgba(201,168,76,.3)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>:"◈"}
+                              {strategyPsfSuggesting?"…":"AI suggest"}
+                            </button>
+                            {strategyPsf&&<button onClick={()=>{setStrategyPsf("");setStrategyPsfSuggestion(null);}} style={{fontSize:9,color:"var(--text-d)",background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>✕ clear</button>}
+                          </div>
+                          {/* Yield selector — used when no manual psf */}
+                          <div style={{display:"flex",alignItems:"center",gap:6,opacity:strategyPsf?0.4:1,transition:"opacity .2s"}}>
+                            <span style={{fontSize:10,color:"var(--text-d)"}}>or yield:</span>
+                            <div style={{display:"flex",gap:4}}>
+                              {[4,5,6].map(y=>(
+                                <button key={y} onClick={()=>{setStrategyYield(y);setStrategyPsf("");}} style={{padding:"2px 10px",borderRadius:5,border:`1px solid ${!strategyPsf&&strategyYield===y?"var(--gold)":"var(--border)"}`,background:!strategyPsf&&strategyYield===y?"var(--gold-bg)":"transparent",color:!strategyPsf&&strategyYield===y?"var(--gold)":"var(--text-d)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:!strategyPsf&&strategyYield===y?600:400}}>{y}%</button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
+                      {/* AI suggestion banner */}
+                      {strategyPsfSuggestion&&(
+                        <div style={{background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,padding:"6px 12px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                          <div style={{fontSize:10,color:"var(--text-m)"}}>
+                            <span style={{color:"var(--gold)",fontWeight:600}}>AI suggestion: </span>
+                            {({GBP:"£",USD:"$",EUR:"€",AED:"د.إ"})[data.currency]||""}{strategyPsfSuggestion.low}–{({GBP:"£",USD:"$",EUR:"€",AED:"د.إ"})[data.currency]||""}{strategyPsfSuggestion.high}psf · avg {({GBP:"£",USD:"$",EUR:"€",AED:"د.إ"})[data.currency]||""}{strategyPsfSuggestion.avg}psf
+                            {strategyPsfSuggestion.notes&&<span style={{color:"var(--text-d)",marginLeft:6}}>· {strategyPsfSuggestion.notes}</span>}
+                          </div>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Applied ✓</span>
+                        </div>
+                      )}
                       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16}}>
                         Current strategy: <span style={{color:"var(--gold)",fontWeight:600}}>{assetType}</span>
-                        {" · "}BTS sale price = rent capitalised at {strategyYield}% yield · same land, build cost and finance
+                        {" · "}{strategyPsf?`BTS sale price: ${({GBP:"£",USD:"$",EUR:"€",AED:"د.إ"})[data.currency]||""}${strategyPsf}psf`:`BTS sale price derived from rent at ${strategyYield}% yield`}
+                        {" · "}same land, build cost and finance
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
                         {results.map(s=>{
