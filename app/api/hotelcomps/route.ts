@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Location required" }, { status: 400 });
     }
 
-    const currencyName = { GBP: "GBP (£)", USD: "USD ($)", EUR: "EUR (€)", AED: "AED (د.إ)" }[currency] || currency;
+    const currencyName = ({ GBP: "GBP (£)", USD: "USD ($)", EUR: "EUR (€)", AED: "AED (د.إ)" } as any)[currency] || currency;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -19,36 +19,16 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        max_tokens: 800,
         messages: [
           {
             role: "user",
-            content: `You are a hotel investment analyst. Search for current Average Daily Rate (ADR) benchmarks for hotels in ${location}.
+            content: `You are a hotel investment analyst. Using your knowledge of hotel markets, provide ADR benchmarks for ${location}.
 
-Find ADR data for 3-star, 4-star, and 5-star hotels in ${location}. Use recent market data (2024-2025).
+Return ONLY this JSON, no other text:
+{"location_identified":"${location}","currency":"${currency}","data_year":"2024","benchmarks":{"3star":{"low":0,"high":0,"avg":0,"notes":""},"4star":{"low":0,"high":0,"avg":0,"notes":""},"5star":{"low":0,"high":0,"avg":0,"notes":""}},"market_context":"2 sentences max","assessment":"green","assessment_note":"one sentence comparing ADR of ${currentADR} ${currencyName} for ${starRating}-star","comparable_hotels":[{"name":"real hotel name","stars":${starRating},"adr_approx":0,"notes":""}]}
 
-The developer is modelling a ${starRating}-star hotel with a current ADR of ${currencyName} ${currentADR}.
-
-Return ONLY a JSON object with no markdown or backticks:
-{
-  "location_identified": "City, Country",
-  "currency": "${currency}",
-  "data_year": "2024 or 2025",
-  "benchmarks": {
-    "3star": { "low": number, "high": number, "avg": number, "notes": "brief context" },
-    "4star": { "low": number, "high": number, "avg": number, "notes": "brief context" },
-    "5star": { "low": number, "high": number, "avg": number, "notes": "brief context" }
-  },
-  "market_context": "2-3 sentence summary of hotel market conditions in this location",
-  "assessment": "green | amber | red",
-  "assessment_note": "One sentence on how the current ADR of ${currentADR} compares to market for ${starRating}-star",
-  "comparable_hotels": [
-    { "name": "Hotel name", "stars": 4, "adr_approx": 220, "notes": "brief note" }
-  ]
-}
-
-All monetary values must be in ${currencyName}. Maximum 3 comparable hotels. Only real, named hotels.`,
+Rules: all values in ${currencyName}, assessment = green/amber/red only, max 3 real hotels.`,
           },
         ],
       }),
@@ -65,8 +45,13 @@ All monetary values must be in ${currencyName}. Maximum 3 comparable hotels. Onl
       ?.map((c: any) => c.text || "")
       ?.join("") || "";
 
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace === -1 || lastBrace === -1) {
+      return NextResponse.json({ error: "No JSON in response" }, { status: 500 });
+    }
+
+    const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1));
     return NextResponse.json(parsed);
 
   } catch (err: any) {
