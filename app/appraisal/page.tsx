@@ -78,7 +78,7 @@ select.inp{cursor:pointer}
 .badge-red{background:rgba(244,100,95,.12);color:var(--red)}
 .badge-amber{background:rgba(240,164,41,.1);color:var(--amber)}
 .panel-toggle{display:none;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--gold);font-family:var(--font-body);font-weight:600;user-select:none}
-.sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.strategy-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}@media(max-width:900px){.strategy-grid{grid-template-columns:repeat(2,1fr)!important}}@media(max-width:600px){.strategy-grid{grid-template-columns:1fr!important}}.sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .editor-pad{padding:24px}
 @media(max-width:768px){.editor-pad{padding:16px 14px}.output-panel{padding:14px !important}.name-inp{width:100px !important;font-size:11px !important}}
 @media(max-width:420px){.name-inp{display:none !important}}
@@ -664,6 +664,9 @@ function AppraisalPage(){
   const[downloadingBrochure,setDownloadingBrochure]=useState(false);
   const[senseResult,setSenseResult]=useState<{overall:string;summary:string;flags:{severity:string;field:string;message:string;benchmark:string}[]}|null>(null);
   const[senseRunning,setSenseRunning]=useState(false);
+  const[hotelComps,setHotelComps]=useState<any>(null);
+  const[hotelCompsRunning,setHotelCompsRunning]=useState(false);
+  const[hotelCompsError,setHotelCompsError]=useState<string|null>(null);
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
   const[subscription,setSubscription]=useState<any>(null);
@@ -716,6 +719,18 @@ function AppraisalPage(){
     }));
   },[assetType,data]);
   const sensMatrix=sensitivity();
+  const runHotelComps=async()=>{
+    if(!data.location)return;
+    setHotelCompsRunning(true);setHotelCompsError(null);setHotelComps(null);
+    try{
+      const res=await fetch("/api/hotelcomps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,starRating:num(String(data.starRating||4)),currency:data.currency||"GBP",currentADR:num(String(data.adr||0))})});
+      const d=await res.json();
+      if(d.error)setHotelCompsError(d.error);
+      else setHotelComps(d);
+    }catch(e:any){setHotelCompsError(e.message||"Failed to fetch comps");}
+    setHotelCompsRunning(false);
+  };
+
   const runStaticChecks=useCallback(()=>{
     setSenseError(null);
     const flags:any[]=[];
@@ -898,7 +913,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
   const[panelOpen,setPanelOpen]=useState(true);
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_BTS=["general","revenue","costs","finance","analysis"];
-  const TABS_HOTEL=["general","revenue","costs","finance","analysis"];
+  const TABS_HOTEL=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_FLIP=["general","costs","finance","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",cashflow:"Cash Flow",analysis:"Analysis"};
@@ -1046,6 +1061,132 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
                     <span style={{color:"var(--text-m)"}}>Rooms Revenue pa</span>
                     <span style={{fontFamily:"var(--font-mono)",color:"var(--gold)"}}>{fmt(hotelRev?.roomsRev||0,currencySymbol)}</span>
+                  </div>
+                  {/* ── ADR BENCHMARKS ── */}
+                  {(()=>{
+                    const loc=(data.location||"").toLowerCase();
+                    const stars=num(String(data.starRating||4));
+                    const adr=num(String(data.adr||0));
+                    const currSym2={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$"}[data.currency]||"£";
+                    // Static benchmarks: [city_keywords, 3star, 4star, 5star] [low,high]
+                    const CITY_BENCHMARKS:{keywords:string[];name:string;b3:[number,number];b4:[number,number];b5:[number,number]}[]=[
+                      {keywords:["london","ec","wc","sw1","w1","e1","se1"],name:"London",b3:[90,160],b4:[180,320],b5:[350,900]},
+                      {keywords:["manchester","salford"],name:"Manchester",b3:[70,120],b4:[130,220],b5:[220,380]},
+                      {keywords:["edinburgh","glasgow"],name:"Scotland",b3:[75,130],b4:[140,240],b5:[240,420]},
+                      {keywords:["birmingham","leeds","liverpool","sheffield","bristol"],name:"UK Regional",b3:[65,110],b4:[120,200],b5:[200,350]},
+                      {keywords:["dubai","abu dhabi","uae"],name:"Dubai/UAE",b3:[120,200],b4:[200,380],b5:[380,1200]},
+                      {keywords:["new york","nyc","manhattan"],name:"New York",b3:[150,250],b4:[280,500],b5:[500,1500]},
+                      {keywords:["paris","france"],name:"Paris",b3:[100,180],b4:[200,380],b5:[380,1100]},
+                      {keywords:["lisbon","porto","portugal"],name:"Lisbon",b3:[80,140],b4:[150,260],b5:[260,500]},
+                      {keywords:["amsterdam","netherlands"],name:"Amsterdam",b3:[100,170],b4:[180,320],b5:[320,700]},
+                      {keywords:["singapore"],name:"Singapore",b3:[120,200],b4:[220,400],b5:[400,900]},
+                      {keywords:["miami","los angeles","san francisco","chicago"],name:"US Major City",b3:[130,220],b4:[250,450],b5:[450,1200]},
+                    ];
+                    const matched=CITY_BENCHMARKS.find(c=>c.keywords.some(k=>loc.includes(k)))||{name:"International",b3:[70,130],b4:[140,250],b5:[250,600]};
+                    const benchmarks=[
+                      {stars:3,label:"3★",range:matched.b3,color:"var(--text-m)"},
+                      {stars:4,label:"4★",range:matched.b4,color:"var(--amber)"},
+                      {stars:5,label:"5★",range:matched.b5,color:"var(--gold)"},
+                    ];
+                    const selected=benchmarks.find(b=>b.stars===stars)||benchmarks[1];
+                    const [low,high]=selected.range;
+                    const inRange=adr>=low&&adr<=high;
+                    const above=adr>high;
+                    const statusColor=inRange?"var(--green)":above?"var(--amber)":"var(--red)";
+                    const statusText=inRange?"Within range":above?"Above typical range":"Below typical range";
+                    return(
+                      <div style={{marginTop:12,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                          <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>ADR Benchmarks — {matched.name}</div>
+                          {adr>0&&<div style={{fontSize:9,color:statusColor,background:statusColor+"14",border:`1px solid ${statusColor}30`,borderRadius:10,padding:"2px 8px",fontWeight:600}}>{statusText}</div>}
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:10}}>
+                          {benchmarks.map(b=>(
+                            <div key={b.stars} style={{background:b.stars===stars?"var(--bg4)":"var(--bg2)",border:`1px solid ${b.stars===stars?b.color+"44":"var(--border)"}`,borderRadius:6,padding:"8px 10px",textAlign:"center"}}>
+                              <div style={{fontSize:10,color:b.stars===stars?b.color:"var(--text-d)",fontWeight:600,marginBottom:3}}>{b.label}</div>
+                              <div style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--text-m)"}}>{currSym2}{b.range[0]}–{currSym2}{b.range[1]}</div>
+                              {b.stars===stars&&adr>0&&(
+                                <div style={{marginTop:4,height:3,background:"var(--bg5)",borderRadius:2,overflow:"hidden"}}>
+                                  <div style={{height:"100%",width:`${Math.min(100,Math.max(0,((adr-b.range[0])/(b.range[1]-b.range[0]))*100))}%`,background:inRange?"var(--green)":above?"var(--amber)":"var(--red)",borderRadius:2,transition:"width .3s"}}/>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{fontSize:9,color:"var(--text-d)"}}>Market benchmarks for {matched.name} · Your ADR: <span style={{color:statusColor,fontFamily:"var(--font-mono)",fontWeight:600}}>{currSym2}{adr}</span></div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── AI HOTEL COMPS ── */}
+                  <div style={{marginTop:10}}>
+                    <button
+                      onClick={runHotelComps}
+                      disabled={hotelCompsRunning||!data.location}
+                      style={{display:"flex",alignItems:"center",gap:6,background:hotelCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:hotelCompsRunning?"var(--text-d)":"var(--gold)",fontSize:10,padding:"6px 12px",cursor:hotelCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",transition:"all .2s"}}
+                    >
+                      {hotelCompsRunning?(
+                        <><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Pulling market comps…</>
+                      ):(
+                        <><span style={{fontSize:12}}>◈</span> {hotelComps?"Refresh AI Comps":"Pull AI Market Comps"} {!data.location&&"(add location first)"}</>
+                      )}
+                    </button>
+                    {hotelCompsError&&<div style={{fontSize:10,color:"var(--red)",marginTop:6,padding:"6px 10px",background:"rgba(244,100,95,.06)",borderRadius:6}}>{hotelCompsError}</div>}
+                    {hotelComps&&(
+                      <div style={{marginTop:10,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12,animation:"fadeIn .3s ease"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                          <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>AI Market Comps — {hotelComps.location_identified}</div>
+                          <div style={{fontSize:9,color:"var(--text-d)"}}>{hotelComps.data_year}</div>
+                        </div>
+                        {/* AI benchmarks grid */}
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:10}}>
+                          {["3star","4star","5star"].map((key,i)=>{
+                            const b=hotelComps.benchmarks?.[key];
+                            if(!b)return null;
+                            const starNum=i+3;
+                            const isCurrent=starNum===num(String(data.starRating||4));
+                            const currSym3={GBP:"£",USD:"$",EUR:"€",AED:"د.إ"}[data.currency]||"£";
+                            return(
+                              <div key={key} style={{background:isCurrent?"var(--bg4)":"var(--bg2)",border:`1px solid ${isCurrent?"rgba(201,168,76,.3)":"var(--border)"}`,borderRadius:6,padding:"8px 10px"}}>
+                                <div style={{fontSize:9,color:isCurrent?"var(--gold)":"var(--text-d)",fontWeight:600,marginBottom:3}}>{starNum}★ {isCurrent?"(yours)":""}</div>
+                                <div style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--text-m)",marginBottom:2}}>{currSym3}{b.low}–{currSym3}{b.high}</div>
+                                <div style={{fontSize:9,color:"var(--text-d)"}}>avg {currSym3}{b.avg}</div>
+                                {b.notes&&<div style={{fontSize:8,color:"var(--text-d)",marginTop:3,lineHeight:1.4}}>{b.notes}</div>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Assessment */}
+                        {hotelComps.assessment_note&&(
+                          <div style={{padding:"8px 10px",background:`${hotelComps.assessment==="green"?"rgba(61,220,132,.06)":hotelComps.assessment==="amber"?"rgba(240,164,41,.06)":"rgba(244,100,95,.06)"}`,border:`1px solid ${hotelComps.assessment==="green"?"rgba(61,220,132,.2)":hotelComps.assessment==="amber"?"rgba(240,164,41,.2)":"rgba(244,100,95,.2)"}`,borderRadius:6,marginBottom:10}}>
+                            <div style={{fontSize:10,color:hotelComps.assessment==="green"?"var(--green)":hotelComps.assessment==="amber"?"var(--amber)":"var(--red)",fontWeight:600,marginBottom:2}}>{hotelComps.assessment==="green"?"✓":hotelComps.assessment==="amber"?"⚠":"✗"} ADR Assessment</div>
+                            <div style={{fontSize:10,color:"var(--text-m)"}}>{hotelComps.assessment_note}</div>
+                          </div>
+                        )}
+                        {/* Market context */}
+                        {hotelComps.market_context&&(
+                          <div style={{fontSize:10,color:"var(--text-m)",lineHeight:1.6,marginBottom:10}}>{hotelComps.market_context}</div>
+                        )}
+                        {/* Comparable hotels */}
+                        {hotelComps.comparable_hotels?.length>0&&(
+                          <div>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparable Hotels</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                              {hotelComps.comparable_hotels.map((h:any,i:number)=>(
+                                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"var(--bg2)",borderRadius:5}}>
+                                  <div>
+                                    <span style={{fontSize:10,color:"var(--text)",fontWeight:500}}>{h.name}</span>
+                                    <span style={{fontSize:9,color:"var(--text-d)",marginLeft:6}}>{h.stars}★</span>
+                                    {h.notes&&<div style={{fontSize:9,color:"var(--text-d)"}}>{h.notes}</div>}
+                                  </div>
+                                  <span style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600}}>{({GBP:"£",USD:"$",EUR:"€",AED:"د.إ"})[data.currency]||"£"}{h.adr_approx}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </RevStream>
                 <RevStream title="Food & Beverage" icon="" enabled={data.fnbEnabled} onToggle={()=>set("fnbEnabled",!data.fnbEnabled)} summary={fmt(hotelRev?.fnbRev||0,currencySymbol)+" pa"} open={streamOpen.fnb} onOpen={()=>setStreamOpen(s=>({...s,fnb:!s.fnb}))}>
@@ -1235,7 +1376,59 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                 )}
               </div>
             )}
-            {/* CASHFLOW BTR */}
+            {/* CASHFLOW HOTEL */}
+            {activeTab==="cashflow"&&assetType==="Hotel"&&(
+              <div>
+                <div className="section-title">Monthly Cash Flow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
+                  {data.costProfile==="scurve"?"S-Curve":data.costProfile==="frontloaded"?"Front-Loaded":"Straight-Line"} · {r.buildMonths}m renovation/fit-out · {r.stabMonths}m stabilisation
+                  <span style={{marginLeft:12,color:"var(--gold)",fontFamily:"var(--font-mono)",fontSize:11}}>Interest rolls monthly on drawn balance</span>
+                </div>
+                <div style={{overflowX:"auto"}}>
+                  <div className="cf-row" style={{marginBottom:8}}>
+                    {["Month","CapEx Draw","Loan Bal","Interest","EBITDA","Net CF","Cum CF","Phase"].map(h=><div key={h} className="cf-header">{h}</div>)}
+                  </div>
+                  {(r.monthlyDrawArr||[]).slice(0,Math.min((r.buildMonths||24),36)).map((draw:number,m:number)=>{
+                    const interest=r.monthlyInterestArr?.[m]||0;
+                    const loanBal=(r.monthlyDrawArr||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0)*(r.ltcPct||0.60);
+                    const cumCf=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
+                    const cumPct=((r.buildProfile||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0)*100).toFixed(0);
+                    return(<div key={`b${m}`} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
+                      <div style={{color:"var(--text-d)"}}>R{m+1}</div>
+                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(draw,currencySymbol)}</div>
+                      <div style={{color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{fmt(loanBal,currencySymbol)}</div>
+                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)"}}>{fmt(interest,currencySymbol)}</div>
+                      <div style={{color:"var(--text-d)"}}>—</div>
+                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(r.uCfs?.[m]||0,currencySymbol)}</div>
+                      <div style={{color:"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
+                      <div style={{color:"var(--amber)",fontSize:10}}>{cumPct}% done</div>
+                    </div>);
+                  })}
+                  {Array.from({length:Math.min(r.stabMonths||18,18)},(_,m)=>{
+                    const idx=(r.buildMonths||24)+m;
+                    const ebitda=r.uCfs?.[idx]||0;
+                    const cumCf=(r.uCfs||[]).slice(0,idx+1).reduce((a:number,b:number)=>a+b,0);
+                    const rampPct=Math.round((0.4+0.6*((m+1)/(r.stabMonths||18)))*100);
+                    return(<div key={`s${m}`} className="cf-row" style={{background:"rgba(61,220,132,.03)"}}>
+                      <div style={{color:"var(--green)",fontSize:10}}>S{m+1}</div>
+                      <div style={{color:"var(--text-d)"}}>—</div>
+                      <div style={{color:"var(--text-d)"}}>—</div>
+                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)",fontSize:10}}>{fmt((r.peakLoanBalance||0)*(r.financeRate||0)/12,currencySymbol)}</div>
+                      <div style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(ebitda,currencySymbol)}</div>
+                      <div style={{color:ebitda>=0?"var(--green)":"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(ebitda,currencySymbol)}</div>
+                      <div style={{color:cumCf>=0?"var(--green)":"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
+                      <div style={{color:"var(--green)",fontSize:10}}>{rampPct}% occ</div>
+                    </div>);
+                  })}
+                </div>
+                <div style={{marginTop:12,display:"flex",gap:16,flexWrap:"wrap"}}>
+                  {[["var(--red)","Renovation/CapEx"],["var(--amber)","Interest (Rolled)"],["var(--green)","EBITDA (Stabilisation)"]].map(([c,l])=>(
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c}}/>{l}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+                        {/* CASHFLOW BTR */}
             {activeTab==="cashflow"&&assetType==="BTR"&&(
               <div>
                 <div className="section-title">Monthly Cash Flow</div>
@@ -1306,7 +1499,46 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["Property Tax",fmt(r.sdlt,currencySymbol),"var(--amber)"],["Refurb Budget",fmt(r.refurb,currencySymbol),"var(--text-m)"],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
-                {assetType==="BTR"&&sensMatrix&&(
+                {assetType==="Hotel"&&(()=>{
+                  // Hotel sensitivity: exit cap rate (rows) × ADR shift (columns)
+                  const baseCapRate=num(String(data.exitCapRate||6.5));
+                  const baseADR=num(String(data.adr||180));
+                  const capRates=[-0.5,-0.25,0,0.25,0.5].map(d=>baseCapRate+d);
+                  const adrMults=[-0.10,-0.05,0,0.05,0.10].map(d=>1+d);
+                  const hotelSensMatrix=capRates.map(cr=>adrMults.map(am=>{
+                    const modData={...data,exitCapRate:cr,adr:baseADR*am};
+                    const res=calcAll("Hotel",modData);
+                    return res.poc??0;
+                  }));
+                  return(
+                    <div style={{marginBottom:28}}>
+                      <div className="section-title">Sensitivity — Return on Cost %</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit cap rate (rows) × ADR shift (columns)</div>
+                      <div className="sens-wrap">
+                        <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
+                          <div/>
+                          {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                          {hotelSensMatrix.map((row:number[],yi:number)=>{
+                            const capVal=capRates[yi];
+                            return(<>
+                              <div key={`y${yi}`} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{capVal.toFixed(2)}%</div>
+                              {row.map((poc:number,ri:number)=>(
+                                <div key={ri} className={`sens-cell ${poc>0.15?"cell-g":poc>0.08?"cell-a":"cell-r"} ${yi===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
+                              ))}
+                            </>);
+                          })}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:16,marginTop:12}}>
+                        {[["rgba(61,220,132,.15)","> 15%"],["rgba(240,164,41,.12)","8–15%"],["rgba(244,100,95,.12)","< 8%"]].map(([bg,l])=>(
+                          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                                {assetType==="BTR"&&sensMatrix&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit yield (rows) × rent shift (columns)</div>
@@ -1332,7 +1564,135 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     </div>
                   </div>
                 )}
-                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20}}>
+                {/* ── STRATEGY COMPARISON ─────────────────────────────────────────── */}
+                {(()=>{
+                  const currSym2={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+                  // Build shared inputs from current deal
+                  const sharedLand=num(String(data.landCost||data.purchasePrice||0));
+                  const sharedBuildPsf=num(String(data.buildCostPsf||0));
+                  const sharedSite=num(String(data.siteAreaSqft||0));
+                  const sharedLTC=num(String(data.ltc||60));
+                  const sharedMargin=num(String(data.marginOverBenchmark||2.5));
+                  const sharedArrangement=num(String(data.arrangementFeePct||1.0));
+                  const sharedProfFees=num(String(data.professionalFeesPct||8));
+                  const sharedContingency=num(String(data.contingencyPct||5));
+                  const sharedBenchmarkRate=num(String(data.benchmarkRate||3.97));
+
+                  // Strategy definitions — same land, same build, different revenue model
+                  const strategies=[
+                    {
+                      key:"BTR", label:"Build to Rent", color:"var(--gold)", icon:"◈",
+                      desc:"Income-producing, exit at stabilised yield",
+                      data:{...DEFAULTS.BTR,
+                        landCost:sharedLand, buildCostPsf:sharedBuildPsf||285, siteAreaSqft:sharedSite||195000,
+                        ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
+                        professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
+                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
+                        programmMonths:36, stabilisationMonths:12,
+                      }
+                    },
+                    {
+                      key:"BTS", label:"Build to Sell", color:"var(--blue)", icon:"◎",
+                      desc:"Sell units off-plan or post-completion",
+                      data:{...DEFAULTS.BTS,
+                        landCost:sharedLand, buildCostPsf:sharedBuildPsf||260, siteAreaSqft:sharedSite||110000,
+                        ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
+                        professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
+                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
+                        programmMonths:30,
+                      }
+                    },
+                    {
+                      key:"Hotel", label:"Hotel / Hospitality", color:"var(--amber)", icon:"◉",
+                      desc:"Stabilised income via ADR & occupancy",
+                      data:{...DEFAULTS.Hotel,
+                        purchasePrice:sharedLand, 
+                        ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
+                        professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
+                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
+                        programmMonths:24,
+                      }
+                    },
+                    {
+                      key:"Flip", label:"House Flip", color:"var(--green)", icon:"◫",
+                      desc:"Refurb & sell — short hold period",
+                      data:{...DEFAULTS.Flip,
+                        purchasePrice:sharedLand>0?sharedLand:450000,
+                        ltc:sharedLTC, arrangementFeePct:sharedArrangement,
+                        professionalFeesPct:Math.min(sharedProfFees,3),
+                        contingencyPct:sharedContingency,
+                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
+                      }
+                    },
+                  ];
+
+                  const results=strategies.map(s=>({...s, r:calcAll(s.key,s.data)}));
+
+                  // Find best strategy by IRR
+                  const bestIRR=Math.max(...results.map(s=>s.r.irr||s.r.annualisedIrr||0));
+
+                  return(
+                    <div style={{marginBottom:28}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                        <div className="section-title">Strategy Comparison</div>
+                        <div style={{fontSize:10,color:"var(--text-d)"}}>Same land · Same build cost · Different revenue model</div>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16}}>
+                        Current strategy: <span style={{color:"var(--gold)",fontWeight:600}}>{assetType}</span>
+                        {" · "}Values recalculated using shared land, build cost and finance inputs
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                        {results.map(s=>{
+                          const isCurrent=s.key===assetType;
+                          const irr=s.r.irr||s.r.annualisedIrr||0;
+                          const poc=s.r.poc||s.r.roi||0;
+                          const gdv=s.r.gdv||s.r.exitValue||s.r.salePrice||s.r.totalInvestment||0;
+                          const isBest=irr===bestIRR&&irr>0;
+                          return(
+                            <div key={s.key} style={{
+                              background:isCurrent?"rgba(201,168,76,0.07)":"var(--bg3)",
+                              border:`1px solid ${isCurrent?"rgba(201,168,76,.4)":isBest?"rgba(61,220,132,.25)":"var(--border)"}`,
+                              borderRadius:12,padding:16,position:"relative",
+                              transition:"border-color .2s",
+                            }}>
+                              {isCurrent&&<div style={{position:"absolute",top:-1,left:"10%",right:"10%",height:2,background:"linear-gradient(90deg,transparent,var(--gold),transparent)",borderRadius:2}}/>}
+                              {isBest&&!isCurrent&&<div style={{position:"absolute",top:8,right:8,fontSize:8,color:"var(--green)",background:"rgba(61,220,132,.1)",border:"1px solid rgba(61,220,132,.2)",borderRadius:10,padding:"1px 6px",fontWeight:600,letterSpacing:".06em"}}>BEST IRR</div>}
+                              {isCurrent&&<div style={{position:"absolute",top:8,right:8,fontSize:8,color:"var(--gold)",background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",borderRadius:10,padding:"1px 6px",fontWeight:600,letterSpacing:".06em"}}>CURRENT</div>}
+                              
+                              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:12}}>
+                                <span style={{fontSize:14,color:s.color}}>{s.icon}</span>
+                                <div>
+                                  <div style={{fontSize:11,fontWeight:600,color:isCurrent?s.color:"var(--text)",lineHeight:1.2}}>{s.label}</div>
+                                  <div style={{fontSize:9,color:"var(--text-d)",marginTop:1}}>{s.desc}</div>
+                                </div>
+                              </div>
+
+                              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                                {[
+                                  {label:"GDV / Exit",value:gdv>0?fmt(gdv,currSym2):"—",color:"var(--text)"},
+                                  {label:"Profit on Cost",value:poc>0?fmtPct(poc):"—",color:poc>0.20?"var(--green)":poc>0.10?"var(--amber)":"var(--red)"},
+                                  {label:"IRR",value:irr>0?fmtPct(irr):"—",color:irr>0.15?"var(--green)":irr>0.08?"var(--amber)":"var(--text-m)"},
+                                  {label:"Programme",value:`${s.data.programmMonths||s.data.bridgingTermMonths||9}m`,color:"var(--text-m)"},
+                                ].map(m=>(
+                                  <div key={m.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"var(--bg4)",borderRadius:6}}>
+                                    <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{m.label}</span>
+                                    <span style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,color:m.color}}>{m.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{marginTop:10,fontSize:10,color:"var(--text-d)",display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{color:"var(--amber)"}}>◆</span>
+                        Strategy comparison uses indicative defaults for each model. Numbers are directional — not a substitute for a full appraisal per strategy.
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20}}>
                   <div className="section-title" style={{marginBottom:16}}>Share & Export</div>
                   <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
                     <button className="share-btn" onClick={()=>setShareModal(true)}>
