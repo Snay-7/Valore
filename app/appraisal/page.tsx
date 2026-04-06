@@ -211,6 +211,152 @@ function calcHotelRev(d:any){
   const totalRev=roomsRev+fnbRev+spaRev+gymRev+meetingRev;const totalEbitda=roomsEbitda+fnbEbitda+spaEbitda+gymEbitda+meetingEbitda;
   return{roomsRev,roomsEbitda,fnbRev,fnbEbitda,spaRev,spaEbitda,gymRev,gymEbitda,meetingRev,meetingEbitda,totalRev,totalEbitda};
 }
+function calcHotelAdvanced(data:any):Record<string,any>{
+  const rooms=num(String(data.rooms||203));
+  const holdYears=num(String(data.holdYears||5));
+  const currency=data.currency||"GBP";
+
+  // Year by year revenue
+  const years=Array.from({length:holdYears},(_,i)=>i);
+  const yearData=years.map(i=>({
+    occ:num(String((data.yearOcc||[])[i]??data.occupancy??72))/100,
+    adr:num(String((data.yearAdr||[])[i]??data.adr??180)),
+  }));
+
+  const yearRevenue=yearData.map(y=>{
+    const occRoomNights=rooms*365*y.occ;
+    const roomsRev=y.adr*occRoomNights;
+    const roomsMargin=num(String(data.roomsMarginPct??75))/100;
+    const roomsEbitda=roomsRev*roomsMargin;
+    // F&B
+    const fnbEnabled=data.fnbEnabled!==false;
+    const fnbRev=fnbEnabled?(y.occ*rooms*365)*(num(String(data.fnbRevenuePerOccRoom??45)))*(num(String(data.fnbUtilisationPct??70))/100):0;
+    const fnbEbitda=fnbEnabled?fnbRev*(num(String(data.fnbMarginPct??30))/100):0;
+    const totalRev=roomsRev+fnbRev;
+    const totalEbitda=roomsEbitda+fnbEbitda;
+    // Undistributed expenses
+    const itPct=num(String(data.itPct??0.7))/100;
+    const agPct=num(String(data.agPct??5.0))/100;
+    const smPct=num(String(data.smPct??8.5))/100;
+    const pomPct=num(String(data.pomPct??1.8))/100;
+    const utilPct=num(String(data.utilPct??2.2))/100;
+    const undistributed=totalRev*(itPct+agPct+smPct+pomPct+utilPct);
+    const mgmtFeePct=num(String(data.mgmtFeePct??2.0))/100;
+    const mgmtFee=totalRev*mgmtFeePct;
+    // Non-operating
+    const retPct=num(String(data.realEstateTaxPct??7.5))/100;
+    const insPct=num(String(data.insurancePct??0.5))/100;
+    const nonOp=totalRev*(retPct+insPct);
+    // FF&E — steps up from Year 3
+    const ffePct=i>=2?num(String(data.ffePct??3.0))/100:0;
+    const ffe=totalRev*ffePct;
+    const ebitda=totalEbitda-undistributed-mgmtFee-nonOp;
+    const noi=ebitda-ffe;
+    return{roomsRev,fnbRev,totalRev,totalEbitda,undistributed,mgmtFee,nonOp,ffe,ebitda,noi,occ:y.occ,adr:y.adr,revpar:y.adr*y.occ};
+  });
+
+  const stabilisedYear=yearRevenue[yearRevenue.length-1]||yearRevenue[0];
+  const stabilisedNOI=stabilisedYear.noi;
+  const stabilisedEBITDA=stabilisedYear.ebitda;
+  const totalNOI=yearRevenue.reduce((s,y)=>s+y.noi,0);
+
+  // Purchase price & entry yields
+  const purchasePrice=num(String(data.purchasePrice||18000000));
+  const entryYieldNOI=purchasePrice>0?yearRevenue[0].noi/purchasePrice:0;
+  const entryYieldEBITDA=purchasePrice>0?yearRevenue[0].ebitda/purchasePrice:0;
+  const pricePerKey=rooms>0?purchasePrice/rooms:0;
+
+  // Transaction costs
+  const capStructure=data.capStructure||"single";
+  const sdltPct=data.sdltShareDeal?0.005:num(String(data.sdltOverride??0))||0.05;
+  const sdlt=data.sdltMode==="manual"?num(String(data.sdltOverride)):purchasePrice*sdltPct;
+  const legalCosts=num(String(data.legalCosts??500000));
+  const financingDD=num(String(data.financingDD??250000));
+  const wiInsurance=data.wiInsuranceEnabled?num(String(data.wiInsurance??150000)):0;
+  const workingCapital=data.workingCapitalEnabled?num(String(data.workingCapital??0)):0;
+
+  // CapEx
+  const capex=num(String(data.capexBudget||5000000));
+  const capexPerKey=rooms>0?capex/rooms:0;
+  const disposalCostPct=num(String(data.disposalCostPct??3.0))/100;
+
+  // Supporting & operator costs (annual)
+  const supportingCosts=num(String(data.supportingCostsPA??100000));
+  const operatorFees=num(String(data.operatorFeesPA??0));
+
+  // Finance — capital structure
+  let loanAmount=0,interestTotal=0,arrangementFee=0,exitFee=0,brokerageFee=0;
+  const allInRate=(num(String(data.benchmarkRate??3.97))+num(String(data.marginOverBenchmark??3.0)))/100;
+
+  if(capStructure==="single"){
+    const ltc=num(String(data.ltc??60))/100;
+    loanAmount=(purchasePrice+capex)*ltc;
+    arrangementFee=loanAmount*(num(String(data.arrangementFeePct??1.5))/100);
+    exitFee=loanAmount*(num(String(data.exitFeePct??1.0))/100);
+    brokerageFee=loanAmount*(num(String(data.brokerageFeePct??0.5))/100);
+    interestTotal=loanAmount*allInRate*holdYears;
+  } else if(capStructure==="dual"){
+    const acqLTV=num(String(data.acqLTV??65))/100;
+    const capexLTC=num(String(data.capexLTC??50))/100;
+    const acqLoan=purchasePrice*acqLTV;
+    const capexLoan=capex*capexLTC;
+    loanAmount=acqLoan+capexLoan;
+    arrangementFee=loanAmount*(num(String(data.arrangementFeePct??1.25))/100);
+    exitFee=acqLoan*(num(String(data.exitFeePct??1.0))/100);
+    brokerageFee=loanAmount*(num(String(data.brokerageFeePct??0.5))/100);
+    const acqRate=(num(String(data.acqRate??6.25))/100);
+    const capexRate=(num(String(data.capexRate??6.25))/100);
+    interestTotal=acqLoan*acqRate*holdYears+capexLoan*capexRate*holdYears;
+  } else if(capStructure==="equity"){
+    loanAmount=0;interestTotal=0;arrangementFee=0;exitFee=0;brokerageFee=0;
+  }
+
+  // IM fees
+  const imEnabled=data.imEnabled||false;
+  const imAcqFee=imEnabled?num(String(data.imAcqFee??300000)):0;
+  const imBasePATotal=imEnabled?num(String(data.imBasePA??250000))*holdYears:0;
+
+  // Exit / disposal
+  const exitCapRate=num(String(data.exitCapRate??5.75))/100;
+  const exitValue=exitCapRate>0?stabilisedNOI/exitCapRate:0;
+  const exitValuePerKey=rooms>0?exitValue/rooms:0;
+  const disposalCosts=exitValue*disposalCostPct;
+  const netExitProceeds=exitValue-disposalCosts;
+
+  // Total investment
+  const annualOpex=(supportingCosts+operatorFees)*holdYears;
+  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+annualOpex+workingCapital;
+  const equity=totalCost-loanAmount;
+  const profit=netExitProceeds+totalNOI-totalCost;
+  const poc=totalCost>0?profit/totalCost:0;
+  const moic=equity>0?(equity+profit)/equity:0;
+
+  // IRR — simple approximation
+  const cfs=[-equity,...yearRevenue.map(y=>y.noi-supportingCosts-operatorFees),netExitProceeds-loanAmount+yearRevenue[holdYears-1].noi-supportingCosts-operatorFees];
+  const irr=calcIRR(cfs);
+
+  // IM incentive fees (on profit)
+  const imIncentiveProfit=imEnabled?(num(String(data.imIncentiveProfitPct??10))/100)*Math.max(profit,0):0;
+  const imIncentiveSales=imEnabled?(num(String(data.imIncentiveSalesPct??1))/100)*exitValue:0;
+
+  const dscr=interestTotal>0&&holdYears>0?stabilisedNOI/(interestTotal/holdYears):999;
+
+  return{
+    yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
+    purchasePrice,pricePerKey,capexPerKey,exitValue,exitValuePerKey,disposalCosts,netExitProceeds,
+    entryYieldNOI,entryYieldEBITDA,
+    sdlt,legalCosts,financingDD,wiInsurance,
+    loanAmount,interestTotal,arrangementFee,exitFee,brokerageFee,
+    imAcqFee,imBasePATotal,imIncentiveProfit,imIncentiveSales,
+    totalCost,equity,profit,poc,moic,irr,dscr,
+    ebitdaPerKey:rooms>0?stabilisedEBITDA/rooms:0,
+    noiPerKey:rooms>0?stabilisedNOI/rooms:0,
+    noiConversion:stabilisedYear.totalRev>0?stabilisedNOI/stabilisedYear.totalRev:0,
+    revparStabilised:stabilisedYear.revpar,
+    revenueStabilised:stabilisedYear.totalRev,
+  };
+}
+
 function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="BTR"){
     const units=data.units||[];
@@ -671,6 +817,7 @@ function AppraisalPage(){
   const[strategyPsfSuggestion,setStrategyPsfSuggestion]=useState<any>(null);
   const[hotelCompsRunning,setHotelCompsRunning]=useState(false);
   const[hotelCompsError,setHotelCompsError]=useState<string|null>(null);
+  const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
   const[subscription,setSubscription]=useState<any>(null);
@@ -712,6 +859,7 @@ function AppraisalPage(){
   const calc=useCallback(()=>calcAll(assetType,data),[assetType,data]);
   const results=calc();
   const hotelRev=assetType==="Hotel"?calcHotelRev(data):null;
+  const hotelAdv=assetType==="Hotel"&&hotelMode==="advanced"?calcHotelAdvanced(data):null;
   const r=results as any;
   const sensitivity=useCallback(()=>{
     if(assetType!=="BTR")return null;
@@ -931,7 +1079,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
   const[panelOpen,setPanelOpen]=useState(true);
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_BTS=["general","revenue","costs","finance","analysis"];
-  const TABS_HOTEL=["general","revenue","costs","finance","cashflow","analysis"];
+  const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_FLIP=["general","costs","finance","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",cashflow:"Cash Flow",analysis:"Analysis"};
@@ -972,6 +1120,19 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
         ))}
         {appraisalId&&<span style={{fontSize:9,color:"var(--text-d)",flexShrink:0}}>· locked</span>}
         <div style={{flex:1,minWidth:6}}/>
+        {/* Simple / Advanced toggle — Hotel only, lives in the header bar */}
+        {assetType==="Hotel"&&(
+          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
+              {(["simple","advanced"] as const).map(m=>(
+                <button key={m} onClick={()=>setHotelMode(m)} style={{padding:"3px 12px",background:hotelMode===m?"var(--gold)":"transparent",color:hotelMode===m?"#06070a":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
+                  {m==="simple"?"Simple":"Advanced"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <input className="inp name-inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Name…" style={{padding:"4px 8px",fontSize:12,flexShrink:1,minWidth:0,width:120}}/>
       </div>
       <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
@@ -983,6 +1144,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
             {/* GENERAL */}
             {activeTab==="general"&&(
               <div>
+
                 <div className="section-title">Project Details</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Chiswick Tower"/></div>
@@ -998,6 +1160,37 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   {assetType!=="Flip"&&<div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>}
                 </div>
                 <div className="inp-group"><label className="inp-label">Cost Profile</label><select className="inp" value={data.costProfile} onChange={e=>set("costProfile",e.target.value)}><option value="scurve">S-Curve (recommended)</option><option value="straight">Straight-Line</option><option value="frontloaded">Front-Loaded</option></select></div>
+                {/* Advanced Hotel — additional property details */}
+                {assetType==="Hotel"&&hotelMode==="advanced"&&(
+                  <>
+                    <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
+                    <div className="section-title">Property Details</div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Address</label><input className="inp" value={data.address||""} onChange={e=>set("address",e.target.value)} placeholder="10 Pepys Street, London EC3N"/></div>
+                      <div className="inp-group"><label className="inp-label">Tenure</label><select className="inp" value={data.tenure||"freehold"} onChange={e=>set("tenure",e.target.value)}><option value="freehold">Freehold</option><option value="leasehold">Leasehold</option><option value="share">Share of Freehold</option></select></div>
+                    </div>
+                    <div className="inp-row-3">
+                      <div className="inp-group"><label className="inp-label">GFA (sqm)</label><input className="inp" type="number" value={data.gfaSqm||9603} onChange={e=>set("gfaSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Avg Room Size (sqm)</label><input className="inp" type="number" value={data.avgRoomSqm||25} onChange={e=>set("avgRoomSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">No. of Floors</label><input className="inp" type="number" value={data.floors||7} onChange={e=>set("floors",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Year Built</label><input className="inp" type="number" value={data.yearBuilt||2000} onChange={e=>set("yearBuilt",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Last Renovated</label><input className="inp" type="number" value={data.yearRenovated||2019} onChange={e=>set("yearRenovated",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Hold Period (years)</label><select className="inp" value={data.holdYears||5} onChange={e=>set("holdYears",e.target.value)}>{[3,5,7,10].map(y=><option key={y} value={y}>{y} years</option>)}</select></div>
+                      <div className="inp-group"><label className="inp-label">Brand / Franchise</label><input className="inp" value={data.brandFranchise||""} onChange={e=>set("brandFranchise",e.target.value)} placeholder="e.g. Accor / Pullman"/></div>
+                    </div>
+                    <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
+                    <div className="section-title">Facilities</div>
+                    <div className="inp-row-3">
+                      <div className="inp-group"><label className="inp-label">Meeting Rooms</label><input className="inp" type="number" value={data.meetingRoomCount||6} onChange={e=>set("meetingRoomCount",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Meeting Area (sqm)</label><input className="inp" type="number" value={data.meetingAreaSqm||320} onChange={e=>set("meetingAreaSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Fitness Centre</label><select className="inp" value={data.hasFitness?"yes":"no"} onChange={e=>set("hasFitness",e.target.value==="yes")}><option value="yes">Yes</option><option value="no">No</option></select></div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {/* REVENUE BTR */}
@@ -1062,6 +1255,57 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
             {/* REVENUE HOTEL */}
             {activeTab==="revenue"&&assetType==="Hotel"&&(
               <div>
+                {/* Advanced — year by year ADR + occupancy */}
+                {hotelMode==="advanced"&&(
+                  <div style={{marginBottom:20}}>
+                    <div className="section-title">Year-by-Year Assumptions</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Set ADR and occupancy per year — disruption year(s) will show lower performance during renovation</div>
+                    <div style={{overflowX:"auto"}}>
+                      <div style={{display:"grid",gridTemplateColumns:`80px repeat(${data.holdYears||5},1fr)`,gap:6,minWidth:400}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",paddingBottom:4}}/>
+                        {Array.from({length:data.holdYears||5},(_,i)=>(
+                          <div key={i} style={{fontSize:9,color:i===0?"var(--amber)":"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",textAlign:"center",paddingBottom:4}}>
+                            Yr {i+1}{i===0?" (disrupt.)":""}
+                          </div>
+                        ))}
+                        <div style={{fontSize:10,color:"var(--text-m)",display:"flex",alignItems:"center"}}>ADR ({currencySymbol})</div>
+                        {Array.from({length:data.holdYears||5},(_,i)=>(
+                          <input key={i} className="inp" type="number" style={{padding:"5px 8px",fontSize:11,textAlign:"center"}}
+                            value={(data.yearAdr||[])[i]??data.adr??180}
+                            onChange={e=>{const arr=[...(data.yearAdr||Array(data.holdYears||5).fill(data.adr||180))];arr[i]=e.target.value;set("yearAdr",arr);}}
+                          />
+                        ))}
+                        <div style={{fontSize:10,color:"var(--text-m)",display:"flex",alignItems:"center"}}>Occ (%)</div>
+                        {Array.from({length:data.holdYears||5},(_,i)=>(
+                          <input key={i} className="inp" type="number" style={{padding:"5px 8px",fontSize:11,textAlign:"center"}}
+                            value={(data.yearOcc||[])[i]??data.occupancy??72}
+                            onChange={e=>{const arr=[...(data.yearOcc||Array(data.holdYears||5).fill(data.occupancy||72))];arr[i]=e.target.value;set("yearOcc",arr);}}
+                          />
+                        ))}
+                        <div style={{fontSize:10,color:"var(--text-d)",display:"flex",alignItems:"center"}}>RevPAR</div>
+                        {Array.from({length:data.holdYears||5},(_,i)=>{
+                          const adr=num(String((data.yearAdr||[])[i]??data.adr??180));
+                          const occ=num(String((data.yearOcc||[])[i]??data.occupancy??72))/100;
+                          return<div key={i} style={{padding:"5px 8px",background:"var(--bg3)",borderRadius:5,fontSize:11,fontFamily:"var(--font-mono)",color:"var(--blue)",textAlign:"center"}}>{currencySymbol}{Math.round(adr*occ)}</div>;
+                        })}
+                      </div>
+                    </div>
+                    {hotelAdv&&(
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:12}}>
+                        {[
+                          ["Stabilised NOI",fmt(hotelAdv.stabilisedNOI,currencySymbol),"var(--green)"],
+                          ["Stabilised EBITDA",fmt(hotelAdv.stabilisedEBITDA,currencySymbol),"var(--gold)"],
+                          ["Total NOI (hold)",fmt(hotelAdv.totalNOI,currencySymbol),"var(--blue)"],
+                        ].map(([l,v,c])=>(
+                          <div key={l} style={{background:"var(--bg3)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--border)"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>{l}</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:c}}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="section-title">Hotel Revenue Streams</div>
                 <RevStream title="Rooms" icon="" enabled={true} onToggle={()=>{}} summary={fmt(hotelRev?.roomsRev||0,currencySymbol)+" pa"} open={streamOpen.rooms} onOpen={()=>setStreamOpen(s=>({...s,rooms:!s.rooms}))}>
                   <div className="inp-row">
@@ -1300,6 +1544,14 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
                   <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
                 </div>
+                {/* Advanced — per key display */}
+                {hotelMode==="advanced"&&data.purchasePrice&&data.rooms&&(
+                  <div style={{fontSize:11,color:"var(--text-d)",marginTop:4,fontFamily:"var(--font-mono)"}}>
+                    {currencySymbol}{Math.round(num(String(data.purchasePrice))/num(String(data.rooms))).toLocaleString()} per key
+                    {" · "}Entry yield (NOI): <span style={{color:"var(--blue)"}}>{hotelAdv?fmtPct(hotelAdv.entryYieldNOI):"—"}</span>
+                    {" · "}Entry yield (EBITDA): <span style={{color:"var(--blue)"}}>{hotelAdv?fmtPct(hotelAdv.entryYieldEBITDA):"—"}</span>
+                  </div>
+                )}
                 <div className="section-title" style={{marginTop:24}}>CapEx & Costs</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">CapEx Budget ({currencySymbol})</label><input className="inp" type="number" value={data.capexBudget} onChange={e=>set("capexBudget",e.target.value)}/></div>
@@ -1309,6 +1561,49 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                 </div>
+                {/* Advanced — transaction costs */}
+                {hotelMode==="advanced"&&(
+                  <>
+                    <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
+                    <div className="section-title">Transaction Costs</div>
+                    <div className="inp-row">
+                      <div className="inp-group">
+                        <label className="inp-label">SDLT Structure</label>
+                        <select className="inp" value={data.sdltShareDeal?"share":"standard"} onChange={e=>set("sdltShareDeal",e.target.value==="share")}>
+                          <option value="standard">Standard (5%)</option>
+                          <option value="share">Share Deal (0.5%)</option>
+                        </select>
+                      </div>
+                      <div className="inp-group"><label className="inp-label">Legal Costs ({currencySymbol})</label><input className="inp" type="number" value={data.legalCosts??500000} onChange={e=>set("legalCosts",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Financing DD ({currencySymbol})</label><input className="inp" type="number" value={data.financingDD??250000} onChange={e=>set("financingDD",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Disposal Costs (%)</label><input className="inp" type="number" step="0.5" value={data.disposalCostPct??3.0} onChange={e=>set("disposalCostPct",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group">
+                        <label className="inp-label" style={{display:"flex",alignItems:"center",gap:6}}>
+                          <input type="checkbox" checked={data.wiInsuranceEnabled||false} onChange={e=>set("wiInsuranceEnabled",e.target.checked)} style={{width:14,height:14}}/>
+                          W&I Insurance ({currencySymbol})
+                        </label>
+                        <input className="inp" type="number" value={data.wiInsurance??150000} onChange={e=>set("wiInsurance",e.target.value)} disabled={!data.wiInsuranceEnabled} style={{opacity:data.wiInsuranceEnabled?1:0.4}}/>
+                      </div>
+                      <div className="inp-group">
+                        <label className="inp-label" style={{display:"flex",alignItems:"center",gap:6}}>
+                          <input type="checkbox" checked={data.workingCapitalEnabled||false} onChange={e=>set("workingCapitalEnabled",e.target.checked)} style={{width:14,height:14}}/>
+                          Working Capital ({currencySymbol})
+                        </label>
+                        <input className="inp" type="number" value={data.workingCapital??0} onChange={e=>set("workingCapital",e.target.value)} disabled={!data.workingCapitalEnabled} style={{opacity:data.workingCapitalEnabled?1:0.4}}/>
+                      </div>
+                    </div>
+                    <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
+                    <div className="section-title">Ongoing Costs (pa)</div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Supporting Costs pa ({currencySymbol})</label><input className="inp" type="number" value={data.supportingCostsPA??100000} onChange={e=>set("supportingCostsPA",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Hotel Operator Fees pa ({currencySymbol})</label><input className="inp" type="number" value={data.operatorFeesPA??0} onChange={e=>set("operatorFeesPA",e.target.value)}/></div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {/* COSTS FLIP */}
@@ -1339,6 +1634,130 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
             {activeTab==="finance"&&(
               <div>
                 <div className="section-title">Development Finance</div>
+                {/* Advanced Hotel — Capital Structure Selector */}
+                {assetType==="Hotel"&&hotelMode==="advanced"&&(
+                  <>
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Financing Structure</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                        {([
+                          {key:"equity",label:"All Equity",desc:"No debt"},
+                          {key:"single",label:"Single Facility",desc:"One LTC loan"},
+                          {key:"dual",label:"Dual Facility",desc:"Acq + CapEx"},
+                          {key:"fullstack",label:"Full Stack",desc:"Senior + Mezz"},
+                        ] as const).map(opt=>(
+                          <button key={opt.key} onClick={()=>set("capStructure",opt.key)} style={{padding:"10px 8px",borderRadius:8,border:`1px solid ${(data.capStructure||"single")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.capStructure||"single")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"center",transition:"all .2s"}}>
+                            <div style={{fontSize:11,fontWeight:600,color:(data.capStructure||"single")===opt.key?"var(--gold)":"var(--text)",marginBottom:2}}>{opt.label}</div>
+                            <div style={{fontSize:9,color:"var(--text-d)"}}>{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* All Equity — no debt fields */}
+                    {(data.capStructure||"single")==="equity"&&(
+                      <div style={{padding:"16px",background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
+                        <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
+                      </div>
+                    )}
+
+                    {/* Single Facility */}
+                    {(data.capStructure||"single")==="single"&&(
+                      <>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||3.0} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.5} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||1.0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Brokerage Fee (%)</label><input className="inp" type="number" step="0.1" value={data.brokerageFeePct||0.5} onChange={e=>set("brokerageFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{hotelAdv?fmt(hotelAdv.loanAmount,currencySymbol):"—"}</div></div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Dual Facility */}
+                    {(data.capStructure||"single")==="dual"&&(
+                      <>
+                        <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Acquisition Facility</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.acqLTV||65} onChange={e=>set("acqLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.acqRate||6.25} onChange={e=>set("acqRate",e.target.value)}/></div>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--blue)",fontWeight:600,margin:"16px 0 10px"}}>CapEx Facility</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTC (%)</label><input className="inp" type="number" step="1" value={data.capexLTC||50} onChange={e=>set("capexLTC",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.capexRate||6.25} onChange={e=>set("capexRate",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.25} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Brokerage Fee (%)</label><input className="inp" type="number" step="0.1" value={data.brokerageFeePct||0.5} onChange={e=>set("brokerageFeePct",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||1.0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Total Loan (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{hotelAdv?fmt(hotelAdv.loanAmount,currencySymbol):"—"}</div></div>
+                        </div>
+                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:4}}>
+                          Acq: {currencySymbol}{hotelAdv?fmt(num(String(data.purchasePrice||0))*num(String(data.acqLTV||65))/100,currencySymbol):"—"} · CapEx: {hotelAdv?fmt(num(String(data.capexBudget||0))*num(String(data.capexLTC||50))/100,currencySymbol):"—"}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Full Stack */}
+                    {(data.capStructure||"single")==="fullstack"&&(
+                      <>
+                        <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Senior Debt</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Senior LTV (%)</label><input className="inp" type="number" step="1" value={data.seniorLTV||55} onChange={e=>set("seniorLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Senior Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.seniorRate||6.25} onChange={e=>set("seniorRate",e.target.value)}/></div>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--amber)",fontWeight:600,margin:"16px 0 10px"}}>Mezzanine</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Mezz LTV (%)</label><input className="inp" type="number" step="1" value={data.mezzLTV||70} onChange={e=>set("mezzLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mezz Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.mezzRate||12.0} onChange={e=>set("mezzRate",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.5} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||1.0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Optional lines */}
+                    {(data.capStructure||"single")!=="equity"&&(
+                      <div style={{marginTop:16,display:"flex",gap:16,flexWrap:"wrap"}}>
+                        <label style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--text-m)",cursor:"pointer"}}>
+                          <input type="checkbox" checked={data.hedgingEnabled||false} onChange={e=>set("hedgingEnabled",e.target.checked)} style={{width:14,height:14}}/>
+                          Day 1 Hedging / Swap
+                        </label>
+                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost||0} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:120}}/>}
+                      </div>
+                    )}
+
+                    {/* Finance summary */}
+                    {hotelAdv&&(data.capStructure||"single")!=="equity"&&(
+                      <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Summary</div>
+                        {([
+                          ["Total Loan",hotelAdv.loanAmount,"var(--text)"],
+                          ["Arrangement Fee",hotelAdv.arrangementFee,"var(--amber)"],
+                          ["Brokerage Fee",hotelAdv.brokerageFee,"var(--amber)"],
+                          ["Exit Fee",hotelAdv.exitFee,"var(--amber)"],
+                          ["Interest (Total Hold)",hotelAdv.interestTotal,"var(--amber)"],
+                        ] as any[]).map(([l,v,c])=>(
+                          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                            <span style={{color:"var(--text-m)"}}>{l}</span>
+                            <span style={{fontFamily:"var(--font-mono)",color:c}}>{fmt(v||0,currencySymbol)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
+                  </>
+                )}
                 {assetType!=="Flip"?(
                   <>
                     <div className="inp-row">
@@ -1394,7 +1813,90 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                 )}
               </div>
             )}
-            {/* CASHFLOW HOTEL */}
+            {/* IM FEES TAB — Advanced Hotel only */}
+            {activeTab==="im"&&assetType==="Hotel"&&hotelMode==="advanced"&&(
+              <div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                  <div className="section-title">Investment Manager</div>
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--text-m)",cursor:"pointer"}}>
+                    <input type="checkbox" checked={data.imEnabled||false} onChange={e=>set("imEnabled",e.target.checked)} style={{width:16,height:16}}/>
+                    IM involved in this deal
+                  </label>
+                </div>
+                {!data.imEnabled?(
+                  <div style={{padding:"40px 20px",textAlign:"center",background:"var(--bg3)",borderRadius:10,border:"1px solid var(--border)"}}>
+                    <div style={{fontSize:14,color:"var(--text-d)",marginBottom:8}}>No investment manager</div>
+                    <div style={{fontSize:12,color:"var(--text-d)"}}>Toggle above if an IM is involved. Covers acquisition fee, base charge and incentive fees.</div>
+                  </div>
+                ):(
+                  <>
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
+                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>One-Off Fees</div>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">Acquisition Fee ({currencySymbol})</label><input className="inp" type="number" value={data.imAcqFee??300000} onChange={e=>set("imAcqFee",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">Fee Type</label><select className="inp" value={data.imAcqFeeType||"fixed"} onChange={e=>set("imAcqFeeType",e.target.value)}><option value="fixed">Fixed £</option><option value="pct">% of Purchase Price</option></select></div>
+                      </div>
+                    </div>
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
+                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Recurring Fees (Annual)</div>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">Base Annual Charge ({currencySymbol} pa)</label><input className="inp" type="number" value={data.imBasePA??250000} onChange={e=>set("imBasePA",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">Charged On</label><select className="inp" value={data.imBaseChargedOn||"minimum"} onChange={e=>set("imBaseChargedOn",e.target.value)}><option value="minimum">Fixed Minimum</option><option value="revenue">% of Revenue</option></select></div>
+                      </div>
+                    </div>
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
+                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Incentive Fees (on Exit)</div>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">On Gross Sales (%)</label><input className="inp" type="number" step="0.1" value={data.imIncentiveSalesPct??1.0} onChange={e=>set("imIncentiveSalesPct",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">On Net Profit (%)</label><input className="inp" type="number" step="0.5" value={data.imIncentiveProfitPct??10.0} onChange={e=>set("imIncentiveProfitPct",e.target.value)}/></div>
+                      </div>
+                    </div>
+                    {/* IM fee summary */}
+                    {hotelAdv&&(
+                      <div style={{background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10,padding:16}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>IM Fee Summary</div>
+                        {([
+                          ["Acquisition Fee (one-off)",hotelAdv.imAcqFee],
+                          [`Base Charge (${data.holdYears||5} years)`,hotelAdv.imBasePATotal],
+                          ["Incentive on Sales",hotelAdv.imIncentiveSales],
+                          ["Incentive on Profit",hotelAdv.imIncentiveProfit],
+                          ["Total IM Fees",(hotelAdv.imAcqFee||0)+(hotelAdv.imBasePATotal||0)+(hotelAdv.imIncentiveSales||0)+(hotelAdv.imIncentiveProfit||0)],
+                        ] as any[]).map(([l,v],i)=>(
+                          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<4?"1px solid var(--gold-border)":"none",fontSize:12}}>
+                            <span style={{color:i===4?"var(--gold)":"var(--text-m)",fontWeight:i===4?600:400}}>{l}</span>
+                            <span style={{fontFamily:"var(--font-mono)",color:i===4?"var(--gold)":"var(--amber)",fontWeight:i===4?600:400}}>{fmt(v||0,currencySymbol)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Undistributed expenses — Advanced */}
+                <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
+                <div className="section-title">Undistributed Expenses</div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:14}}>As % of total revenue — used in Advanced P&L model</div>
+                <div className="inp-row-3">
+                  <div className="inp-group"><label className="inp-label">Info & Telecom (%)</label><input className="inp" type="number" step="0.1" value={data.itPct??0.7} onChange={e=>set("itPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Admin & General (%)</label><input className="inp" type="number" step="0.1" value={data.agPct??5.0} onChange={e=>set("agPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Sales & Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.smPct??8.5} onChange={e=>set("smPct",e.target.value)}/></div>
+                </div>
+                <div className="inp-row-3">
+                  <div className="inp-group"><label className="inp-label">POM (%)</label><input className="inp" type="number" step="0.1" value={data.pomPct??1.8} onChange={e=>set("pomPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Utilities (%)</label><input className="inp" type="number" step="0.1" value={data.utilPct??2.2} onChange={e=>set("utilPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Mgmt Fee (%)</label><input className="inp" type="number" step="0.1" value={data.mgmtFeePct??2.0} onChange={e=>set("mgmtFeePct",e.target.value)}/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Real Estate Tax (%)</label><input className="inp" type="number" step="0.1" value={data.realEstateTaxPct??7.5} onChange={e=>set("realEstateTaxPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Insurance (%)</label><input className="inp" type="number" step="0.1" value={data.insurancePct??0.5} onChange={e=>set("insurancePct",e.target.value)}/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">FF&E Reserve (% from Yr3)</label><input className="inp" type="number" step="0.5" value={data.ffePct??3.0} onChange={e=>set("ffePct",e.target.value)}/></div>
+                </div>
+              </div>
+            )}
+
+                        {/* CASHFLOW HOTEL */}
             {activeTab==="cashflow"&&assetType==="Hotel"&&(
               <div>
                 <div className="section-title">Monthly Cash Flow</div>
@@ -1502,6 +2004,94 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
             {/* ANALYSIS */}
             {activeTab==="analysis"&&(
               <div>
+                {/* Advanced Hotel — Per Key Metrics + Year-by-year CF */}
+                {assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv&&(
+                  <>
+                    {/* Per key panel */}
+                    <div style={{marginBottom:24}}>
+                      <div className="section-title">Per Key Metrics</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+                        {[
+                          {label:"Purchase per Key",value:fmt(hotelAdv.pricePerKey,currencySymbol),color:"var(--text)"},
+                          {label:"CapEx per Key",value:fmt(hotelAdv.capexPerKey,currencySymbol),color:"var(--amber)"},
+                          {label:"Exit Value per Key",value:fmt(hotelAdv.exitValuePerKey,currencySymbol),color:"var(--gold)"},
+                          {label:"EBITDA per Key",value:fmt(hotelAdv.ebitdaPerKey,currencySymbol),color:"var(--green)"},
+                          {label:"NOI per Key",value:fmt(hotelAdv.noiPerKey,currencySymbol),color:"var(--blue)"},
+                          {label:"NOI Conversion",value:fmtPct(hotelAdv.noiConversion),color:"var(--text-m)"},
+                        ].map(m=>(
+                          <div key={m.label} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>{m.label}</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:m.color}}>{m.value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Entry yields */}
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
+                        <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Entry Yield (vs NOI)</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--blue)"}}>{fmtPct(hotelAdv.entryYieldNOI)}</div>
+                        </div>
+                        <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Entry Yield (vs EBITDA)</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--blue)"}}>{fmtPct(hotelAdv.entryYieldEBITDA)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Year-by-year investor cashflow */}
+                    <div style={{marginBottom:24}}>
+                      <div className="section-title">Investor Cashflow — Year by Year</div>
+                      <div style={{overflowX:"auto"}}>
+                        <div style={{display:"grid",gridTemplateColumns:`120px repeat(${(data.holdYears||5)+1},1fr)`,gap:4,minWidth:500,fontSize:10}}>
+                          {["",`Day 1`,...Array.from({length:data.holdYears||5},(_,i)=>`Yr ${i+1} ${i===(data.holdYears||5)-1?"(Exit)":""}`)].map((h,i)=>(
+                            <div key={i} style={{color:i===0?"transparent":i===(data.holdYears||5)+1?"var(--gold)":"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",padding:"4px 6px",textAlign:i>0?"center":"left"}}>{h}</div>
+                          ))}
+                          {[
+                            {label:"Revenue",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.totalRev)],color:"var(--text-m)"},
+                            {label:"EBITDA",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.ebitda)],color:"var(--text)"},
+                            {label:"FF&E",values:[null,...hotelAdv.yearRevenue.map((y:any)=>-y.ffe)],color:"var(--amber)"},
+                            {label:"NOI",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.noi)],color:"var(--green)",bold:true},
+                            {label:"Equity Out",values:[-(hotelAdv.equity||0),...Array(data.holdYears||5).fill(null)],color:"var(--red)"},
+                            {label:"Disposal",values:[null,...Array((data.holdYears||5)-1).fill(null),hotelAdv.netExitProceeds],color:"var(--gold)",bold:true},
+                          ].map((row,ri)=>(
+                            <>
+                              <div key={`l${ri}`} style={{fontSize:10,color:row.color,fontWeight:row.bold?600:400,display:"flex",alignItems:"center",padding:"4px 0"}}>{row.label}</div>
+                              {row.values.map((v:any,ci:number)=>(
+                                <div key={ci} style={{padding:"4px 6px",background:ci%2===0?"var(--bg3)":"transparent",borderRadius:4,fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":v<0?"var(--red)":row.color,textAlign:"center"}}>
+                                  {v===null?"—":fmt(Math.abs(v),currencySymbol)}
+                                </div>
+                              ))}
+                            </>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Summary returns */}
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:14}}>
+                        {[
+                          {label:"Total Investment",value:fmt(hotelAdv.totalCost,currencySymbol),color:"var(--text)"},
+                          {label:"Profit (before incentive)",value:fmt(hotelAdv.profit,currencySymbol),color:hotelAdv.profit>0?"var(--green)":"var(--red)"},
+                          {label:"Equity Multiple",value:fmtX(hotelAdv.moic),color:hotelAdv.moic>2?"var(--green)":"var(--amber)"},
+                          {label:"IRR",value:fmtPct(hotelAdv.irr),color:hotelAdv.irr>0.15?"var(--green)":hotelAdv.irr>0.08?"var(--amber)":"var(--red)"},
+                        ].map(m=>(
+                          <div key={m.label} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>{m.label}</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:15,fontWeight:600,color:m.color}}>{m.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* IM incentive fees if applicable */}
+                      {data.imEnabled&&hotelAdv&&(hotelAdv.imIncentiveProfit>0||hotelAdv.imIncentiveSales>0)&&(
+                        <div style={{marginTop:10,padding:"10px 14px",background:"rgba(201,168,76,.06)",border:"1px solid var(--gold-border)",borderRadius:8,fontSize:11,color:"var(--text-m)"}}>
+                          <span style={{color:"var(--gold)",fontWeight:600}}>IM Incentive Fees: </span>
+                          On sales {fmt(hotelAdv.imIncentiveSales,currencySymbol)} + On profit {fmt(hotelAdv.imIncentiveProfit,currencySymbol)} = {fmt(hotelAdv.imIncentiveSales+hotelAdv.imIncentiveProfit,currencySymbol)}
+                          {" · "}Returns shown before incentive fee
+                        </div>
+                      )}
+                    </div>
+                    <div style={{height:1,background:"var(--border)",marginBottom:24}}/>
+                  </>
+                )}
                 <div className="section-title">Returns Summary</div>
                 <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,marginBottom:20}}>
                   {assetType==="BTR"&&([
