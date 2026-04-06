@@ -1564,8 +1564,8 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     </div>
                   </div>
                 )}
-                {/* ── STRATEGY COMPARISON ─────────────────────────────────────────── */}
-                {(()=>{
+                {/* ── STRATEGY COMPARISON — BTR vs BTS only ──────────────────────── */}
+                {(assetType==="BTR"||assetType==="BTS")&&(()=>{
                   const currSym2={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
                   // Build shared inputs from current deal
                   const sharedLand=num(String(data.landCost||data.purchasePrice||0));
@@ -1579,6 +1579,8 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   const sharedBenchmarkRate=num(String(data.benchmarkRate||3.97));
 
                   // Strategy definitions — same land, same build, different revenue model
+                  // Strategy comparison only makes sense for residential — BTR vs BTS
+                  // Hotel and Flip use fundamentally different inputs so are excluded
                   const strategies=[
                     {
                       key:"BTR", label:"Build to Rent", color:"var(--gold)", icon:"◈",
@@ -1602,28 +1604,6 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                         programmMonths:30,
                       }
                     },
-                    {
-                      key:"Hotel", label:"Hotel / Hospitality", color:"var(--amber)", icon:"◉",
-                      desc:"Stabilised income via ADR & occupancy",
-                      data:{...DEFAULTS.Hotel,
-                        purchasePrice:sharedLand, 
-                        ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
-                        professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
-                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                        programmMonths:24,
-                      }
-                    },
-                    {
-                      key:"Flip", label:"House Flip", color:"var(--green)", icon:"◫",
-                      desc:"Refurb & sell — short hold period",
-                      data:{...DEFAULTS.Flip,
-                        purchasePrice:sharedLand>0?sharedLand:450000,
-                        ltc:sharedLTC, arrangementFeePct:sharedArrangement,
-                        professionalFeesPct:Math.min(sharedProfFees,3),
-                        contingencyPct:sharedContingency,
-                        benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                      }
-                    },
                   ];
 
                   const results=strategies.map(s=>({...s, r:calcAll(s.key,s.data)}));
@@ -1641,7 +1621,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                         Current strategy: <span style={{color:"var(--gold)",fontWeight:600}}>{assetType}</span>
                         {" · "}Values recalculated using shared land, build cost and finance inputs
                       </div>
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
                         {results.map(s=>{
                           const isCurrent=s.key===assetType;
                           const irr=s.r.irr||s.r.annualisedIrr||0;
