@@ -665,6 +665,7 @@ function AppraisalPage(){
   const[senseResult,setSenseResult]=useState<{overall:string;summary:string;flags:{severity:string;field:string;message:string;benchmark:string}[]}|null>(null);
   const[senseRunning,setSenseRunning]=useState(false);
   const[hotelComps,setHotelComps]=useState<any>(null);
+  const[strategyYield,setStrategyYield]=useState<number>(5);
   const[hotelCompsRunning,setHotelCompsRunning]=useState(false);
   const[hotelCompsError,setHotelCompsError]=useState<string|null>(null);
   const[senseError,setSenseError]=useState<string|null>(null);
@@ -1579,29 +1580,47 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   const sharedBenchmarkRate=num(String(data.benchmarkRate||3.97));
 
                   // Strategy definitions — same land, same build, different revenue model
-                  // Strategy comparison only makes sense for residential — BTR vs BTS
-                  // Hotel and Flip use fundamentally different inputs so are excluded
+                  // Strategy comparison — BTR vs BTS
+                  // BTS sale price derived from BTR rents capitalised at selected yield
+                  // This gives a genuine apples-to-apples comparison on the same site
+
+                  // Derive BTS units from BTR units — capitalise rent at strategyYield
+                  const btsUnitsFromBTR=(assetType==="BTR"&&(data.units||[]).length>0)
+                    ?(data.units||[]).map((u:any)=>{
+                        const annualRentPsf=num(String(u.rentPcm))*12/Math.max(num(String(u.size)),1);
+                        const salePricePsf=annualRentPsf/(strategyYield/100);
+                        return{type:u.type.replace(" OMR","").replace(" DMR",""),count:u.count,salePricePsf:Math.round(salePricePsf),size:u.size};
+                      })
+                    :DEFAULTS.BTS.units;
+
+                  // For BTS use actual site area and units, otherwise fall back to defaults
+                  const btsSiteArea=sharedSite>0?sharedSite:110000;
+                  const btsBuildPsf=sharedBuildPsf>0?sharedBuildPsf:260;
+
                   const strategies=[
                     {
                       key:"BTR", label:"Build to Rent", color:"var(--gold)", icon:"◈",
                       desc:"Income-producing, exit at stabilised yield",
-                      data:{...DEFAULTS.BTR,
+                      data:{
+                        ...(assetType==="BTR"?data:DEFAULTS.BTR),
                         landCost:sharedLand, buildCostPsf:sharedBuildPsf||285, siteAreaSqft:sharedSite||195000,
                         ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
                         professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
                         benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                        programmMonths:36, stabilisationMonths:12,
+                        programmMonths:num(String(data.programmMonths||36)),
+                        stabilisationMonths:num(String(data.stabilisationMonths||12)),
                       }
                     },
                     {
                       key:"BTS", label:"Build to Sell", color:"var(--blue)", icon:"◎",
-                      desc:"Sell units off-plan or post-completion",
+                      desc:`Sale price derived from rent at ${strategyYield}% yield`,
                       data:{...DEFAULTS.BTS,
-                        landCost:sharedLand, buildCostPsf:sharedBuildPsf||260, siteAreaSqft:sharedSite||110000,
+                        units:btsUnitsFromBTR,
+                        landCost:sharedLand, buildCostPsf:btsBuildPsf, siteAreaSqft:btsSiteArea,
                         ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
                         professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
                         benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                        programmMonths:30,
+                        programmMonths:30, absorptionMonths:18,
                       }
                     },
                   ];
@@ -1615,11 +1634,18 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     <div style={{marginBottom:28}}>
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                         <div className="section-title">Strategy Comparison</div>
-                        <div style={{fontSize:10,color:"var(--text-d)"}}>Same land · Same build cost · Different revenue model</div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:10,color:"var(--text-d)"}}>BTS yield assumption:</span>
+                          <div style={{display:"flex",gap:4}}>
+                            {[4,5,6].map(y=>(
+                              <button key={y} onClick={()=>setStrategyYield(y)} style={{padding:"2px 10px",borderRadius:5,border:`1px solid ${strategyYield===y?"var(--gold)":"var(--border)"}`,background:strategyYield===y?"var(--gold-bg)":"transparent",color:strategyYield===y?"var(--gold)":"var(--text-d)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:strategyYield===y?600:400}}>{y}%</button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16}}>
                         Current strategy: <span style={{color:"var(--gold)",fontWeight:600}}>{assetType}</span>
-                        {" · "}Values recalculated using shared land, build cost and finance inputs
+                        {" · "}BTS sale price = rent capitalised at {strategyYield}% yield · same land, build cost and finance
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
                         {results.map(s=>{
