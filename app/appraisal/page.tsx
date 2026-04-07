@@ -991,65 +991,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
   doc.save(`Valora_Brochure_${(data.name||"Deal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
-  if(!(window as any).jspdf){
-    await new Promise<void>((resolve,reject)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload=()=>resolve();s.onerror=()=>reject();document.head.appendChild(s);
-    });
-  }
-  const{jsPDF}=(window as any).jspdf;
-  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const W=210,M=18;
-  const gold=[201,168,76],dark=[6,7,10],grey=[125,133,144],white=[255,255,255],bg2=[18,21,26];
-  const r=results as any;
-  doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");
-  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");
-  if(photos.length>0){
-    const phH=photos.length>=2?80:60;const phW=photos.length>=2?W/photos.length:W*0.6;
-    photos.slice(0,3).forEach((ph,i)=>{try{doc.addImage(ph,"JPEG",i*phW,0,phW,phH);}catch(e){}});
-    doc.setFillColor(6,7,10);doc.setGState(doc.GState({opacity:0.55}));doc.rect(0,0,W,photos.length>0?80:0,"F");doc.setGState(doc.GState({opacity:1}));
-  }
-  const _vY=photos.length>0?13:9;drawVMarkPDF(doc,M,_vY,7,gold as [number,number,number]);doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,photos.length>0?20:16);
-  doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(...grey as [number,number,number]);doc.text("INVESTMENT MEMORANDUM",M,photos.length>0?26:22);
-  const titleY=photos.length>0?95:50;
-  doc.setTextColor(...white as [number,number,number]);doc.setFontSize(28);doc.setFont("helvetica","bold");
-  const titleLines=doc.splitTextToSize(data.name||"Investment Opportunity",W-M*2);doc.text(titleLines,M,titleY);
-  doc.setFontSize(12);doc.setFont("helvetica","normal");doc.setTextColor(...gold as [number,number,number]);doc.text(`${data.location||""}  ·  ${assetType}`,M,titleY+titleLines.length*10+4);
-  const metricsY=titleY+titleLines.length*10+20;
-  const metrics=assetType==="BTR"?[["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)]]:assetType==="BTS"?[["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)]]:assetType==="Hotel"?[["Exit Value",fmt(r.exitValue,currencySymbol)],["EBITDA pa",fmt(r.ebitda,currencySymbol)],["IRR",fmtPct(r.irr)],["DSCR",fmtX(r.dscr)]]:[["Sale Price",fmt(r.salePrice,currencySymbol)],["Profit",fmt(r.profit,currencySymbol)],["ROI",fmtPct(r.roi)],["Equity Multiple",fmtX(r.moic)]];
-  const mW=(W-M*2-12)/4;
-  metrics.forEach(([l,v],i)=>{
-    const x=M+i*(mW+4);
-    doc.setFillColor(...bg2 as [number,number,number]);doc.roundedRect(x,metricsY,mW,20,2,2,"F");
-    doc.setDrawColor(...gold as [number,number,number]);doc.setLineWidth(0.5);doc.roundedRect(x,metricsY,mW,20,2,2,"S");
-    doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(6.5);doc.setFont("helvetica","normal");doc.text(String(l).toUpperCase(),x+3,metricsY+7);
-    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(String(v),x+3,metricsY+16);
-  });
-  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,291,W,6,"F");
-  doc.setTextColor(...dark as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","bold");
-  doc.text("STRICTLY PRIVATE & CONFIDENTIAL",M,295.5);doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),W-M,295.5,{align:"right"});
-  doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");
-  const wrapText=(doc:any,text:string,x:number,startY:number,maxW:number,lineH:number)=>{
-    const lines=doc.splitTextToSize(text,maxW);
-    lines.forEach((line:string,i:number)=>{if(startY+i*lineH>278){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");startY=20-i*lineH;}doc.text(line,x,startY+i*lineH);});
-    return startY+lines.length*lineH+4;
-  };
-  let py=20;drawVMarkPDF(doc,M,py-7,7,gold as [number,number,number]);doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,py);
-  doc.setTextColor(...grey as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(data.name||"",W-M,py,{align:"right"});py+=10;
-  const sections:[string,keyof BrochureContent][]=[["Executive Summary","executiveSummary"],["Deal Strengths","dealStrengths"],["Risk Assessment","riskAssessment"],["Market Comparables","marketComparables"]];
-  sections.forEach(([title,key])=>{
-    if(py>260){doc.addPage();doc.setFillColor(...dark as [number,number,number]);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold as [number,number,number]);doc.rect(0,0,4,297,"F");py=20;}
-    doc.setTextColor(...gold as [number,number,number]);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(title,M,py);
-    doc.setLineWidth(0.2);doc.setDrawColor(...gold as [number,number,number]);doc.line(M,py+2,W-M,py+2);py+=9;
-    doc.setTextColor(...white as [number,number,number]);doc.setFontSize(9);doc.setFont("helvetica","normal");
-    py=wrapText(doc,content[key]||"",M,py,W-M*2,5);py+=6;
-  });
-  doc.setFillColor(...gold as [number,number,number]);doc.rect(0,291,W,6,"F");
-  doc.setTextColor(...dark as [number,number,number]);doc.setFontSize(7);doc.setFont("helvetica","bold");
-  doc.text("VALORA · Institutional Development Appraisal",M,295.5);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
-  doc.save(`Valora_Brochure_${(data.name||"Deal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
-}
+
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 function AppraisalPage(){
