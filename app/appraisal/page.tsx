@@ -223,7 +223,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     adr:num(String((data.yearAdr||[])[i]??data.adr??180)),
   }));
 
-  const yearRevenue=yearData.map(y=>{
+  const yearRevenue=yearData.map((y,i)=>{
     const occRoomNights=rooms*365*y.occ;
     const roomsRev=y.adr*occRoomNights;
     const roomsMargin=num(String(data.roomsMarginPct??75))/100;
