@@ -338,22 +338,39 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   const dscr=interestTotal>0&&holdYears>0?stabilisedNOI/(interestTotal/holdYears):999;
 
-  // IRR — annual debt service spread evenly across hold period
-  const annualDebtService=holdYears>0?(interestTotal+arrangementFee+exitFee+brokerageFee)/holdYears:0;
-  // Unlevered: full cost out day 1, NOI in each year, exit on final year
+  // IRR cashflow construction
+  // One-off fees paid Day 1 (not spread annually)
+  const dayOneFinanceFees=arrangementFee+exitFee+brokerageFee;
+  // Annual interest only (evenly spread — hotel debt is typically interest-rolled or serviced annually)
+  const annualInterest=holdYears>0?interestTotal/holdYears:0;
+
+  // Unlevered: total asset cost out day 1, NOI in each year, gross exit proceeds at end
+  // (ignores capital structure — pure asset-level return)
+  const unleveredDayOne=-(purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+workingCapital+(imAcqFee||0));
   const uCfs=[
-    -(purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+workingCapital),
+    unleveredDayOne,
     ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees),
-    (netExitProceeds)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees),
+    exitValue+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees),
   ];
-  // Levered: equity out day 1, NOI minus debt service each year, net exit (after repaying loan) final year
+
+  // Levered: equity out day 1, NOI minus annual interest each year, net exit after loan repayment at end
+  // equity = totalCost - loanAmount (what investor actually puts in)
   const lCfs=[
     -equity,
-    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees-annualDebtService),
-    (netExitProceeds-loanAmount)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees-annualDebtService),
+    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees-annualInterest),
+    (netExitProceeds-loanAmount)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees-annualInterest),
   ];
+
   const irrUnlevered=calcIRR(uCfs);
-  const irrLevered=equity>0?calcIRR(lCfs):0;
+  const irrLevered=equity>0&&equity<totalCost?calcIRR(lCfs):irrUnlevered;
+
+  // Payback — month when cumulative levered cashflows turn positive
+  let cumulative=lCfs[0];
+  let paybackMonth:number|null=null;
+  for(let i=1;i<lCfs.length;i++){
+    cumulative+=lCfs[i];
+    if(cumulative>=0){paybackMonth=i*12;break;}
+  }
 
   // Alias fields to match what the UI / Returns Summary / sidebar expect
   const totalInvestment=totalCost;
@@ -375,7 +392,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     irr:irrUnlevered,irrLevered,
     // UI-compatible aliases
     totalInvestment,revpar,revenuePa,ebitda,interestCost,capex,yoc,stabilisedValue,
-    paybackMonth:null,
+    paybackMonth,
     ebitdaPerKey:rooms>0?stabilisedEBITDA/rooms:0,
     noiPerKey:rooms>0?stabilisedNOI/rooms:0,
     noiConversion:stabilisedYear.totalRev>0?stabilisedNOI/stabilisedYear.totalRev:0,
