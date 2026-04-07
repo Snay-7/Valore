@@ -907,7 +907,7 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);}
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
       setLoading(false);
