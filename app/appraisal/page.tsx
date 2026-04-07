@@ -2136,24 +2136,27 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
                 {assetType==="Hotel"&&(()=>{
-                  // Hotel sensitivity: exit cap rate (rows) × ADR shift (columns)
+                  // Hotel sensitivity: exit cap rate (rows) × ADR absolute amount (columns)
                   const baseCapRate=num(String(data.exitCapRate||6.5));
                   const baseADR=num(String(data.adr||180));
+                  // ADR steps: ±£20 and ±£10 around base (absolute £ values, not %)
+                  const adrStep=Math.round(baseADR*0.1/5)*5||10; // ~10% rounded to nearest £5
+                  const adrValues=[-2,-1,0,1,2].map(d=>Math.round(baseADR+d*adrStep));
                   const capRates=[-0.5,-0.25,0,0.25,0.5].map(d=>baseCapRate+d);
-                  const adrMults=[-0.10,-0.05,0,0.05,0.10].map(d=>1+d);
-                  const hotelSensMatrix=capRates.map(cr=>adrMults.map(am=>{
-                    const modData={...data,exitCapRate:cr,adr:baseADR*am};
-                    const res=calcAll("Hotel",modData);
+                  const hotelSensMatrix=capRates.map(cr=>adrValues.map(adr=>{
+                    const modData={...data,exitCapRate:cr,adr};
+                    // Use the appropriate calc engine — advanced if in advanced mode
+                    const res=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
                     return res.poc??0;
                   }));
                   return(
                     <div style={{marginBottom:28}}>
                       <div className="section-title">Sensitivity — Return on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit cap rate (rows) × ADR shift (columns)</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit cap rate (rows) × ADR {currencySymbol}/night (columns)</div>
                       <div className="sens-wrap">
                         <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                           <div/>
-                          {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                          {adrValues.map(adr=><div key={adr} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontFamily:"var(--font-mono)"}}>{currencySymbol}{adr}</div>)}
                           {hotelSensMatrix.map((row:number[],yi:number)=>{
                             const capVal=capRates[yi];
                             return(<>
