@@ -317,7 +317,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
     <>
       <nav className={`nav ${scrolled?"on":""}`}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginRight:"auto",cursor:"pointer"}} onClick={()=>onPage("landing")}>
-          <img src="/valora-mark.png" alt="Valora" style={{height:32,width:"auto",mixBlendMode:"lighten"}}/>
+          <img src="/valora-mark.png" alt="Valora" style={{height:32,width:"auto"}}/>
         </div>
         <div className="nav-links">
           {isHome?[["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["For Lenders","#lenders"]].map(([l,h])=><a key={l} href={h}>{l}</a>):<a onClick={()=>onPage("landing")}>← Back</a>}
@@ -337,7 +337,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
         </button>
       </nav>
       <div className={`mobile-menu ${menuOpen?"open":""}`}>
-        <div style={{marginBottom:28,cursor:"pointer"}} onClick={()=>{setMenuOpen(false);onPage("landing")}}><img src="/valora-mark.png" alt="Valora" style={{height:28,width:"auto",mixBlendMode:"lighten"}}/></div>
+        <div style={{marginBottom:28,cursor:"pointer"}} onClick={()=>{setMenuOpen(false);onPage("landing")}}><img src="/valora-mark.png" alt="Valora" style={{height:28,width:"auto"}}/></div>
         {isHome?[["Features","#features"],["Why Valora","#why"],["Pricing","#pricing"],["Support","support"],["Privacy","privacy"],["Terms","terms"]].map(([l,h])=>h.startsWith("#")?<a key={l} href={h} onClick={()=>setMenuOpen(false)}>{l}</a>:<a key={l} onClick={()=>{setMenuOpen(false);onPage(h)}}>{l}</a>):<a onClick={()=>{setMenuOpen(false);onPage("landing")}}>← Home</a>}
         <div style={{marginTop:36,display:"flex",flexDirection:"column",gap:12}}>
           <button className="btn-ghost" onClick={()=>{setMenuOpen(false);window.open(CALENDLY,"_blank")}} style={{justifyContent:"center",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a Demo</button>
@@ -355,7 +355,7 @@ function Footer({onPage}:any) {
       <div className="container">
         <div className="footer-grid" style={{display:"grid",gridTemplateColumns:"2.5fr 1fr 1fr 1fr",gap:48,marginBottom:48}}>
           <div>
-            <img src="/valora-mark.png" alt="Valora" style={{height:28,width:"auto",mixBlendMode:"lighten",marginBottom:16,cursor:"pointer"}} onClick={()=>onPage("landing")}/>
+            <img src="/valora-mark.png" alt="Valora" style={{height:28,width:"auto",marginBottom:16,cursor:"pointer"}} onClick={()=>onPage("landing")}/>
             <p style={{fontSize:13,color:"var(--text-d)",lineHeight:1.85,maxWidth:280,marginBottom:20}}>Institutional development appraisal software for property developers, valuers, lenders and investment professionals.</p>
           </div>
           {[
@@ -965,7 +965,7 @@ function Login({onBack}:any){
       <div className="login-left">
         <div style={{position:"relative",zIndex:1,paddingBottom:32}}>
           <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",padding:0}}>
-            <img src="/valora-mark.png" alt="Valora" style={{height:26,width:"auto",mixBlendMode:"lighten"}}/>
+            <img src="/valora-mark.png" alt="Valora" style={{height:26,width:"auto"}}/>
           </button>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",position:"relative",zIndex:1}}>
