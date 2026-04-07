@@ -1058,7 +1058,30 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
         exit_yield:num(String(data.exitYield||0))/100,land_cost:num(String(data.landCost||data.purchasePrice||0)),
         gdv:r.gdv||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:r.profit||0,
         profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,irr_levered:r.irrLevered||0,programme_months:num(String(data.programmMonths)),firm_id:null,
-        snapshot:{...data,assetType,moic:r.moic||0,dscr:isFinite(r.dscr)&&r.dscr!==Infinity?r.dscr:0,paybackMonth:r.paybackMonth||null,hotelMode:assetType==="Hotel"?hotelMode:"simple",...(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?{hotelAdv:{totalCost:hotelAdv.totalCost,equity:hotelAdv.equity,profit:hotelAdv.profit,poc:hotelAdv.poc,moic:hotelAdv.moic,irr:hotelAdv.irr,irrLevered:hotelAdv.irrLevered,dscr:hotelAdv.dscr,yoc:hotelAdv.yoc,revpar:hotelAdv.revpar,revenuePa:hotelAdv.revenuePa,ebitda:hotelAdv.ebitda,stabilisedNOI:hotelAdv.stabilisedNOI,stabilisedEBITDA:hotelAdv.stabilisedEBITDA,totalNOI:hotelAdv.totalNOI,exitValue:hotelAdv.exitValue,stabilisedValue:hotelAdv.stabilisedValue,purchasePrice:hotelAdv.purchasePrice,pricePerKey:hotelAdv.pricePerKey,capexPerKey:hotelAdv.capexPerKey,exitValuePerKey:hotelAdv.exitValuePerKey,ebitdaPerKey:hotelAdv.ebitdaPerKey,noiPerKey:hotelAdv.noiPerKey,noiConversion:hotelAdv.noiConversion,entryYieldNOI:hotelAdv.entryYieldNOI,entryYieldEBITDA:hotelAdv.entryYieldEBITDA,sdlt:hotelAdv.sdlt,legalCosts:hotelAdv.legalCosts,arrangementFee:hotelAdv.arrangementFee,interestTotal:hotelAdv.interestTotal,loanAmount:hotelAdv.loanAmount,paybackMonth:hotelAdv.paybackMonth,imAcqFee:hotelAdv.imAcqFee,imBasePATotal:hotelAdv.imBasePATotal,imIncentiveProfit:hotelAdv.imIncentiveProfit,imIncentiveSales:hotelAdv.imIncentiveSales,yearRevenue:hotelAdv.yearRevenue,disposalCosts:hotelAdv.disposalCosts,netExitProceeds:hotelAdv.netExitProceeds}}:{})}},
+        snapshot:{
+          ...data,
+          assetType,
+          moic:r.moic||0,
+          dscr:isFinite(r.dscr)&&r.dscr!==Infinity?r.dscr:0,
+          paybackMonth:r.paybackMonth||null,
+          hotelMode:assetType==="Hotel"?hotelMode:"simple",
+          ...(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?{hotelAdv:{
+            totalCost:hotelAdv.totalCost,equity:hotelAdv.equity,profit:hotelAdv.profit,
+            poc:hotelAdv.poc,moic:hotelAdv.moic,irr:hotelAdv.irr,irrLevered:hotelAdv.irrLevered,
+            dscr:hotelAdv.dscr,yoc:hotelAdv.yoc,revpar:hotelAdv.revpar,revenuePa:hotelAdv.revenuePa,
+            ebitda:hotelAdv.ebitda,stabilisedNOI:hotelAdv.stabilisedNOI,stabilisedEBITDA:hotelAdv.stabilisedEBITDA,
+            totalNOI:hotelAdv.totalNOI,exitValue:hotelAdv.exitValue,stabilisedValue:hotelAdv.stabilisedValue,
+            purchasePrice:hotelAdv.purchasePrice,pricePerKey:hotelAdv.pricePerKey,capexPerKey:hotelAdv.capexPerKey,
+            exitValuePerKey:hotelAdv.exitValuePerKey,ebitdaPerKey:hotelAdv.ebitdaPerKey,
+            noiPerKey:hotelAdv.noiPerKey,noiConversion:hotelAdv.noiConversion,
+            entryYieldNOI:hotelAdv.entryYieldNOI,entryYieldEBITDA:hotelAdv.entryYieldEBITDA,
+            sdlt:hotelAdv.sdlt,legalCosts:hotelAdv.legalCosts,arrangementFee:hotelAdv.arrangementFee,
+            interestTotal:hotelAdv.interestTotal,loanAmount:hotelAdv.loanAmount,paybackMonth:hotelAdv.paybackMonth,
+            imAcqFee:hotelAdv.imAcqFee,imBasePATotal:hotelAdv.imBasePATotal,
+            imIncentiveProfit:hotelAdv.imIncentiveProfit,imIncentiveSales:hotelAdv.imIncentiveSales,
+            yearRevenue:hotelAdv.yearRevenue,disposalCosts:hotelAdv.disposalCosts,netExitProceeds:hotelAdv.netExitProceeds,
+          }}:{}),
+        },
       };
       let apprResult;
       if(appraisalId){
