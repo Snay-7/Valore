@@ -681,7 +681,7 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
 
 // ─── V MARK DRAW HELPER (jsPDF) ───────────────────────────────────────────────
 // Draws the V mark at (x,y) with given height in mm. Uses filled polygons.
-function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,number]){\
+function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,number]){
   const s=h/115; // scale: SVG viewBox is 100×115
   const w=100*s;
   // Outer V polygon (pts in mm relative to x,y)
