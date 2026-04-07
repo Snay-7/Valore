@@ -2507,7 +2507,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
               </div>
             )}
 
-                        {/* CASHFLOW HOTEL */}
+            {/* CASHFLOW HOTEL */}
             {activeTab==="cashflow"&&assetType==="Hotel"&&(
               <div>
                 <div className="section-title">Monthly Cash Flow</div>
@@ -2559,7 +2559,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </div>
               </div>
             )}
-                        {/* CASHFLOW BTR */}
+            {/* CASHFLOW BTR */}
             {activeTab==="cashflow"&&assetType==="BTR"&&(
               <div>
                 <div className="section-title">Monthly Cash Flow</div>
