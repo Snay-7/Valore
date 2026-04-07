@@ -559,29 +559,75 @@ function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="Flip"){
     const purchase=num(String(data.purchasePrice));
     const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
-    const refurb=num(String(data.refurbBudget));
+    // Size & psf
+    const propertySqft=num(String(data.propertySqft||0));
+    const refurbPsf=num(String(data.refurbPsf||0));
+    const salePricePsf=num(String(data.salePricePsf||0));
+    // Refurb: use psf if both size and psf set, else use flat budget
+    const refurb=propertySqft>0&&refurbPsf>0?propertySqft*refurbPsf:num(String(data.refurbBudget||0));
     const profFees=refurb*(num(String(data.professionalFeesPct))/100);
     const contingency=refurb*(num(String(data.contingencyPct))/100);
     const other=num(String(data.otherCosts));
-    const bridgingRatePm=num(String(data.bridgingRatePct))/100;
-    const bridgingMonths=num(String(data.bridgingTermMonths));
-    const loanAmount=(purchase+refurb)*0.75;
+    // Sale price: use psf if both set, else use flat
+    const salePrice=propertySqft>0&&salePricePsf>0?propertySqft*salePricePsf:num(String(data.salePrice||0));
+    // Finance mode: bridging only | bridging + refinance (hold)
+    const flipMode=data.flipMode||"sell"; // sell | hold
+    const bridgingRatePm=num(String(data.bridgingRatePct||0.85))/100;
+    const bridgingMonths=num(String(data.bridgingTermMonths||9));
+    const ltv=num(String(data.flipLTV||75))/100;
+    const loanAmount=purchase*ltv;
+    const arrangementFee=loanAmount*(num(String(data.arrangementFeePct||2.0))/100);
     const bridgingInterest=loanAmount*bridgingRatePm*bridgingMonths;
-    const arrangementFee=loanAmount*(num(String(data.arrangementFeePct))/100);
-    const totalFinanceCost=bridgingInterest+arrangementFee;
+    // Refinance (hold mode)
+    const refiRate=num(String(data.refiRatePct||6.0))/100;
+    const refiMonths=num(String(data.refiTermMonths||24));
+    const refiLTV=num(String(data.refiLTV||75))/100;
+    const refiLoan=salePrice*refiLTV; // refinance against GDV
+    const refiInterestPm=refiLoan*(refiRate/12);
+    const rentPcm=num(String(data.rentPcm||0));
+    const voidPct=num(String(data.voidPct||5))/100;
+    const netRentPm=rentPcm*(1-voidPct);
+    const monthlyOpex=num(String(data.holdOpexPm||200)); // service charge, insurance etc
+    const netCashflowPm=netRentPm-refiInterestPm-monthlyOpex;
+    const totalHoldMonths=bridgingMonths+refiMonths;
+    const refiArrangement=refiLoan*(num(String(data.refiArrangementPct||1.0))/100);
+    // Total finance cost
+    const totalFinanceCost=flipMode==="hold"
+      ?bridgingInterest+arrangementFee+refiArrangement+(refiInterestPm*refiMonths)
+      :bridgingInterest+arrangementFee;
     const totalCost=purchase+sdlt+refurb+profFees+contingency+other+totalFinanceCost;
-    const salePrice=num(String(data.salePrice));
-    const agentFees=salePrice*(num(String(data.agentFeePct))/100);
+    // Sale
+    const agentFees=salePrice*(num(String(data.agentFeePct||1.5))/100);
     const netProceeds=salePrice-agentFees;
-    const profit=netProceeds-totalCost;
+    const profit=flipMode==="hold"
+      ?(netProceeds-refiLoan)+(netCashflowPm*refiMonths)-(purchase+sdlt+refurb+profFees+contingency+other+bridgingInterest+arrangementFee+refiArrangement-loanAmount)
+      :netProceeds-totalCost;
     const roi=totalCost>0?profit/totalCost:0;
     const equity=Math.max(0,totalCost-loanAmount);
     const roiEquity=equity>0?profit/equity:0;
     const moic=equity>0?(equity+profit)/equity:0;
-    const cfs=[-totalCost,...Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0),netProceeds];
+    // Cashflows
+    let cfs:number[];
+    if(flipMode==="hold"){
+      const equityIn=purchase*(1-ltv)+sdlt+refurb+profFees+contingency+other+bridgingInterest+arrangementFee+refiArrangement;
+      cfs=[-equityIn,...Array(Math.round(refiMonths)-1).fill(netCashflowPm),netCashflowPm+(netProceeds-refiLoan)];
+    } else {
+      cfs=[-equity,...Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0),netProceeds-loanAmount];
+    }
     const irr=Math.pow(1+calcIRR(cfs),12)-1;
     const paybackMonth=calcPaybackMonth(cfs);
-    return{purchase,sdlt,refurb,profFees,contingency,totalFinanceCost,loanAmount,bridgingInterest,arrangementFee,totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,moic,irr,equity,paybackMonth,financeRate:bridgingRatePm*12};
+    // Yield on cost (hold mode)
+    const grossYield=salePrice>0?(rentPcm*12)/salePrice:0;
+    const netYield=salePrice>0?(netRentPm*12)/salePrice:0;
+    return{
+      purchase,sdlt,refurb,refurbPsf:propertySqft>0?refurb/propertySqft:0,
+      propertySqft,salePricePsf:propertySqft>0?salePrice/propertySqft:0,
+      profFees,contingency,totalFinanceCost,loanAmount,bridgingInterest,arrangementFee,
+      refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,
+      totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,moic,irr,equity,
+      paybackMonth,financeRate:bridgingRatePm*12,grossYield,netYield,flipMode,
+      bridgingMonths,refiMonths,totalHoldMonths,
+    };
   }
   return{};
 }
@@ -590,7 +636,7 @@ const DEFAULTS={
   BTR:{assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   Hotel:{assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
-  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,refurbBudget:85000,salePrice:620000,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:9,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
+  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
 };
 type AssetType="BTR"|"BTS"|"Hotel"|"Flip";
 type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
@@ -1032,6 +1078,12 @@ function AppraisalPage(){
   const[strategyPsfSuggestion,setStrategyPsfSuggestion]=useState<any>(null);
   const[hotelCompsRunning,setHotelCompsRunning]=useState(false);
   const[hotelCompsError,setHotelCompsError]=useState<string|null>(null);
+  const[flipComps,setFlipComps]=useState<any>(null);
+  const[flipCompsRunning,setFlipCompsRunning]=useState(false);
+  const[flipCompsError,setFlipCompsError]=useState<string|null>(null);
+  const[urlImport,setUrlImport]=useState("");
+  const[urlImporting,setUrlImporting]=useState(false);
+  const[urlImportError,setUrlImportError]=useState<string|null>(null);
   const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
@@ -1101,7 +1153,72 @@ function AppraisalPage(){
     setStrategyPsfSuggesting(false);
   };
 
-  const runHotelComps=async()=>{
+  const runFlipComps=async()=>{
+    if(!data.location&&!data.purchasePrice)return;
+    setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    try{
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Provide residential property comparables for a house flip. Location: ${data.location||"UK"}. Property size: ${data.propertySqft||"unknown"} sqft. Purchase price: ${currSym}${data.purchasePrice||"unknown"}. Currency: ${data.currency||"GBP"}.\n\nRespond ONLY with a JSON object: {"comparables":[{"address":"...","price":number,"sqft":number,"pricePsf":number,"bedrooms":number,"type":"...","sold":"YYYY-MM","notes":"..."}],"marketContext":"...","avgPricePsf":number,"refurbUplift":{"low":number,"high":number,"notes":"..."},"rentalComps":[{"address":"...","rentPcm":number,"bedrooms":number,"type":"...","notes":"..."}],"avgRentPcm":number}. Include 4-5 sold comps and 3-4 rental comps. Use training knowledge only.`})});
+      const d=await res.json();
+      // Try to parse JSON from the AI sense check response
+      if(d.flags||d.summary){
+        // It returned sense check format — try to extract JSON from summary
+        setFlipCompsError("Use the AI Comps button for comparable data");
+      } else {
+        setFlipComps(d);
+      }
+    }catch(e:any){setFlipCompsError(e.message||"Failed");}
+    setFlipCompsRunning(false);
+  };
+  const runFlipCompsAI=async()=>{
+    if(!data.location)return;
+    setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    const sqft=num(String(data.propertySqft||0));
+    const beds=data.bedrooms||"unknown";
+    try{
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`You are a property data assistant. Provide residential property market data for a house flip investment analysis.
+
+Property details:
+- Location: ${data.location}
+- Size: ${sqft>0?sqft+"sqft":"unknown"}
+- Purchase price: ${currSym}${data.purchasePrice||"unknown"}
+- Currency: ${data.currency||"GBP"}
+
+Respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
+{"comparables":[{"address":"Street, Area","price":350000,"sqft":850,"pricePsf":412,"bedrooms":3,"type":"Terraced","sold":"2024-Q3","notes":"Refurbished"},{"address":"Street, Area","price":380000,"sqft":920,"pricePsf":413,"bedrooms":3,"type":"Semi-detached","sold":"2024-Q2","notes":"Extended kitchen"}],"marketContext":"Brief 2-sentence market summary","avgPricePsf":410,"refurbUplift":{"low":25000,"high":45000,"notes":"Kitchen/bathroom focus"},"rentalComps":[{"address":"Street, Area","rentPcm":1800,"bedrooms":3,"type":"Terraced","notes":"Furnished"},{"address":"Street, Area","rentPcm":1950,"bedrooms":3,"type":"Semi-detached","notes":"Unfurnished"}],"avgRentPcm":1875}
+
+Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your knowledge of ${data.location} property market. Do not include any text outside the JSON object.`})});
+      const text=await res.text();
+      // Parse JSON — the sensecheck API may wrap it
+      const jsonMatch=text.match(/\{[\s\S]*\}/);
+      if(!jsonMatch)throw new Error("No JSON in response");
+      const d=JSON.parse(jsonMatch[0]);
+      if(d.comparables||d.marketContext){setFlipComps(d);}
+      else if(d.flags){throw new Error("No comps data returned — try again");}
+      else{setFlipComps(d);}
+    }catch(e:any){setFlipCompsError(e.message||"Failed to fetch comps — try again");}
+    setFlipCompsRunning(false);
+  };
+  const handleUrlImport=async()=>{
+    if(!urlImport.trim())return;
+    setUrlImporting(true);setUrlImportError(null);
+    try{
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Extract property details from this listing URL: ${urlImport}\n\nI cannot access URLs, but based on the URL pattern, extract what you can. For Rightmove URLs like rightmove.co.uk/properties/123, Zoopla URLs like zoopla.co.uk/for-sale/details/123, or Zillow URLs.\n\nRespond ONLY with JSON: {"purchasePrice":number,"propertySqft":number,"location":"...","bedrooms":number,"propertyType":"...","name":"...","confidence":"high|medium|low","notes":"..."}. If you cannot determine values, use null. Currency: GBP unless URL suggests otherwise.`})});
+      const d=await res.json();
+      // The sensecheck API returns flags/summary — we need to check if it returned our JSON
+      if(d.purchasePrice||d.location){
+        if(d.purchasePrice)set("purchasePrice",d.purchasePrice);
+        if(d.propertySqft)set("propertySqft",d.propertySqft);
+        if(d.location)set("location",d.location);
+        if(d.name)set("name",d.name);
+        setUrlImport("");
+      } else {
+        setUrlImportError("Could not extract details — enter manually or try a different URL format");
+      }
+    }catch(e:any){setUrlImportError("Import failed — please enter details manually");}
+    setUrlImporting(false);
+  };
     if(!data.location)return;
     setHotelCompsRunning(true);setHotelCompsError(null);setHotelComps(null);
     try{
@@ -1356,9 +1473,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_BTS=["general","revenue","costs","finance","analysis"];
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
-  const TABS_FLIP=["general","costs","finance","analysis"];
+  const TABS_FLIP=["general","costs","finance","comps","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:TABS_FLIP;
-  const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis"};
+  const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables"};
   const currencies=["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"];
   const benchmarks=["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"];
   const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
@@ -1891,24 +2008,119 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* COSTS FLIP */}
             {activeTab==="costs"&&assetType==="Flip"&&(
               <div>
+                {/* URL Import */}
+                <div style={{background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10,padding:14,marginBottom:20}}>
+                  <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:8}}>◈ Import from Listing URL</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Paste a Rightmove, Zoopla or Zillow URL — AI will attempt to extract price, size and location</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <input className="inp" value={urlImport} onChange={e=>setUrlImport(e.target.value)} placeholder="https://www.rightmove.co.uk/properties/..." style={{flex:1,fontSize:12}}/>
+                    <button onClick={handleUrlImport} disabled={urlImporting||!urlImport.trim()} className="btn-primary" style={{padding:"8px 14px",fontSize:12,flexShrink:0}}>
+                      {urlImporting?<><span style={{width:10,height:10,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Importing…</>:"Import"}
+                    </button>
+                  </div>
+                  {urlImportError&&<div style={{fontSize:11,color:"var(--amber)",marginTop:6}}>{urlImportError}</div>}
+                </div>
+
+                {/* Exit Strategy */}
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Exit Strategy</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {([{key:"sell",label:"Sell",desc:"Refurb & sell on completion"},{key:"hold",label:"Hold (BTL)",desc:"Bridge → refinance & rent"}] as const).map(opt=>(
+                      <button key={opt.key} onClick={()=>set("flipMode",opt.key)} style={{padding:"10px 12px",borderRadius:8,border:`1px solid ${(data.flipMode||"sell")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.flipMode||"sell")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"left",transition:"all .2s"}}>
+                        <div style={{fontSize:12,fontWeight:600,color:(data.flipMode||"sell")===opt.key?"var(--gold)":"var(--text)",marginBottom:2}}>{opt.label}</div>
+                        <div style={{fontSize:10,color:"var(--text-d)"}}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
-                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
+                  <div className="inp-group"><label className="inp-label">Property Size (sqft)</label><input className="inp" type="number" value={data.propertySqft||""} onChange={e=>set("propertySqft",e.target.value)} placeholder="e.g. 900"/></div>
                 </div>
+                {data.propertySqft>0&&data.purchasePrice>0&&(
+                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12,fontFamily:"var(--font-mono)"}}>
+                    Purchase price: <span style={{color:"var(--blue)"}}>{currencySymbol}{Math.round(num(String(data.purchasePrice))/num(String(data.propertySqft)))}/sqft</span>
+                  </div>
+                )}
+                <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
+
                 <div className="section-title" style={{marginTop:24}}>Refurbishment</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Refurb Budget ({currencySymbol})</label><input className="inp" type="number" value={data.refurbBudget} onChange={e=>set("refurbBudget",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
+                  <div className="inp-group">
+                    <label className="inp-label">Refurb Budget ({currencySymbol})</label>
+                    <input className="inp" type="number" value={data.refurbBudget||""} onChange={e=>{set("refurbBudget",e.target.value);if(data.propertySqft>0)set("refurbPsf",Math.round(num(e.target.value)/num(String(data.propertySqft))));}} placeholder="Total budget"/>
+                  </div>
+                  <div className="inp-group">
+                    <label className="inp-label">Refurb Cost (psf)</label>
+                    <input className="inp" type="number" value={data.refurbPsf||""} onChange={e=>{set("refurbPsf",e.target.value);if(data.propertySqft>0)set("refurbBudget",Math.round(num(e.target.value)*num(String(data.propertySqft))));}} placeholder="Cost per sqft"/>
+                  </div>
                 </div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                 </div>
-                <div className="section-title" style={{marginTop:24}}>Sale</div>
+                <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
+
+                <div className="section-title" style={{marginTop:24}}>{(data.flipMode||"sell")==="hold"?"GDV / Refinance Value":"Sale"}</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Sale Price ({currencySymbol})</label><input className="inp" type="number" value={data.salePrice} onChange={e=>set("salePrice",e.target.value)}/></div>
+                  <div className="inp-group">
+                    <label className="inp-label">{(data.flipMode||"sell")==="hold"?"GDV / Est. Value ({currencySymbol})":"Sale Price ({currencySymbol})"}</label>
+                    <input className="inp" type="number" value={data.salePrice||""} onChange={e=>{set("salePrice",e.target.value);if(data.propertySqft>0)set("salePricePsf",Math.round(num(e.target.value)/num(String(data.propertySqft))));}}/>
+                  </div>
+                  <div className="inp-group">
+                    <label className="inp-label">Sale / GDV (psf)</label>
+                    <input className="inp" type="number" value={data.salePricePsf||""} onChange={e=>{set("salePricePsf",e.target.value);if(data.propertySqft>0)set("salePrice",Math.round(num(e.target.value)*num(String(data.propertySqft))));}}/>
+                  </div>
+                </div>
+                {(data.flipMode||"sell")==="sell"&&(
                   <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                )}
+                {/* Hold mode — rental inputs */}
+                {(data.flipMode||"sell")==="hold"&&(
+                  <>
+                    <div className="section-title" style={{marginTop:24}}>Rental Income</div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Rent ({currencySymbol}/month)</label><input className="inp" type="number" value={data.rentPcm||""} onChange={e=>set("rentPcm",e.target.value)} placeholder="e.g. 2200"/></div>
+                      <div className="inp-group"><label className="inp-label">Void / Vacancy (%)</label><input className="inp" type="number" step="0.5" value={data.voidPct||5} onChange={e=>set("voidPct",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Monthly OpEx ({currencySymbol})</label><input className="inp" type="number" value={data.holdOpexPm||200} onChange={e=>set("holdOpexPm",e.target.value)} placeholder="Service charge, insurance etc"/></div>
+                      <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                    </div>
+                    {r.netCashflowPm!==undefined&&(
+                      <div style={{background:r.netCashflowPm>0?"rgba(61,220,132,.07)":"rgba(244,100,95,.07)",border:`1px solid ${r.netCashflowPm>0?"rgba(61,220,132,.2)":"rgba(244,100,95,.2)"}`,borderRadius:8,padding:"10px 14px",fontSize:12,marginTop:4}}>
+                        <span style={{color:"var(--text-m)"}}>Monthly net cashflow after refi interest: </span>
+                        <span style={{fontFamily:"var(--font-mono)",color:r.netCashflowPm>0?"var(--green)":"var(--red)",fontWeight:600}}>{currencySymbol}{Math.round(r.netCashflowPm)}/mo</span>
+                        <span style={{color:"var(--text-d)",marginLeft:8,fontSize:11}}>({currencySymbol}{Math.round(r.netCashflowPm*12)}/yr)</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Live cost summary */}
+                <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
+                  <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Cost Summary</div>
+                  {[
+                    ["Purchase",r.purchase||0,"var(--text-m)"],
+                    ["Property Tax",r.sdlt||0,"var(--text-d)"],
+                    ["Refurb",r.refurb||0,"var(--text-m)"],
+                    ["Prof Fees + Contingency",(r.profFees||0)+(r.contingency||0),"var(--text-d)"],
+                    ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
+                    ["Total Cost",r.totalCost||0,"var(--gold)"],
+                  ].map(([l,v,c]:any)=>(
+                    <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                      <span style={{color:"var(--text-m)"}}>{l}</span>
+                      <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Cost"?600:400}}>{fmt(v,currencySymbol)}</span>
+                    </div>
+                  ))}
+                  {data.propertySqft>0&&r.refurb>0&&(
+                    <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontFamily:"var(--font-mono)"}}>
+                      Refurb: {currencySymbol}{Math.round(r.refurb/num(String(data.propertySqft)))}/sqft
+                      {r.salePrice>0&&<> · Uplift: <span style={{color:r.salePrice>r.totalCost?"var(--green)":"var(--red)"}}>{currencySymbol}{Math.round((r.salePrice-r.purchase)/num(String(data.propertySqft)))}/sqft</span></>}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2081,17 +2293,134 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     ))}
                   </>
-                ):(
-                  <>
+                ):(<>
+                    <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:12}}>Bridging Finance</div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Bridging Rate (%pm)</label><input className="inp" type="number" step="0.05" value={data.bridgingRatePct} onChange={e=>set("bridgingRatePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.flipLTV||75} onChange={e=>set("flipLTV",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Rate (%pm)</label><input className="inp" type="number" step="0.05" value={data.bridgingRatePct} onChange={e=>set("bridgingRatePct",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">Term (months)</label><input className="inp" type="number" value={data.bridgingTermMonths} onChange={e=>set("bridgingTermMonths",e.target.value)}/></div>
-                    </div>
-                    <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
                     </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12,marginBottom:16}}>
+                      <span style={{color:"var(--text-m)"}}>Loan Amount</span>
+                      <span style={{fontFamily:"var(--font-mono)",color:"var(--amber)"}}>{fmt(r.loanAmount||0,currencySymbol)}</span>
+                    </div>
+                    {(data.flipMode||"sell")==="hold"&&(
+                      <>
+                        <div style={{height:1,background:"var(--border)",margin:"16px 0"}}/>
+                        <div style={{fontSize:11,color:"var(--blue)",fontWeight:600,marginBottom:12}}>Refinance (BTL Mortgage) — after month {data.bridgingTermMonths||6}</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Refi LTV (%)</label><input className="inp" type="number" step="1" value={data.refiLTV||75} onChange={e=>set("refiLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Refi Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.refiRatePct||6.0} onChange={e=>set("refiRatePct",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Hold Term (months)</label><input className="inp" type="number" value={data.refiTermMonths||24} onChange={e=>set("refiTermMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.refiArrangementPct||1.0} onChange={e=>set("refiArrangementPct",e.target.value)}/></div>
+                        </div>
+                        {(r.refiLoan||0)>0&&(
+                          <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12}}>
+                            <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Refinance Summary</div>
+                            {[
+                              ["Refi Loan",fmt(r.refiLoan||0,currencySymbol),"var(--text-m)"],
+                              ["Monthly Interest",`${currencySymbol}${Math.round(r.refiInterestPm||0)}/mo`,"var(--amber)"],
+                              ["Net Cashflow pm",`${currencySymbol}${Math.round(r.netCashflowPm||0)}/mo`,(r.netCashflowPm||0)>0?"var(--green)":"var(--red)"],
+                              ["Gross Yield",fmtPct(r.grossYield||0),"var(--blue)"],
+                              ["Net Yield",fmtPct(r.netYield||0),"var(--blue)"],
+                            ].map(([l,v,c]:any)=>(
+                              <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid var(--bg4)"}}>
+                                <span style={{color:"var(--text-m)"}}>{l}</span>
+                                <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:500}}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </>
+                )}
+              </div>
+            )}
+            {/* COMPARABLES TAB — Flip only */}
+            {activeTab==="comps"&&assetType==="Flip"&&(
+              <div>
+                <div className="section-title">Market Comparables</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>AI-sourced sold comparables and rental comps for {data.location||"your location"}. Based on training knowledge — verify with live data.</div>
+                <button
+                  onClick={runFlipCompsAI}
+                  disabled={flipCompsRunning||!data.location}
+                  style={{display:"flex",alignItems:"center",gap:6,background:flipCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:flipCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:flipCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
+                >
+                  {flipCompsRunning?<><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Pulling comparables…</>:<><span style={{fontSize:13}}>◈</span>{flipComps?"Refresh Comparables":"Pull AI Comparables"}{!data.location?" (add location first)":""}</>}
+                </button>
+                {flipCompsError&&<div style={{fontSize:11,color:"var(--red)",padding:"8px 12px",background:"rgba(244,100,95,.06)",borderRadius:6,marginBottom:12}}>{flipCompsError}</div>}
+                {flipComps&&(
+                  <div style={{animation:"fadeIn .3s ease"}}>
+                    {/* Market context */}
+                    {flipComps.marketContext&&<div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.7,marginBottom:16,padding:"10px 14px",background:"var(--bg3)",borderRadius:8}}>{flipComps.marketContext}</div>}
+                    {/* Sold comps */}
+                    {flipComps.comparables?.length>0&&(
+                      <div style={{marginBottom:20}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Sold Comparables</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                          {flipComps.comparables.map((c:any,i:number)=>(
+                            <div key={i} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px"}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                                <div>
+                                  <div style={{fontSize:12,color:"var(--text)",fontWeight:500}}>{c.address}</div>
+                                  <div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>{c.bedrooms}bed · {c.type}{c.sqft?` · ${c.sqft}sqft`:""} · {c.sold}</div>
+                                </div>
+                                <div style={{textAlign:"right"}}>
+                                  <div style={{fontFamily:"var(--font-mono)",fontSize:13,color:"var(--gold)",fontWeight:600}}>{fmt(c.price,currencySymbol)}</div>
+                                  {c.pricePsf&&<div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{currencySymbol}{c.pricePsf}/sqft</div>}
+                                </div>
+                              </div>
+                              {c.notes&&<div style={{fontSize:10,color:"var(--text-d)",fontStyle:"italic"}}>{c.notes}</div>}
+                            </div>
+                          ))}
+                        </div>
+                        {flipComps.avgPricePsf&&(
+                          <div style={{marginTop:8,padding:"8px 12px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,fontSize:11}}>
+                            <span style={{color:"var(--text-d)"}}>Market avg: </span>
+                            <span style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontWeight:600}}>{currencySymbol}{flipComps.avgPricePsf}/sqft</span>
+                            {data.propertySqft>0&&<><span style={{color:"var(--text-d)",marginLeft:8}}>→ Your property implied value: </span><span style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmt(flipComps.avgPricePsf*num(String(data.propertySqft)),currencySymbol)}</span></>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Refurb uplift */}
+                    {flipComps.refurbUplift&&(
+                      <div style={{marginBottom:20,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:14}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Typical Refurb Uplift</div>
+                        <div style={{fontSize:12,color:"var(--text-m)",marginBottom:4}}>{currencySymbol}{flipComps.refurbUplift.low}–{currencySymbol}{flipComps.refurbUplift.high} uplift on a property this size</div>
+                        {flipComps.refurbUplift.notes&&<div style={{fontSize:11,color:"var(--text-d)",fontStyle:"italic"}}>{flipComps.refurbUplift.notes}</div>}
+                      </div>
+                    )}
+                    {/* Rental comps */}
+                    {flipComps.rentalComps?.length>0&&(
+                      <div>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Rental Comparables</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                          {flipComps.rentalComps.map((c:any,i:number)=>(
+                            <div key={i} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <div>
+                                <div style={{fontSize:12,color:"var(--text)",fontWeight:500}}>{c.address}</div>
+                                <div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>{c.bedrooms}bed · {c.type}{c.notes?` · ${c.notes}`:""}</div>
+                              </div>
+                              <div style={{fontFamily:"var(--font-mono)",fontSize:13,color:"var(--green)",fontWeight:600}}>{currencySymbol}{c.rentPcm}/mo</div>
+                            </div>
+                          ))}
+                        </div>
+                        {flipComps.avgRentPcm&&(
+                          <div style={{marginTop:8,padding:"8px 12px",background:"rgba(61,220,132,.06)",border:"1px solid rgba(61,220,132,.2)",borderRadius:6,fontSize:11,display:"flex",justifyContent:"space-between"}}>
+                            <span style={{color:"var(--text-d)"}}>Market avg rent</span>
+                            <span style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{currencySymbol}{flipComps.avgRentPcm}/mo</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -2386,7 +2715,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["RevPAR",fmt(r.revpar,currencySymbol),"var(--gold)"],["Total Revenue pa",fmt(r.revenuePa,currencySymbol),"var(--text)"],["EBITDA pa",fmt(r.ebitda,currencySymbol),"var(--green)"],["GOP Margin",hotelMode==="advanced"&&r.revenuePa>0?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—","var(--green)"],["EBITDA per Room",hotelMode==="advanced"&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—","var(--text-m)"],["Stabilised Value",fmt(r.stabilisedValue,currencySymbol),"var(--text-m)"],["Exit Value",fmt(r.exitValue,currencySymbol),"var(--gold)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Investment",fmt(r.totalInvestment,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Return on Cost",fmtPct(r.poc),r.poc>0.15?"var(--green)":"var(--amber)"],["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),irrCol(r.irr||0)],["IRR (Levered)",fmtPct(r.irrLevered),irrCol(r.irrLevered||0)],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["DSCR / ICR",isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Flip"&&([
-                    ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["Property Tax",fmt(r.sdlt,currencySymbol),"var(--amber)"],["Refurb Budget",fmt(r.refurb,currencySymbol),"var(--text-m)"],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
+                    ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["Property Tax",fmt(r.sdlt,currencySymbol),"var(--amber)"],["Refurb Budget",fmt(r.refurb,currencySymbol),"var(--text-m)"],[`Refurb psf`,r.propertySqft>0?`${currencySymbol}${Math.round(r.refurb/r.propertySqft)}/sqft`:"—","var(--text-d)"],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],["Gross Yield",r.flipMode==="hold"?fmtPct(r.grossYield||0):"—","var(--blue)"],["Net Yield",r.flipMode==="hold"?fmtPct(r.netYield||0):"—","var(--blue)"],["Monthly Cashflow",r.flipMode==="hold"?`${currencySymbol}${Math.round(r.netCashflowPm||0)}/mo`:"—",(r.netCashflowPm||0)>0?"var(--green)":"var(--text-d)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
                 {assetType==="Hotel"&&(()=>{
@@ -2677,7 +3006,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {assetType==="BTR"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},{label:"IRR (Unlevered)",value:fmtPct(r.irr),color:"var(--blue)"},{label:"IRR (Levered)",value:fmtPct(r.irrLevered),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
             {assetType==="BTS"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Profit on GDV",value:fmtPct(r.margin),color:"var(--text)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Hotel"&&[{label:"Exit Value",value:fmt(r.exitValue,currencySymbol),color:"var(--gold)"},{label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol),color:"var(--green)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Return on Cost",value:fmtPct(r.poc),color:r.poc>0.15?"var(--green)":"var(--amber)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
-            {assetType==="Flip"&&[{label:"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},{label:"Profit",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},{label:"ROI on Cost",value:fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            {assetType==="Flip"&&[{label:r.flipMode==="hold"?"GDV / Value":"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},{label:"Profit",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},{label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
           </div>
           <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
             <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Institutional Metrics</div>
