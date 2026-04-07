@@ -324,11 +324,12 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const disposalCosts=exitValue*disposalCostPct;
   const netExitProceeds=exitValue-disposalCosts;
 
-  // Total investment
-  const annualOpex=(supportingCosts+operatorFees)*holdYears;
-  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+annualOpex+workingCapital;
+  // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised)
+  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
   const equity=totalCost-loanAmount;
-  const profit=netExitProceeds+totalNOI-totalCost;
+  // Profit: exit proceeds + NOI during hold (net of opex) minus total investment
+  const netNOI=totalNOI-(supportingCosts+operatorFees)*holdYears;
+  const profit=netExitProceeds+netNOI-totalCost;
   const poc=totalCost>0?profit/totalCost:0;
   const moic=equity>0?(equity+profit)/equity:0;
 
@@ -2225,7 +2226,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                   const adrValues=[-2,-1,0,1,2].map(d=>Math.round(baseADR+d*adrStep));
                   const capRates=[-0.5,-0.25,0,0.25,0.5].map(d=>baseCapRate+d);
                   const hotelSensMatrix=capRates.map(cr=>adrValues.map(adr=>{
-                    const modData={...data,exitCapRate:cr,adr};
+                    const modData={...data,exitCapRate:cr,adr,yearAdr:null,yearOcc:null};
                     // Use the appropriate calc engine — advanced if in advanced mode
                     const res=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
                     return res.poc??0;
