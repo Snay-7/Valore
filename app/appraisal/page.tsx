@@ -1219,6 +1219,7 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
     }catch(e:any){setUrlImportError("Import failed — please enter details manually");}
     setUrlImporting(false);
   };
+  const runHotelComps=async()=>{
     if(!data.location)return;
     setHotelCompsRunning(true);setHotelCompsError(null);setHotelComps(null);
     try{
