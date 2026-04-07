@@ -332,14 +332,37 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const moic=equity>0?(equity+profit)/equity:0;
 
   // IRR — simple approximation
-  const cfs=[-equity,...yearRevenue.map(y=>y.noi-supportingCosts-operatorFees),netExitProceeds-loanAmount+yearRevenue[holdYears-1].noi-supportingCosts-operatorFees];
-  const irr=calcIRR(cfs);
-
   // IM incentive fees (on profit)
   const imIncentiveProfit=imEnabled?(num(String(data.imIncentiveProfitPct??10))/100)*Math.max(profit,0):0;
   const imIncentiveSales=imEnabled?(num(String(data.imIncentiveSalesPct??1))/100)*exitValue:0;
 
   const dscr=interestTotal>0&&holdYears>0?stabilisedNOI/(interestTotal/holdYears):999;
+
+  // IRR — annual debt service spread evenly across hold period
+  const annualDebtService=holdYears>0?(interestTotal+arrangementFee+exitFee+brokerageFee)/holdYears:0;
+  // Unlevered: full cost out day 1, NOI in each year, exit on final year
+  const uCfs=[
+    -(purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+workingCapital),
+    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees),
+    (netExitProceeds)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees),
+  ];
+  // Levered: equity out day 1, NOI minus debt service each year, net exit (after repaying loan) final year
+  const lCfs=[
+    -equity,
+    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees-annualDebtService),
+    (netExitProceeds-loanAmount)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees-annualDebtService),
+  ];
+  const irrUnlevered=calcIRR(uCfs);
+  const irrLevered=equity>0?calcIRR(lCfs):0;
+
+  // Alias fields to match what the UI / Returns Summary / sidebar expect
+  const totalInvestment=totalCost;
+  const revpar=stabilisedYear.revpar;
+  const revenuePa=stabilisedYear.totalRev;
+  const ebitda=stabilisedEBITDA;
+  const interestCost=interestTotal;
+  const yoc=totalCost>0?stabilisedNOI/totalCost:0;
+  const stabilisedValue=exitCapRate>0?stabilisedNOI/exitCapRate:0;
 
   return{
     yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
@@ -348,7 +371,11 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     sdlt,legalCosts,financingDD,wiInsurance,
     loanAmount,interestTotal,arrangementFee,exitFee,brokerageFee,
     imAcqFee,imBasePATotal,imIncentiveProfit,imIncentiveSales,
-    totalCost,equity,profit,poc,moic,irr,dscr,
+    totalCost,equity,profit,poc,moic,dscr,
+    irr:irrUnlevered,irrLevered,
+    // UI-compatible aliases
+    totalInvestment,revpar,revenuePa,ebitda,interestCost,capex,yoc,stabilisedValue,
+    paybackMonth:null,
     ebitdaPerKey:rooms>0?stabilisedEBITDA/rooms:0,
     noiPerKey:rooms>0?stabilisedNOI/rooms:0,
     noiConversion:stabilisedYear.totalRev>0?stabilisedNOI/stabilisedYear.totalRev:0,
@@ -860,7 +887,8 @@ function AppraisalPage(){
   const results=calc();
   const hotelRev=assetType==="Hotel"?calcHotelRev(data):null;
   const hotelAdv=assetType==="Hotel"&&hotelMode==="advanced"?calcHotelAdvanced(data):null;
-  const r=results as any;
+  // When in Hotel Advanced mode, r points to hotelAdv so all UI (Returns Summary, sidebar, sensitivity) reads one consistent calc
+  const r=(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?hotelAdv:results) as any;
   const sensitivity=useCallback(()=>{
     if(assetType!=="BTR")return null;
     const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
@@ -2052,7 +2080,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                             {label:"EBITDA",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.ebitda)],color:"var(--text)"},
                             {label:"FF&E",values:[null,...hotelAdv.yearRevenue.map((y:any)=>-y.ffe)],color:"var(--amber)"},
                             {label:"NOI",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.noi)],color:"var(--green)",bold:true},
-                            {label:"Equity Out",values:[-(hotelAdv.equity||0),...Array(data.holdYears||5).fill(null)],color:"var(--red)"},
+                            {label:"Equity Out",values:[-(r.equity||0),...Array(data.holdYears||5).fill(null)],color:"var(--red)"},
                             {label:"Disposal",values:[null,...Array((data.holdYears||5)-1).fill(null),hotelAdv.netExitProceeds],color:"var(--gold)",bold:true},
                           ].map((row,ri)=>(
                             <>
@@ -2069,10 +2097,10 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                       {/* Summary returns */}
                       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:14}}>
                         {[
-                          {label:"Total Investment",value:fmt(hotelAdv.totalCost,currencySymbol),color:"var(--text)"},
-                          {label:"Profit (before incentive)",value:fmt(hotelAdv.profit,currencySymbol),color:hotelAdv.profit>0?"var(--green)":"var(--red)"},
-                          {label:"Equity Multiple",value:fmtX(hotelAdv.moic),color:hotelAdv.moic>2?"var(--green)":"var(--amber)"},
-                          {label:"IRR",value:fmtPct(hotelAdv.irr),color:hotelAdv.irr>0.15?"var(--green)":hotelAdv.irr>0.08?"var(--amber)":"var(--red)"},
+                          {label:"Total Investment",value:fmt(r.totalCost,currencySymbol),color:"var(--text)"},
+                          {label:"Profit (before incentive)",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},
+                          {label:"Equity Multiple",value:fmtX(r.moic),color:r.moic>2?"var(--green)":"var(--amber)"},
+                          {label:"IRR (Levered)",value:fmtPct(r.irrLevered||r.irr),color:(r.irrLevered||r.irr)>0.15?"var(--green)":(r.irrLevered||r.irr)>0.08?"var(--amber)":"var(--red)"},
                         ].map(m=>(
                           <div key={m.label} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
                             <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>{m.label}</div>
@@ -2101,7 +2129,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
                     ["GDV",fmt(r.gdv,currencySymbol),"var(--gold)"],["Total Units",r.totalUnits?.toString()||"—","var(--text)"],["Total Sqft",r.totalSqft?.toLocaleString()||"—","var(--text-m)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],["Break-even Sale psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Hotel"&&([
-                    ["RevPAR",fmt(r.revpar,currencySymbol),"var(--gold)"],["Total Revenue pa",fmt(r.revenuePa,currencySymbol),"var(--text)"],["EBITDA pa",fmt(r.ebitda,currencySymbol),"var(--green)"],["GOP Margin",hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—","var(--green)"],["EBITDA per Room",hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—","var(--text-m)"],["Stabilised Value",fmt(r.stabilisedValue,currencySymbol),"var(--text-m)"],["Exit Value",fmt(r.exitValue,currencySymbol),"var(--gold)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Investment",fmt(r.totalInvestment,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Return on Cost",fmtPct(r.poc),r.poc>0.15?"var(--green)":"var(--amber)"],["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["DSCR / ICR",isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],
+                    ["RevPAR",fmt(r.revpar,currencySymbol),"var(--gold)"],["Total Revenue pa",fmt(r.revenuePa,currencySymbol),"var(--text)"],["EBITDA pa",fmt(r.ebitda,currencySymbol),"var(--green)"],["GOP Margin",hotelMode==="advanced"&&r.revenuePa>0?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—","var(--green)"],["EBITDA per Room",hotelMode==="advanced"&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—","var(--text-m)"],["Stabilised Value",fmt(r.stabilisedValue,currencySymbol),"var(--text-m)"],["Exit Value",fmt(r.exitValue,currencySymbol),"var(--gold)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Investment",fmt(r.totalInvestment,currencySymbol),"var(--text-m)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Return on Cost",fmtPct(r.poc),r.poc>0.15?"var(--green)":"var(--amber)"],["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),"var(--blue)"],["IRR (Levered)",fmtPct(r.irrLevered),"var(--blue)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["DSCR / ICR",isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Flip"&&([
                     ["Purchase Price",fmt(r.purchase,currencySymbol),"var(--text)"],["Property Tax",fmt(r.sdlt,currencySymbol),"var(--amber)"],["Refurb Budget",fmt(r.refurb,currencySymbol),"var(--text-m)"],["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
@@ -2399,7 +2427,15 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
             {([
               ["Equity Multiple",fmtX(r.moic),r.moic>2?"var(--green)":r.moic>1.5?"var(--amber)":"var(--red)"],
               ...(assetType==="BTR"||assetType==="Hotel"?[["DSCR / ICR",isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"]] as any[]:[]),
-              ...(assetType==="Hotel"&&hotelRev?[["GOP Margin",hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—","var(--green)"],["EBITDA / Room",num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—","var(--text-m)"]] as any[]:[]),
+              ...(assetType==="Hotel"?[[
+                "GOP Margin",
+                hotelMode==="advanced"&&r.revenuePa>0?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—",
+                "var(--green)"
+              ],[
+                "EBITDA / Room",
+                hotelMode==="advanced"&&r.ebitda&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—",
+                "var(--text-m)"
+              ]] as any[]:[]),
               ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
               ...(assetType==="BTR"?[["Break-even Yield",fmtPct(r.breakEvenYield),"var(--text-m)"],["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"]] as any[]:[]),
               ...(assetType==="BTS"?[["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—","var(--text-m)"]] as any[]:[]),
