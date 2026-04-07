@@ -1483,8 +1483,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <img src="/valora-mark.svg" style={{height:"24px",width:"auto",filter:"brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(500%) hue-rotate(5deg) brightness(95%)",flexShrink:0}} alt="Valora"/>
-        <span style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:24,color:"#c9a84c",letterSpacing:".12em",fontWeight:300}}>VALORA</span>
+        <img src="/valora-mark.png" alt="Valora" style={{height:"28px",width:"auto",flexShrink:0}}/>
       </div>
       <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.15)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
       <div style={{fontSize:12,color:"#3d4249",letterSpacing:".06em"}}>Loading appraisal…</div>
@@ -1497,8 +1496,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
       {/* Nav */}
       <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 16px",height:56,display:"flex",alignItems:"center",gap:12,position:"sticky",top:0,zIndex:100}}>
         <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-          <img src="/valora-mark.svg" style={{height:"20px",width:"auto",filter:"brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(500%) hue-rotate(5deg) brightness(95%)",flexShrink:0}} alt="Valora"/>
-          <span style={{color:"var(--gold)",fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,letterSpacing:".1em"}}>VALORA</span>
+          <img src="/valora-mark.png" alt="Valora" style={{height:"24px",width:"auto",flexShrink:0}}/>
         </button>
         <div style={{width:1,height:18,background:"var(--border)",flexShrink:0}}/>
         <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{padding:"5px 10px",fontSize:11,flexShrink:0}}>← Back</button>
