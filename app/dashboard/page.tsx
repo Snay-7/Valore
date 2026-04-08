@@ -590,7 +590,7 @@ export default function Dashboard() {
                       cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: urlImportType === t ? 600 : 400,
                       transition: "all .2s", textAlign: "left",
                     }}>
-                      <div style={{ fontSize: 14, marginBottom: 2 }}>{t === "Flip" ? "🏠" : "🏨"} {t}</div>
+                      <div style={{ fontSize: 14, marginBottom: 2, fontWeight: 600 }}>{t}</div>
                       <div style={{ fontSize: 10, color: urlImportType === t ? "var(--gold)" : "var(--text-d)", fontWeight: 400 }}>
                         {t === "Flip" ? "Residential — Rightmove, Zoopla, Zillow" : "Hotel — Christie & Co, Savills, JLL Hotels"}
                       </div>
