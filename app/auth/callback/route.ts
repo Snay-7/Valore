@@ -25,8 +25,32 @@ export async function GET(request: Request) {
         },
       }
     )
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (!error && data?.user) {
+      const user = data.user
+      const email = user.email
+      const firstName = user.user_metadata?.full_name?.split(" ")[0] || ""
+
+      // Only send welcome email on first-time email confirmation
+      // (not on password reset or magic link logins)
+      const isNewUser = user.created_at === user.updated_at ||
+        (Date.now() - new Date(user.created_at).getTime()) < 60_000
+
+      if (email && isNewUser) {
+        try {
+          await fetch(`${origin}/api/welcome`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, firstName }),
+          })
+        } catch (e) {
+          // Don't block redirect if email fails
+          console.error("Welcome email failed:", e)
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
