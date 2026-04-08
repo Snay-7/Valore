@@ -29,8 +29,7 @@ export async function GET(request: Request) {
       const email = user.email
       const firstName = user.user_metadata?.full_name?.split(" ")[0] || ""
 
-      const isNewUser = user.created_at === user.updated_at ||
-        (Date.now() - new Date(user.created_at).getTime()) < 60_000
+      const isNewUser = (Date.now() - new Date(user.created_at).getTime()) < 60_000
 
       if (email && isNewUser) {
         try {
@@ -44,8 +43,13 @@ export async function GET(request: Request) {
         }
       }
 
-      // New users → onboarding, existing users → dashboard (or custom next param)
-      const redirectTo = nextParam ?? (isNewUser ? '/onboarding' : '/dashboard')
+      // Check appraisal count to decide where to send them
+      const { count } = await supabase
+        .from("appraisals")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by", user.id)
+
+      const redirectTo = nextParam ?? ((count ?? 0) === 0 ? '/onboarding' : '/dashboard')
       return NextResponse.redirect(`${origin}${redirectTo}`)
     }
   }
