@@ -811,7 +811,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     doc.setTextColor(...grey);doc.setFontSize(mCols>4?5.5:6.5);doc.setFont("helvetica","normal");doc.text(String(label).toUpperCase(),x+3,mY+7);
     doc.setTextColor(...(color as [number,number,number]));doc.setFontSize(mCols>4?10:12);doc.setFont("helvetica","bold");doc.text(String(value),x+3,mY+18);
   });
-  const colL=14,colR=115,colW=94,startY=104;let lY=startY,rY=startY;
+  const colL=14,colR=114,colW=88,startY=104;let lY=startY,rY=startY;
   const drawCol=(title:string,rows:[string,string,[number,number,number]?][],x:number,startY:number,w:number)=>{
     doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),x,startY);
     doc.setFillColor(...gold);doc.rect(x,startY+1.5,w,0.3,"F");let ry=startY+8;
@@ -826,11 +826,48 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   if(assetType==="BTR"){
     lY=drawCol("Returns",[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Gross NOI pa",fmt(r.noi,currencySymbol),white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Yield on Cost",fmtPct(r.yoc),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even Yield",fmtPct(r.breakEvenYield),white],["Residual Land Value",fmt(r.rlv,currencySymbol),gold]],colL,lY,colW)||lY;
     rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Prof. Fees + Contingency",fmt(r.devCost-r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Asset Type",assetType,white],["Location",data.location||"—",white],["Currency",data.currency||"GBP",white],["Programme",programmLabel,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white]],colR,rY,colW)||rY;
+    rY=drawCol("Project Details",[["Location",data.location||"—",white],["Programme",programmLabel,white],["Exit Yield",`${data.exitYield||0}%`,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Void",`${data.voidPct||0}%`,white],["OpEx psf",`${currencySymbol}${data.opexPsf||0}psf`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
   }else if(assetType==="BTS"){
     lY=drawCol("Returns",[["GDV",fmt(r.gdv,currencySymbol),gold],["Total Units",r.totalUnits?.toString()||"—",white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Profit on GDV",fmtPct(r.margin),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—",white]],colL,lY,colW)||lY;
     rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Total Units",r.totalUnits?.toString()||"—",white],["Total Sqft",r.totalSqft?.toLocaleString()||"—",white],["Location",data.location||"—",white],["Programme",programmLabel,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Equity In",fmt(r.equity||0,currencySymbol),gold]],colR,rY,colW)||rY;
+    rY=drawCol("Project Details",[["Total Units",r.totalUnits?.toString()||"—",white],["Total Sqft",r.totalSqft?.toLocaleString()||"—",white],["Location",data.location||"—",white],["Programme",programmLabel,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Absorption",`${data.absorptionMonths||18}m`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
+  // Unit mix for BTR/BTS
+  if(assetType==="BTR"||assetType==="BTS"){
+    // Unit Mix table
+    const tableY=Math.max(lY,rY)+6;
+    if((data.units||[]).length>0&&tableY<260){
+      doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("UNIT MIX",colL,tableY);
+      doc.setFillColor(...gold);doc.rect(colL,tableY+1.5,W-colL-8,0.3,"F");
+      const headers=assetType==="BTS"?["Type","Units","Size (sqft)","Price psf","Revenue"]:["Type","Units","Size (sqft)","Rent pcm","Gross pa"];
+      const hCols=[50,20,28,28,30];let hx=colL+2;
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
+      headers.forEach((h,i)=>{doc.text(h,hx,tableY+8);hx+=hCols[i];});
+      let ty=tableY+14;
+      (data.units||[]).forEach((u:any,i:number)=>{
+        if(ty>278)return;
+        if(i%2===0){doc.setFillColor(...bg3);doc.rect(colL,ty-4,W-colL-8,7,"F");}
+        const gross=assetType==="BTS"?u.count*u.size*u.salePricePsf:u.count*(u.rentPcm||0)*12;
+        const vals=[u.type||"—",String(u.count||0),String(u.size||0),assetType==="BTS"?`${currencySymbol}${u.salePricePsf||0}psf`:`${currencySymbol}${u.rentPcm||0}pcm`,fmt(gross,currencySymbol)];
+        let vx=colL+2;
+        doc.setFontSize(8);doc.setFont("helvetica","normal");
+        vals.forEach((v,vi)=>{
+          doc.setTextColor(...(vi===4?gold:vi===0?white:grey));
+          doc.text(String(v),vx,ty);vx+=hCols[vi];
+        });
+        ty+=7;
+      });
+      // Totals row
+      if(ty<278){
+        doc.setFillColor(...bg2);doc.rect(colL,ty-4,W-colL-8,7,"F");
+        const totalUnits=(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0),0);
+        const totalGross=assetType==="BTS"?(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0),0):(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.rentPcm||0)*12,0);
+        doc.setFontSize(8);doc.setFont("helvetica","bold");
+        doc.setTextColor(...white);doc.text("TOTAL",colL+2,ty);
+        doc.setTextColor(...white);doc.text(String(totalUnits),colL+52,ty);
+        doc.setTextColor(...gold);doc.text(fmt(totalGross,currencySymbol),colL+126+4,ty);
+      }
+    }
+}
   }else if(assetType==="Hotel"){
     lY=drawCol("Returns",[["RevPAR",fmt(r.revpar,currencySymbol),gold],["EBITDA pa",fmt(r.ebitda,currencySymbol),green],["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL,lY,colW)||lY;
     rY=drawCol("Cost Breakdown",[["Purchase + Property Tax",fmt((r.purchasePrice||0)+(r.sdlt||0),currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),gold]],colR,rY,colW)||rY;
