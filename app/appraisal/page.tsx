@@ -803,13 +803,13 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     :assetType==="Hotel"
     ?[["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["DSCR",fmtX(r.dscr),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
     :[["Sale Price",fmt(r.salePrice,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]];
-  const mW=(W-14-8-9)/4;const mY=72;
+  const mCols=metrics.length;const mW=(W-14-8-(mCols-1)*3)/mCols;const mY=72;
   metrics.forEach(([label,value,color],i)=>{
     const x=14+i*(mW+3);
     doc.setFillColor(...bg2);doc.roundedRect(x,mY,mW,22,2,2,"F");
     doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.roundedRect(x,mY,mW,22,2,2,"S");
-    doc.setTextColor(...grey);doc.setFontSize(6.5);doc.setFont("helvetica","normal");doc.text(String(label).toUpperCase(),x+3,mY+7);
-    doc.setTextColor(...(color as [number,number,number]));doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text(String(value),x+3,mY+18);
+    doc.setTextColor(...grey);doc.setFontSize(mCols>4?5.5:6.5);doc.setFont("helvetica","normal");doc.text(String(label).toUpperCase(),x+3,mY+7);
+    doc.setTextColor(...(color as [number,number,number]));doc.setFontSize(mCols>4?10:12);doc.setFont("helvetica","bold");doc.text(String(value),x+3,mY+18);
   });
   const colL=14,colR=115,colW=94,startY=104;let lY=startY,rY=startY;
   const drawCol=(title:string,rows:[string,string,[number,number,number]?][],x:number,startY:number,w:number)=>{
