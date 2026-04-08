@@ -253,7 +253,7 @@ export default function OnboardingPage() {
         .from("appraisals")
         .select("id", { count: "exact", head: true })
         .eq("created_by", session.user.id);
-      // if ((count ?? 0) > 0) { router.push("/dashboard"); return; }
+      if ((count ?? 0) > 0) { router.push("/dashboard"); return; }
       if ((count ?? 0) > 0) { router.push("/dashboard"); return; }
       setLoading(false);
     };
