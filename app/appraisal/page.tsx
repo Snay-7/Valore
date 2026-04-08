@@ -416,467 +416,106 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 }
 
 function calcAll(assetType:string,data:any):Record<string,any>{
+
+  // ── NEW 3-COLUMN LAYOUT ──────────────────────────────────────────────────
+  const c1=14,c2=81,c3=148,cW=60,startY=104;
+  let c1Y=startY,c2Y=startY,c3Y=startY;
   if(assetType==="BTR"){
-    const units=data.units||[];
-    const totalUnits=units.reduce((s:number,u:any)=>s+(num(String(u.count))||0),0);
-    const totalSqft=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size)),0);
-    const grossRentPa=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.rentPcm))*12,0);
-    const voidPct=num(String(data.voidPct))/100;
-    const opexPa=totalSqft*num(String(data.opexPsf));
-    const noi=grossRentPa*(1-voidPct)-opexPa;
-    const exitYield=num(String(data.exitYield))/100;
-    const gdv=exitYield>0?noi/exitYield:0;
-    const landCost=num(String(data.landCost));
-    const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
-    const buildCost=totalSqft*num(String(data.buildCostPsf));
-    const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
-    const contingency=buildCost*(num(String(data.contingencyPct))/100);
-    const otherCosts=num(String(data.otherCosts));
-    const devCost=buildCost+profFees+contingency+otherCosts;
-    const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-    const ltcPct=num(String(data.ltc))/100;
-    const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths))));
-    const stabMonths=Math.max(1,Math.round(num(String(data.stabilisationMonths))));
-    const totalMonths=buildMonths+stabMonths;
-    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve"});
-    const totalCost=landCost+sdlt+devCost+fin.totalFinanceCost;
-    const profit=gdv-totalCost;
-    const poc=totalCost>0?profit/totalCost:0;
-    const yoc=totalCost>0?noi/totalCost:0;
-    const rlv=gdv/1.20-devCost-fin.totalFinanceCost-sdlt;
-    const annualDebtService=fin.peakLoanBalance*annualRate;
-    const dscr=annualDebtService>0?noi/annualDebtService:Infinity;
-    const equity=Math.max(0,totalCost-fin.loanAmount);
-    const moic=equity>0?(equity+profit)/equity:0;
-    const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
-    const equityRatio=totalCost>0?equity/totalCost:1;
-    const uCfs:number[]=Array(totalMonths).fill(0);
-    const lCfs:number[]=Array(totalMonths).fill(0);
-    uCfs[0]-=landCost+sdlt+fin.arrangementFee;
-    lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){const devDraw=devCost*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);}
-    const startOcc=0.50;const endOcc=1-voidPct;
-    for(let m=0;m<stabMonths;m++){const occ=startOcc+(endOcc-startOcc)*((m+1)/stabMonths);const mNOI=(grossRentPa*occ-opexPa)/12;const idx=buildMonths+m;uCfs[idx]+=mNOI;lCfs[idx]+=mNOI-(fin.peakLoanBalance*annualRate)/12;}
-    uCfs[totalMonths-1]+=gdv;lCfs[totalMonths-1]+=gdv-fin.peakLoanBalance;
-    const irr=Math.pow(1+calcIRR(uCfs),12)-1;
-    const rawIrrLBTR=equity>0?calcIRR(lCfs):0;
-    const irrLevered=equity>0&&isFinite(rawIrrLBTR)&&rawIrrLBTR>-1&&rawIrrLBTR<100?Math.pow(1+rawIrrLBTR,12)-1:0;
-    const paybackMonth=calcPaybackMonth(uCfs);
-    const breakEvenYield=findBreakEvenYield(noi,totalCost);
-    return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,yoc,irr,irrLevered,rlv,dscr,moic,equity,paybackMonth,breakEvenYield,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
-  }
-  if(assetType==="BTS"){
-    const units=data.units||[];
-    const gdv=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size))*num(String(u.salePricePsf)),0);
-    const totalSqft=units.reduce((s:number,u:any)=>s+num(String(u.count))*num(String(u.size)),0);
-    const totalUnits=units.reduce((s:number,u:any)=>s+num(String(u.count)),0);
-    const agentFees=gdv*(num(String(data.agentFeePct))/100);
-    const marketing=gdv*(num(String(data.marketingPct))/100);
-    const landCost=num(String(data.landCost));
-    const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??true);
-    const buildCost=totalSqft*num(String(data.buildCostPsf));
-    const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
-    const contingency=buildCost*(num(String(data.contingencyPct))/100);
-    const otherCosts=num(String(data.otherCosts));
-    const buildCosts=buildCost+profFees+contingency+otherCosts;
-    const sellCosts=agentFees+marketing;
-    const devCost=buildCosts+sellCosts;
-    const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-    const ltcPct=num(String(data.ltc))/100;
-    const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths))));
-    const absMonths=Math.max(1,Math.round(num(String(data.absorptionMonths))));
-    const totalMonths=buildMonths+absMonths;
-    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:buildCosts,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve"});
-    const totalCost=landCost+sdlt+devCost+fin.totalFinanceCost;
-    const profit=gdv-totalCost;
-    const poc=totalCost>0?profit/totalCost:0;
-    const margin=gdv>0?profit/gdv:0;
-    const equity=Math.max(0,totalCost-fin.loanAmount);
-    const moic=equity>0?(equity+profit)/equity:0;
-    const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
-    const equityRatio=totalCost>0?equity/totalCost:1;
-    const netSalesPm=(gdv-sellCosts)/absMonths;
-    const loanRepayPm=fin.peakLoanBalance/absMonths;
-    const uCfs:number[]=Array(totalMonths).fill(0);
-    const lCfs:number[]=Array(totalMonths).fill(0);
-    uCfs[0]-=landCost+sdlt+fin.arrangementFee;
-    lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);}
-    for(let m=0;m<absMonths;m++){const idx=buildMonths+m;const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);uCfs[idx]+=netSalesPm;lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;}
-    const rawIrr=calcIRR(uCfs);
-    const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
-    const rawIrrL=equity>0?calcIRR(lCfs):0;
-    const irrLevered=equity>0&&isFinite(rawIrrL)&&rawIrrL>-1&&rawIrrL<100?Math.pow(1+rawIrrL,12)-1:0;
-    const paybackMonth=calcPaybackMonth(uCfs);
-    const breakEvenPsf=findBreakEvenSalePsf(units.map((u:any)=>({count:num(String(u.count)),size:num(String(u.size)),salePricePsf:num(String(u.salePricePsf))})),totalCost);
-    return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,margin,irr,irrLevered,equity,moic,paybackMonth,breakEvenPsf,financeRate:annualRate,buildProfile,buildMonths,absMonths,totalMonths,uCfs,lCfs};
-  }
-  if(assetType==="Hotel"){
-    const hr=calcHotelRev(data);
-    const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);
-    const revenuePa=hr.totalRev;const ebitda=hr.totalEbitda;
-    const stabilisedCapRate=num(String(data.stabilisedCapRate))/100;
-    const exitCapRate=num(String(data.exitCapRate))/100;
-    const revparGrowth=num(String(data.revparGrowthPct))/100;
-    const stabilisedValue=stabilisedCapRate>0?ebitda/stabilisedCapRate:0;
-    const exitValue=exitCapRate>0?(ebitda*(1+revparGrowth))/exitCapRate:0;
-    const purchasePrice=num(String(data.purchasePrice));
-    const sdlt=calcSDLT(purchasePrice,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
-    const capex=num(String(data.capexBudget));
-    const profFees=capex*(num(String(data.professionalFeesPct))/100);
-    const contingency=capex*(num(String(data.contingencyPct))/100);
-    const otherCosts=num(String(data.otherCosts));
-    const hardCost=purchasePrice+sdlt+capex+profFees+contingency+otherCosts;
-    const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
-    const ltcPct=num(String(data.ltc))/100;
-    const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths))));
-    const stabMonths=Math.max(1,Math.round(num(String(data.stabilisationMonths))));
-    const totalMonths=buildMonths+stabMonths;
-    const fin=calcFinanceCostMonthly({landCost:purchasePrice+sdlt,sdlt:0,buildCost:capex+profFees+contingency+otherCosts,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"straight"});
-    const totalInvestment=hardCost+fin.totalFinanceCost;
-    const profit=exitValue-totalInvestment;
-    const poc=totalInvestment>0?profit/totalInvestment:0;
-    const yoc=totalInvestment>0?ebitda/totalInvestment:0;
-    const equity=Math.max(0,totalInvestment-fin.loanAmount);
-    const moic=equity>0?(equity+profit)/equity:0;
-    const annualDebtService=fin.peakLoanBalance*annualRate;
-    const dscr=annualDebtService>0?ebitda/annualDebtService:Infinity;
-    const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"straight");
-    const equityRatio=totalInvestment>0?equity/totalInvestment:1;
-    const capexTotal=capex+profFees+contingency+otherCosts;
-    const uCfs:number[]=Array(totalMonths).fill(0);
-    const lCfs:number[]=Array(totalMonths).fill(0);
-    uCfs[0]-=purchasePrice+sdlt+fin.arrangementFee;
-    lCfs[0]-=(purchasePrice+sdlt)*equityRatio+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){const draw=capexTotal*buildProfile[m];uCfs[m]-=draw;lCfs[m]-=draw*equityRatio+(fin.monthlyInterestArr[m]??0);}
-    for(let m=0;m<stabMonths;m++){const rampFrac=(m+1)/stabMonths;const mEbitda=(ebitda*rampFrac)/12;const idx=buildMonths+m;uCfs[idx]+=mEbitda;lCfs[idx]+=mEbitda-(fin.peakLoanBalance*annualRate)/12;}
-    uCfs[totalMonths-1]+=exitValue;lCfs[totalMonths-1]+=exitValue-fin.peakLoanBalance;
-    const irr=Math.pow(1+calcIRR(uCfs),12)-1;
-    const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
-    const paybackMonth=calcPaybackMonth(uCfs);
-    return{revpar,revenuePa,ebitda,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
-  }
-  if(assetType==="Flip"){
-    const purchase=num(String(data.purchasePrice));
-    const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
-    // Size & psf
-    const propertySqft=num(String(data.propertySqft||0));
-    const refurbPsf=num(String(data.refurbPsf||0));
-    const salePricePsf=num(String(data.salePricePsf||0));
-    // Refurb: use psf if both size and psf set, else use flat budget
-    const refurb=propertySqft>0&&refurbPsf>0?propertySqft*refurbPsf:num(String(data.refurbBudget||0));
-    const profFees=refurb*(num(String(data.professionalFeesPct))/100);
-    const contingency=refurb*(num(String(data.contingencyPct))/100);
-    const other=num(String(data.otherCosts));
-    // Sale price: use psf if both set, else use flat
-    const salePrice=propertySqft>0&&salePricePsf>0?propertySqft*salePricePsf:num(String(data.salePrice||0));
-    // Finance mode: bridging only | bridging + refinance (hold)
-    const flipMode=data.flipMode||"sell"; // sell | hold
-    const bridgingRatePm=num(String(data.bridgingRatePct||0.85))/100;
-    const bridgingMonths=num(String(data.bridgingTermMonths||9));
-    const ltv=num(String(data.flipLTV||75))/100;
-    const loanAmount=purchase*ltv;
-    const arrangementFee=loanAmount*(num(String(data.arrangementFeePct||2.0))/100);
-    const bridgingInterest=loanAmount*bridgingRatePm*bridgingMonths;
-    // Refinance (hold mode)
-    const refiRate=num(String(data.refiRatePct||6.0))/100;
-    const refiMonths=num(String(data.refiTermMonths||24));
-    const refiLTV=num(String(data.refiLTV||75))/100;
-    const refiLoan=salePrice*refiLTV; // refinance against GDV
-    const refiInterestPm=refiLoan*(refiRate/12);
-    const rentPcm=num(String(data.rentPcm||0));
-    const voidPct=num(String(data.voidPct||5))/100;
-    const netRentPm=rentPcm*(1-voidPct);
-    const monthlyOpex=num(String(data.holdOpexPm||200)); // service charge, insurance etc
-    const netCashflowPm=netRentPm-refiInterestPm-monthlyOpex;
-    const totalHoldMonths=bridgingMonths+refiMonths;
-    const refiArrangement=refiLoan*(num(String(data.refiArrangementPct||1.0))/100);
-    // Total finance cost
-    const totalFinanceCost=flipMode==="hold"
-      ?bridgingInterest+arrangementFee+refiArrangement+(refiInterestPm*refiMonths)
-      :bridgingInterest+arrangementFee;
-    const totalCost=purchase+sdlt+refurb+profFees+contingency+other+totalFinanceCost;
-    // Sale
-    const agentFees=salePrice*(num(String(data.agentFeePct||1.5))/100);
-    const netProceeds=salePrice-agentFees;
-    const profit=flipMode==="hold"
-      ?(netProceeds-refiLoan)+(netCashflowPm*refiMonths)-(purchase+sdlt+refurb+profFees+contingency+other+bridgingInterest+arrangementFee+refiArrangement-loanAmount)
-      :netProceeds-totalCost;
-    const roi=totalCost>0?profit/totalCost:0;
-    const equity=Math.max(0,totalCost-loanAmount);
-    const roiEquity=equity>0?profit/equity:0;
-    const moic=equity>0?(equity+profit)/equity:0;
-    // Cashflows
-    let cfs:number[];
-    if(flipMode==="hold"){
-      const equityIn=purchase*(1-ltv)+sdlt+refurb+profFees+contingency+other+bridgingInterest+arrangementFee+refiArrangement;
-      cfs=[-equityIn,...Array(Math.round(refiMonths)-1).fill(netCashflowPm),netCashflowPm+(netProceeds-refiLoan)];
-    } else {
-      cfs=[-equity,...Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0),netProceeds-loanAmount];
-    }
-    const irr=Math.pow(1+calcIRR(cfs),12)-1;
-    const paybackMonth=calcPaybackMonth(cfs);
-    // Yield on cost (hold mode)
-    const grossYield=salePrice>0?(rentPcm*12)/salePrice:0;
-    const netYield=salePrice>0?(netRentPm*12)/salePrice:0;
-    return{
-      purchase,sdlt,refurb,refurbPsf:propertySqft>0?refurb/propertySqft:0,
-      propertySqft,salePricePsf:propertySqft>0?salePrice/propertySqft:0,
-      profFees,contingency,totalFinanceCost,loanAmount,bridgingInterest,arrangementFee,
-      refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,
-      totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,moic,irr,equity,
-      paybackMonth,financeRate:bridgingRatePm*12,grossYield,netYield,flipMode,
-      bridgingMonths,refiMonths,totalHoldMonths,
-    };
-  }
-  return{};
-}
-// ─── DEFAULTS ─────────────────────────────────────────────────────────────────
-const DEFAULTS={
-  BTR:{assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  BTS:{assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  Hotel:{assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
-  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
-};
-type AssetType="BTR"|"BTS"|"Hotel"|"Flip";
-type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
-
-// ─── PROPERTY TAX BLOCK ───────────────────────────────────────────────────────
-function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string}){
-  const[overrideStr,setOverrideStr]=useState(()=>data.sdltOverride===0?"":String(data.sdltOverride));
-  return(
-    <div className="inp-group" style={{gridColumn:"1 / -1"}}>
-      <label className="inp-label">Property Tax</label>
-
-      {/* ── Info banner ── */}
-      <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:7,padding:"8px 12px",marginBottom:10,display:"flex",alignItems:"flex-start",gap:8}}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0,marginTop:2}} xmlns="http://www.w3.org/2000/svg">
-          <circle cx="7" cy="7" r="6.5" stroke="#c9a84c" strokeWidth="0.75"/>
-          <rect x="6.4" y="6" width="1.2" height="4.5" rx="0.6" fill="#c9a84c"/>
-          <circle cx="7" cy="4.2" r="0.7" fill="#c9a84c"/>
-        </svg>
-        <span style={{fontSize:11,color:"var(--text-m)",lineHeight:1.6}}>
-          <strong style={{color:"var(--gold)"}}>Auto mode uses UK SDLT rates.</strong> If you are in another country, use <strong style={{color:"var(--text)"}}>Override</strong> and enter your local property transfer tax — e.g. IMT (Portugal), Transfer Tax (USA), DLD Fee (UAE), Stamp Duty (Australia), Grunderwerbsteuer (Germany).
-        </span>
-      </div>
-
-      {/* ── Toggle buttons ── */}
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#06070a":"var(--text-m)"}}>Auto</button>
-        <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#06070a":"var(--text-m)"}}>Override</button>
-      </div>
-
-      {/* ── Auto mode ── */}
-      {data.sdltMode!=="manual"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <select className="inp" value={data.sdltTransactionType??"residential"} onChange={e=>set("sdltTransactionType",e.target.value)}>
-            <option value="residential">Residential</option>
-            <option value="commercial">Commercial / Non-Residential</option>
-            <option value="mixed">Mixed-Use</option>
-            <option value="spv">SPV Share Deal (Exempt)</option>
-          </select>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <input type="checkbox" id="sdltSurcharge" checked={data.sdltSurcharge??true} onChange={e=>set("sdltSurcharge",e.target.checked)}/>
-            <label htmlFor="sdltSurcharge" className="inp-label" style={{marginBottom:0,fontSize:12}}>+3% surcharge (additional dwelling / company purchase)</label>
-          </div>
-          <div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>
-            {fmt(r.sdlt||0,currencySymbol)}
-            {data.sdltTransactionType==="spv"&&<span style={{marginLeft:8,fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)"}}>EXEMPT</span>}
-          </div>
-        </div>
-      )}
-
-      {/* ── Manual override — currency prefix + clearable zero ── */}
-      {data.sdltMode==="manual"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          <div style={{position:"relative"}}>
-            <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontFamily:"var(--font-mono)",fontSize:13,color:"var(--text-d)",pointerEvents:"none",userSelect:"none"}}>{currencySymbol}</span>
-            <input
-              className="inp"
-              type="number"
-              min="0"
-              placeholder="0"
-              value={overrideStr}
-              onChange={e=>{
-                setOverrideStr(e.target.value);
-                set("sdltOverride",e.target.value===""?0:parseFloat(e.target.value)||0);
-              }}
-              style={{paddingLeft:26}}
-            />
-          </div>
-          <div style={{fontSize:10,color:"var(--text-d)",fontStyle:"italic",paddingLeft:2}}>
-            Enter as a <strong style={{color:"var(--text)"}}>flat amount</strong> (e.g. 45000) or a <strong style={{color:"var(--text)"}}>% of purchase price</strong> converted to a figure — e.g. IMT Portugal = 6.5% × price. Used directly in all cost calculations.
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── REV STREAM ───────────────────────────────────────────────────────────────
-function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
-  return(<div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
-    <div className="rev-stream-hdr" onClick={onOpen}>
-      <div style={{display:"flex",alignItems:"center",gap:10}}>
-        {icon&&<span style={{fontSize:16}}>{icon}</span>}
-        <span style={{fontSize:13,fontWeight:600,color:enabled?"var(--text)":"var(--text-d)"}}>{title}</span>
-        {enabled&&<span style={{fontSize:10,color:"var(--green)",fontFamily:"var(--font-mono)",background:"rgba(61,220,132,.1)",padding:"2px 7px",borderRadius:4}}>ON</span>}
-      </div>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        {enabled&&<span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--gold)"}}>{summary}</span>}
-        <span style={{fontSize:10,color:"var(--text-d)"}}>{open?"▲":"▼"}</span>
-      </div>
-    </div>
-    {open&&(<div className="rev-stream-body">
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-        <div style={{position:"relative",width:36,height:20,background:enabled?"var(--gold)":"var(--bg4)",borderRadius:10,cursor:"pointer",transition:"background .2s",flexShrink:0}} onClick={onToggle}>
-          <div style={{position:"absolute",top:2,left:enabled?18:2,width:16,height:16,background:"#fff",borderRadius:"50%",transition:"left .2s"}}/>
-        </div>
-        <span style={{fontSize:12,color:"var(--text-m)"}}>{enabled?`${title} included in EBITDA`:`${title} excluded — toggle to include`}</span>
-      </div>
-      {children}
-    </div>)}
-  </div>);
-}
-
-// ─── V MARK DRAW HELPER (jsPDF) ───────────────────────────────────────────────
-// Draws the V mark at (x,y) with given height in mm. Uses filled polygons.
-function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,number]){
-  const s=h/115; // scale: SVG viewBox is 100×115
-  const w=100*s;
-  // Outer V polygon (pts in mm relative to x,y)
-  const outer=[[0,0],[26*s,0],[50*s,58*s],[74*s,0],[100*s,0],[50*s,115*s]];
-  // Inner cutout polygon
-  const inner=[[17*s,0],[34*s,0],[50*s,38*s],[66*s,0],[83*s,0],[50*s,85*s]];
-  doc.setFillColor(...color);
-  doc.triangle(x+outer[0][0],y+outer[0][1],x+outer[1][0],y+outer[1][1],x+outer[5][0],y+outer[5][1],"F");
-  doc.triangle(x+outer[1][0],y+outer[1][1],x+outer[4][0],y+outer[4][1],x+outer[5][0],y+outer[5][1],"F");
-  doc.triangle(x+outer[1][0],y+outer[1][1],x+outer[2][0],y+outer[2][1],x+outer[4][0],y+outer[4][1],"F");
-  doc.triangle(x+outer[2][0],y+outer[2][1],x+outer[3][0],y+outer[3][1],x+outer[4][0],y+outer[4][1],"F");
-  // Knock out inner V with dark fill
-  const bg=doc.internal.pageSize; // use dark background
-  doc.setFillColor(6,7,10);
-  doc.triangle(x+inner[0][0],y+inner[0][1],x+inner[1][0],y+inner[1][1],x+inner[5][0],y+inner[5][1],"F");
-  doc.triangle(x+inner[1][0],y+inner[1][1],x+inner[4][0],y+inner[4][1],x+inner[5][0],y+inner[5][1],"F");
-  doc.triangle(x+inner[1][0],y+inner[1][1],x+inner[2][0],y+inner[2][1],x+inner[4][0],y+inner[4][1],"F");
-  doc.triangle(x+inner[2][0],y+inner[2][1],x+inner[3][0],y+inner[3][1],x+inner[4][0],y+inner[4][1],"F");
-}
-
-// ─── PDF GENERATORS ───────────────────────────────────────────────────────────
-async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string){
-  if(!(window as any).jspdf){
-    await new Promise<void>((resolve,reject)=>{
-      const s=document.createElement("script");
-      s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload=()=>resolve();s.onerror=()=>reject();document.head.appendChild(s);
-    });
-  }
-  const{jsPDF}=(window as any).jspdf;
-  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const W=210,H=297;
-  const gold=[201,168,76] as [number,number,number];
-  const dark=[6,7,10] as [number,number,number];
-  const bg2=[18,21,26] as [number,number,number];
-  const bg3=[25,29,36] as [number,number,number];
-  const grey=[125,133,144] as [number,number,number];
-  const white=[236,234,228] as [number,number,number];
-  const green=[61,220,132] as [number,number,number];
-  const red=[244,100,95] as [number,number,number];
-  const amber=[240,164,41] as [number,number,number];
-  const r=results as any;
-  const programmLabel=assetType==="BTS"?`${data.programmMonths}m build · ${data.absorptionMonths}m absorption`:assetType==="BTR"?`${data.programmMonths}m build · ${data.stabilisationMonths}m stabilisation`:`${data.programmMonths} months`;
-  doc.setFillColor(...dark);doc.rect(0,0,W,H,"F");
-  doc.setFillColor(...gold);doc.rect(0,0,5,H,"F");
-  doc.setFillColor(...bg2);doc.rect(5,0,W-5,42,"F");
-  doc.setFillColor(...gold);doc.rect(5,42,W-5,0.5,"F");
-  drawVMarkPDF(doc,14,7,8,gold);doc.setTextColor(...gold);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.text("VALORA",23,15);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DEVELOPMENT APPRAISAL",14,21);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.text(new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),W-8,12,{align:"right"});doc.text(userEmail||"",W-8,18,{align:"right"});
-  doc.setFillColor(201,168,76,30);doc.roundedRect(W-52,26,44,10,2,2,"F");
-  doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("STRICTLY CONFIDENTIAL",W-30,32.5,{align:"center"});
-  doc.setTextColor(...white);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text(data.name||"Untitled Appraisal",14,58);
-  doc.setFontSize(10);doc.setFont("helvetica","normal");doc.setTextColor(...grey);doc.text(`${data.location||"No location"}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,14,66);
-  const metrics=assetType==="BTR"
-    ?[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :assetType==="BTS"
-    ?[["GDV",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :assetType==="Hotel"
-    ?[["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["DSCR",fmtX(r.dscr),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :[["Sale Price",fmt(r.salePrice,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]];
-  const mCols=metrics.length;const mW=(W-14-8-(mCols-1)*3)/mCols;const mY=72;
-  metrics.forEach(([label,value,color],i)=>{
-    const x=14+i*(mW+3);
-    doc.setFillColor(...bg2);doc.roundedRect(x,mY,mW,22,2,2,"F");
-    doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.roundedRect(x,mY,mW,22,2,2,"S");
-    doc.setTextColor(...grey);doc.setFontSize(mCols>4?5.5:6.5);doc.setFont("helvetica","normal");doc.text(String(label).toUpperCase(),x+3,mY+7);
-    doc.setTextColor(...(color as [number,number,number]));doc.setFontSize(mCols>4?10:12);doc.setFont("helvetica","bold");doc.text(String(value),x+3,mY+18);
-  });
-  const colL=14,colR=114,colW=88,startY=104;let lY=startY,rY=startY;
-  const drawCol=(title:string,rows:[string,string,[number,number,number]?][],x:number,startY:number,w:number)=>{
-    doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),x,startY);
-    doc.setFillColor(...gold);doc.rect(x,startY+1.5,w,0.3,"F");let ry=startY+8;
-    rows.forEach(([label,value,color],idx)=>{
-      if(ry>280){return;}
-      if(idx%2===0){doc.setFillColor(...bg3);doc.rect(x,ry-4,w,7,"F");}
-      doc.setTextColor(...grey);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(String(label),x+2,ry);
-      doc.setTextColor(...(color||white) as [number,number,number]);doc.setFont("helvetica","bold");doc.text(String(value),x+w-1,ry,{align:"right"});
-      doc.setFont("helvetica","normal");ry+=7;
-    });return ry+6;
-  };
-  if(assetType==="BTR"){
-    lY=drawCol("Returns",[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Gross NOI pa",fmt(r.noi,currencySymbol),white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Yield on Cost",fmtPct(r.yoc),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even Yield",fmtPct(r.breakEvenYield),white],["Residual Land Value",fmt(r.rlv,currencySymbol),gold]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Prof. Fees + Contingency",fmt(r.devCost-r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Location",data.location||"—",white],["Programme",programmLabel,white],["Exit Yield",`${data.exitYield||0}%`,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Void",`${data.voidPct||0}%`,white],["OpEx psf",`${currencySymbol}${data.opexPsf||0}psf`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
-  }else if(assetType==="BTS"){
-    lY=drawCol("Returns",[["GDV",fmt(r.gdv,currencySymbol),gold],["Total Units",r.totalUnits?.toString()||"—",white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Profit on GDV",fmtPct(r.margin),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Total Units",r.totalUnits?.toString()||"—",white],["Total Sqft",r.totalSqft?.toLocaleString()||"—",white],["Location",data.location||"—",white],["Programme",programmLabel,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Absorption",`${data.absorptionMonths||18}m`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
-  // Unit mix for BTR/BTS
-  if(assetType==="BTR"||assetType==="BTS"){
-    // Unit Mix table
-    const tableY=Math.max(lY,rY)+6;
-    if((data.units||[]).length>0&&tableY<260){
-      doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("UNIT MIX",colL,tableY);
-      doc.setFillColor(...gold);doc.rect(colL,tableY+1.5,W-colL-8,0.3,"F");
-      const headers=assetType==="BTS"?["Type","Units","Size (sqft)","Price psf","Revenue"]:["Type","Units","Size (sqft)","Rent pcm","Gross pa"];
-      const hCols=[50,20,28,28,30];let hx=colL+2;
+    c1Y=drawCol("Returns",[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Gross NOI pa",fmt(r.noi,currencySymbol),white],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Yield on Cost",fmtPct(r.yoc),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even Yield",fmtPct(r.breakEvenYield),white],["Residual Land Value",fmt(r.rlv,currencySymbol),gold]],c1,c1Y,cW)||c1Y;
+    c2Y=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Prof. Fees",fmt(r.devCost-r.buildCost-(r.devCost-r.buildCost)*0,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Finance",fmt(r.totalFinanceCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],c2,c2Y,cW)||c2Y;
+    c3Y=drawCol("Project Details",[["Location",data.location||"—",white],["Programme",programmLabel,white],["Exit Yield",`${data.exitYield||0}%`,white],["Void",`${data.voidPct||0}%`,white],["OpEx psf",`${currencySymbol}${data.opexPsf||0}psf`,white],["LTC",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],["Total Units",(r.totalUnits||0).toString(),white],["Total Sqft",(r.totalSqft||0).toLocaleString(),white]],c3,c3Y,cW)||c3Y;
+    // Unit Mix table — full width
+    const tableY=Math.max(c1Y,c2Y,c3Y)+8;
+    if((data.units||[]).length>0&&tableY<262){
+      const TW=W-14-8;
+      doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("UNIT MIX",14,tableY);
+      doc.setFillColor(...gold);doc.rect(14,tableY+1.5,TW,0.3,"F");
+      const isB=assetType==="BTS";
+      const hdr=isB?["Unit Type","No. Units","Size sqft","Sale Price psf","Revenue"]:["Unit Type","No. Units","Size sqft","Rent pcm","Gross pa"];
+      const hW=[60,26,28,36,36];let hx=16;
       doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
-      headers.forEach((h,i)=>{doc.text(h,hx,tableY+8);hx+=hCols[i];});
-      let ty=tableY+14;
-      (data.units||[]).forEach((u:any,i:number)=>{
-        if(ty>278)return;
-        if(i%2===0){doc.setFillColor(...bg3);doc.rect(colL,ty-4,W-colL-8,7,"F");}
-        const gross=assetType==="BTS"?u.count*u.size*u.salePricePsf:u.count*(u.rentPcm||0)*12;
-        const vals=[u.type||"—",String(u.count||0),String(u.size||0),assetType==="BTS"?`${currencySymbol}${u.salePricePsf||0}psf`:`${currencySymbol}${u.rentPcm||0}pcm`,fmt(gross,currencySymbol)];
-        let vx=colL+2;
-        doc.setFontSize(8);doc.setFont("helvetica","normal");
-        vals.forEach((v,vi)=>{
+      hdr.forEach((h,i)=>{doc.text(h,hx,tableY+8);hx+=hW[i];});
+      let ty=tableY+15;
+      (data.units||[]).forEach((u:any,ui:number)=>{
+        if(ty>272)return;
+        if(ui%2===0){doc.setFillColor(...bg3);doc.rect(14,ty-4,TW,7,"F");}
+        const gross=isB?Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0):Number(u.count||0)*Number(u.rentPcm||0)*12;
+        const row=[u.type||"—",String(u.count||0),String(u.size||0),isB?`${currencySymbol}${u.salePricePsf||0}psf`:`${currencySymbol}${u.rentPcm||0}pcm`,fmt(gross,currencySymbol)];
+        let vx=16;
+        doc.setFontSize(8);
+        row.forEach((v,vi)=>{
+          doc.setFont("helvetica",vi===0?"bold":"normal");
           doc.setTextColor(...(vi===4?gold:vi===0?white:grey));
-          doc.text(String(v),vx,ty);vx+=hCols[vi];
+          doc.text(String(v),vi===4?14+TW-2:vx,ty,vi===4?{align:"right"}:{});
+          vx+=hW[vi];
         });
         ty+=7;
       });
-      // Totals row
-      if(ty<278){
-        doc.setFillColor(...bg2);doc.rect(colL,ty-4,W-colL-8,7,"F");
-        const totalUnits=(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0),0);
-        const totalGross=assetType==="BTS"?(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0),0):(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.rentPcm||0)*12,0);
+      // Totals
+      if(ty<274){
+        doc.setFillColor(30,35,42);doc.rect(14,ty-4,TW,8,"F");
+        doc.setDrawColor(...gold);doc.setLineWidth(0.2);doc.line(14,ty-4,14+TW,ty-4);
+        const tot=(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0),0);
+        const totGross=isB?(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0),0):(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.rentPcm||0)*12,0);
         doc.setFontSize(8);doc.setFont("helvetica","bold");
-        doc.setTextColor(...white);doc.text("TOTAL",colL+2,ty);
-        doc.setTextColor(...white);doc.text(String(totalUnits),colL+52,ty);
-        doc.setTextColor(...gold);doc.text(fmt(totalGross,currencySymbol),colL+126+4,ty);
+        doc.setTextColor(...white);doc.text("TOTAL",16,ty+1);
+        doc.setTextColor(...white);doc.text(String(tot),16+60,ty+1);
+        doc.setTextColor(...gold);doc.text(fmt(totGross,currencySymbol),14+TW-2,ty+1,{align:"right"});
       }
     }
-}
-  }else if(assetType==="Hotel"){
-    lY=drawCol("Returns",[["RevPAR",fmt(r.revpar,currencySymbol),gold],["EBITDA pa",fmt(r.ebitda,currencySymbol),green],["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Purchase + Property Tax",fmt((r.purchasePrice||0)+(r.sdlt||0),currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Rooms",data.rooms?.toString()||"—",white],["Star Rating",data.starRating?`${data.starRating}★`:"—",white],["ADR",`${currencySymbol}${data.adr||0}`,white],["Occupancy",`${data.occupancy||0}%`,white],["Programme",programmLabel,white],["Exit Cap Rate",`${data.exitCapRate||0}%`,white],["Stabilised Cap Rate",`${data.stabilisedCapRate||0}%`,white]],colR,rY,colW)||rY;
-    rY=drawCol("Finance",[["LTC Ratio",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],["Loan Amount",fmt(r.loanAmount||0,currencySymbol),amber],["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber]],colR,rY,colW)||rY;
-  }else{
-    lY=drawCol("Returns",[["Purchase Price",fmt(r.purchase,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["Property Tax",fmt(r.sdlt||0,currencySymbol),grey],["Refurb Budget",fmt(r.refurb||0,currencySymbol),grey],["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Location",data.location||"—",white],["Property Size",data.propertySqft>0?`${data.propertySqft} sqft`:"—",white],["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],["Hold Period",`${data.bridgingTermMonths||9} months`,white],["Agent Fee",`${data.agentFeePct||1.5}%`,white],["Exit Strategy",(data.flipMode||"sell")==="hold"?"Hold (BTL)":"Sell on Completion",white]],colR,rY,colW)||rY;
+    }else if(assetType==="BTS"){
+    c1Y=drawCol("Returns",[["GDV",fmt(r.gdv,currencySymbol),gold],["Total Units",(r.totalUnits||0).toString(),white],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Profit on GDV",fmtPct(r.margin),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—",white]],c1,c1Y,cW)||c1Y;
+    c2Y=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Agent & Marketing",fmt(r.devCost-r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Finance",fmt(r.totalFinanceCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],c2,c2Y,cW)||c2Y;
+    c3Y=drawCol("Project Details",[["Location",data.location||"—",white],["Programme",programmLabel,white],["LTC",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],["Total Sqft",(r.totalSqft||0).toLocaleString(),white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white],["Absorption",`${data.absorptionMonths||18}m`,white]],c3,c3Y,cW)||c3Y;
+    // Unit Mix table — full width
+    const tableY2=Math.max(c1Y,c2Y,c3Y)+8;
+    if((data.units||[]).length>0&&tableY2<262){
+      const TW=W-14-8;
+      doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("UNIT MIX",14,tableY2);
+      doc.setFillColor(...gold);doc.rect(14,tableY2+1.5,TW,0.3,"F");
+      const isB=assetType==="BTS";
+      const hdr=isB?["Unit Type","No. Units","Size sqft","Sale Price psf","Revenue"]:["Unit Type","No. Units","Size sqft","Rent pcm","Gross pa"];
+      const hW=[60,26,28,36,36];let hx=16;
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
+      hdr.forEach((h,i)=>{doc.text(h,hx,tableY2+8);hx+=hW[i];});
+      let ty=tableY2+15;
+      (data.units||[]).forEach((u:any,ui:number)=>{
+        if(ty>272)return;
+        if(ui%2===0){doc.setFillColor(...bg3);doc.rect(14,ty-4,TW,7,"F");}
+        const gross=isB?Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0):Number(u.count||0)*Number(u.rentPcm||0)*12;
+        const row=[u.type||"—",String(u.count||0),String(u.size||0),isB?`${currencySymbol}${u.salePricePsf||0}psf`:`${currencySymbol}${u.rentPcm||0}pcm`,fmt(gross,currencySymbol)];
+        let vx=16;
+        doc.setFontSize(8);
+        row.forEach((v,vi)=>{
+          doc.setFont("helvetica",vi===0?"bold":"normal");
+          doc.setTextColor(...(vi===4?gold:vi===0?white:grey));
+          doc.text(String(v),vi===4?14+TW-2:vx,ty,vi===4?{align:"right"}:{});
+          vx+=hW[vi];
+        });
+        ty+=7;
+      });
+      // Totals
+      if(ty<274){
+        doc.setFillColor(30,35,42);doc.rect(14,ty-4,TW,8,"F");
+        doc.setDrawColor(...gold);doc.setLineWidth(0.2);doc.line(14,ty-4,14+TW,ty-4);
+        const tot=(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0),0);
+        const totGross=isB?(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0),0):(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.rentPcm||0)*12,0);
+        doc.setFontSize(8);doc.setFont("helvetica","bold");
+        doc.setTextColor(...white);doc.text("TOTAL",16,ty+1);
+        doc.setTextColor(...white);doc.text(String(tot),16+60,ty+1);
+        doc.setTextColor(...gold);doc.text(fmt(totGross,currencySymbol),14+TW-2,ty+1,{align:"right"});
+      }
+    }
+    }else if(assetType==="Hotel"){
+    const colL2=14,colR2=114,colW2=88;let lY2=startY,rY2=startY;
+    lY2=drawCol("Returns",[["RevPAR",fmt(r.revpar,currencySymbol),gold],["EBITDA pa",fmt(r.ebitda,currencySymbol),green],["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL2,lY2,colW2)||lY2;
+    rY2=drawCol("Cost Breakdown",[["Purchase + Property Tax",fmt((r.purchasePrice||0)+(r.sdlt||0),currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Investment",fmt(r.totalInvestment,currencySymbol),gold]],colR2,rY2,colW2)||rY2;
+    rY2=drawCol("Project Details",[["Rooms",(data.rooms||0).toString(),white],["Star Rating",data.starRating?`${data.starRating}★`:"—",white],["ADR",`${currencySymbol}${data.adr||0}`,white],["Occupancy",`${data.occupancy||0}%`,white],["Programme",programmLabel,white],["Exit Cap Rate",`${data.exitCapRate||0}%`,white],["Stabilised Cap Rate",`${data.stabilisedCapRate||0}%`,white]],colR2,rY2,colW2)||rY2;
+    rY2=drawCol("Finance",[["LTC Ratio",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],["Loan Amount",fmt(r.loanAmount||0,currencySymbol),amber],["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber]],colR2,rY2,colW2)||rY2;  }else{
+    const colL3=14,colR3=114,colW3=88;let lY3=startY,rY3=startY;
+    lY3=drawCol("Returns",[["Purchase Price",fmt(r.purchase,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL3,lY3,colW3)||lY3;
+    rY3=drawCol("Cost Breakdown",[["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["Property Tax",fmt(r.sdlt||0,currencySymbol),grey],["Refurb Budget",fmt(r.refurb||0,currencySymbol),grey],["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold]],colR3,rY3,colW3)||rY3;
+    rY3=drawCol("Project Details",[["Location",data.location||"—",white],["Property Size",data.propertySqft>0?`${data.propertySqft} sqft`:"—",white],["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],["Hold Period",`${data.bridgingTermMonths||9} months`,white],["Agent Fee",`${data.agentFeePct||1.5}%`,white],["Exit Strategy",(data.flipMode||"sell")==="hold"?"Hold (BTL)":"Sell on Completion",white]],colR3,rY3,colW3)||rY3;
   }
   doc.setFillColor(...gold);doc.rect(0,H-8,W,8,"F");
   doc.setFillColor(...dark);doc.rect(0,H-8,5,8,"F");
@@ -936,13 +575,13 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     ["Equity Multiple",fmtX(r.moic||0)],
     ["DSCR / ICR",fmtX(r.dscr||0)],
   ]:assetType==="BTR"?[
-    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
+    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],["Equity In",fmt(r.equity||0,currencySymbol)],
   ]:assetType==="BTS"?[
-    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
+    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],["Equity In",fmt(r.equity||0,currencySymbol)],
   ]:assetType==="Hotel"?[
-    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],["Return on Cost",fmtPct(r.poc||0)],["DSCR",fmtX(r.dscr||0)],
+    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],["Return on Cost",fmtPct(r.poc||0)],["DSCR",fmtX(r.dscr||0)],["Equity In",fmt(r.equity||0,currencySymbol)],
   ]:[
-    ["Sale Price",fmt(r.salePrice||0,currencySymbol)],["Profit",fmt(r.profit||0,currencySymbol)],["ROI",fmtPct(r.roi||0)],["Equity Multiple",fmtX(r.moic||0)],
+    ["Sale Price",fmt(r.salePrice||0,currencySymbol)],["Profit",fmt(r.profit||0,currencySymbol)],["ROI",fmtPct(r.roi||0)],["Equity Multiple",fmtX(r.moic||0)],["Equity In",fmt(r.equity||0,currencySymbol)],
   ];
   const cols=metrics.length;const mW=(W-M*2-(cols-1)*3)/cols;
   metrics.forEach(([l,v],i)=>{
@@ -1607,7 +1246,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
                     <div className="section-title">Property Details</div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Address</label><input className="inp" value={data.address||""} onChange={e=>set("address",e.target.value)} placeholder="10 Pepys Street, London EC3N"/></div>
+                      <div className="inp-group"><label className="inp-label">Address</label><input className="inp" value={data.address||""} onChange={e=>set("address",e.target.value)} placeholder="e.g. 15 Aldgate High Street, London EC3"/></div>
                       <div className="inp-group"><label className="inp-label">Tenure</label><select className="inp" value={data.tenure||"freehold"} onChange={e=>set("tenure",e.target.value)}><option value="freehold">Freehold</option><option value="leasehold">Leasehold</option><option value="share">Share of Freehold</option></select></div>
                     </div>
                     <div className="inp-row-3">
