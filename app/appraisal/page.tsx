@@ -797,12 +797,12 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.setTextColor(...white);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text(data.name||"Untitled Appraisal",14,58);
   doc.setFontSize(10);doc.setFont("helvetica","normal");doc.setTextColor(...grey);doc.text(`${data.location||"No location"}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,14,66);
   const metrics=assetType==="BTR"
-    ?[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white]]
+    ?[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
     :assetType==="BTS"
-    ?[["GDV",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white]]
+    ?[["GDV",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
     :assetType==="Hotel"
-    ?[["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["DSCR",fmtX(r.dscr),white]]
-    :[["Sale Price",fmt(r.salePrice,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),white]];
+    ?[["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["DSCR",fmtX(r.dscr),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
+    :[["Sale Price",fmt(r.salePrice,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]];
   const mW=(W-14-8-9)/4;const mY=72;
   metrics.forEach(([label,value,color],i)=>{
     const x=14+i*(mW+3);
@@ -1017,6 +1017,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,iy+1.5,W-M,iy+1.5);iy+=8;
     const retMetrics=[
       ["Total Investment",fmt(hotelAdv.totalCost||0,currencySymbol),white],
+      ["Equity In",fmt(hotelAdv.equity||0,currencySymbol),gold],
       ["Profit",fmt(hotelAdv.profit||0,currencySymbol),(hotelAdv.profit||0)>0?green:[244,100,95] as [number,number,number]],
       ["Return on Cost",fmtPct(hotelAdv.poc||0),(hotelAdv.poc||0)>0.15?green:amber],
       ["IRR (Unlevered)",fmtPct(hotelAdv.irr||0),blue],
