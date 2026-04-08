@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { data, error } = await supabase.auth.verifyOtp({ token_hash, type: type as any })
     if (!error && data?.user) {
-      return NextResponse.redirect(`${origin}/onboarding`)
+      return NextResponse.redirect(`${origin}/dashboard`)
     }
     return NextResponse.redirect(`${origin}/?error=confirmation_failed`)
   }
