@@ -112,7 +112,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   margin-bottom:12px;text-align:center;width:100%;
 }
 .section-hint{color:var(--text-d);font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;}
-
 /* Role pills */
 .roles-grid{
   display:flex;flex-wrap:wrap;justify-content:center;gap:7px;
@@ -134,7 +133,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   opacity:0;transition:opacity .14s;flex-shrink:0;
 }
 .role-pill.sel .pill-check,.focus-pill.sel .pill-check{opacity:1;}
-
 /* Asset focus pills */
 .focus-grid{
   display:flex;flex-wrap:wrap;justify-content:center;gap:7px;
@@ -157,7 +155,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   padding:1px 6px;border-radius:4px;
 }
 .divider{width:100%;max-width:880px;border:none;border-top:1px solid var(--border);margin:4px 0 32px;}
-
 /* Deal type cards */
 .cards-grid{
   display:grid;grid-template-columns:repeat(4,1fr);gap:11px;
@@ -200,7 +197,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 }
 .asset-card.sel .card-metric{background:rgba(201,168,76,.08);color:var(--gold);border-color:rgba(201,168,76,.2);}
 .card-time{font-size:9px;color:var(--text-d);font-family:var(--font-mono);display:flex;align-items:center;gap:3px;margin-top:4px;}
-
 /* CTA */
 .onb-cta{display:flex;flex-direction:column;align-items:center;gap:13px;animation:fadeUp .6s ease .42s both;}
 .selected-hint{font-size:11px;color:var(--text-d);font-family:var(--font-mono);animation:fadeIn .2s ease;}
@@ -247,7 +243,11 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const { data } = await supabase.auth.refreshSession();
+        session = data.session;
+      }
       if (!session) { router.push("/"); return; }
       const { count } = await supabase
         .from("appraisals")
