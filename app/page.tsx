@@ -987,8 +987,8 @@ function Login({onBack}:any){
           {success?(
             <div className="login-card" style={{textAlign:"center"}}>
               <div style={{width:56,height:56,borderRadius:"50%",margin:"0 auto 20px",background:"rgba(61,220,132,.07)",border:"1px solid rgba(61,220,132,.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:"var(--green)"}}>✓</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:400,marginBottom:10}}>{ttab==="reset"?"Check your inbox":"Almost there"
-              <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{tab==="reset"?`We've sent a reset link to ${email}.`:`We've sent a confirmation link to ${email}. "Click it to verify your account — you'll land straight in Valora."}</p>
+              <h2 style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:400,marginBottom:10}}>{tab==="reset"?"Check your inbox":"Almost there"}</h2>
+              <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{tab==="reset"?"Reset link sent to "+email+".":"Confirmation link sent to "+email+". Click it to verify your account and get started."}</p>
               <button className="btn-ghost" style={{marginTop:24,width:"100%",justifyContent:"center"}} onClick={()=>{setSuccess(false);setTab("signin")}}>Back to sign in</button>
             </div>
           ):(
