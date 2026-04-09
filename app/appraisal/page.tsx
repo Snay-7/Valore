@@ -217,12 +217,14 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const holdYears=num(String(data.holdYears||5));
   const currency=data.currency||"GBP";
 
+
   // Year by year revenue
   const years=Array.from({length:holdYears},(_,i)=>i);
   const yearData=years.map(i=>({
     occ:num(String((data.yearOcc||[])[i]??data.occupancy??72))/100,
     adr:num(String((data.yearAdr||[])[i]??data.adr??180)),
   }));
+
 
   const yearRevenue=yearData.map((y,i)=>{
     const occRoomNights=rooms*365*y.occ;
@@ -256,16 +258,19 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     return{roomsRev,fnbRev,totalRev,totalEbitda,undistributed,mgmtFee,nonOp,ffe,ebitda,noi,occ:y.occ,adr:y.adr,revpar:y.adr*y.occ};
   });
 
+
   const stabilisedYear=yearRevenue[yearRevenue.length-1]||yearRevenue[0];
   const stabilisedNOI=stabilisedYear.noi;
   const stabilisedEBITDA=stabilisedYear.ebitda;
   const totalNOI=yearRevenue.reduce((s,y)=>s+y.noi,0);
+
 
   // Purchase price & entry yields
   const purchasePrice=num(String(data.purchasePrice||18000000));
   const entryYieldNOI=purchasePrice>0?yearRevenue[0].noi/purchasePrice:0;
   const entryYieldEBITDA=purchasePrice>0?yearRevenue[0].ebitda/purchasePrice:0;
   const pricePerKey=rooms>0?purchasePrice/rooms:0;
+
 
   // Transaction costs
   const capStructure=data.capStructure||"single";
@@ -276,18 +281,22 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const wiInsurance=data.wiInsuranceEnabled?num(String(data.wiInsurance??150000)):0;
   const workingCapital=data.workingCapitalEnabled?num(String(data.workingCapital??0)):0;
 
+
   // CapEx
   const capex=num(String(data.capexBudget||5000000));
   const capexPerKey=rooms>0?capex/rooms:0;
   const disposalCostPct=num(String(data.disposalCostPct??3.0))/100;
 
+
   // Supporting & operator costs (annual)
   const supportingCosts=num(String(data.supportingCostsPA??100000));
   const operatorFees=num(String(data.operatorFeesPA??0));
 
+
   // Finance — capital structure
   let loanAmount=0,interestTotal=0,arrangementFee=0,exitFee=0,brokerageFee=0;
   const allInRate=(num(String(data.benchmarkRate??3.97))+num(String(data.marginOverBenchmark??3.0)))/100;
+
 
   if(capStructure==="single"){
     const ltc=num(String(data.ltc??60))/100;
@@ -312,10 +321,12 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     loanAmount=0;interestTotal=0;arrangementFee=0;exitFee=0;brokerageFee=0;
   }
 
+
   // IM fees
   const imEnabled=data.imEnabled||false;
   const imAcqFee=imEnabled?num(String(data.imAcqFee??300000)):0;
   const imBasePATotal=imEnabled?num(String(data.imBasePA??250000))*holdYears:0;
+
 
   // Exit / disposal
   const exitCapRate=num(String(data.exitCapRate??5.75))/100;
@@ -323,6 +334,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const exitValuePerKey=rooms>0?exitValue/rooms:0;
   const disposalCosts=exitValue*disposalCostPct;
   const netExitProceeds=exitValue-disposalCosts;
+
 
   // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised)
   const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
@@ -333,18 +345,22 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const poc=totalCost>0?profit/totalCost:0;
   const moic=equity>0?(equity+profit)/equity:0;
 
+
   // IRR — simple approximation
   // IM incentive fees (on profit)
   const imIncentiveProfit=imEnabled?(num(String(data.imIncentiveProfitPct??10))/100)*Math.max(profit,0):0;
   const imIncentiveSales=imEnabled?(num(String(data.imIncentiveSalesPct??1))/100)*exitValue:0;
 
+
   const dscr=interestTotal>0&&holdYears>0?stabilisedNOI/(interestTotal/holdYears):999;
+
 
   // IRR cashflow construction
   // One-off fees paid Day 1 (not spread annually)
   const dayOneFinanceFees=arrangementFee+exitFee+brokerageFee;
   // Annual interest only (evenly spread — hotel debt is typically interest-rolled or serviced annually)
   const annualInterest=holdYears>0?interestTotal/holdYears:0;
+
 
   // Unlevered: total asset cost out day 1, NOI in each year, gross exit proceeds at end
   // (ignores capital structure — pure asset-level return)
@@ -355,6 +371,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     exitValue+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees),
   ];
 
+
   // Levered: equity out day 1, NOI minus annual interest each year, net exit after loan repayment at end
   // equity = totalCost - loanAmount (what investor actually puts in)
   const lCfs=[
@@ -363,7 +380,9 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     (netExitProceeds-loanAmount)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees-annualInterest),
   ];
 
+
   const irrUnlevered=calcIRR(uCfs);
+
 
   // Levered IRR — only meaningful when there is positive equity and a loan
   // If all-equity or negative equity (over-leveraged), fall back to unlevered
@@ -378,6 +397,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     }
   }
 
+
   // Payback — month when cumulative levered cashflows turn positive
   let cumulative=lCfs[0];
   let paybackMonth:number|null=null;
@@ -385,6 +405,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     cumulative+=lCfs[i];
     if(cumulative>=0){paybackMonth=i*12;break;}
   }
+
 
   // Alias fields to match what the UI / Returns Summary / sidebar expect
   const totalInvestment=totalCost;
@@ -394,6 +415,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const interestCost=interestTotal;
   const yoc=totalCost>0?stabilisedNOI/totalCost:0;
   const stabilisedValue=exitCapRate>0?stabilisedNOI/exitCapRate:0;
+
 
   return{
     yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
@@ -414,6 +436,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     revenueStabilised:stabilisedYear.totalRev,
   };
 }
+
 
 function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="BTR"){
@@ -559,12 +582,27 @@ function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="Flip"){
     const purchase=num(String(data.purchasePrice));
     const sdlt=calcSDLT(purchase,data.sdltMode??"auto",data.sdltTransactionType??"residential",data.sdltOverride??0,data.sdltSurcharge??false);
-    // Size & psf
-    const propertySqft=num(String(data.propertySqft||0));
-    const refurbPsf=num(String(data.refurbPsf||0));
+    // Split refurb areas
+    const existingAreaSqft=num(String(data.existingAreaSqft||(!data.newAreaSqft?data.propertySqft:0)||0));
+    const newAreaSqft=num(String(data.newAreaSqft||0));
+    const propertySqft=existingAreaSqft+newAreaSqft||num(String(data.propertySqft||0));
+    const existingRefurbPsf=num(String(data.existingRefurbPsf||data.refurbPsf||0));
+    const existingRefurbBudgetOverride=num(String(data.existingRefurbBudget||0));
+    const existingRefurbCost=existingRefurbBudgetOverride>0
+      ?existingRefurbBudgetOverride
+      :existingAreaSqft>0&&existingRefurbPsf>0
+        ?existingAreaSqft*existingRefurbPsf
+        :num(String(data.refurbBudget||0));
+    const newBuildPsf=num(String(data.newBuildPsf||0));
+    const newBuildBudgetOverride=num(String(data.newBuildBudget||0));
+    const newBuildCost=newBuildBudgetOverride>0
+      ?newBuildBudgetOverride
+      :newAreaSqft>0&&newBuildPsf>0
+        ?newAreaSqft*newBuildPsf
+        :0;
+    const refurb=existingRefurbCost+newBuildCost;
+    const refurbPsf=propertySqft>0?refurb/propertySqft:0;
     const salePricePsf=num(String(data.salePricePsf||0));
-    // Refurb: use psf if both size and psf set, else use flat budget
-    const refurb=propertySqft>0&&refurbPsf>0?propertySqft*refurbPsf:num(String(data.refurbBudget||0));
     const profFees=refurb*(num(String(data.professionalFeesPct))/100);
     const contingency=refurb*(num(String(data.contingencyPct))/100);
     const other=num(String(data.otherCosts));
@@ -621,6 +659,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const netYield=salePrice>0?(netRentPm*12)/salePrice:0;
     return{
       purchase,sdlt,refurb,refurbPsf:propertySqft>0?refurb/propertySqft:0,
+      existingRefurbCost,newBuildCost,existingAreaSqft,newAreaSqft,
       propertySqft,salePricePsf:propertySqft>0?salePrice/propertySqft:0,
       profFees,contingency,totalFinanceCost,loanAmount,bridgingInterest,arrangementFee,
       refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,
@@ -636,10 +675,11 @@ const DEFAULTS={
   BTR:{assetType:"BTR",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   Hotel:{assetType:"Hotel",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
-  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
+  Flip:{assetType:"Flip",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,propertySqft:900,existingAreaSqft:900,existingRefurbPsf:95,existingRefurbBudget:0,newAreaSqft:0,newBuildPsf:180,newBuildBudget:0,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,refurbStartDate:"",refurbEndDate:"",saleDate:"",bedrooms:"",bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false},
 };
 type AssetType="BTR"|"BTS"|"Hotel"|"Flip";
 type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
+
 
 // ─── PROPERTY TAX BLOCK ───────────────────────────────────────────────────────
 function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string}){
@@ -647,6 +687,7 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
   return(
     <div className="inp-group" style={{gridColumn:"1 / -1"}}>
       <label className="inp-label">Property Tax</label>
+
 
       {/* ── Info banner ── */}
       <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:7,padding:"8px 12px",marginBottom:10,display:"flex",alignItems:"flex-start",gap:8}}>
@@ -660,11 +701,13 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
         </span>
       </div>
 
+
       {/* ── Toggle buttons ── */}
       <div style={{display:"flex",gap:8,marginBottom:8}}>
         <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#06070a":"var(--text-m)"}}>Auto</button>
         <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#06070a":"var(--text-m)"}}>Override</button>
       </div>
+
 
       {/* ── Auto mode ── */}
       {data.sdltMode!=="manual"&&(
@@ -685,6 +728,7 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
           </div>
         </div>
       )}
+
 
       {/* ── Manual override — currency prefix + clearable zero ── */}
       {data.sdltMode==="manual"&&(
@@ -713,6 +757,7 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
   );
 }
 
+
 // ─── REV STREAM ───────────────────────────────────────────────────────────────
 function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
   return(<div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
@@ -739,6 +784,7 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
   </div>);
 }
 
+
 // ─── V MARK DRAW HELPER (jsPDF) ───────────────────────────────────────────────
 // Draws the V mark at (x,y) with given height in mm. Uses filled polygons.
 function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,number]){
@@ -761,6 +807,7 @@ function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,nu
   doc.triangle(x+inner[1][0],y+inner[1][1],x+inner[2][0],y+inner[2][1],x+inner[4][0],y+inner[4][1],"F");
   doc.triangle(x+inner[2][0],y+inner[2][1],x+inner[3][0],y+inner[3][1],x+inner[4][0],y+inner[4][1],"F");
 }
+
 
 // ─── PDF GENERATORS ───────────────────────────────────────────────────────────
 async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string){
@@ -907,6 +954,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const blue=[91,156,246] as [number,number,number];
   const isHotelAdv=assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv;
 
+
   // ── PAGE 1: COVER ──────────────────────────────────────────────────────────
   doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");
   doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
@@ -956,6 +1004,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
   doc.text("STRICTLY PRIVATE & CONFIDENTIAL",M,295.5);doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),W-M,295.5,{align:"right"});
 
+
   // ── PAGE 2: AI NARRATIVE ───────────────────────────────────────────────────
   doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
   const wrapText=(doc:any,text:string,x:number,startY:number,maxW:number,lineH:number)=>{
@@ -982,6 +1031,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
   doc.text("VALORA · Institutional Development Appraisal",M,295.5);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
 
+
   // ── PAGE 3: HOTEL ADVANCED INSTITUTIONAL FINANCIALS ────────────────────────
   if(isHotelAdv){
     doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
@@ -989,6 +1039,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     drawVMarkPDF(doc,M,iy-7,7,gold);
     doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,iy);
     doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("FINANCIAL SUMMARY — INSTITUTIONAL",W-M,iy,{align:"right"});iy+=14;
+
 
     // Per Key Metrics header
     doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("PER KEY METRICS",M,iy);
@@ -1012,6 +1063,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setTextColor(...white);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(String(v),x+3,y+11);
     });
     iy+=Math.ceil(keyMetrics.length/kCols)*18+10;
+
 
     // Cashflow table
     doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("INVESTOR CASHFLOW — YEAR BY YEAR",M,iy);
@@ -1049,6 +1101,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     });
     iy+=6;
 
+
     // Summary return cards
     doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("RETURNS SUMMARY",M,iy);
     doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,iy+1.5,W-M,iy+1.5);iy+=8;
@@ -1073,13 +1126,17 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setTextColor(...(c as [number,number,number]));doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(String(v),x+3,y+11);
     });
 
+
     doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
     doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
     doc.text("VALORA · Institutional Development Appraisal",M,295.5);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
   }
 
+
   doc.save(`Valora_Brochure_${(data.name||"Deal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
+
+
 
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
@@ -1196,6 +1253,7 @@ function AppraisalPage(){
     setStrategyPsfSuggesting(false);
   };
 
+
   const runFlipComps=async()=>{
     if(!data.location&&!data.purchasePrice)return;
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
@@ -1217,49 +1275,90 @@ function AppraisalPage(){
     if(!data.location)return;
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
     const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
-    const sqft=num(String(data.propertySqft||0));
-    const beds=data.bedrooms||"unknown";
+    const existSqft=num(String(data.existingAreaSqft||(!data.newAreaSqft?data.propertySqft:0)||0));
+    const newSqft=num(String(data.newAreaSqft||0));
+    const totalSqft=existSqft+newSqft||num(String(data.propertySqft||0));
     try{
-      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`You are a property data assistant. Provide residential property market data for a house flip investment analysis.
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`You are a property market analyst. Output ONLY a raw JSON object. No markdown, no code fences, no explanation. Start your response with { and end with }.
 
 Property details:
 - Location: ${data.location}
-- Size: ${sqft>0?sqft+"sqft":"unknown"}
+- Size: ${totalSqft>0?totalSqft+"sqft":"unknown"}
 - Purchase price: ${currSym}${data.purchasePrice||"unknown"}
+- Bedrooms: ${data.bedrooms||"unknown"}
 - Currency: ${data.currency||"GBP"}
 
-Respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
-{"comparables":[{"address":"Street, Area","price":350000,"sqft":850,"pricePsf":412,"bedrooms":3,"type":"Terraced","sold":"2024-Q3","notes":"Refurbished"},{"address":"Street, Area","price":380000,"sqft":920,"pricePsf":413,"bedrooms":3,"type":"Semi-detached","sold":"2024-Q2","notes":"Extended kitchen"}],"marketContext":"Brief 2-sentence market summary","avgPricePsf":410,"refurbUplift":{"low":25000,"high":45000,"notes":"Kitchen/bathroom focus"},"rentalComps":[{"address":"Street, Area","rentPcm":1800,"bedrooms":3,"type":"Terraced","notes":"Furnished"},{"address":"Street, Area","rentPcm":1950,"bedrooms":3,"type":"Semi-detached","notes":"Unfurnished"}],"avgRentPcm":1875}
+Schema:
+{"comparables":[{"address":"14 High St, ${data.location}","price":350000,"sqft":850,"pricePsf":412,"bedrooms":3,"type":"Terraced","sold":"2024-Q3","notes":"Refurbished"}],"marketContext":"Brief market summary.","avgPricePsf":410,"refurbUplift":{"low":25000,"high":50000,"notes":"Kitchen/bathroom focus"},"rentalComps":[{"address":"12 Church St, ${data.location}","rentPcm":1800,"bedrooms":3,"type":"Terraced","notes":"Furnished"}],"avgRentPcm":1800}
 
-Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your knowledge of ${data.location} property market. Do not include any text outside the JSON object.`})});
+Provide 4-5 sold comps and 3-4 rental comps with realistic figures for ${data.location}. Output ONLY the JSON object.`})});
       const text=await res.text();
-      // Parse JSON — the sensecheck API may wrap it
-      const jsonMatch=text.match(/\{[\s\S]*\}/);
-      if(!jsonMatch)throw new Error("No JSON in response");
-      const d=JSON.parse(jsonMatch[0]);
-      if(d.comparables||d.marketContext){setFlipComps(d);}
-      else if(d.flags){throw new Error("No comps data returned — try again");}
-      else{setFlipComps(d);}
-    }catch(e:any){setFlipCompsError(e.message||"Failed to fetch comps — try again");}
+      let parsed:any=null;
+      // Stage 1: direct parse — check if response has comparables or marketContext
+      try{
+        const d=JSON.parse(text);
+        if(d.comparables||d.marketContext){parsed=d;}
+        else if(d.summary){
+          const m=(d.summary||"").match(/\{[\s\S]*\}/);
+          if(m){try{const inner=JSON.parse(m[0]);if(inner.comparables)parsed=inner;}catch(e){}}
+        }
+      }catch(e){}
+      // Stage 2: find JSON block containing "comparables" key
+      if(!parsed){
+        const blocks=text.match(/\{[\s\S]*?"comparables"[\s\S]*?\}/g)||[];
+        for(const b of blocks){try{const o=JSON.parse(b);if(o.comparables){parsed=o;break;}}catch(e){}}
+      }
+      // Stage 3: find largest valid JSON object
+      if(!parsed){
+        let best="";
+        (text.match(/\{[\s\S]*?\}/g)||[]).forEach(b=>{try{JSON.parse(b);if(b.length>best.length)best=b;}catch(e){}});
+        if(best){try{const o=JSON.parse(best);if(o.comparables||o.marketContext)parsed=o;}catch(e){}}
+      }
+      if(parsed&&(parsed.comparables||parsed.marketContext)){setFlipComps(parsed);}
+      else{throw new Error("No comparable data returned — please try again.");}
+    }catch(e:any){setFlipCompsError(e.message||"Failed to fetch comparables — please try again");}
     setFlipCompsRunning(false);
   };
   const handleUrlImport=async()=>{
     if(!urlImport.trim())return;
     setUrlImporting(true);setUrlImportError(null);
+    const url=urlImport.trim();
+    let source="";
+    let propertyId="";
+    let inferredLocation="";
     try{
-      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Extract property details from this listing URL: ${urlImport}\n\nI cannot access URLs, but based on the URL pattern, extract what you can. For Rightmove URLs like rightmove.co.uk/properties/123, Zoopla URLs like zoopla.co.uk/for-sale/details/123, or Zillow URLs.\n\nRespond ONLY with JSON: {"purchasePrice":number,"propertySqft":number,"location":"...","bedrooms":number,"propertyType":"...","name":"...","confidence":"high|medium|low","notes":"..."}. If you cannot determine values, use null. Currency: GBP unless URL suggests otherwise.`})});
-      const d=await res.json();
-      // The sensecheck API returns flags/summary — we need to check if it returned our JSON
-      if(d.purchasePrice||d.location){
-        if(d.purchasePrice)set("purchasePrice",d.purchasePrice);
-        if(d.propertySqft)set("propertySqft",d.propertySqft);
-        if(d.location)set("location",d.location);
-        if(d.name)set("name",d.name);
-        setUrlImport("");
-      } else {
-        setUrlImportError("Could not extract details — enter manually or try a different URL format");
+      const u=new URL(url);
+      const host=u.hostname.replace("www.","");
+      if(host.includes("rightmove")){
+        source="Rightmove";
+        const m=url.match(/properties\/([0-9]+)/);
+        if(m)propertyId=m[1];
+      }else if(host.includes("zoopla")){
+        source="Zoopla";
+        const m=url.match(/details\/([0-9]+)/);
+        if(m)propertyId=m[1];
+        const locM=url.match(/\/for-sale\/(?:details\/)?([^/]+)/);
+        if(locM)inferredLocation=locM[1].replace(/-/g," ");
+      }else if(host.includes("zillow")){
+        source="Zillow";
+        const m=url.match(/([0-9]+)_zpid/);
+        if(m)propertyId=m[1];
+      }else if(host.includes("onthemarket")){
+        source="OnTheMarket";
+        const m=url.match(/details\/([a-z0-9-]+)/i);
+        if(m)propertyId=m[1];
+      }else{
+        source="Property listing";
       }
-    }catch(e:any){setUrlImportError("Import failed — please enter details manually");}
+    }catch(e){
+      setUrlImportError("Invalid URL format — please check and try again");
+      setUrlImporting(false);
+      return;
+    }
+    if(inferredLocation&&!data.location)set("location",inferredLocation);
+    const idLabel=propertyId?" (ID: "+propertyId+")":"";
+    setUrlImportError(source+idLabel+" identified. AI cannot access live listings — please enter price, size and location directly from the listing page."+(inferredLocation&&!data.location?" Location pre-filled from URL.":""));
+    setUrlImport("");
     setUrlImporting(false);
   };
   const runHotelComps=async()=>{
@@ -1273,6 +1372,7 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
     }catch(e:any){setHotelCompsError(e.message||"Failed to fetch comps");}
     setHotelCompsRunning(false);
   };
+
 
   const runStaticChecks=useCallback(()=>{
     setSenseError(null);
@@ -1468,6 +1568,7 @@ Location: ${data.location||"Not specified"}
 Currency: ${data.currency||"GBP"}
 ${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:`Programme: ${data.programmMonths} months`}
 
+
 Key Financials:
 - ${isHotelAdv?"Exit Value":assetType==="Flip"?"Sale Price":"GDV / Exit Value"}: ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)}
 - Total Investment: ${fmt(r.totalCost||r.totalInvestment||0,currSym)}
@@ -1497,6 +1598,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 :assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
 :""}
+
 
 Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt(hotelAdv.interestTotal,currSym)} total hold`:`LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100).toFixed(2)+"%":"N/A"}`}`.trim();
     try{
@@ -1585,6 +1687,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* GENERAL */}
             {activeTab==="general"&&(
               <div>
+
 
                 <div className="section-title">Project Details</div>
                 <div className="inp-row">
@@ -1820,6 +1923,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     );
                   })()}
+
 
                   {/* ── AI HOTEL COMPS ── */}
                   <div style={{marginTop:10}}>
@@ -2063,6 +2167,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   {urlImportError&&<div style={{fontSize:11,color:"var(--amber)",marginTop:6}}>{urlImportError}</div>}
                 </div>
 
+
                 {/* Exit Strategy */}
                 <div style={{marginBottom:20}}>
                   <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Exit Strategy</div>
@@ -2076,34 +2181,86 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </div>
                 </div>
 
+
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Property Size (sqft)</label><input className="inp" type="number" value={data.propertySqft||""} onChange={e=>set("propertySqft",e.target.value)} placeholder="e.g. 900"/></div>
-                </div>
-                {data.propertySqft>0&&data.purchasePrice>0&&(
-                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12,fontFamily:"var(--font-mono)"}}>
-                    Purchase price: <span style={{color:"var(--blue)"}}>{currencySymbol}{Math.round(num(String(data.purchasePrice))/num(String(data.propertySqft)))}/sqft</span>
+                  <div className="inp-group"><label className="inp-label">Bedrooms</label>
+                    <select className="inp" value={data.bedrooms||""} onChange={e=>set("bedrooms",e.target.value)}>
+                      <option value="">Unknown</option>
+                      {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} bed</option>)}
+                    </select>
                   </div>
-                )}
+                </div>
                 <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
 
-                <div className="section-title" style={{marginTop:24}}>Refurbishment</div>
+                {/* ── Dates & Programme ── */}
+                <div className="section-title" style={{marginTop:24}}>Dates & Programme</div>
+                <div className="inp-row-3">
+                  <div className="inp-group"><label className="inp-label">Refurb Start Date</label><input className="inp" type="date" value={data.refurbStartDate||""} onChange={e=>set("refurbStartDate",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Practical Completion</label><input className="inp" type="date" value={data.refurbEndDate||""} onChange={e=>set("refurbEndDate",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Target Sale Date</label><input className="inp" type="date" value={data.saleDate||""} onChange={e=>set("saleDate",e.target.value)}/></div>
+                </div>
+                {data.refurbStartDate&&data.saleDate&&(()=>{
+                  const start=new Date(data.refurbStartDate);
+                  const end=new Date(data.saleDate);
+                  const months=Math.max(0,Math.round((end.getTime()-start.getTime())/(1000*60*60*24*30.44)));
+                  const refurbEnd=data.refurbEndDate?new Date(data.refurbEndDate):null;
+                  const refurbMonths=refurbEnd?Math.max(0,Math.round((refurbEnd.getTime()-start.getTime())/(1000*60*60*24*30.44))):null;
+                  return(
+                    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+                      {refurbMonths!==null&&<div style={{padding:"5px 12px",background:"rgba(240,164,41,.07)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,fontSize:11}}><span style={{color:"var(--text-d)"}}>Refurb: </span><span style={{color:"var(--amber)",fontFamily:"var(--font-mono)",fontWeight:600}}>{refurbMonths}m</span></div>}
+                      <div style={{padding:"5px 12px",background:"rgba(91,156,246,.07)",border:"1px solid rgba(91,156,246,.2)",borderRadius:6,fontSize:11}}><span style={{color:"var(--text-d)"}}>Total hold to sale: </span><span style={{color:"var(--blue)",fontFamily:"var(--font-mono)",fontWeight:600}}>{months} months</span></div>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Existing Areas ── */}
+                <div className="section-title" style={{marginTop:8}}>Refurbishment — Existing Areas</div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Strip-out, kitchens, bathrooms, redecoration to existing floor area</div>
                 <div className="inp-row">
                   <div className="inp-group">
-                    <label className="inp-label">Refurb Budget ({currencySymbol})</label>
-                    <input className="inp" type="number" value={data.refurbBudget||""} onChange={e=>{set("refurbBudget",e.target.value);if(data.propertySqft>0)set("refurbPsf",Math.round(num(e.target.value)/num(String(data.propertySqft))));}} placeholder="Total budget"/>
+                    <label className="inp-label">Existing GIA (sqft)</label>
+                    <input className="inp" type="number" value={data.existingAreaSqft||(data.newAreaSqft?0:data.propertySqft)||""} onChange={e=>{const v=num(e.target.value);set("existingAreaSqft",e.target.value);set("propertySqft",v+num(String(data.newAreaSqft||0)));set("existingRefurbBudget",0);}} placeholder="e.g. 900"/>
                   </div>
                   <div className="inp-group">
                     <label className="inp-label">Refurb Cost (psf)</label>
-                    <input className="inp" type="number" value={data.refurbPsf||""} onChange={e=>{set("refurbPsf",e.target.value);if(data.propertySqft>0)set("refurbBudget",Math.round(num(e.target.value)*num(String(data.propertySqft))));}} placeholder="Cost per sqft"/>
+                    <input className="inp" type="number" value={data.existingRefurbPsf||data.refurbPsf||""} onChange={e=>{set("existingRefurbPsf",e.target.value);set("refurbPsf",e.target.value);set("existingRefurbBudget",0);}} placeholder="e.g. 80–120"/>
                   </div>
                 </div>
+                <div className="inp-group">
+                  <label className="inp-label">Budget Override ({currencySymbol}) — overrides psf when set</label>
+                  <input className="inp" type="number" value={num(String(data.existingRefurbBudget||0))>0?data.existingRefurbBudget:""} onChange={e=>set("existingRefurbBudget",e.target.value?num(e.target.value):0)} placeholder="Optional flat total"/>
+                </div>
+                {(()=>{const sqft=num(String(data.existingAreaSqft||(data.newAreaSqft?0:data.propertySqft)||0));const psf=num(String(data.existingRefurbPsf||data.refurbPsf||0));const ovr=num(String(data.existingRefurbBudget||0));const cost=ovr>0?ovr:sqft*psf;return cost>0?(<div style={{fontSize:11,color:"var(--gold)",fontFamily:"var(--font-mono)",marginBottom:8}}>Existing refurb: {fmt(cost,currencySymbol)}{sqft>0&&psf>0&&!ovr&&<span style={{color:"var(--text-d)",marginLeft:6}}>({sqft.toLocaleString()}sqft × {currencySymbol}{psf}/sqft)</span>}</div>):null;})()}
+
+                {/* ── New Build Areas ── */}
+                <div className="section-title" style={{marginTop:20}}>New Build Areas — Extensions / Loft / Outbuilding</div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Net new GIA added. Typically {currencySymbol}150–{currencySymbol}250/sqft+</div>
+                <div className="inp-row">
+                  <div className="inp-group">
+                    <label className="inp-label">New Area (sqft) — 0 if none</label>
+                    <input className="inp" type="number" value={data.newAreaSqft||""} onChange={e=>{const v=num(e.target.value);set("newAreaSqft",e.target.value);const existSqft=num(String(data.existingAreaSqft||(data.newAreaSqft?0:data.propertySqft)||0));set("propertySqft",existSqft+v);set("newBuildBudget",0);}} placeholder="e.g. 200"/>
+                  </div>
+                  <div className="inp-group">
+                    <label className="inp-label">New Build Cost (psf)</label>
+                    <input className="inp" type="number" value={data.newBuildPsf||""} onChange={e=>{set("newBuildPsf",e.target.value);set("newBuildBudget",0);}} placeholder="e.g. 180"/>
+                  </div>
+                </div>
+                <div className="inp-group">
+                  <label className="inp-label">New Build Budget Override ({currencySymbol})</label>
+                  <input className="inp" type="number" value={num(String(data.newBuildBudget||0))>0?data.newBuildBudget:""} onChange={e=>set("newBuildBudget",e.target.value?num(e.target.value):0)} placeholder="Optional flat total"/>
+                </div>
+                {(()=>{const sqft=num(String(data.newAreaSqft||0));const psf=num(String(data.newBuildPsf||0));const ovr=num(String(data.newBuildBudget||0));const cost=ovr>0?ovr:sqft*psf;return cost>0?(<div style={{fontSize:11,color:"var(--blue)",fontFamily:"var(--font-mono)",marginBottom:8}}>New build: {fmt(cost,currencySymbol)}{sqft>0&&psf>0&&!ovr&&<span style={{color:"var(--text-d)",marginLeft:6}}>({sqft.toLocaleString()}sqft × {currencySymbol}{psf}/sqft)</span>}</div>):null;})()}
+                {(()=>{const existSqft=num(String(data.existingAreaSqft||(data.newAreaSqft?0:data.propertySqft)||0));const newSqft=num(String(data.newAreaSqft||0));const existCost=num(String(data.existingRefurbBudget||0))>0?num(String(data.existingRefurbBudget)):existSqft*num(String(data.existingRefurbPsf||data.refurbPsf||0));const newCost=num(String(data.newBuildBudget||0))>0?num(String(data.newBuildBudget)):newSqft*num(String(data.newBuildPsf||0));const totalSqft=existSqft+newSqft;const totalCost=existCost+newCost;if(totalCost<=0)return null;return(<div style={{background:"rgba(201,168,76,.06)",border:"1px solid var(--gold-border)",borderRadius:8,padding:"10px 14px",marginBottom:4,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}><div><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:2}}>Total Refurb + New Build</div><div style={{display:"flex",gap:12,fontSize:10,color:"var(--text-d)",flexWrap:"wrap"}}>{totalSqft>0&&<span>{totalSqft.toLocaleString()} sqft</span>}{newSqft>0&&<span style={{color:"var(--blue)"}}>+{newSqft.toLocaleString()}sqft new</span>}{totalSqft>0&&<span style={{fontFamily:"var(--font-mono)"}}>{currencySymbol}{Math.round(totalCost/totalSqft)}/sqft blended</span>}</div></div><div style={{fontFamily:"var(--font-mono)",color:"var(--gold)",fontSize:16,fontWeight:600}}>{fmt(totalCost,currencySymbol)}</div></div>);})()}
+
+                <div className="inp-row">
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                 </div>
                 <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
+
 
                 <div className="section-title" style={{marginTop:24}}>{(data.flipMode||"sell")==="hold"?"GDV / Refinance Value":"Sale"}</div>
                 <div className="inp-row">
@@ -2140,6 +2297,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     )}
                   </>
                 )}
+
 
                 {/* Live cost summary */}
                 <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
@@ -2190,12 +2348,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     </div>
 
+
                     {/* All Equity — no debt fields */}
                     {(data.capStructure||"single")==="equity"&&(
                       <div style={{padding:"16px",background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
                         <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
                       </div>
                     )}
+
 
                     {/* Single Facility */}
                     {(data.capStructure||"single")==="single"&&(
@@ -2214,6 +2374,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </>
                     )}
+
 
                     {/* Dual Facility */}
                     {(data.capStructure||"single")==="dual"&&(
@@ -2242,6 +2403,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </>
                     )}
 
+
                     {/* Full Stack */}
                     {(data.capStructure||"single")==="fullstack"&&(
                       <>
@@ -2262,6 +2424,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </>
                     )}
 
+
                     {/* Optional lines */}
                     {(data.capStructure||"single")!=="equity"&&(
                       <div style={{marginTop:16,display:"flex",gap:16,flexWrap:"wrap"}}>
@@ -2272,6 +2435,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost||0} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:120}}/>}
                       </div>
                     )}
+
 
                     {/* Finance summary */}
                     {hotelAdv&&(data.capStructure||"single")!=="equity"&&(
@@ -2525,6 +2689,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </>
                 )}
 
+
                 {/* Undistributed expenses — Advanced */}
                 <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
                 <div className="section-title">Undistributed Expenses</div>
@@ -2548,6 +2713,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </div>
               </div>
             )}
+
 
             {/* CASHFLOW HOTEL */}
             {activeTab==="cashflow"&&assetType==="Hotel"&&(
@@ -2679,6 +2845,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         ))}
                       </div>
 
+
                       {/* Entry yields */}
                       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
                         <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
@@ -2691,6 +2858,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </div>
                     </div>
+
 
                     {/* Year-by-year investor cashflow */}
                     <div style={{marginBottom:24}}>
@@ -2802,6 +2970,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   );
                 })()}
 
+
                                 {assetType==="BTR"&&sensMatrix&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
@@ -2842,10 +3011,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   const sharedContingency=num(String(data.contingencyPct||5));
                   const sharedBenchmarkRate=num(String(data.benchmarkRate||3.97));
 
+
                   // Strategy definitions — same land, same build, different revenue model
                   // Strategy comparison — BTR vs BTS
                   // BTS sale price derived from BTR rents capitalised at selected yield
                   // This gives a genuine apples-to-apples comparison on the same site
+
 
                   // Derive BTS units from BTR units
                   // Priority: 1) Manual psf input  2) Yield capitalisation  3) Defaults
@@ -2865,9 +3036,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       })
                     :DEFAULTS.BTS.units;
 
+
                   // For BTS use actual site area and units, otherwise fall back to defaults
                   const btsSiteArea=sharedSite>0?sharedSite:110000;
                   const btsBuildPsf=sharedBuildPsf>0?sharedBuildPsf:260;
+
 
                   const strategies=[
                     {
@@ -2897,10 +3070,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     },
                   ];
 
+
                   const results=strategies.map(s=>({...s, r:calcAll(s.key,s.data)}));
+
 
                   // Find best strategy by IRR
                   const bestIRR=Math.max(...results.map(s=>s.r.irr||s.r.annualisedIrr||0));
+
 
                   return(
                     <div style={{marginBottom:28}}>
@@ -2980,6 +3156,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                                 </div>
                               </div>
 
+
                               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                                 {[
                                   {label:"GDV / Exit",value:gdv>0?fmt(gdv,currSym2):"—",color:"var(--text)"},
@@ -3004,6 +3181,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </div>
                   );
                 })()}
+
 
                                 <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20}}>
                   <div className="section-title" style={{marginBottom:16}}>Share & Export</div>
