@@ -135,9 +135,7 @@ export default function WorkspacePage() {
   }, [router]);
 
   const openProject = (project: any) => {
-    const latest = (project.appraisals||[]).sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())[0];
-    if (latest) router.push(`/appraisal?project=${project.id}&appraisal=${latest.id}`);
-    else router.push(`/appraisal?project=${project.id}`);
+    router.push(`/workspace/${project.id}`);
   };
 
   const shareProject = async (projectId: string, memberIds: string[]) => {
