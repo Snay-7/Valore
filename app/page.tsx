@@ -486,434 +486,382 @@ export default function App() {
 
 function Landing({onLogin,onPage,scrolled}:any) {
   const [stickyVisible,setStickyVisible]=useState(false);
-  const [videoOpen,setVideoOpen]=useState(false);
-  useEffect(()=>{ const fn=()=>setStickyVisible(window.scrollY>600); window.addEventListener("scroll",fn,{passive:true}); return()=>window.removeEventListener("scroll",fn); },[]);
+  const [openFaq,setOpenFaq]=useState<any>(null);
+  useEffect(()=>{ const fn=()=>setStickyVisible(window.scrollY>500); window.addEventListener("scroll",fn,{passive:true}); return()=>window.removeEventListener("scroll",fn); },[]);
+
+  const PLANS=[
+    {name:"Free",price:"$0",period:"",desc:"Start modelling today. No card needed.",features:["3 active projects","All real estate models","Monthly cashflow engine","DSCR / ICR & equity multiple","Deal Pipeline & Tasks","Plain PDF export"],featured:false,cta:"Start for free →"},
+    {name:"Pro",price:"$149",period:"/mo",desc:"When your deal needs an audience.",features:["Unlimited projects","All real estate models","Monthly cashflow engine","DSCR / ICR, MOIC & break-even","AI Brochure PDF","AI Sense Check","Live investor share links","Priority support"],featured:true,cta:"Start free trial →"},
+    {name:"Enterprise",price:"$499",period:"/mo",desc:"For firms and investment teams.",features:["Everything in Pro","Full team workspace with roles","Multi-firm support","White label PDF exports","Dedicated onboarding","SLA support"],featured:false,cta:"Start free trial →"},
+  ];
+
+  const FAQS=[
+    {q:"What is property development appraisal software?",a:"Property development appraisal software helps developers, investors and advisors model the financial viability of a real estate deal — including cashflows, returns, debt, tax and sensitivity analysis. Valora replaces the spreadsheet with a structured, auditable model built specifically for development finance."},
+    {q:"Which real estate models does Valora include?",a:"Valora includes models for Build to Rent (BTR), Build to Sell (BTS), Hotel acquisition and repositioning, and House Flip. Industrial, Commercial and Mixed-Use models are coming soon. All models are available on every plan — Free, Pro and Enterprise."},
+    {q:"How is Valora different from a spreadsheet?",a:"Spreadsheets break. Formulas get overwritten. Versions multiply. Valora gives you a purpose-built development finance model with automatic DSCR checking, live sensitivity matrices, AI Sense Check, and live share links — all in one place, always up to date."},
+    {q:"Can I share my appraisal with investors or lenders?",a:"Yes. Pro and Enterprise plans include live share links. Anyone with the link sees your latest numbers in real time — no email attachments, no stale versions, no 'which model did you send?'"},
+    {q:"What is DSCR and does Valora calculate it automatically?",a:"DSCR (Debt Service Cover Ratio) measures how comfortably your deal services its debt. Valora calculates DSCR and ICR automatically and flags when you drop below the standard 1.25× lender covenant — before your credit committee does."},
+    {q:"Is Valora suitable for smaller developers and investors?",a:"Yes. The Free plan is designed for individual developers, investors and deal sourcers. You get three full appraisals, all models, and all the core analysis tools. Upgrade to Pro when your deal needs a live investor link or unlimited projects."},
+    {q:"Do I need a credit card to start?",a:"No. The Free plan requires no payment details. Create an account and model your first deal in under 5 minutes."},
+  ];
+
   return (
-    <div style={{paddingBottom:72}}>
+    <div itemScope itemType="https://schema.org/SoftwareApplication">
+      {/* ── SEO SCHEMA ── */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({
+        "@context":"https://schema.org",
+        "@graph":[
+          {"@type":"SoftwareApplication","name":"Valora Platform","applicationCategory":"BusinessApplication","operatingSystem":"Web",
+           "offers":[{"@type":"Offer","price":"0","priceCurrency":"USD","name":"Free"},{"@type":"Offer","price":"149","priceCurrency":"USD","name":"Pro"},{"@type":"Offer","price":"499","priceCurrency":"USD","name":"Enterprise"}],
+           "description":"Property development appraisal software for real estate developers, investors and advisors. Model BTR, BTS, hotel and residential deals with institutional-grade cashflow analysis, DSCR checking, AI Sense Check and live investor share links.",
+           "url":"https://valoraplatform.io","image":"https://valoraplatform.io/og-image.png",
+           "aggregateRating":{"@type":"AggregateRating","ratingValue":"4.9","reviewCount":"47"}},
+          {"@type":"FAQPage","mainEntity":FAQS.map(f=>({
+            "@type":"Question","name":f.q,
+            "acceptedAnswer":{"@type":"Answer","text":f.a}
+          }))}
+        ]
+      })}}/>
+
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
 
-
-      {/* HERO */}
-      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
-        <div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:`url(${SCREENSHOTS.analysis})`,backgroundSize:"cover",backgroundPosition:"top center",filter:"blur(3px) brightness(0.15) saturate(0.6)",transform:"scale(1.05)"}}/>
-        <div className="glow" style={{width:900,height:700,top:"-10%",left:"30%",background:"radial-gradient(ellipse,rgba(201,168,76,.05) 0%,transparent 65%)",zIndex:0}}/>
-        <div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:"linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px)",backgroundSize:"64px 64px",pointerEvents:"none"}}/>
+      {/* ══════════════════════════════════════
+          SECTION 1 — HERO
+      ══════════════════════════════════════ */}
+      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}} aria-label="Property development appraisal software hero">
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 65% 45%,rgba(201,168,76,.055) 0%,transparent 58%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px)",backgroundSize:"64px 64px",pointerEvents:"none"}}/>
         <div className="container" style={{position:"relative",zIndex:1}}>
-          <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"54% 46%",gap:64,alignItems:"center"}}>
+          <div className="hero-grid" style={{display:"grid",gridTemplateColumns:"52% 48%",gap:72,alignItems:"center"}}>
             <div>
-              <div className="fu" style={{marginBottom:20,animationDelay:".1s"}}>
-                <div className="section-label">Deal Intelligence Platform</div>
+              {/* Eyebrow — SEO keyword signal */}
+              <div className="fu" style={{marginBottom:18,animationDelay:".1s"}}>
+                <span style={{fontSize:9,letterSpacing:".18em",textTransform:"uppercase",color:"var(--gold)",display:"inline-flex",alignItems:"center",gap:10}}>
+                  <span style={{width:20,height:1,background:"var(--gold)",display:"inline-block"}}/>
+                  Property Development Appraisal Software
+                </span>
               </div>
-              <h1 className="fu" style={{fontFamily:"var(--font-display)",fontSize:"clamp(42px,5.5vw,76px)",fontWeight:300,lineHeight:1.03,marginBottom:22,letterSpacing:"-.01em",animationDelay:".2s"}}>
-                Built for deals<br/>that <em className="grad-text" style={{fontStyle:"italic"}}>demand certainty.</em>
+
+              {/* H1 — primary keyword embedded naturally */}
+              <h1 className="fu" itemProp="name" style={{fontFamily:"var(--font-display)",fontSize:"clamp(42px,5.2vw,76px)",fontWeight:300,lineHeight:1.03,marginBottom:22,letterSpacing:"-.01em",animationDelay:".2s"}}>
+                Know if the deal works.<br/><em style={{fontStyle:"italic",background:"linear-gradient(135deg,#e2c97e 0%,#c9a84c 50%,#a07030 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Before anyone else does.</em>
               </h1>
-              <p className="fu" style={{fontSize:17,color:"var(--text-m)",lineHeight:1.85,maxWidth:500,marginBottom:28,animationDelay:".3s",fontWeight:300}}>
-                Institutional real estate underwriting — in minutes, not spreadsheets.
+
+              <p className="fu" itemProp="description" style={{fontSize:18,color:"var(--text-m)",lineHeight:1.8,maxWidth:500,marginBottom:14,animationDelay:".3s",fontWeight:300}}>
+                Valora is real estate underwriting infrastructure for property professionals. Stop wasting hours on deals that should have been killed in 10 minutes.
               </p>
-              <div className="fu" style={{display:"flex",flexDirection:"column",gap:11,marginBottom:32,animationDelay:".35s"}}>
-                {[
-                  ["◈","Model any deal — BTR, BTS, Hotel, Flip","True monthly cashflows, DSCR, IRR, sensitivity matrices."],
-                  ["◫","Share with confidence","Live links for investors and lenders. They always see the latest version."],
-                  ["◉","Work as a team","Shared workspace, tasks, notes and role permissions — everyone on the same deal."],
-                ].map(([icon,title,desc])=>(
-                  <div key={title} style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-                    <span style={{color:"var(--gold)",fontSize:11,marginTop:2,flexShrink:0}}>{icon}</span>
-                    <span style={{fontSize:14,color:"var(--text-m)",lineHeight:1.65}}><strong style={{color:"var(--text)",fontWeight:500}}>{title}</strong> — {desc}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:40,animationDelay:".4s"}}>
-                <button className="btn-primary" onClick={onLogin} style={{padding:"14px 32px"}}>Make your first appraisal →</button>
-                <button className="btn-ghost" onClick={()=>setVideoOpen(true)} style={{padding:"13px 24px",borderColor:"rgba(201,168,76,.22)",color:"var(--gold)",gap:10}}>
-                  <div style={{width:20,height:20,borderRadius:"50%",background:"var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <svg width="7" height="9" viewBox="0 0 7 9" fill="#06070a"><polygon points="0,0 7,4.5 0,9"/></svg>
-                  </div>
-                  Watch 5 min demo
+
+              {/* Brand trust line */}
+              <p className="fu" style={{fontSize:13,color:"var(--gold)",fontFamily:"var(--font-display)",fontStyle:"italic",fontWeight:400,marginBottom:32,animationDelay:".35s",letterSpacing:".01em"}}>
+                Built from real models trusted on $100m+ of deals.
+              </p>
+
+              <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36,animationDelay:".4s"}}>
+                <button className="btn-primary" onClick={onLogin} style={{padding:"15px 40px",fontSize:12}} aria-label="Start free property development appraisal">
+                  Start for free →
                 </button>
-                <button className="btn-ghost" style={{padding:"13px 22px",borderColor:"var(--gold-border)",color:"var(--gold)"}} onClick={()=>window.open(CALENDLY,"_blank")}>
+                <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"14px 26px",borderColor:"var(--gold-border)",color:"var(--gold)",gap:8}} aria-label="Book a Valora demo">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Book a Demo
+                  Book a demo
                 </button>
               </div>
-              <div className="fu" style={{display:"flex",gap:32,paddingTop:28,borderTop:"1px solid var(--border)",flexWrap:"wrap",animationDelay:".5s"}}>
-                {[["10","Benchmark rates"],["14 days","Full enterprise trial"],["< 5 min","To your first appraisal"],["99.9%","Platform uptime"]].map(([v,l])=>(
-                  <div key={l}><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:"var(--gold-l)",letterSpacing:"-.01em"}}>{v}</div><div style={{fontSize:9,color:"var(--text-d)",marginTop:3,letterSpacing:".1em",textTransform:"uppercase"}}>{l}</div></div>
-                ))}
+
+              <div className="fu" style={{fontSize:10,color:"var(--text-d)",letterSpacing:".08em",textTransform:"uppercase",animationDelay:".5s"}}>
+                Free forever · No credit card · First appraisal in 5 minutes
               </div>
             </div>
-            <div className="hero-right" style={{display:"flex",justifyContent:"center",alignItems:"center"}}>
-              <AssetSelectorCard onLogin={onLogin}/>
+
+            {/* Product screenshot */}
+            <div className="fu" style={{animationDelay:".3s"}}>
+              <div style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--border-m)",boxShadow:"0 32px 80px rgba(0,0,0,.65)",position:"relative"}}>
+                <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{display:"flex",gap:5}}>{["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:9,height:9,borderRadius:"50%",background:c,opacity:.55}}/>)}</div>
+                  <div style={{flex:1,background:"var(--bg3)",borderRadius:3,padding:"4px 12px",fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",maxWidth:260,margin:"0 auto",textAlign:"center",letterSpacing:".06em"}}>app.valoraplatform.io</div>
+                </div>
+                <img src="/screenshots/analysis-btr.png" alt="Valora property development appraisal software dashboard — BTR cashflow analysis with DSCR and IRR" style={{width:"100%",display:"block",objectFit:"cover",maxHeight:440,objectPosition:"top"}} onError={e=>{(e.target as HTMLImageElement).parentElement!.style.minHeight="380px";(e.target as HTMLImageElement).parentElement!.style.background="var(--bg2)";(e.target as HTMLImageElement).style.display="none";}}/>
+                <div style={{position:"absolute",bottom:0,left:0,right:0,height:60,background:"linear-gradient(transparent,rgba(6,7,10,.6))",pointerEvents:"none"}}/>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-
-      {/* TICKER */}
-      <div className="ticker-wrap">
-        <div className="ticker-inner">
-          {[...Array(2)].map((_,ri)=>["True Monthly CF","Residual Land Value","Live SONIA Curve","Sensitivity Matrices","DSCR / ICR","Equity Multiple","3-Tier Waterfall","AI Sense Check","AI Brochures","Team Workspace","Transfer Tax Engine","Deal Pipeline","Multi-Currency","Levered IRR","Break-even Analysis","Share Links"].map((item,i)=>(
-            <span key={`${ri}-${i}`} className="ticker-item"><span style={{color:"var(--gold)",fontSize:8}}>◆</span>{item}</span>
-          )))}
+      {/* ══════════════════════════════════════
+          SECTION 2 — TRUST BAR
+      ══════════════════════════════════════ */}
+      <div style={{borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--bg1)",padding:"22px 0"}}>
+        <div className="container">
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:32,flexWrap:"wrap"}}>
+            {[["$100m+","Deals modelled"],["12","Countries"],["< 5 min","First appraisal"],["99.9%","Uptime"]].map(([v,l])=>(
+              <div key={l} style={{textAlign:"center"}}>
+                <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:"var(--gold-l)",letterSpacing:"-.01em"}}>{v}</div>
+                <div style={{fontSize:9,color:"var(--text-d)",marginTop:2,letterSpacing:".1em",textTransform:"uppercase"}}>{l}</div>
+              </div>
+            ))}
+            <div style={{width:1,height:36,background:"var(--border)",margin:"0 8px"}}/>
+            {["Harrington Capital","Meridian Develop.","Atlas Real Estate","Vantage Group","Solus Ventures"].map(name=>(
+              <div key={name} style={{padding:"5px 16px",borderRadius:3,border:"1px solid var(--border)",fontSize:10,color:"var(--text-d)",letterSpacing:".04em",whiteSpace:"nowrap"}}>{name}</div>
+            ))}
+          </div>
         </div>
       </div>
 
-
-      {/* PROBLEM */}
-      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+      {/* ══════════════════════════════════════
+          SECTION 3 — THE 5 PROBLEMS
+      ══════════════════════════════════════ */}
+      <section style={{padding:"100px 0"}} aria-labelledby="problems-heading">
         <div className="container">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"flex-start"}} className="problem-inner">
-            <div className="reveal-l">
-              <div className="section-label" style={{marginBottom:24}}>The Problem</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(32px,4vw,58px)",fontWeight:300,lineHeight:1.06,marginBottom:22}}>
-                The spreadsheet era<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>cost you more than you know.</em>
-              </h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,marginBottom:20,fontWeight:300}}>
-                Valora was born from hours spent in rooms where the numbers didn't hold up. Every deal starts with a model — and for too long that model has lived in a spreadsheet built under pressure, passed around, quietly broken.
-              </p>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,fontWeight:300}}>
-                We took everything institutional finance demands and made it accessible — without sacrificing the rigour that serious deals require.
-              </p>
-            </div>
-            <div className="reveal-r" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:1,background:"var(--border)",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden"}}>
-              {[
-                {title:"The hidden IRR error",body:"A formula broken three tabs deep. A deal that looked like 18% returning 11%. You've been there — or you will be."},
-                {title:"The 2am rebuild",body:"Lender changes their terms at 5pm. You're rebuilding the model at midnight. It shouldn't take this long."},
-                {title:"The room you weren't ready for",body:"Investor asks about sensitivity to exit yield. Your model doesn't have a matrix. You wing it. It shows."},
-                {title:"The version no one trusts",body:"Five people. Five versions of the file. Nobody knows which numbers are live. Decisions made on stale data."},
-              ].map((card,i)=>(
-                <div key={i} style={{background:"var(--bg1)",padding:"30px 26px"}}>
-                  <div style={{width:6,height:6,borderRadius:1,background:"var(--gold)",opacity:.35,marginBottom:16}}/>
-                  <div style={{fontFamily:"var(--font-display)",fontSize:17,fontWeight:500,color:"var(--text)",marginBottom:10,lineHeight:1.3}}>{card.title}</div>
-                  <div style={{fontSize:13,color:"var(--text-d)",lineHeight:1.75}}>{card.body}</div>
-                </div>
-              ))}
-            </div>
+          <div className="reveal" style={{maxWidth:600,marginBottom:64}}>
+            <span style={{fontSize:9,letterSpacing:".18em",textTransform:"uppercase",color:"var(--gold)",display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+              <span style={{width:24,height:1,background:"var(--gold)",flexShrink:0}}/>
+              Why Valora exists
+            </span>
+            <h2 id="problems-heading" style={{fontFamily:"var(--font-display)",fontSize:"clamp(30px,3.5vw,52px)",fontWeight:300,lineHeight:1.06,marginBottom:20}}>
+              Five expensive problems<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>every deal runs into.</em>
+            </h2>
+            <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,fontWeight:300}}>Most underwriting lives in spreadsheets, WhatsApp messages and memory. That's not infrastructure — that's risk. Valora was built to fix it.</p>
           </div>
-        </div>
-      </section>
-
-
-      {/* PRODUCT SHOWCASE */}
-      <ProductShowcase/>
-      <div className="container"><CTAStrip onLogin={onLogin} text="Ready to see it in action?" btn="Make your first appraisal →"/></div>
-
-
-      {/* VIDEO */}
-      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
-        <div className="container">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}} className="video-section-grid">
-            <div className="reveal-l">
-              <div className="section-label" style={{marginBottom:24}}>See It In Action</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,48px)",fontWeight:300,lineHeight:1.06,marginBottom:20}}>A real BTR deal,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>built in 5 minutes</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,marginBottom:28,fontWeight:300}}>Watch a Castlefield, Manchester BTS deal built from scratch — land cost, unit mix, cashflow engine, sensitivity matrix and AI Sense Check. No spreadsheet. No formula errors. Institutional-grade numbers, live.</p>
-              <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:32}}>
-                {[["◈","Land cost & property tax","Set up in seconds, auto-calculated"],["◈","Unit mix & monthly cashflow","S-curve drawdown, interest rolled live"],["◈","Sensitivity matrix","45 scenarios, RAG coded instantly"],["◈","AI Sense Check","Benchmarked against market data"]].map(([icon,title,sub])=>(
-                  <div key={title} style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-                    <span style={{color:"var(--gold)",fontSize:10,marginTop:3,flexShrink:0}}>{icon}</span>
-                    <span style={{fontSize:14,color:"var(--text-m)",lineHeight:1.65}}><strong style={{color:"var(--text)",fontWeight:500}}>{title}</strong> — {sub}</span>
-                  </div>
-                ))}
-              </div>
-              <button className="btn-primary" onClick={()=>setVideoOpen(true)} style={{padding:"13px 28px",gap:12}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:"#06070a",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <svg width="8" height="10" viewBox="0 0 8 10" fill="#c9a84c"><polygon points="0,0 8,5 0,10"/></svg>
-                </div>
-                Watch Now — 5 min
-              </button>
-            </div>
-            <div className="reveal-r" style={{position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid rgba(201,168,76,.12)",cursor:"pointer",boxShadow:"0 24px 64px rgba(0,0,0,.6)"}} onClick={()=>setVideoOpen(true)}>
-              <video src="/videos/how-to-appraisal.mp4" style={{width:"100%",display:"block"}} preload="metadata"/>
-              <div style={{position:"absolute",inset:0,background:"rgba(6,7,10,.5)",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .2s"}} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="rgba(6,7,10,.3)"} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="rgba(6,7,10,.5)"}>
-                <div style={{width:68,height:68,borderRadius:"50%",background:"var(--gold)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 32px rgba(201,168,76,.4)"}}>
-                  <svg width="22" height="26" viewBox="0 0 22 26" fill="#06070a"><polygon points="0,0 22,13 0,26"/></svg>
-                </div>
-              </div>
-              <div style={{position:"absolute",bottom:12,right:12,background:"rgba(6,7,10,.85)",border:"1px solid rgba(255,255,255,.07)",borderRadius:3,padding:"4px 10px",fontFamily:"var(--font-mono)",fontSize:10,color:"var(--text-d)",letterSpacing:".04em"}}>5:00</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* BUILT FOR */}
-      <BuiltForSection onLogin={onLogin}/>
-
-
-      {/* FEATURES */}
-      <section id="features" style={{padding:"100px 0"}}>
-        <div className="container">
-          <div className="reveal" style={{textAlign:"center",marginBottom:72}}>
-            <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>Platform Capabilities</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(32px,4vw,56px)",fontWeight:300,lineHeight:1.06,marginBottom:18}}>Everything you need,<br/><em className="grad-text" style={{fontStyle:"italic"}}>precisely engineered</em></h2>
-            <p style={{fontSize:15,color:"var(--text-m)",maxWidth:480,margin:"0 auto",lineHeight:1.8,fontWeight:300}}>Built from real institutional appraisal models. Every calculation validated against live deal flow across BTR, BTS, hotel and residential.</p>
-          </div>
-          <div className="features-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-            {FEATURES.map((f,i)=>(
-              <div key={i} className="card-feature reveal" style={{animationDelay:`${i*0.04}s`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
-                  <div style={{fontSize:16,color:"var(--gold)",opacity:.65,lineHeight:1}}>{f.icon}</div>
-                  <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg3)",padding:"3px 9px",borderRadius:2,letterSpacing:".1em",textTransform:"uppercase"}}>{f.tag}</span>
-                </div>
-                <h3 style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:500,marginBottom:10,color:"var(--text)",lineHeight:1.2}}>{f.label}</h3>
-                <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-          <CTAStrip onLogin={onLogin} text="Ready to replace your spreadsheet?" btn="Make your first appraisal →"/>
-        </div>
-      </section>
-
-
-      {/* WORKSPACE */}
-      <section id="workspace" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
-        <div className="container">
-          <div className="workspace-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
-            <div className="reveal-l">
-              <div className="badge badge-green" style={{marginBottom:20}}>Team Collaboration</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,48px)",fontWeight:300,lineHeight:1.06,marginBottom:20}}>Your whole team,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one workspace</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,marginBottom:32,fontWeight:300}}>Invite your analysts, asset managers and JV partners into a shared workspace. Everyone works on the same live appraisal — no more emailing spreadsheet versions.</p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:28}}>
-                {[["Shared appraisals","Every team member sees the live model."],["Role permissions","Viewer, editor and admin roles."],["Notes & activity","Threaded notes and full activity log."],["Task management","Assign tasks linked directly to the deal."],["Invite by email","Add team members instantly."],["Multi-firm support","Separate workspaces per firm or fund."]].map(([title,sub],i)=>(
-                  <div key={i} className="workspace-card">
-                    <div style={{fontSize:12,fontWeight:500,color:"var(--text)",marginBottom:4}}>{title}</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",lineHeight:1.55}}>{sub}</div>
-                  </div>
-                ))}
-              </div>
-              <button className="btn-primary" onClick={onLogin} style={{padding:"12px 24px"}}>Make your first appraisal →</button>
-            </div>
-            <div className="reveal-r" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,paddingBottom:14,borderBottom:"1px solid var(--border)"}}>
-                <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>38 Albermarle Street</div><div style={{fontSize:10,color:"var(--text-d)",marginTop:2,letterSpacing:".04em"}}>BTR · London W1 · 4 members</div></div>
-                <div style={{display:"flex"}}>{["JH","PS","MA","SC"].map((ini,i)=>(<div key={i} style={{width:28,height:28,borderRadius:"50%",background:"var(--gold-bg)",border:"2px solid var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:600,color:"var(--gold)",marginLeft:i>0?-8:0,fontFamily:"var(--font-mono)"}}>{ini}</div>))}</div>
-              </div>
-              <WorkspaceDemo/>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* PIPELINE */}
-      <section style={{padding:"100px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
-        <div className="container">
-          <div className="pipeline-section" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:64,alignItems:"flex-start",marginBottom:48}}>
-            <div className="reveal-l">
-              <div className="section-label" style={{marginBottom:24}}>Deal Pipeline</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,48px)",fontWeight:300,lineHeight:1.06,marginBottom:18}}>Your entire deal pipeline,<br/><em style={{color:"var(--gold)",fontStyle:"italic"}}>one place</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,marginBottom:28,fontWeight:300}}>Kanban pipeline boards with customisable deal stages. Tasks, notes and activity feed on every deal. Every appraisal linked, always in sync with your team.</p>
-              <button className="btn-primary" onClick={onLogin} style={{padding:"12px 24px"}}>Make your first appraisal →</button>
-            </div>
-            <div className="reveal-r" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 24px",alignContent:"start",paddingTop:8}}>
-              {[["Customisable stages","Name your stages to match your workflow."],["Tasks & notes","Add tasks with priorities to every deal."],["Activity feed","Automatic log of every stage move."],["Multiple scenarios","Link several appraisals to one deal card."]].map(([title,sub],i)=>(
-                <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-                  <div style={{width:24,height:24,borderRadius:4,background:"var(--gold-bg)",border:"1px solid var(--gold-border)",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--gold)",fontSize:10,flexShrink:0,marginTop:1}}>✓</div>
-                  <div><div style={{fontSize:12,fontWeight:500,color:"var(--text)",marginBottom:3}}>{title}</div><div style={{fontSize:11,color:"var(--text-d)",lineHeight:1.55}}>{sub}</div></div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"20px 20px 24px",overflowX:"auto"}}>
-            <div style={{minWidth:560}}><PipelineMock/></div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* ASSET TYPES */}
-      <section style={{padding:"100px 0"}}>
-        <div className="container">
-          <div className="reveal" style={{textAlign:"center",marginBottom:60}}>
-            <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>Asset Coverage</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,lineHeight:1.06}}>Four specialist models.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Not a generic spreadsheet.</em></h2>
-          </div>
-          <div className="asset-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:2,background:"var(--border)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}} className="three-col">
             {[
-              {abbr:"BTR",color:"var(--gold)",label:"Build to Rent",desc:"OMR/DMR unit tables, NIY, exit yields, OpEx, stabilisation void ramp, DSCR/ICR, promote waterfall, break-even yield, RLV",badge:"Most Popular"},
-              {abbr:"BTS",color:"var(--blue)",label:"Build to Sell",desc:"psf sales pricing, unit absorption schedule, phased drawdowns, agent fees, progressive loan repayment, break-even psf",badge:""},
-              {abbr:"HTL",color:"var(--amber)",label:"Hotel Acquisition",desc:"ADR, occupancy, RevPAR, EBITDA by stream, cap rate, CapEx budget, DSCR/ICR, sensitivity matrices",badge:""},
-              {abbr:"FLP",color:"var(--green)",label:"House Flip",desc:"Purchase price, transfer tax, refurb budget, bridging finance, hold period, ROI on equity deployed, equity multiple",badge:""},
-            ].map((t,i)=>(
-              <div key={i} className="reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:24,position:"relative",transition:"border-color .25s,transform .25s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=t.color+"40";e.currentTarget.style.transform="translateY(-2px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="translateY(0)"}}>
-                {t.badge&&<div className="badge" style={{position:"absolute",top:14,right:14,fontSize:8}}>{t.badge}</div>}
-                <div style={{width:42,height:42,borderRadius:8,background:t.color+"0e",border:`1px solid ${t.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:t.color,fontFamily:"var(--font-mono)",marginBottom:18,letterSpacing:".06em"}}>{t.abbr}</div>
-                <div style={{fontFamily:"var(--font-display)",fontSize:19,fontWeight:500,color:"var(--text)",marginBottom:10,lineHeight:1.2}}>{t.label}</div>
-                <div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.7,marginBottom:18}}>{t.desc}</div>
-                <button onClick={onLogin} style={{background:"transparent",border:`1px solid ${t.color}2a`,borderRadius:3,color:t.color,fontSize:9,padding:"6px 14px",cursor:"pointer",fontFamily:"var(--font-body)",letterSpacing:".1em",textTransform:"uppercase",transition:"all .2s"}} onMouseEnter={e=>{(e.target as HTMLElement).style.background=t.color+"10"}} onMouseLeave={e=>{(e.target as HTMLElement).style.background="transparent"}}>Try {t.abbr} model →</button>
+              {no:"01",problem:"Too much time on deals that should die in 10 minutes",solution:"Valora gives you a structured go / no-go in minutes — not after a full model build.",color:"var(--red)"},
+              {no:"02",problem:"Good deals analysed too slowly",solution:"By the time the numbers are ready, the deal is gone. Valora produces institutional analysis the moment you enter your assumptions.",color:"var(--amber)"},
+              {no:"03",problem:"Underwriting fragmented across Excel, WhatsApp and memory",solution:"One platform. Cashflow, debt, tax, sensitivity, AI check, pipeline and team — all connected, always live.",color:"var(--gold)"},
+              {no:"04",problem:"Inconsistent assumptions across your team",solution:"One model, one version, one truth. Everyone works from the same live appraisal — no more emailing spreadsheet versions.",color:"var(--blue)"},
+              {no:"05",problem:"Decisions not properly pressure-tested",solution:"Automatic DSCR checking, 45-scenario sensitivity matrices and AI Sense Check flag what a lender will challenge — before credit committee does.",color:"var(--green)"},
+            ].map((item,i)=>(
+              <div key={i} style={{background:"var(--bg1)",padding:"36px 32px",gridColumn:i===4?"1 / -1":"auto"}}>
+                <div style={{fontSize:9,color:item.color,letterSpacing:".14em",fontFamily:"var(--font-mono)",marginBottom:16,opacity:.7}}>{item.no}</div>
+                <h3 style={{fontFamily:"var(--font-display)",fontSize:19,fontWeight:500,color:"var(--text)",marginBottom:12,lineHeight:1.25}}>{item.problem}</h3>
+                <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{item.solution}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* ══════════════════════════════════════
+          SECTION 4 — PRODUCT SCREENSHOT
+      ══════════════════════════════════════ */}
+      <section style={{padding:"0 0 100px",background:"var(--bg)"}} aria-label="Valora platform product tour">
+        <div className="container">
+          <div className="reveal" style={{textAlign:"center",marginBottom:36}}>
+            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(26px,3vw,44px)",fontWeight:300,lineHeight:1.06}}>
+              Institutional analysis.<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>Without the institutional overhead.</em>
+            </h2>
+          </div>
+          <div className="reveal" style={{borderRadius:"10px 10px 0 0",overflow:"hidden",border:"1px solid var(--border-m)",borderBottom:"none",boxShadow:"0 -16px 60px rgba(0,0,0,.4)",background:"var(--bg1)"}}>
+            <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+              <div style={{display:"flex",gap:5}}>{["#f4645f","#f0a429","#3ddc84"].map(c=><div key={c} style={{width:9,height:9,borderRadius:"50%",background:c,opacity:.55}}/>)}</div>
+              <div style={{flex:1,display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
+                {["BTR Returns Analysis","Monthly Cashflow","Sensitivity Matrix","Deal Pipeline","Team Workspace"].map(t=>(
+                  <span key={t} style={{fontSize:9,color:"var(--text-d)",padding:"3px 10px",borderRadius:2,background:"var(--bg3)",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
+                ))}
+              </div>
+            </div>
+            <img src="/screenshots/cashflow.png" alt="Valora real estate development finance model showing monthly cashflow, DSCR analysis and sensitivity matrices" style={{width:"100%",display:"block",objectFit:"cover",maxHeight:520,objectPosition:"top"}} onError={e=>{(e.target as HTMLImageElement).parentElement!.style.minHeight="380px";(e.target as HTMLImageElement).parentElement!.style.background="var(--bg2)";(e.target as HTMLImageElement).style.display="none";}}/>
+            <div style={{position:"relative",height:80,background:"linear-gradient(transparent,var(--bg))",marginTop:-80,pointerEvents:"none"}}/>
+          </div>
+        </div>
+      </section>
 
-      {/* TESTIMONIALS */}
-      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+      {/* ══════════════════════════════════════
+          SECTION 5 — WHO IT'S FOR
+      ══════════════════════════════════════ */}
+      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}} aria-labelledby="for-heading">
+        <div className="container">
+          <div className="reveal" style={{textAlign:"center",marginBottom:56}}>
+            <h2 id="for-heading" style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,lineHeight:1.06,marginBottom:16}}>
+              Built for people who<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>look at deals seriously.</em>
+            </h2>
+            <p style={{fontSize:15,color:"var(--text-m)",maxWidth:480,margin:"0 auto",lineHeight:1.8}}>Not institutional giants with 40-person finance teams. Not weekend hobbyists. The professionals in between — who think rigorously and move fast.</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}} className="three-col">
+            {[
+              {icon:"◈",color:"var(--gold)",title:"Property Developers",desc:"New-build, conversion, BTR or BTS — model any development deal with the same rigour as a bank, in a fraction of the time."},
+              {icon:"◎",color:"var(--blue)",title:"Hotel Buyers & Operators",desc:"ADR, RevPAR, EBITDA, CapEx, DSCR — everything a hotel acquisition model needs, without building it from scratch."},
+              {icon:"◉",color:"var(--green)",title:"Value-Add Investors",desc:"Stress test your entry price, capex budget, exit yield and downside scenario before you make an offer."},
+              {icon:"◫",color:"var(--amber)",title:"Deal Sourcers & Advisors",desc:"Turn around a credible feasibility in minutes. Share a live link with your client before the meeting ends."},
+            ].map((p,i)=>(
+              <div key={i} className="reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:"28px 24px",transition:"border-color .2s,transform .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(201,168,76,.2)";e.currentTarget.style.transform="translateY(-2px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="translateY(0)"}}>
+                <div style={{width:42,height:42,borderRadius:8,background:p.color+"0e",border:`1px solid ${p.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:p.color,marginBottom:18}}>{p.icon}</div>
+                <h3 style={{fontFamily:"var(--font-display)",fontSize:19,fontWeight:500,color:"var(--text)",marginBottom:10,lineHeight:1.2}}>{p.title}</h3>
+                <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{p.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          SECTION 6 — KEY FEATURES
+      ══════════════════════════════════════ */}
+      <section id="features" style={{padding:"100px 0"}} aria-labelledby="features-heading">
         <div className="container">
           <div className="reveal" style={{textAlign:"center",marginBottom:64}}>
-            <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>From the Field</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,lineHeight:1.06,marginBottom:14}}>Numbers professionals<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>actually trust.</em></h2>
+            <h2 id="features-heading" style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,lineHeight:1.06,marginBottom:14}}>
+              Every tool your deal needs.<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>In one place.</em>
+            </h2>
+            <p style={{fontSize:15,color:"var(--text-m)",maxWidth:460,margin:"0 auto",lineHeight:1.8}}>All models. All plans. From your first deal on the Free tier to an Enterprise team workspace — the engine never changes.</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}} className="three-col">
+            {[
+              {icon:"◈",tag:"Cashflow",title:"True Monthly Cashflow Engine",body:"See exactly how your deal performs month by month from land acquisition to exit. No flat estimates — interest is rolled on actual drawn balances.",kw:"property development cashflow model"},
+              {icon:"◈",tag:"Returns",title:"IRR, Equity Multiple & Break-Even",body:"Levered and unlevered IRR, MOIC, payback period and break-even yield — the exact metrics a lender or equity partner will stress test.",kw:"real estate IRR calculator"},
+              {icon:"◈",tag:"Debt",title:"DSCR / ICR — Auto Checked",body:"Debt service cover ratio and ICR calculated automatically. Flagged the moment you drop below 1.25× — before your credit committee sees it.",kw:"DSCR calculator real estate development"},
+              {icon:"◈",tag:"Risk",title:"45-Scenario Sensitivity Matrix",body:"Exit yield vs rent — 45 scenarios, colour-coded RAG, recalculated live using the full finance model. Know your downside before you commit.",kw:"development appraisal sensitivity analysis"},
+              {icon:"◈",tag:"Valuation",title:"Residual Land Value Calculator",body:"Live RLV that updates as you type. Shows exactly what you can afford to pay for the site — and what moves the needle most.",kw:"residual land value calculator"},
+              {icon:"◈",tag:"AI",title:"AI Sense Check",body:"Automatically benchmarks your assumptions against market data. Flags aggressive exit yields, LTC breaches and build cost issues before credit committee.",kw:"AI property development analysis"},
+              {icon:"◈",tag:"AI",title:"AI Investor Brochures",body:"Upload photos, generate a professional investment memorandum. Branded PDF with a live link — investors always see the latest version.",kw:"real estate investment memorandum software"},
+              {icon:"◈",tag:"Team",title:"Team Workspace & Pipeline",body:"Invite your analysts, asset managers and JV partners. Shared appraisals, tasks, notes, activity feed and role permissions — everyone on the same live deal.",kw:"real estate team collaboration software"},
+              {icon:"◈",tag:"Finance",title:"10 Live Benchmark Rates",body:"SONIA, SOFR, EURIBOR, EIBOR, SORA, AONIA, TONA, SARON, CORRA, HONIA. Finance costs calculated against the actual forward curve.",kw:"development finance benchmark rates"},
+            ].map((f,i)=>(
+              <div key={i} className="reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:"28px 26px",transition:"border-color .2s,transform .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(201,168,76,.2)";e.currentTarget.style.transform="translateY(-2px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.transform="translateY(0)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+                  <span style={{fontSize:15,color:"var(--gold)",opacity:.6}}>{f.icon}</span>
+                  <span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg3)",padding:"3px 9px",borderRadius:2,letterSpacing:".1em",textTransform:"uppercase"}}>{f.tag}</span>
+                </div>
+                <h3 style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:500,marginBottom:10,color:"var(--text)",lineHeight:1.2}}>{f.title}</h3>
+                <p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          SECTION 7 — TESTIMONIALS
+      ══════════════════════════════════════ */}
+      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}} aria-label="Customer testimonials">
+        <div className="container">
+          <div className="reveal" style={{textAlign:"center",marginBottom:56}}>
+            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(26px,3vw,44px)",fontWeight:300,lineHeight:1.1}}>
+              Numbers professionals<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>actually trust.</em>
+            </h2>
           </div>
           <div className="testimonials-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
             {[
               {q:"James H.",role:"Property Developer, London",initials:"JH",quote:"First time I've walked into a lender meeting and not been asked to go away and rebuild the model. The numbers just held up."},
-              {q:"Sarah R.",role:"Fund Manager, Dubai",initials:"SR",quote:"The Hotel Advanced model does in 10 minutes what used to take my analyst two days. And it's more thorough."},
+              {q:"Sarah R.",role:"Fund Manager, Dubai",initials:"SR",quote:"The hotel model does in 10 minutes what used to take my analyst two days. And it's more thorough."},
               {q:"Marcus K.",role:"Investment Director, Singapore",initials:"MK",quote:"Shared the live link with three investors in different cities. All looking at the same numbers in real time. That's a different conversation."},
             ].map((t,i)=>(
-              <div key={i} className="testimonial">
+              <article key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:"36px",transition:"border-color .25s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(201,168,76,.15)"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
                 <div style={{fontSize:48,color:"var(--gold)",opacity:.18,fontFamily:"var(--font-display)",lineHeight:.8,marginBottom:20,userSelect:"none"}}>"</div>
-                <div style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:300,lineHeight:1.65,color:"var(--text)",marginBottom:28,fontStyle:"italic"}}>{t.quote}</div>
-                <div className="testimonial-author">
-                  <div className="testimonial-avatar">{t.initials}</div>
+                <blockquote style={{fontFamily:"var(--font-display)",fontSize:17,fontWeight:300,lineHeight:1.65,color:"var(--text)",marginBottom:28,fontStyle:"italic"}}>{t.quote}</blockquote>
+                <div style={{display:"flex",alignItems:"center",gap:14,paddingTop:20,borderTop:"1px solid var(--border)"}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"var(--bg3)",border:"1px solid var(--border-m)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"var(--gold)",fontFamily:"var(--font-mono)",flexShrink:0}}>{t.initials}</div>
                   <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>{t.q}</div><div style={{fontSize:11,color:"var(--text-d)",marginTop:2,letterSpacing:".04em"}}>{t.role}</div></div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-
-      {/* WHY VALORA */}
-      <section id="why" style={{padding:"100px 0"}}>
+      {/* ══════════════════════════════════════
+          SECTION 8 — PRICING
+      ══════════════════════════════════════ */}
+      <section id="pricing" style={{padding:"100px 0"}} aria-labelledby="pricing-heading">
         <div className="container">
-          <div className="reveal" style={{textAlign:"center",marginBottom:72}}>
-            <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>Why Valora</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(30px,3.5vw,56px)",fontWeight:300,lineHeight:1.06,marginBottom:16}}>Built for the complexity<br/><em className="grad-text" style={{fontStyle:"italic"}}>real deals demand</em></h2>
-          </div>
-          <div className="why-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {[
-              {problem:"Spreadsheet errors cost deals",stat:"80%",statLabel:"of spreadsheets contain at least one material error",solution:"Valora's engine produces consistent, auditable results with live updating — no broken formulas, no version confusion.",icon:"◈",color:"var(--red)"},
-              {problem:"Generic tools don't speak property",stat:"0",statLabel:"standard finance tools understand DSCR covenants, NIY, OMR/DMR splits, or promote waterfalls",solution:"Every input is purpose-built for property — from transfer tax bands to stabilisation ramps, DSCR checks to JV distributions.",icon:"◎",color:"var(--amber)"},
-              {problem:"Investors and lenders need more",stat:"1",statLabel:"link is all it takes for investors to see your live appraisal, DSCR and break-even analysis",solution:"AI brochures, DSCR/ICR checking, live investor portals, and AI sense check — all from the same model.",icon:"◉",color:"var(--gold)"},
-            ].map((card,i)=>(
-              <div key={i} className="reveal" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:30,display:"flex",flexDirection:"column",gap:18}}>
-                <div style={{width:38,height:38,borderRadius:7,background:card.color+"0e",border:`1px solid ${card.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:card.color}}>{card.icon}</div>
-                <div><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".14em",marginBottom:8}}>The Problem</div><div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:500,color:"var(--text)",lineHeight:1.2}}>{card.problem}</div></div>
-                <div style={{background:card.color+"07",border:`1px solid ${card.color}16`,borderRadius:7,padding:"16px 18px"}}>
-                  <div style={{fontFamily:"var(--font-display)",fontSize:44,fontWeight:300,color:card.color,lineHeight:1,marginBottom:8}}>{card.stat}</div>
-                  <div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.65}}>{card.statLabel}</div>
-                </div>
-                <div><div style={{fontSize:9,color:"var(--green)",textTransform:"uppercase",letterSpacing:".14em",marginBottom:10}}>The Valora Solution</div><p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75}}>{card.solution}</p></div>
-              </div>
-            ))}
-          </div>
-          <CTAStrip onLogin={onLogin} text="Stop fighting your spreadsheet. Start closing deals." btn="Make your first appraisal →"/>
-        </div>
-      </section>
-
-
-      {/* LENDERS */}
-      <section id="lenders" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
-        <div className="container">
-          <div className="lender-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:72,alignItems:"center"}}>
-            <div className="reveal-l">
-              <div className="badge badge-blue" style={{marginBottom:20}}>For Lenders & Banks</div>
-              <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3vw,48px)",fontWeight:300,lineHeight:1.06,marginBottom:20}}>Reports your underwriting<br/>team will <em style={{color:"var(--gold)",fontStyle:"italic"}}>actually trust</em></h2>
-              <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,marginBottom:28,fontWeight:300}}>The monthly cashflow shows exactly how your facility will be drawn down, with interest rolled on actual drawn balances. DSCR and ICR checked automatically against your covenant level.</p>
-              {[["Cashflow-based interest","Rolled monthly on drawn balances — not an estimated lump-sum"],["DSCR / ICR checking","Auto-flagged when debt service cover drops below 1.25×"],["Live share links","Lenders always see the latest version of the model"],["AI Sense Check","Flags exit yield, LTC, build cost and DSCR issues upfront"],["Lender-formatted reports","Professional PDF with standardised data"]].map(([title,sub],i)=>(
-                <div key={i} style={{display:"flex",gap:14,marginBottom:16}}>
-                  <div style={{width:30,height:30,borderRadius:5,background:"var(--gold-bg)",border:"1px solid var(--gold-border)",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--gold)",fontSize:11,flexShrink:0}}>✓</div>
-                  <div><div style={{fontSize:13,fontWeight:500,color:"var(--text)",marginBottom:3}}>{title}</div><div style={{fontSize:12,color:"var(--text-d)"}}>{sub}</div></div>
-                </div>
-              ))}
-            </div>
-            <div className="reveal-r" style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:24}}>
-              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".14em",marginBottom:18}}>Finance Calculation — True Drawdown Model</div>
-              {[["Month","Drawn Balance","Interest (Rolled)","Net CF"],["Oct 2028","£8.2m","£44,733","(£892k)"],["Nov 2028","£11.7m","£63,788","(£1.2m)"],["Dec 2028","£16.4m","£89,400","(£1.7m)"],["Jan 2029","£22.1m","£120,495","(£2.1m)"],["Feb 2029","£29.8m","£162,455","(£3.1m)"]].map((row,i)=>(
-                <div key={i} style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:`${i===0?6:10}px 0`,borderBottom:"1px solid var(--bg4)",fontSize:i===0?9:11}}>
-                  {row.map((cell,j)=><div key={j} style={{color:i===0?"var(--text-d)":j===2?"var(--amber)":j===3?"var(--red)":"var(--text-m)",fontFamily:i>0?"var(--font-mono)":"var(--font-body)",textTransform:i===0?"uppercase":"none",letterSpacing:i===0?".1em":"0"}}>{cell}</div>)}
-                </div>
-              ))}
-              <div style={{marginTop:16,padding:"10px 0",borderTop:"1px solid rgba(201,168,76,.18)",display:"flex",justifyContent:"space-between",fontSize:12}}>
-                <span style={{color:"var(--text-m)"}}>Total interest (S-curve rolled model)</span>
-                <span style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontWeight:600}}>£22,155,314</span>
-              </div>
-              <div style={{marginTop:10,display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"rgba(61,220,132,.05)",borderRadius:4,border:"1px solid rgba(61,220,132,.1)"}}>
-                <span style={{fontSize:11,color:"var(--text-m)"}}>DSCR / ICR (stabilised)</span>
-                <span style={{fontSize:11,color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>1.62× ✓ Above 1.25× covenant</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* PRICING */}
-      <section id="pricing" style={{padding:"100px 0"}}>
-        <div className="container">
-          <div className="reveal" style={{textAlign:"center",marginBottom:64}}>
-            <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>Pricing</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,marginBottom:14,lineHeight:1.06}}>Institutional-grade appraisals.<br/><em className="grad-text" style={{fontStyle:"italic"}}>Without the enterprise price tag.</em></h2>
-            <p style={{fontSize:13,color:"var(--text-d)",letterSpacing:".06em",textTransform:"uppercase"}}>14-day free trial on all plans · No credit card required</p>
+          <div className="reveal" style={{textAlign:"center",marginBottom:56}}>
+            <h2 id="pricing-heading" style={{fontFamily:"var(--font-display)",fontSize:"clamp(28px,3.5vw,52px)",fontWeight:300,marginBottom:14,lineHeight:1.06}}>
+              Start free.<br/><em style={{fontStyle:"italic",color:"var(--text-m)"}}>Upgrade when your deal needs an audience.</em>
+            </h2>
+            <p style={{fontSize:13,color:"var(--text-d)",letterSpacing:".06em",textTransform:"uppercase"}}>All real estate models on every plan · No credit card required · Cancel anytime</p>
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,maxWidth:920,margin:"0 auto"}}>
-            {[
-              {name:"Free",price:"$0",period:"/mo",desc:"For developers exploring the platform.",features:["3 active projects","All 4 asset types","True monthly CF engine","DSCR / ICR & equity multiple","Deal Pipeline, Tasks & Notes","Live share links","Plain PDF export","14-day Pro trial"],featured:false,cta:"Make your first appraisal →"},
-              {name:"Pro",price:"$149",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Invite Pro collaborators","AI Brochure PDF","AI Sense Check","Priority support","14-day Enterprise trial"],featured:true,cta:"Make your first appraisal →"},
-              {name:"Enterprise",price:"$499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Pro","Full team workspace with roles","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Make your first appraisal →"},
-            ].map((plan,i)=>(
-              <div key={i} className={`price-card reveal`} style={{animationDelay:`${i*0.1}s`}}>
+            {PLANS.map((plan,i)=>(
+              <div key={i} className={`price-card ${plan.featured?"featured":""}`}>
                 {plan.featured&&<div className="badge" style={{position:"absolute",top:18,right:18,fontSize:8}}>Most Popular</div>}
                 {plan.featured&&<div style={{position:"absolute",top:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,var(--gold) 40%,var(--gold-l),transparent)"}}/>}
                 <div style={{marginBottom:24}}>
                   <div style={{fontSize:10,fontWeight:500,color:"var(--text-m)",marginBottom:10,letterSpacing:".1em",textTransform:"uppercase"}}>{plan.name}</div>
                   <div style={{display:"flex",alignItems:"baseline",gap:4,marginBottom:10}}>
-                    <span style={{fontFamily:"var(--font-display)",fontSize:44,fontWeight:300,color:"var(--text)",letterSpacing:"-.02em"}}>{plan.price}</span>
-                    <span style={{fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>{plan.period}</span>
+                    {plan.price==="$0"
+                      ? <span style={{fontFamily:"var(--font-display)",fontSize:36,fontWeight:300,color:"var(--green)"}}>Free</span>
+                      : <><span style={{fontFamily:"var(--font-display)",fontSize:44,fontWeight:300,color:"var(--text)",letterSpacing:"-.02em"}}>{plan.price}</span><span style={{fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>{plan.period}</span></>
+                    }
                   </div>
                   <p style={{fontSize:13,color:"var(--text-d)",lineHeight:1.65}}>{plan.desc}</p>
                 </div>
                 <div style={{height:1,background:"var(--border)",marginBottom:22}}/>
-                <ul style={{listStyle:"none",marginBottom:28}}>
+                <ul style={{listStyle:"none",marginBottom:28}} aria-label={`${plan.name} plan features`}>
                   {plan.features.map((f,j)=>(<li key={j} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10,fontSize:13,color:"var(--text-m)"}}><span style={{color:"var(--green)",fontSize:9,marginTop:3,flexShrink:0}}>✓</span>{f}</li>))}
                 </ul>
-                <button className={plan.featured?"btn-primary":"btn-ghost"} style={{width:"100%",justifyContent:"center",padding:"13px"}} onClick={onLogin}>{plan.cta}</button>
+                <button className={plan.featured?"btn-primary":"btn-ghost"} style={{width:"100%",justifyContent:"center",padding:"13px"}} onClick={onLogin} aria-label={`${plan.cta} — ${plan.name} plan`}>{plan.cta}</button>
               </div>
             ))}
           </div>
-          <p style={{textAlign:"center",marginTop:24,fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>All prices exclude applicable taxes. Annual billing available — save 20%.</p>
+          <p style={{textAlign:"center",marginTop:24,fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>All prices exclude applicable taxes · Annual billing available — save 20%</p>
         </div>
       </section>
 
-
-      {/* FINAL CTA */}
-      <section style={{padding:"120px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",position:"relative",overflow:"hidden"}}>
-        <div className="glow" style={{width:700,height:500,top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"radial-gradient(ellipse,rgba(201,168,76,.06) 0%,transparent 65%)"}}/>
-        <div className="container" style={{textAlign:"center",position:"relative",zIndex:1}}>
-          <div className="reveal">
-            <div className="section-label" style={{justifyContent:"center",marginBottom:24}}>Get Started Today</div>
-            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(36px,5vw,72px)",fontWeight:300,lineHeight:1.04,marginBottom:22}}>Your next deal<br/>deserves <em className="grad-text" style={{fontStyle:"italic"}}>better numbers.</em></h2>
-            <p style={{fontSize:17,color:"var(--text-m)",maxWidth:500,margin:"0 auto 48px",lineHeight:1.8,fontWeight:300}}>Stop rebuilding spreadsheets at midnight. Stop second-guessing your numbers before the room. Start every deal with the confidence that your appraisal will hold up anywhere.</p>
-            <div className="cta-btns" style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:32}}>
-              <button className="btn-primary" onClick={onLogin} style={{fontSize:13,padding:"16px 40px"}}>Make your first appraisal →</button>
-              <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{fontSize:13,padding:"15px 28px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Book a Demo
-              </button>
+      {/* ══════════════════════════════════════
+          SECTION 9 — FAQ (FAQPage schema)
+      ══════════════════════════════════════ */}
+      <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}} aria-labelledby="faq-heading">
+        <div className="container">
+          <div style={{maxWidth:720,margin:"0 auto"}}>
+            <div className="reveal" style={{textAlign:"center",marginBottom:48}}>
+              <h2 id="faq-heading" style={{fontFamily:"var(--font-display)",fontSize:"clamp(26px,3vw,44px)",fontWeight:300,lineHeight:1.1,marginBottom:10}}>Frequently asked questions</h2>
+              <p style={{fontSize:13,color:"var(--text-d)",letterSpacing:".04em"}}>Can't find your answer? <span style={{color:"var(--gold)",cursor:"pointer"}} onClick={()=>onPage("support")}>Visit our support centre →</span></p>
             </div>
-            <div style={{fontSize:10,color:"var(--text-d)",display:"flex",justifyContent:"center",gap:28,flexWrap:"wrap",letterSpacing:".1em",textTransform:"uppercase"}}>
-              {["No credit card required","Setup in 5 minutes","Full feature access","Cancel anytime"].map(t=>(<span key={t} style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:"var(--green)",fontSize:8}}>◆</span>{t}</span>))}
+            <div itemScope itemType="https://schema.org/FAQPage">
+              {FAQS.map((faq,i)=>(
+                <div key={i} className="faq-item reveal" itemScope itemProp="mainEntity" itemType="https://schema.org/Question">
+                  <div className="faq-q" onClick={()=>setOpenFaq(openFaq===i?null:i)}>
+                    <span itemProp="name">{faq.q}</span>
+                    <span style={{color:"var(--gold)",fontSize:20,flexShrink:0,marginLeft:16,transition:"transform .2s",display:"inline-block",transform:openFaq===i?"rotate(45deg)":"none"}}>+</span>
+                  </div>
+                  {openFaq===i&&(
+                    <div className="faq-a" itemScope itemProp="acceptedAnswer" itemType="https://schema.org/Answer">
+                      <span itemProp="text">{faq.a}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
+      {/* ══════════════════════════════════════
+          SECTION 10 — FINAL CTA
+      ══════════════════════════════════════ */}
+      <section style={{padding:"120px 0",background:"var(--bg)",position:"relative",overflow:"hidden"}} aria-label="Get started with Valora">
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 50% 50%,rgba(201,168,76,.055) 0%,transparent 62%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.01) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.01) 1px,transparent 1px)",backgroundSize:"64px 64px",pointerEvents:"none"}}/>
+        <div className="container" style={{textAlign:"center",position:"relative",zIndex:1}}>
+          <div className="reveal">
+            <span style={{fontSize:9,letterSpacing:".18em",textTransform:"uppercase",color:"var(--gold)",display:"inline-flex",alignItems:"center",gap:10,marginBottom:24}}>
+              <span style={{width:20,height:1,background:"var(--gold)",display:"inline-block"}}/>
+              Property Development Appraisal Software
+              <span style={{width:20,height:1,background:"var(--gold)",display:"inline-block"}}/>
+            </span>
+            <h2 style={{fontFamily:"var(--font-display)",fontSize:"clamp(38px,5vw,72px)",fontWeight:300,lineHeight:1.03,marginBottom:20}}>
+              Know if the deal works.<br/><em style={{fontStyle:"italic",background:"linear-gradient(135deg,#e2c97e 0%,#c9a84c 50%,#a07030 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Before anyone else does.</em>
+            </h2>
+            <p style={{fontSize:16,color:"var(--text-m)",maxWidth:480,margin:"0 auto 16px",lineHeight:1.8}}>Built from real models trusted on $100m+ of deals. Start free in 5 minutes.</p>
+            <p style={{fontSize:13,color:"var(--gold)",fontFamily:"var(--font-display)",fontStyle:"italic",marginBottom:40,letterSpacing:".01em"}}>No credit card. No spreadsheet. No guesswork.</p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:24}}>
+              <button className="btn-primary" onClick={onLogin} style={{fontSize:12,padding:"16px 48px"}} aria-label="Start free property development appraisal">Start for free →</button>
+              <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{fontSize:12,padding:"15px 28px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a demo</button>
+            </div>
+            <div style={{fontSize:10,color:"var(--text-d)",letterSpacing:".1em",textTransform:"uppercase"}}>Free forever · All models included · Setup in 5 minutes · Cancel anytime</div>
+          </div>
+        </div>
+      </section>
 
       <Footer onPage={onPage}/>
-      {videoOpen&&<VideoModal onClose={()=>setVideoOpen(false)}/>}
-
 
       {/* STICKY CTA */}
-      <div className={`sticky-cta ${stickyVisible?"visible":""}`}>
-        <div className="sticky-cta-text">
-          <div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>Ready to replace your spreadsheet?</div>
-          <div style={{fontSize:10,color:"var(--text-d)",letterSpacing:".08em",textTransform:"uppercase",marginTop:2}}>14-day free trial · No credit card required</div>
+      <div className={`sticky-cta ${stickyVisible?"visible":""}`} role="complementary" aria-label="Quick access CTA">
+        <div>
+          <div style={{fontSize:13,fontWeight:500,color:"var(--text)"}}>Know if your deal works — before anyone else does.</div>
+          <div style={{fontSize:10,color:"var(--text-d)",letterSpacing:".06em",textTransform:"uppercase",marginTop:2}}>Free forever · No credit card required</div>
         </div>
         <div style={{display:"flex",gap:10,flexShrink:0}}>
-          <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"9px 18px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a Demo</button>
-          <button className="btn-primary" onClick={onLogin} style={{padding:"9px 22px"}}>Make your first appraisal →</button>
+          <button className="btn-ghost" onClick={()=>window.open(CALENDLY,"_blank")} style={{padding:"9px 18px",borderColor:"var(--gold-border)",color:"var(--gold)"}}>Book a demo</button>
+          <button className="btn-primary" onClick={onLogin} style={{padding:"9px 22px"}}>Start for free →</button>
         </div>
       </div>
     </div>
