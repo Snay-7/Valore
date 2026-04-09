@@ -366,7 +366,7 @@ export default function WorkspacePage() {
                   {isAdmin ? "No projects shared yet" : "No projects assigned to you yet"}
                 </p>
                 <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24 }}>
-                  {isAdmin ? "Click "+ Share Projects" to share your appraisals with the team." : "Your workspace admin will assign projects to you."}
+                  {isAdmin ? 'Click + Share Projects to share your appraisals with the team.' : 'Your workspace admin will assign projects to you.'}
                 </p>
                 {isAdmin && (
                   <button className="btn-primary" onClick={() => setView("assign")}>+ Share Projects</button>
