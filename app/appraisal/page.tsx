@@ -1791,7 +1791,7 @@ Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.t
       let resolvedProjectId=currentProjectId;
       if(!resolvedProjectId){
         const{data:proj,error:projErr}=await supabase.from("projects").insert({name:data.name||"New Project",location:data.location||"",asset_type:assetType,currency:data.currency||"GBP",benchmark_rate:data.benchmark||"SONIA",created_by:user.id,firm_id:userFirmId}).select().single();
-        if(projErr){setSaveError(`Project error: ${projErr.message}`);setSaving(false);return;}
+        if(projErr){setSaveError(`Could not create project: ${projErr.message}${projErr.message.includes("check")?" — the asset type may not be allowed yet. Run the database migration in Supabase.":""}`);setSaving(false);return;}
         resolvedProjectId=proj.id;setCurrentProjectId(proj.id);
       }
       const payload:Record<string,any>={
