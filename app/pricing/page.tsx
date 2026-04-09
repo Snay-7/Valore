@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -42,18 +43,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 }
 `;
 
+
 const PLANS = [
   {
     id: "starter",
-    name: "Starter",
-    monthlyPrice: 79,
-    annualPrice: 63,
-    description: "For independent developers and investors getting started.",
+    name: "Free",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    description: "For developers exploring the platform.",
     priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE || "",
     priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ANNUAL || "",
     color: "var(--text-m)",
     features: [
-      { text: "Up to 5 active projects", included: true },
+      { text: "3 active projects", included: true },
       { text: "All 4 asset types (BTR, BTS, Hotel, Flip)", included: true },
       { text: "Plain PDF export", included: true },
       { text: "Deal Pipeline & Tasks", included: true },
@@ -65,9 +67,9 @@ const PLANS = [
   },
   {
     id: "professional",
-    name: "Professional",
-    monthlyPrice: 199,
-    annualPrice: 159,
+    name: "Pro",
+    monthlyPrice: 149,
+    annualPrice: 119,
     description: "For serious developers and investment teams.",
     priceIdMonthly: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE || "",
     priceIdAnnual: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ANNUAL || "",
@@ -107,6 +109,7 @@ const PLANS = [
   },
 ];
 
+
 function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -115,6 +118,7 @@ function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const cancelled = searchParams.get("cancelled");
+
 
   useEffect(() => {
     const init = async () => {
@@ -127,6 +131,7 @@ function PricingPage() {
     };
     init();
   }, []);
+
 
   const handleCheckout = async (plan: typeof PLANS[0]) => {
     if (!user) { router.push("/"); return; }
@@ -155,11 +160,14 @@ function PricingPage() {
     setLoading(null);
   };
 
+
   const currentTier = subscription?.tier || "free";
+
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
       <style>{CSS}</style>
+
 
       {/* Nav */}
       <nav style={{ background: "var(--bg1)", borderBottom: "1px solid var(--border)", padding: "0 32px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -167,7 +175,9 @@ function PricingPage() {
         {user && <button onClick={() => router.push("/dashboard")} style={{ background: "transparent", color: "var(--text-m)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 14px", fontFamily: "var(--font-body)", fontSize: 12, cursor: "pointer" }}>Dashboard</button>}
       </nav>
 
+
       <div style={{ padding: "64px 24px", maxWidth: 1080, margin: "0 auto" }}>
+
 
         {/* Cancelled banner */}
         {cancelled && (
@@ -175,6 +185,7 @@ function PricingPage() {
             Checkout cancelled — no charge was made. Choose a plan below to get started.
           </div>
         )}
+
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
@@ -187,6 +198,7 @@ function PricingPage() {
             14-day free trial on all plans. No credit card required to start.
           </p>
 
+
           {/* Billing toggle */}
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div className="toggle">
@@ -198,12 +210,14 @@ function PricingPage() {
           </div>
         </div>
 
+
         {/* Plans */}
         <div className="plans-grid">
           {PLANS.map((plan, i) => {
             const price = billing === "annual" ? plan.annualPrice : plan.monthlyPrice;
             const isCurrent = currentTier === plan.id;
             const isLoading = loading === plan.id;
+
 
             return (
               <div key={plan.id} className={`plan-card ${plan.featured ? "featured" : ""}`} style={{ animationDelay: `${i * 0.1}s` }}>
@@ -213,20 +227,23 @@ function PricingPage() {
                   </div>
                 )}
 
+
                 <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 300, color: plan.color, marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24, lineHeight: 1.5 }}>{plan.description}</div>
+
 
                 {/* Price */}
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                    <span style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text)", lineHeight: 1 }}>£{price}</span>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--text)", lineHeight: 1 }}>{price === 0 ? "Free" : `$${price}`}</span>
                     <span style={{ fontSize: 13, color: "var(--text-d)" }}>/mo</span>
                   </div>
                   {billing === "annual" && (
-                    <div style={{ fontSize: 11, color: "var(--green)", marginTop: 4 }}>£{plan.monthlyPrice - price} saved per month</div>
+                    <div style={{ fontSize: 11, color: "var(--green)", marginTop: 4 }}>${plan.monthlyPrice - price} saved per month</div>
                   )}
                   <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 4 }}>14-day free trial · cancel anytime</div>
                 </div>
+
 
                 {/* CTA */}
                 <div style={{ marginBottom: 28 }}>
@@ -250,6 +267,7 @@ function PricingPage() {
                   )}
                 </div>
 
+
                 {/* Features */}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>What's included</div>
@@ -264,6 +282,7 @@ function PricingPage() {
             );
           })}
         </div>
+
 
         {/* Trust signals */}
         <div style={{ textAlign: "center", marginTop: 64 }}>
@@ -284,10 +303,12 @@ function PricingPage() {
           </div>
         </div>
 
+
       </div>
     </div>
   );
 }
+
 
 export default function PricingPageWrapper() {
   return (
