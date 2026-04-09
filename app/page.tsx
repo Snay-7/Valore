@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
 
+
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -143,6 +145,7 @@ a{text-decoration:none;color:inherit}
 @media(max-width:480px){.asset-grid{grid-template-columns:1fr !important}}
 `;
 
+
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 const SCREENSHOTS = {
   analysis:    "/screenshots/analysis-btr.png",
@@ -174,11 +177,13 @@ const PIPELINE_COLS = [
 ];
 const TYPE_COLORS:any = { BTR:"var(--gold)", BTS:"var(--blue)", Hotel:"var(--amber)", Flip:"var(--green)" };
 
+
 function useScrolled(t=30) {
   const [s,setS]=useState(false);
   useEffect(()=>{ const fn=()=>setS(window.scrollY>t); window.addEventListener("scroll",fn,{passive:true}); return ()=>window.removeEventListener("scroll",fn); },[t]);
   return s;
 }
+
 
 function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
   const [n,setN]=useState(0);
@@ -192,6 +197,7 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
   return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>;
 }
 
+
 function VideoModal({onClose}:{onClose:()=>void}) {
   useEffect(()=>{ const fn=(e:KeyboardEvent)=>{ if(e.key==="Escape") onClose(); }; window.addEventListener("keydown",fn); return()=>window.removeEventListener("keydown",fn); },[onClose]);
   return(
@@ -204,6 +210,7 @@ function VideoModal({onClose}:{onClose:()=>void}) {
   );
 }
 
+
 function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) {
   return (
     <div className="cta-strip">
@@ -215,6 +222,7 @@ function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) 
     </div>
   );
 }
+
 
 function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
   const [selected,setSelected]=useState<string|null>(null);
@@ -249,6 +257,7 @@ function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
     </div>
   );
 }
+
 
 function ProductShowcase() {
   const [active,setActive]=useState(0);
@@ -287,6 +296,7 @@ function ProductShowcase() {
   );
 }
 
+
 const PipelineMock=()=>(
   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,width:"100%"}}>
     {PIPELINE_COLS.map((col)=>(
@@ -309,6 +319,7 @@ const PipelineMock=()=>(
     ))}
   </div>
 );
+
 
 function Nav({onLogin,onPage,scrolled,currentPage}:any) {
   const [menuOpen,setMenuOpen]=useState(false);
@@ -348,6 +359,7 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
   );
 }
 
+
 function Footer({onPage}:any) {
   return (
     <footer style={{background:"var(--bg1)",borderTop:"1px solid var(--border)",padding:"64px 0 40px"}}>
@@ -378,6 +390,7 @@ function Footer({onPage}:any) {
     </footer>
   );
 }
+
 
 function BuiltForSection({onLogin}:{onLogin:()=>void}) {
   const [active,setActive]=useState(0);
@@ -423,6 +436,7 @@ function BuiltForSection({onLogin}:{onLogin:()=>void}) {
   );
 }
 
+
 function WorkspaceDemo() {
   const [activeTab,setActiveTab]=useState(0);
   const tabs=["Overview","Tasks","Notes","Activity"];
@@ -441,6 +455,7 @@ function WorkspaceDemo() {
     </div>
   );
 }
+
 
 export default function App() {
   const [page,setPage]=useState("landing");
@@ -468,6 +483,7 @@ export default function App() {
   );
 }
 
+
 function Landing({onLogin,onPage,scrolled}:any) {
   const [stickyVisible,setStickyVisible]=useState(false);
   const [videoOpen,setVideoOpen]=useState(false);
@@ -475,6 +491,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
   return (
     <div style={{paddingBottom:72}}>
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
+
 
       {/* HERO */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden",paddingTop:80}}>
@@ -531,6 +548,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* TICKER */}
       <div className="ticker-wrap">
         <div className="ticker-inner">
@@ -539,6 +557,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           )))}
         </div>
       </div>
+
 
       {/* PROBLEM */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
@@ -574,9 +593,11 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* PRODUCT SHOWCASE */}
       <ProductShowcase/>
       <div className="container"><CTAStrip onLogin={onLogin} text="Ready to see it in action?" btn="Make your first appraisal →"/></div>
+
 
       {/* VIDEO */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
@@ -614,8 +635,10 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* BUILT FOR */}
       <BuiltForSection onLogin={onLogin}/>
+
 
       {/* FEATURES */}
       <section id="features" style={{padding:"100px 0"}}>
@@ -640,6 +663,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <CTAStrip onLogin={onLogin} text="Ready to replace your spreadsheet?" btn="Make your first appraisal →"/>
         </div>
       </section>
+
 
       {/* WORKSPACE */}
       <section id="workspace" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
@@ -670,6 +694,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* PIPELINE */}
       <section style={{padding:"100px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
@@ -694,6 +719,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* ASSET TYPES */}
       <section style={{padding:"100px 0"}}>
@@ -721,6 +747,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* TESTIMONIALS */}
       <section style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
         <div className="container">
@@ -746,6 +773,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* WHY VALORA */}
       <section id="why" style={{padding:"100px 0"}}>
@@ -774,6 +802,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           <CTAStrip onLogin={onLogin} text="Stop fighting your spreadsheet. Start closing deals." btn="Make your first appraisal →"/>
         </div>
       </section>
+
 
       {/* LENDERS */}
       <section id="lenders" style={{padding:"100px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
@@ -810,6 +839,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* PRICING */}
       <section id="pricing" style={{padding:"100px 0"}}>
         <div className="container">
@@ -820,9 +850,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
           <div className="pricing-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,maxWidth:920,margin:"0 auto"}}>
             {[
-              {name:"Starter",price:"£79",period:"/mo",desc:"For independent developers and investors getting started.",features:["Up to 10 active projects","All 4 asset types","True monthly CF engine","DSCR / ICR & equity multiple","Deal Pipeline, Tasks & Notes","Live share links","Plain PDF export","14-day Enterprise trial"],featured:false,cta:"Make your first appraisal →"},
-              {name:"Professional",price:"£199",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Invite Pro collaborators","AI Brochure PDF","AI Sense Check","Priority support","14-day Enterprise trial"],featured:true,cta:"Make your first appraisal →"},
-              {name:"Enterprise",price:"£499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Professional","Full team workspace with roles","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Make your first appraisal →"},
+              {name:"Free",price:"$0",period:"/mo",desc:"For developers exploring the platform.",features:["3 active projects","All 4 asset types","True monthly CF engine","DSCR / ICR & equity multiple","Deal Pipeline, Tasks & Notes","Live share links","Plain PDF export","14-day Pro trial"],featured:false,cta:"Make your first appraisal →"},
+              {name:"Pro",price:"$149",period:"/mo",desc:"For serious developers and investment teams.",features:["Unlimited projects","All 4 asset types","True monthly CF engine","DSCR / ICR, MOIC & break-even","Invite Pro collaborators","AI Brochure PDF","AI Sense Check","Priority support","14-day Enterprise trial"],featured:true,cta:"Make your first appraisal →"},
+              {name:"Enterprise",price:"$499",period:"/mo",desc:"For PropTech firms, agencies and institutional teams.",features:["Everything in Pro","Full team workspace with roles","Multi-firm workspace","White label PDF exports","Custom benchmarks","Dedicated onboarding","SLA support"],featured:false,cta:"Make your first appraisal →"},
             ].map((plan,i)=>(
               <div key={i} className={`price-card reveal`} style={{animationDelay:`${i*0.1}s`}}>
                 {plan.featured&&<div className="badge" style={{position:"absolute",top:18,right:18,fontSize:8}}>Most Popular</div>}
@@ -843,9 +873,10 @@ function Landing({onLogin,onPage,scrolled}:any) {
               </div>
             ))}
           </div>
-          <p style={{textAlign:"center",marginTop:24,fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>All prices exclude VAT. Annual billing available — 20% discount.</p>
+          <p style={{textAlign:"center",marginTop:24,fontSize:11,color:"var(--text-d)",letterSpacing:".04em"}}>All prices exclude applicable taxes. Annual billing available — save 20%.</p>
         </div>
       </section>
+
 
       {/* FINAL CTA */}
       <section style={{padding:"120px 0",background:"var(--bg1)",borderTop:"1px solid var(--border)",position:"relative",overflow:"hidden"}}>
@@ -869,8 +900,10 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       <Footer onPage={onPage}/>
       {videoOpen&&<VideoModal onClose={()=>setVideoOpen(false)}/>}
+
 
       {/* STICKY CTA */}
       <div className={`sticky-cta ${stickyVisible?"visible":""}`}>
@@ -887,13 +920,15 @@ function Landing({onLogin,onPage,scrolled}:any) {
   );
 }
 
+
 function LegalPage({title,lastUpdated,children,onLogin,onPage,scrolled}:any) {
   return (<div><Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="legal"/><div className="legal-content"><h1>{title}</h1><div className="meta">Last updated: {lastUpdated} · Valora Technologies Ltd · Registered in England & Wales</div>{children}</div><Footer onPage={onPage}/></div>);
 }
 function PrivacyContent(){return(<><p>Valora Technologies Ltd is committed to protecting your personal data. We collect account data (name, email, firm), appraisal data you create, anonymised usage data, and payment confirmation from Stripe. We do not store card details or use your appraisals to train AI models.</p><h2>Your Rights</h2><p>Under UK GDPR you have rights to access, correct, delete, and port your data. Contact <a href="mailto:privacy@valoraplatform.io">privacy@valoraplatform.io</a>.</p></>);}
-function TermsContent(){return(<><p>These Terms govern your use of the Valora platform. Subscriptions are billed monthly or annually. 14-day free trial on all plans. Cancel anytime. Prices exclude VAT. The platform and AI features provide information only — not financial advice. Governed by the laws of England and Wales.</p><p>Contact: <a href="mailto:legal@valoraplatform.io">legal@valoraplatform.io</a></p></>);}
+function TermsContent(){return(<><p>These Terms govern your use of the Valora platform. Subscriptions are billed monthly or annually. 14-day free trial on all plans. Cancel anytime. Prices exclude applicable taxes. The platform and AI features provide information only — not financial advice. Governed by the laws of England and Wales.</p><p>Contact: <a href="mailto:legal@valoraplatform.io">legal@valoraplatform.io</a></p></>);}
 function CookiesContent(){return(<><p>We use essential cookies to keep you logged in and protect against CSRF. Analytics cookies are anonymised. Stripe sets cookies for payment security. Contact <a href="mailto:privacy@valoraplatform.io">privacy@valoraplatform.io</a> with questions.</p></>);}
 function AccessibilityContent(){return(<><p>We aim to meet WCAG 2.1 Level AA. Keyboard navigation, screen reader labels, sufficient contrast, and ARIA roles are implemented throughout. Contact <a href="mailto:accessibility@valoraplatform.io">accessibility@valoraplatform.io</a> to report issues.</p></>);}
+
 
 function SupportPage({onLogin,onPage,scrolled}:any){
   const [openFaq,setOpenFaq]=useState<any>(null);
@@ -915,7 +950,7 @@ function SupportPage({onLogin,onPage,scrolled}:any){
         <div className="container" style={{textAlign:"center"}}>
           <div className="section-label" style={{justifyContent:"center",marginBottom:20}}>Support Centre</div>
           <h1 style={{fontFamily:"var(--font-display)",fontSize:"clamp(32px,4vw,60px)",fontWeight:300,marginBottom:16,lineHeight:1.04}}>How can we <em style={{color:"var(--gold)",fontStyle:"italic"}}>help?</em></h1>
-          <p style={{fontSize:15,color:"var(--text-m)",maxWidth:480,margin:"0 auto 36px",lineHeight:1.8,fontWeight:300}}>Our team responds within 2 business hours on Professional, and 24 hours on Starter.</p>
+          <p style={{fontSize:15,color:"var(--text-m)",maxWidth:480,margin:"0 auto 36px",lineHeight:1.8,fontWeight:300}}>Our team responds within 2 business hours on Pro, and 24 hours on Free.</p>
           <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
             <a href="mailto:support@valoraplatform.io"><button className="btn-primary" style={{padding:"13px 28px"}}>Email Support</button></a>
             <button className="btn-ghost" onClick={onLogin} style={{padding:"12px 24px"}}>Open Platform</button>
@@ -926,7 +961,7 @@ function SupportPage({onLogin,onPage,scrolled}:any){
         <div className="support-grid">
           {[
             {icon:"◈",title:"Email Support",desc:"For account, billing, and technical queries. We respond within 24 hours.",action:"support@valoraplatform.io",link:"mailto:support@valoraplatform.io"},
-            {icon:"◎",title:"Priority Support",desc:"Professional and Enterprise plans include 2-hour response SLA during business hours.",action:"Upgrade to Professional →",link:"#pricing"},
+            {icon:"◎",title:"Priority Support",desc:"Pro and Enterprise plans include 2-hour response SLA during business hours.",action:"Upgrade to Pro →",link:"#pricing"},
             {icon:"◉",title:"Onboarding",desc:"Enterprise plans include dedicated 1-on-1 onboarding and template setup.",action:"Contact Sales →",link:"mailto:sales@valoraplatform.io"},
           ].map((c,i)=>(<div key={i} className="support-card" onClick={()=>window.open(c.link,"_self")}><div style={{fontSize:18,marginBottom:18,color:"var(--gold)"}}>{c.icon}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:500,marginBottom:10,color:"var(--text)"}}>{c.title}</div><p style={{fontSize:13,color:"var(--text-m)",lineHeight:1.75,marginBottom:18}}>{c.desc}</p><div style={{fontSize:11,color:"var(--gold)",fontWeight:500,letterSpacing:".06em"}}>{c.action}</div></div>))}
         </div>
@@ -940,6 +975,7 @@ function SupportPage({onLogin,onPage,scrolled}:any){
     </div>
   );
 }
+
 
 function Login({onBack}:any){
   const [tab,setTab]=useState("signin");
