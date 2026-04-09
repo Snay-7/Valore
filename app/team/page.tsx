@@ -4,334 +4,787 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
+
+
+
+
+
+
+
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --gold:#c9a84c;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
-  --bg:#06070a;--bg1:#0b0d10;--bg2:#0f1116;--bg3:#14171e;--bg4:#1a1e27;
-  --text:#ede9e0;--text-m:#7a8390;--text-d:#363c46;
-  --border:rgba(255,255,255,0.055);--border-m:rgba(255,255,255,0.1);
+  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
+  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;
+  --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
+  --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
   --green:#3ddc84;--red:#f4645f;--amber:#f0a429;--blue:#5b9cf6;
   --font-display:'Cormorant Garamond',Georgia,serif;
   --font-body:'Instrument Sans',system-ui,sans-serif;
   --font-mono:'JetBrains Mono',monospace;
 }
-html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.pcard{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px;transition:border-color .2s,transform .15s;animation:fadeUp .3s ease both}
-.pcard:hover{border-color:var(--gold-border);transform:translateY(-1px)}
-.metric-pill{background:var(--bg3);border-radius:8px;padding:10px 14px}
-.btn-gold{background:var(--gold);color:#06070a;border:none;border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s}
-.btn-gold:hover{opacity:.88}
-.btn-gold:disabled{opacity:.35;cursor:not-allowed}
-.btn-ghost{background:none;border:1px solid var(--border-m);border-radius:8px;padding:9px 14px;color:var(--text-m);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
-.btn-ghost:hover{color:var(--text)}
-.nbtn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-m);cursor:pointer;padding:5px 14px;font-family:var(--font-body);font-size:11px;letter-spacing:.04em;transition:all .2s}
-.nbtn:hover{border-color:var(--gold-border);color:var(--gold)}
-.tab{background:none;border:none;font-family:var(--font-body);font-size:13px;cursor:pointer;padding:10px 18px;color:var(--text-d);border-bottom:2px solid transparent;transition:all .2s}
-.tab:hover{color:var(--text-m)}
-.tab.on{color:var(--text);border-bottom-color:var(--gold)}
-.mem-pill{padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-m);font-family:var(--font-body);transition:all .15s}
-.mem-pill.sel{border-color:var(--gold);background:var(--gold-bg);color:var(--gold)}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-thumb{background:var(--border-m);border-radius:2px}
-@media(max-width:768px){.cards-grid{grid-template-columns:1fr!important}.page-wrap{padding:24px 16px 80px!important}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn-primary:hover{background:var(--gold-l)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:7px 14px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(244,100,95,.25);border-radius:6px;padding:5px 12px;font-family:var(--font-body);font-size:11px;cursor:pointer;transition:all .2s}
+.btn-danger:hover{background:rgba(244,100,95,.08);border-color:var(--red)}
+.inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.08)}
+.inp::placeholder{color:var(--text-d)}
+select.inp{cursor:pointer}
+.member-row{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--border);animation:fadeIn .2s ease}
+.member-row:last-child{border-bottom:none}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;letter-spacing:.02em}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
+.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:28px;width:480px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto}
+@media(max-width:768px){
+  .main{padding:16px !important}
+  .member-row{flex-wrap:wrap;gap:10px}
+  .member-actions{width:100% !important;margin-left:0 !important}
+  .page-header{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}
+}
 `;
 
-const fmt = (n: number, p = "£") => {
-  if (!n || !isFinite(n) || isNaN(n)) return "—";
-  const a = Math.abs(n);
-  if (a >= 1e6) return `${p}${(n/1e6).toFixed(2)}m`;
-  if (a >= 1e3) return `${p}${(n/1e3).toFixed(0)}k`;
-  return `${p}${n.toFixed(0)}`;
-};
-const fmtPct = (n: number) => (!n||!isFinite(n)||isNaN(n))?"—":`${(n*100).toFixed(1)}%`;
-const CURR: Record<string,string> = {GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$"};
 
-export default function WorkspacePage() {
-  const router = useRouter();
-  const [user,        setUser]        = useState<any>(null);
-  const [firm,        setFirm]        = useState<any>(null);
-  const [role,        setRole]        = useState("member");
-  const [isAdmin,     setIsAdmin]     = useState(false);
-  const [isPro,       setIsPro]       = useState(false);
-  const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState<"projects"|"share">("projects");
-  const [myProjects,  setMyProjects]  = useState<any[]>([]);
-  const [sharedIds,   setSharedIds]   = useState<Set<string>>(new Set());
-  const [memberCards, setMemberCards] = useState<any[]>([]);
-  const [firmMembers, setFirmMembers] = useState<any[]>([]);
-  const [sharingId,   setSharingId]   = useState<string|null>(null);
-  const [selectedM,   setSelectedM]   = useState<string[]>([]);
-  const [savingShare, setSavingShare] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
+
+
+
+
+
+const ROLES=[
+  {id:"admin", label:"Admin",  desc:"Full access — manage team & all projects", bg:"rgba(201,168,76,.12)", color:"#c9a84c", proOnly:true},
+  {id:"editor",label:"Editor", desc:"Create and edit appraisals and tasks",      bg:"rgba(91,156,246,.12)", color:"#5b9cf6", proOnly:false},
+  {id:"viewer",label:"Viewer", desc:"Read-only access to shared projects",       bg:"rgba(61,220,132,.1)",  color:"#3ddc84", proOnly:false},
+];
+
+
+
+
+
+
+
+
+const AVATAR_BG=[
+  {bg:"rgba(201,168,76,.18)",c:"#c9a84c"},
+  {bg:"rgba(91,156,246,.18)",c:"#5b9cf6"},
+  {bg:"rgba(61,220,132,.15)",c:"#3ddc84"},
+  {bg:"rgba(240,164,41,.15)",c:"#f0a429"},
+  {bg:"rgba(244,100,95,.15)",c:"#f4645f"},
+];
+
+
+
+
+
+
+
+
+function initials(email:string){
+  if(!email)return"?";
+  const p=email.split("@")[0].split(/[._-]/);
+  return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():email.slice(0,2).toUpperCase();
+}
+function avColor(str:string){
+  let h=0;for(let i=0;i<str.length;i++)h=str.charCodeAt(i)+((h<<5)-h);
+  return AVATAR_BG[Math.abs(h)%AVATAR_BG.length];
+}
+function fmtDate(d:string){return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"});}
+
+
+
+
+
+
+
+
+export default function TeamPage(){
+  const router=useRouter();
+  const[user,setUser]=useState<any>(null);
+  const[firm,setFirm]=useState<any>(null);
+  const[members,setMembers]=useState<any[]>([]);
+  const[userProfiles,setUserProfiles]=useState<Record<string,string>>({});
+  const[loading,setLoading]=useState(true);
+  const[subscription,setSubscription]=useState<any>(null);
+
+
+
+
+
+
+
+
+  // Invite
+  const[showInvite,setShowInvite]=useState(false);
+  const[inviteEmail,setInviteEmail]=useState("");
+  const[inviteRole,setInviteRole]=useState("editor");
+  const[inviting,setInviting]=useState(false);
+  const[inviteErr,setInviteErr]=useState<string|null>(null);
+  const[inviteOk,setInviteOk]=useState(false);
+
+
+
+
+
+
+
+
+  // Role change
+  const[roleModal,setRoleModal]=useState<any>(null);
+  const[newRole,setNewRole]=useState("editor");
+  const[savingRole,setSavingRole]=useState(false);
+
+
+
+
+
+
+
+
+  // Remove
+  const[removeModal,setRemoveModal]=useState<any>(null);
+  const[removing,setRemoving]=useState(false);
+
+
+
+
+
+
+
+
+  // Firm name
+  const[editName,setEditName]=useState(false);
+  const[nameVal,setNameVal]=useState("");
+  const[savingName,setSavingName]=useState(false);
+
+
+
+
+
+
+
+
+  // Create firm
+  const[createModal,setCreateModal]=useState(false);
+  const[newFirmName,setNewFirmName]=useState("");
+  const[creating,setCreating]=useState(false);
+
+
+
+
+
+
+
+
+  useEffect(()=>{
+    const init=async()=>{
+      const{data:{session}}=await supabase.auth.getSession();
+      if(!session){router.push("/");return;}
       setUser(session.user);
+      const{data:sub}=await supabase.from("subscriptions").select("*").eq("user_id",session.user.id).maybeSingle();
+      setSubscription(sub);
+      await load(session.user.id);
+    };
+    init();
+  },[router]);
 
-      const { data: mr } = await supabase.from("firm_members")
-        .select("*, firms(*)").eq("user_id", session.user.id).maybeSingle();
 
-      // Also check direct firm ownership (owner may have no firm_members row)
-      const { data: ownedFirm } = await supabase.from("firms")
-        .select("*").eq("owner_id", session.user.id).maybeSingle();
 
-      const resolvedFirm = (mr?.firms as any) || ownedFirm || null;
-      if (!resolvedFirm) { router.push("/dashboard"); return; }
 
-      const firmId = resolvedFirm.id;
-      const isOwner = !!ownedFirm && !mr;
-      setFirm(resolvedFirm);
-      setRole(isOwner ? "admin" : (mr.role || "member"));
-      const admin = isOwner || mr?.role === "admin";
-      setIsAdmin(admin);
 
-      const { data: sub } = await supabase.from("subscriptions")
-        .select("tier, trial_ends_at").eq("user_id", session.user.id).maybeSingle();
-      const tier = sub?.tier || "free";
-      const trialing = sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date();
-      setIsPro(tier === "professional" || tier === "enterprise" || !!trialing || tier === "starter");
 
-      const { data: tm } = await supabase.from("firm_members")
-        .select("*").eq("firm_id", firmId);
-      setFirmMembers((tm||[]).filter((m:any) => m.user_id !== session.user.id));
 
-      const { data: pm } = await supabase.from("project_members")
-        .select("project_id").eq("firm_id", firmId);
-      setSharedIds(new Set((pm||[]).map((x:any) => x.project_id)));
 
-      if (admin) {
-        const { data: fp } = await supabase.from("projects")
-          .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
-          .eq("firm_id", firmId).is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        setMyProjects(fp || []);
-      } else {
-        const { data: assigned } = await supabase.from("project_members")
-          .select("project_id, projects(*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at))")
-          .eq("user_id", session.user.id).eq("firm_id", firmId);
-        setMemberCards((assigned||[]).map((a:any) => ({id: a.project_id, ...a.projects})));
-
-        const { data: ownP } = await supabase.from("projects")
-          .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
-          .eq("created_by", session.user.id).is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        setMyProjects(ownP || []);
+  const load=async(uid:string)=>{
+    setLoading(true);
+    // Find firm membership for this user
+    const{data:myRows}=await supabase.from("firm_members").select("*,firms(*)").eq("user_id",uid);
+    // Pick the row belonging to the canonical firm (Valora Pro) or first admin row
+    const myRow=(myRows||[]).find((r:any)=>r.role==="admin") || (myRows&&myRows[0]) || null;
+    if(myRow?.firms){
+      const f=myRow.firms as any;
+      setFirm(f);setNameVal(f.name||"");
+      // Load all members
+      const{data:allMembers}=await supabase.from("firm_members").select("*").eq("firm_id",f.id).order("joined_at",{ascending:true});
+      setMembers(allMembers||[]);
+      // Load email addresses for all user_ids from auth.users via profiles or use email from member row
+      // Try to get emails from a profiles table if it exists
+      const uids=(allMembers||[]).map((m:any)=>m.user_id).filter(Boolean);
+      if(uids.length>0){
+        const{data:profiles}=await supabase.from("profiles").select("id,email").in("id",uids);
+        if(profiles){
+          const map:Record<string,string>={};
+          profiles.forEach((p:any)=>{if(p.id&&p.email)map[p.id]=p.email;});
+          setUserProfiles(map);
+        }
       }
-
-      setLoading(false);
-    })();
-  }, [router]);
-
-  const shareWith = async (projectId: string) => {
-    if (!firm || !user || selectedM.length === 0) return;
-    setSavingShare(true);
-    for (const uid of selectedM) {
-      await supabase.from("project_members").upsert({
-        project_id: projectId, user_id: uid, firm_id: firm.id, assigned_by: user.id,
-      }, { onConflict: "project_id,user_id" });
+    }else{
+      setFirm(null);setMembers([]);
     }
-    setSharedIds(prev => new Set([...prev, projectId]));
-    setSharingId(null); setSelectedM([]); setSavingShare(false);
+    setLoading(false);
   };
 
-  const unshare = async (projectId: string) => {
-    if (!firm) return;
-    await supabase.from("project_members").delete().eq("project_id", projectId).eq("firm_id", firm.id);
-    setSharedIds(prev => { const n = new Set(prev); n.delete(projectId); return n; });
+
+
+
+
+
+
+
+  const getMemberEmail=(member:any):string=>{
+    if(member.email)return member.email;
+    if(userProfiles[member.user_id])return userProfiles[member.user_id];
+    if(member.user_id===user?.id)return user.email||"—";
+    return member.user_id?.slice(0,8)+"…"||"—";
+  };
+  const getMemberName=(member:any):string=>{
+    if(member.Name)return member.Name;
+    return getMemberEmail(member);
   };
 
-  const displayCards = isAdmin ? myProjects : memberCards;
 
-  if (loading) return (
-    <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ width:30, height:30, border:"2px solid rgba(201,168,76,.15)", borderTopColor:"#c9a84c", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
+
+
+
+
+
+
+  const createFirm=async()=>{
+    if(!newFirmName.trim()||!user)return;
+    setCreating(true);
+    const{data:f,error:fe}=await supabase.from("firms").insert({name:newFirmName.trim(),owner_id:user.id}).select().single();
+    if(fe||!f){setCreating(false);return;}
+    await supabase.from("firm_members").insert({firm_id:f.id,user_id:user.id,role:"admin",invited_by:user.id});
+    setCreating(false);setCreateModal(false);setNewFirmName("");
+    await load(user.id);
+  };
+
+
+
+
+
+
+
+
+  const sendInvite=async()=>{
+    const email=inviteEmail.trim().toLowerCase();
+    if(!email||!firm||!user)return;
+    setInviting(true);setInviteErr(null);
+
+
+
+
+    // Check not already an accepted member
+    if(members.find(m=>m.email?.toLowerCase()===email&&m.user_id)){
+      setInviteErr("This person is already in your team.");setInviting(false);return;
+    }
+
+
+
+
+    // 1. Create a unique invite token in firm_invites
+    const token=crypto.randomUUID();
+    const{error:tokenErr}=await supabase.from("firm_invites").insert({
+      firm_id:firm.id,
+      email,
+      role:inviteRole,
+      invited_by:user.id,
+      token,
+    });
+    if(tokenErr){setInviteErr(tokenErr.message||"Failed to create invite.");setInviting(false);return;}
+
+
+
+
+    // 2. Also add a placeholder row in firm_members (email only, no user_id yet)
+    // This lets the admin see a "pending" state. Ignore error if row exists.
+    await supabase.from("firm_members").upsert(
+      {firm_id:firm.id,email,role:inviteRole,invited_by:user.id},
+      {onConflict:"firm_id,email",ignoreDuplicates:true}
+    );
+
+
+
+
+    // 3. Send invite email with the correct /invite/[token] link
+    const inviteLink=`${window.location.origin}/invite/${token}`;
+    try{
+      const res=await fetch("/api/invite",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          email,
+          firmName:firm.name,
+          inviteLink,
+          inviterEmail:user.email,
+          role:inviteRole,
+        }),
+      });
+      const result=await res.json();
+      if(!result.sent){
+        console.warn("Email not sent:",result.error||result.message);
+      }
+    }catch(emailErr){
+      console.warn("Email send failed:",emailErr);
+    }
+
+
+
+
+    setInviteOk(true);
+    await load(user.id);
+    setTimeout(()=>{setInviteOk(false);setShowInvite(false);setInviteEmail("");setInviteRole("editor");},1600);
+    setInviting(false);
+  };
+
+
+
+
+
+
+
+
+  const changeRole=async()=>{
+    if(!roleModal)return;
+    setSavingRole(true);
+    await supabase.from("firm_members").update({role:newRole}).eq("id",roleModal.id);
+    setMembers(prev=>prev.map(m=>m.id===roleModal.id?{...m,role:newRole}:m));
+    setSavingRole(false);setRoleModal(null);
+  };
+
+
+
+
+
+
+
+
+  const removeMember=async()=>{
+    if(!removeModal)return;
+    setRemoving(true);
+    await supabase.from("firm_members").delete().eq("id",removeModal.id);
+    setMembers(prev=>prev.filter(m=>m.id!==removeModal.id));
+    setRemoving(false);setRemoveModal(null);
+  };
+
+
+
+
+
+
+
+
+  const saveName=async()=>{
+    if(!nameVal.trim()||!firm)return;
+    setSavingName(true);
+    await supabase.from("firms").update({name:nameVal.trim()}).eq("id",firm.id);
+    setFirm((f:any)=>({...f,name:nameVal.trim()}));
+    setSavingName(false);setEditName(false);
+  };
+
+
+
+
+
+
+
+
+  const myMember=members.find(m=>m.user_id===user?.id);
+  const isAdmin=myMember?.role==="admin";
+  const tier=subscription?.tier||"free";
+  const trialEndsAt=subscription?.trial_ends_at?new Date(subscription.trial_ends_at):null;
+  const isTrialing=trialEndsAt&&trialEndsAt>new Date();
+  const trialDaysLeft=isTrialing?Math.ceil((trialEndsAt!.getTime()-Date.now())/(1000*60*60*24)):0;
+  const isEnterprise=tier==="enterprise"||isTrialing;
+  const isPro=tier==="professional"||isEnterprise;
+  const canInvite=isPro; // Pro can invite other Pro, Enterprise gets full workspace
+  const canCreateFirm=isPro;
+
+
+
+
+
+
+
+
+  if(loading)return(
+    <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
+      <img src="data:image/png;base64,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" alt="Valora" style={{height:"32px",width:"auto"}}/>
+      <div style={{width:26,height:26,border:"2px solid rgba(201,168,76,.15)",borderTopColor:"#c9a84c",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+      <div style={{fontSize:11,color:"#3d4249",letterSpacing:".06em"}}>Loading team…</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  const ProjectCard = ({ p, i, showFooter }: { p: any; i: number; showFooter?: boolean }) => {
-    const latest = (p.appraisals||[]).sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())[0];
-    const sym = CURR[p.currency] || "£";
-    const shared = sharedIds.has(p.id);
-    const isSharingThis = sharingId === p.id;
-    return (
-      <div className="pcard" style={{ animationDelay:`${i*0.03}s` }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-          <span style={{ fontSize:10, padding:"2px 9px", borderRadius:10, background:"var(--gold-bg)", color:"var(--gold)", fontWeight:600 }}>{p.asset_type}</span>
-          <span style={{ fontSize:10, padding:"2px 9px", borderRadius:10, background:"rgba(125,133,144,.1)", color:"var(--text-m)" }}>{latest?.status||"draft"}</span>
-          {shared && <span style={{ fontSize:10, color:"var(--green)", marginLeft:"auto", background:"rgba(61,220,132,.08)", padding:"1px 8px", borderRadius:10, border:"1px solid rgba(61,220,132,.2)" }}>✓ Shared</span>}
-        </div>
 
-        <div onClick={() => router.push(`/workspace/${p.id}`)} style={{ cursor:"pointer" }}>
-          <h3 style={{ fontSize:17, fontWeight:500, fontFamily:"var(--font-display)", marginBottom:3 }}>{p.name||"Untitled"}</h3>
-          <p style={{ fontSize:12, color:"var(--text-m)", marginBottom:14 }}>{p.location||"No location"}</p>
-          {latest ? (
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:14 }}>
-              {[
-                {l:"GDV",v:fmt(latest.gdv,sym),c:"var(--gold)"},
-                {l:"Profit",v:fmt(latest.profit,sym),c:(latest.profit||0)>0?"var(--green)":"var(--red)"},
-                {l:"PoC",v:fmtPct(latest.profit_on_cost),c:latest.profit_on_cost>0.2?"var(--green)":"var(--amber)"},
-              ].map(m=>(
-                <div key={m.l} className="metric-pill">
-                  <div style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", marginBottom:2 }}>{m.l}</div>
-                  <div style={{ fontFamily:"var(--font-mono)", fontSize:12, color:m.c }}>{m.v}</div>
+
+
+
+
+
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-body)"}}>
+      <style>{CSS}</style>
+
+
+
+
+
+
+
+
+      {/* Nav */}
+      <nav style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 16px",height:52,display:"flex",alignItems:"center",gap:8,position:"sticky",top:0,zIndex:40,flexShrink:0}}>
+        <img src="data:image/png;base64,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" alt="Valora" onClick={()=>router.push("/dashboard")} style={{height:"26px",width:"auto",cursor:"pointer",flexShrink:0}}/>
+        <div style={{flex:1}}/>
+        <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{fontSize:11,padding:"4px 10px",flexShrink:0}}>← Dashboard</button>
+        <button onClick={async()=>{await supabase.auth.signOut();router.push("/");}} className="btn-ghost" style={{fontSize:11,padding:"4px 10px",flexShrink:0}}>Sign Out</button>
+      </nav>
+
+
+
+
+
+
+
+
+      <div className="main" style={{maxWidth:720,margin:"0 auto",padding:"32px 24px",overflowX:"hidden"}}>
+
+
+
+
+
+
+
+
+        {/* No firm */}
+        {!firm&&(
+          <div style={{textAlign:"center",padding:"80px 0"}}>
+            <div style={{fontFamily:"var(--font-display)",fontSize:44,fontWeight:300,color:"var(--text-d)",marginBottom:16}}>◈</div>
+            <h1 style={{fontFamily:"var(--font-display)",fontSize:28,fontWeight:300,marginBottom:8}}>No team workspace yet</h1>
+            <p style={{fontSize:13,color:"var(--text-d)",marginBottom:32,maxWidth:360,margin:"0 auto 32px"}}>Create a workspace to invite your team, assign roles and collaborate on deals.</p>
+            {canCreateFirm ? (
+              <button className="btn-primary" style={{padding:"12px 28px",fontSize:13}} onClick={()=>setCreateModal(true)}>+ Create Team Workspace</button>
+            ) : (
+              <div>
+                <button className="btn-primary" style={{padding:"12px 28px",fontSize:13,background:"var(--bg3)",border:"1px solid var(--gold-border)",color:"var(--gold)"}} onClick={()=>router.push("/pricing")}>✦ Upgrade to Create Team</button>
+                <p style={{fontSize:11,color:"var(--text-d)",marginTop:12}}>Available on Pro and Enterprise plans.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+
+
+
+
+
+
+
+        {/* Firm exists */}
+        {firm&&(
+          <>
+            {/* Header */}
+            <div className="page-header" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28,gap:12}}>
+              <div>
+                {editName?(
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                    <input className="inp" value={nameVal} onChange={e=>setNameVal(e.target.value)}
+                      style={{fontSize:22,padding:"6px 12px",fontFamily:"var(--font-display)",fontWeight:300,width:240}}
+                      onKeyDown={e=>{if(e.key==="Enter")saveName();if(e.key==="Escape"){setEditName(false);setNameVal(firm.name);}}}
+                      autoFocus/>
+                    <button className="btn-primary" onClick={saveName} disabled={savingName||!nameVal.trim()} style={{padding:"7px 14px",fontSize:12}}>{savingName?"Saving…":"Save"}</button>
+                    <button className="btn-ghost" onClick={()=>{setEditName(false);setNameVal(firm.name);}} style={{padding:"7px 12px",fontSize:12}}>Cancel</button>
+                  </div>
+                ):(
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                    <h1 style={{fontFamily:"var(--font-display)",fontSize:30,fontWeight:300,letterSpacing:".02em",textTransform:"none"}}>{firm.name||"My Team"}</h1>
+                    <button onClick={()=>setEditName(true)} style={{background:"none",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-d)",cursor:"pointer",fontSize:11,fontFamily:"var(--font-body)",padding:"2px 8px",transition:"all .2s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold)";e.currentTarget.style.color="var(--gold)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-d)";}}>
+                      Rename
+                    </button>
+                  </div>
+                )}
+                <p style={{fontSize:12,color:"var(--text-d)"}}>{members.length} member{members.length!==1?"s":""} · {isAdmin?"Admin":"Member"}</p>
+              </div>
+              {canInvite ? (
+                <button className="btn-primary" onClick={()=>{setShowInvite(true);setInviteErr(null);setInviteOk(false);setInviteEmail("");setInviteRole("editor");}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                  Invite Member
+                </button>
+              ) : (
+                <button className="btn-primary" onClick={()=>router.push("/pricing")} style={{background:"var(--bg3)",border:"1px solid var(--gold-border)",color:"var(--gold)"}}>
+                  ✦ Upgrade to Invite
+                </button>
+              )}
+            </div>
+
+
+
+
+
+
+
+
+            {/* Trial banner */}
+            {isTrialing&&(
+              <div style={{background:"rgba(201,168,76,.08)",border:"1px solid var(--gold-border)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--gold)",marginBottom:1}}>✦ Enterprise Trial — {trialDaysLeft} day{trialDaysLeft!==1?"s":""} remaining</div>
+                  <div style={{fontSize:11,color:"var(--text-m)"}}>You have full access to all features during your trial.</div>
+                </div>
+                <button className="btn-primary" onClick={()=>router.push("/pricing")} style={{fontSize:11,padding:"6px 14px",flexShrink:0}}>Upgrade Now</button>
+              </div>
+            )}
+
+
+
+
+
+
+
+
+            {/* Free/Starter upgrade prompt */}
+            {!isPro&&!isTrialing&&(
+              <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"24px",marginBottom:20,textAlign:"center"}}>
+                <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,marginBottom:8}}>Upgrade to invite your team</div>
+                <p style={{fontSize:13,color:"var(--text-m)",marginBottom:20,maxWidth:400,margin:"0 auto 20px"}}>Pro users can invite other Pro collaborators. Enterprise gets full team workspace with roles and shared projects.</p>
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button className="btn-primary" onClick={()=>router.push("/pricing")} style={{padding:"10px 24px"}}>View Plans →</button>
+                </div>
+              </div>
+            )}
+
+
+
+
+
+
+
+
+            {/* Members list */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"0 20px",marginBottom:20}}>
+              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".09em",padding:"14px 0 12px",borderBottom:"1px solid var(--border)"}}>
+                Team Members ({members.length})
+              </div>
+              {members.length===0&&(
+                <div style={{textAlign:"center",padding:"28px 0",color:"var(--text-d)",fontSize:13}}>No members yet — invite your team</div>
+              )}
+              {members.map(m=>{
+                const email=getMemberEmail(m);
+                const ac=avColor(email);
+                const role=ROLES.find(r=>r.id===m.role)||ROLES[1];
+                const isMe=m.user_id===user?.id;
+                return(
+                  <div key={m.id} className="member-row">
+                    <div className="avatar" style={{background:ac.bg,color:ac.c}}>{initials(email)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        <span style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{getMemberName(m)}</span>
+                        {isMe&&<span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4,flexShrink:0}}>you</span>}
+                      </div>
+                      {getMemberName(m)!==email&&<div style={{fontSize:11,color:"var(--text-d)",marginTop:1}}>{email}</div>}
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginTop:5,flexWrap:"wrap"}}>
+                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:role.bg,color:role.color}}>{role.label}</span>
+                        <span style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>
+                          {m.joined_at?`Joined ${fmtDate(m.joined_at)}`:"Pending"}
+                        </span>
+                      </div>
+                    </div>
+                    {!isMe&&(
+                      <div className="member-actions" style={{display:"flex",gap:6,flexShrink:0,marginLeft:"auto"}}>
+                        <button className="btn-ghost" style={{fontSize:11,padding:"5px 12px"}}
+                          onClick={()=>{setRoleModal(m);setNewRole(m.role);}}>
+                          Change Role
+                        </button>
+                        <button className="btn-danger" onClick={()=>setRemoveModal(m)}>Remove</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+
+
+
+
+
+
+
+            {/* Role guide */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {ROLES.map(r=>(
+                <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,flex:1,minWidth:180}}>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:r.bg,color:r.color,flexShrink:0}}>{r.label}</span>
+                  {r.proOnly&&<span style={{fontSize:9,padding:"1px 5px",borderRadius:3,fontWeight:700,background:"var(--gold)",color:"#06070a",flexShrink:0}}>PRO</span>}
+                  <span style={{fontSize:11,color:"var(--text-d)"}}>{r.desc}</span>
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={{ background:"var(--bg3)", borderRadius:7, padding:"8px 12px", fontSize:12, color:"var(--text-d)", marginBottom:14 }}>No appraisal saved yet</div>
-          )}
-        </div>
-
-        {/* Action footer */}
-        {!showFooter ? (
-          <div style={{ display:"flex", gap:8, paddingTop:12, borderTop:"1px solid var(--border)" }}>
-            <button onClick={() => router.push(latest ? `/appraisal?project=${p.id}&appraisal=${latest.id}` : `/appraisal?project=${p.id}`)}
-              style={{ flex:1, background:"none", border:"1px solid var(--border)", borderRadius:7, padding:"7px 0", fontSize:11, color:"var(--text-m)", cursor:"pointer", fontFamily:"var(--font-body)", transition:"all .2s" }}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold-border)";e.currentTarget.style.color="var(--gold)";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-m)";}}>
-              Open Appraisal
-            </button>
-            <button onClick={() => router.push(`/workspace/${p.id}`)}
-              style={{ flex:1, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", borderRadius:7, padding:"7px 0", fontSize:11, color:"var(--gold)", cursor:"pointer", fontFamily:"var(--font-body)", fontWeight:600 }}>
-              Tasks & Notes →
-            </button>
-          </div>
-        ) : (
-          <div style={{ paddingTop:12, borderTop:"1px solid var(--border)" }}>
-            {!isSharingThis ? (
-              <div style={{ display:"flex", gap:8 }}>
-                {!shared ? (
-                  firmMembers.length > 0 ? (
-                    <button className="btn-gold" style={{ flex:1, padding:"8px" }} onClick={() => { setSharingId(p.id); setSelectedM([]); }}>
-                      Share with Team
-                    </button>
-                  ) : (
-                    <button className="btn-ghost" style={{ flex:1, padding:"8px", fontSize:11 }} onClick={() => router.push("/team")}>
-                      Invite members first →
-                    </button>
-                  )
-                ) : (
-                  <>
-                    <button onClick={() => router.push(latest ? `/appraisal?project=${p.id}&appraisal=${latest.id}` : `/appraisal?project=${p.id}`)}
-                      style={{ flex:1, background:"none", border:"1px solid var(--border)", borderRadius:7, padding:"7px 0", fontSize:11, color:"var(--text-m)", cursor:"pointer", fontFamily:"var(--font-body)", transition:"all .2s" }}
-                      onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--gold-border)";e.currentTarget.style.color="var(--gold)";}}
-                      onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--text-m)";}}>
-                      Open Appraisal
-                    </button>
-                    <button className="btn-ghost" style={{ fontSize:11, padding:"7px 10px" }} onClick={() => unshare(p.id)}>Unshare</button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize:10, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Share with</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
-                  {firmMembers.map((m:any) => {
-                    const sel = selectedM.includes(m.user_id);
-                    return (
-                      <button key={m.id} className={`mem-pill ${sel?"sel":""}`}
-                        onClick={() => setSelectedM(prev => sel ? prev.filter(x=>x!==m.user_id) : [...prev, m.user_id])}>
-                        {m.email || m.role}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button className="btn-gold" style={{ flex:1, padding:"8px", fontSize:12 }} disabled={savingShare||selectedM.length===0} onClick={() => shareWith(p.id)}>
-                    {savingShare?"Sharing…":"Share →"}
-                  </button>
-                  <button className="btn-ghost" style={{ padding:"8px 12px" }} onClick={() => { setSharingId(null); setSelectedM([]); }}>Cancel</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", fontFamily:"var(--font-body)" }}>
-      <style>{CSS}</style>
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, background:"radial-gradient(ellipse 60% 40% at 10% 50%,rgba(201,168,76,.025) 0%,transparent 55%)" }}/>
-
-      {/* Nav */}
-      <nav style={{ position:"sticky", top:0, zIndex:50, background:"rgba(6,7,10,.92)", backdropFilter:"blur(16px)", borderBottom:"1px solid var(--border)", height:54, display:"flex", alignItems:"center", padding:"0 28px", gap:14 }}>
-        <button className="nbtn" onClick={() => router.push("/dashboard")}>← Portfolio</button>
-        {firm && <><span style={{ color:"var(--text-d)", fontSize:14 }}>/</span><span style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em" }}>{firm.name}</span></>}
-        <div style={{ flex:1 }}/>
-        <button className="nbtn" onClick={() => router.push("/tasks")}>Tasks</button>
-        {isAdmin && <button className="nbtn" onClick={() => router.push("/team")}>+ Team</button>}
-        <span style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{role}</span>
-      </nav>
-
-      <div className="page-wrap" style={{ maxWidth:1000, margin:"0 auto", padding:"40px 28px 80px", position:"relative", zIndex:1 }}>
-
-        {/* Header */}
-        <div style={{ marginBottom:32 }}>
-          <div style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".12em", marginBottom:8 }}>{firm?.name}</div>
-          <h1 style={{ fontFamily:"var(--font-display)", fontSize:48, fontWeight:300, letterSpacing:".01em", marginBottom:6 }}>Workspace</h1>
-          <p style={{ fontSize:13, color:"var(--text-m)" }}>
-            {displayCards.length} project{displayCards.length !== 1 ? "s" : ""} · {role}
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:"flex", borderBottom:"1px solid var(--border)", marginBottom:32 }}>
-          <button className={`tab ${tab==="projects"?"on":""}`} onClick={() => setTab("projects")}>Projects</button>
-          <button className={`tab ${tab==="share"?"on":""}`} onClick={() => {
-            if (!isPro) { router.push("/pricing"); return; }
-            setTab("share");
-          }}>
-            {isPro ? "Share a Project" : "Share a Project ✦ Upgrade"}
-          </button>
-        </div>
-
-        {/* ── PROJECTS TAB ── */}
-        {tab === "projects" && (
-          displayCards.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"80px 0" }}>
-              <div style={{ fontFamily:"var(--font-display)", fontSize:48, fontWeight:300, color:"var(--text-d)", marginBottom:16 }}>◈</div>
-              <p style={{ fontSize:15, color:"var(--text-d)", marginBottom:8 }}>
-                {isAdmin ? "No projects in your firm yet" : "No projects shared with you yet"}
-              </p>
-              <p style={{ fontSize:13, color:"var(--text-d)", marginBottom:24 }}>
-                {isAdmin ? "Use Share a Project to share with your team." : "Your workspace admin will share projects with you."}
-              </p>
-              {isAdmin && <button className="btn-gold" onClick={() => setTab("share")}>Share a Project →</button>}
-            </div>
-          ) : (
-            <div className="cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:14 }}>
-              {displayCards.map((p, i) => <ProjectCard key={p.id} p={p} i={i} showFooter={false} />)}
-            </div>
-          )
-        )}
-
-        {/* ── SHARE TAB ── */}
-        {tab === "share" && (
-          <>
-            <div style={{ fontSize:13, color:"var(--text-m)", marginBottom:24 }}>
-              Share your projects with team members. Shared projects appear in their workspace — not in their personal portfolio or pipeline.
-            </div>
-            {myProjects.length === 0 ? (
-              <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-d)", fontSize:13 }}>
-                No projects to share.{" "}
-                <span style={{ color:"var(--gold)", cursor:"pointer" }} onClick={() => router.push("/dashboard")}>Create one →</span>
-              </div>
-            ) : (
-              <div className="cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:14 }}>
-                {myProjects.map((p, i) => <ProjectCard key={p.id} p={p} i={i} showFooter={true} />)}
-              </div>
-            )}
           </>
         )}
       </div>
+
+
+
+
+
+
+
+
+      {/* ── INVITE MODAL ── */}
+      {showInvite&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowInvite(false);}}>
+          <div className="modal">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontFamily:"var(--font-display)",fontSize:24,fontWeight:300}}>Invite Member</div>
+              <button onClick={()=>setShowInvite(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
+            </div>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:22}}>Invite someone to join <strong style={{color:"var(--text)",fontWeight:500}}>{firm?.name}</strong>.</p>
+            {inviteOk?(
+              <div style={{textAlign:"center",padding:"32px 0"}}>
+                <div style={{fontSize:40,color:"var(--green)",marginBottom:8}}>✓</div>
+                <div style={{fontSize:14,color:"var(--green)",fontWeight:500}}>Invite sent to {inviteEmail}</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginTop:6}}>They'll receive an email with a link to join {firm?.name}</div>
+              </div>
+            ):(
+              <>
+                <div style={{marginBottom:16}}>
+                  <label style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:6}}>Email Address *</label>
+                  <input className="inp" type="email" placeholder="colleague@company.com"
+                    value={inviteEmail} onChange={e=>{setInviteEmail(e.target.value);setInviteErr(null);}}
+                    onKeyDown={e=>e.key==="Enter"&&sendInvite()} autoFocus/>
+                </div>
+                <div style={{marginBottom:20}}>
+                  <label style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:10}}>Role</label>
+                  <div style={{display:"flex",gap:8}}>
+                    {ROLES.map(r=>{
+                      const locked=r.proOnly&&!isPro;
+                      return(
+                        <button key={r.id} onClick={()=>locked?router.push("/pricing"):setInviteRole(r.id)}
+                          style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${inviteRole===r.id&&!locked?r.color+"88":"var(--border)"}`,background:inviteRole===r.id&&!locked?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none",position:"relative",opacity:locked?.6:1}}>
+                          {locked&&<span style={{position:"absolute",top:6,right:6,fontSize:9,background:"var(--gold)",color:"#06070a",padding:"1px 5px",borderRadius:3,fontWeight:700}}>PRO</span>}
+                          <div style={{fontSize:11,fontWeight:600,color:inviteRole===r.id&&!locked?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                          <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{locked?"Upgrade to Pro to assign":r.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {inviteErr&&<div style={{background:"rgba(244,100,95,.08)",border:"1px solid rgba(244,100,95,.25)",borderRadius:7,padding:"10px 14px",fontSize:12,color:"var(--red)",marginBottom:14}}>{inviteErr}</div>}
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn-ghost" onClick={()=>setShowInvite(false)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
+                  <button className="btn-primary" onClick={sendInvite} disabled={!inviteEmail.trim()||inviting} style={{flex:2,justifyContent:"center"}}>
+                    {inviting?<><span style={{width:12,height:12,border:"1.5px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Adding…</>:"Add Member →"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+
+
+
+
+
+
+
+      {/* ── CHANGE ROLE MODAL ── */}
+      {roleModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setRoleModal(null);}}>
+          <div className="modal" style={{width:440}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300}}>Change Role</div>
+              <button onClick={()=>setRoleModal(null)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
+            </div>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:20}}>{getMemberEmail(roleModal)}</p>
+            <div style={{display:"flex",gap:8,marginBottom:20}}>
+              {ROLES.map(r=>{
+                const locked=r.proOnly&&!isPro;
+                return(
+                  <button key={r.id} onClick={()=>locked?router.push("/pricing"):setNewRole(r.id)}
+                    style={{flex:1,padding:"12px 8px",borderRadius:8,border:`1px solid ${newRole===r.id&&!locked?r.color+"88":"var(--border)"}`,background:newRole===r.id&&!locked?r.bg:"var(--bg3)",cursor:"pointer",transition:"all .2s",textAlign:"center",outline:"none",position:"relative",opacity:locked?.6:1}}>
+                    {locked&&<span style={{position:"absolute",top:6,right:6,fontSize:9,background:"var(--gold)",color:"#06070a",padding:"1px 5px",borderRadius:3,fontWeight:700}}>PRO</span>}
+                    <div style={{fontSize:11,fontWeight:600,color:newRole===r.id&&!locked?r.color:"var(--text-m)",fontFamily:"var(--font-body)",marginBottom:3}}>{r.label}</div>
+                    <div style={{fontSize:10,color:"var(--text-d)",lineHeight:1.3}}>{locked?"Upgrade to Pro to assign":r.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-ghost" onClick={()=>setRoleModal(null)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
+              <button className="btn-primary" onClick={changeRole} disabled={savingRole||newRole===roleModal.role} style={{flex:1,justifyContent:"center"}}>
+                {savingRole?"Saving…":"Save Role"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+
+
+
+
+
+      {/* ── REMOVE MODAL ── */}
+      {removeModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setRemoveModal(null);}}>
+          <div className="modal" style={{width:400}}>
+            <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,marginBottom:8,color:"var(--red)"}}>Remove Member</div>
+            <p style={{fontSize:13,color:"var(--text-m)",marginBottom:6}}>Remove {getMemberEmail(removeModal)} from {firm?.name}?</p>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:24}}>They will lose access to all shared projects immediately.</p>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-ghost" onClick={()=>setRemoveModal(null)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
+              <button onClick={removeMember} disabled={removing}
+                style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:7,padding:"9px 18px",fontFamily:"var(--font-body)",fontSize:13,fontWeight:600,cursor:"pointer",opacity:removing?.6:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                {removing?<><span style={{width:12,height:12,border:"1.5px solid rgba(255,255,255,.4)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Removing…</>:"Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+
+
+
+
+
+      {/* ── CREATE FIRM MODAL ── */}
+      {createModal&&(
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setCreateModal(false);}}>
+          <div className="modal">
+            <div style={{fontFamily:"var(--font-display)",fontSize:24,fontWeight:300,marginBottom:6}}>Create Team Workspace</div>
+            <p style={{fontSize:12,color:"var(--text-d)",marginBottom:22}}>Give your firm or team a name. You can rename it anytime.</p>
+            <div style={{marginBottom:16}}>
+              <label style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:6}}>Firm / Team Name *</label>
+              <input className="inp" placeholder="e.g. Andrade Capital" value={newFirmName}
+                onChange={e=>setNewFirmName(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&createFirm()} autoFocus/>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-ghost" onClick={()=>setCreateModal(false)} style={{flex:1,justifyContent:"center"}}>Cancel</button>
+              <button className="btn-primary" onClick={createFirm} disabled={!newFirmName.trim()||creating} style={{flex:2,justifyContent:"center"}}>
+                {creating?"Creating…":"Create Workspace →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
