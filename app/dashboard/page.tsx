@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
@@ -48,10 +48,6 @@ select.inp{cursor:pointer}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
 .stats-strip{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
-.act-tab{background:none;border:1px solid transparent;font-family:var(--font-body);font-size:12px;cursor:pointer;padding:5px 14px;border-radius:6px;transition:all .2s;letter-spacing:.03em}
-.act-tab.on{background:var(--bg3);color:var(--text);border-color:var(--border-m)}
-.act-tab.off{color:var(--text-d)}
-.act-tab.off:hover{color:var(--text-m)}
 .stat-cell{flex:1;padding:12px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
 .stat-cell:last-child{border-right:none}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -137,14 +133,11 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/"); return; }
       setUser(session.user);
-      const { data: memberRow } = await supabase.from("firm_members").select("id, firm_id, role").eq("user_id", session.user.id).maybeSingle();
-      setHasFirm(!!memberRow);
-      // Only admins see all firm projects in portfolio; members only see their own
-      const isAdmin = memberRow?.role === "admin";
-      await loadProjects(session.user.id, isAdmin ? (memberRow?.firm_id || null) : null);
+      await loadProjects(session.user.id);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
-
+      const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
+      setHasFirm(!!memberRow);
     };
     init();
   }, [router]);
@@ -159,31 +152,13 @@ export default function Dashboard() {
   }, []);
 
 
-  const loadProjects = async (userId: string, firmId: string | null = null) => {
+  const loadProjects = async (userId: string) => {
     setLoading(true);
-    // Fetch own projects
-    const { data: ownProjects } = await supabase
+    const { data: all } = await supabase
       .from("projects")
       .select(`*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`)
       .eq("created_by", userId)
       .order("created_at", { ascending: false });
-    // Fetch firm projects (projects created by teammates in the same firm)
-    let firmProjects: any[] = [];
-    if (firmId) {
-      const { data: fp } = await supabase
-        .from("projects")
-        .select(`*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`)
-        .eq("firm_id", firmId)
-        .neq("created_by", userId)
-        .order("created_at", { ascending: false });
-      firmProjects = fp || [];
-    }
-    // Deduplicate by id and merge
-    const seen = new Set<string>();
-    const all: any[] = [];
-    for (const p of [...(ownProjects || []), ...firmProjects]) {
-      if (!seen.has(p.id)) { seen.add(p.id); all.push(p); }
-    }
     const now = new Date();
     const active: any[] = [], trashed: any[] = [];
     let totalCount = 0;
@@ -205,12 +180,10 @@ export default function Dashboard() {
   const createProject = async () => {
     if (!newProject.name.trim() || !user) return;
     setCreating(true);
-    const { data: myMember } = await supabase.from("firm_members").select("firm_id").eq("user_id", user.id).maybeSingle();
-    const userFirmId = myMember?.firm_id || null;
     const { data: proj, error } = await supabase.from("projects").insert({
       name: newProject.name.trim(), location: newProject.location.trim(),
       asset_type: newProject.asset_type, currency: newProject.currency,
-      benchmark_rate: "SONIA", created_by: user.id, firm_id: userFirmId,
+      benchmark_rate: "SONIA", created_by: user.id, firm_id: null,
     }).select().single();
     if (proj && !error) { setShowNewModal(false); setNewProject({ name: "", location: "", asset_type: "BTR", currency: "GBP" }); router.push(`/appraisal?project=${proj.id}`); }
     setCreating(false);
@@ -230,8 +203,6 @@ export default function Dashboard() {
       if (d.error) { setUrlImportError(d.error); setUrlImporting(false); return; }
       // Create the project with inferred data
       const projectName = d.name || `${urlImportType} — ${d.location || "Imported"}`;
-      const { data: urlMember } = await supabase.from("firm_members").select("firm_id").eq("user_id", user.id).maybeSingle();
-      const urlFirmId = urlMember?.firm_id || null;
       const { data: proj, error } = await supabase.from("projects").insert({
         name: projectName,
         location: d.location || "",
@@ -239,7 +210,7 @@ export default function Dashboard() {
         currency: urlImportCurrency,
         benchmark_rate: "SONIA",
         created_by: user.id,
-        firm_id: urlFirmId,
+        firm_id: null,
       }).select().single();
       if (!proj || error) { setUrlImportError("Failed to create project"); setUrlImporting(false); return; }
       // Build appraisal data payload from inferred fields
@@ -625,104 +596,181 @@ export default function Dashboard() {
                 })}
               </div>
             )}
-;
-import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
-const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
-  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;
-  --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
-  --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
-  --green:#3ddc84;--red:#f4645f;--amber:#f0a429;--blue:#5b9cf6;
-  --font-display:'Cormorant Garamond',Georgia,serif;
-  --font-body:'Instrument Sans',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
-}
-body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;animation:fadeIn .3s ease both;position:relative}
-.card:hover{border-color:var(--gold-border);transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.4)}
-.card.trashed{opacity:.6;border-style:dashed}
-.metric-pill{background:var(--bg3);border-radius:7px;padding:8px 10px}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
-.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:28px;width:460px;max-width:calc(100vw - 32px)}
-.inp{width:100%;padding:9px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border-color .2s}
-.inp:focus{border-color:var(--gold)}
-.inp::placeholder{color:var(--text-d);font-family:var(--font-body)}
-.inp-label{font-size:10px;color:var(--text-d);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;display:block}
-.inp-group{margin-bottom:12px}
-.btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:7px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
-.btn-primary:hover{background:var(--gold-l)}
-.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:8px 16px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
-.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(244,100,95,.3);border-radius:6px;padding:5px 10px;font-family:var(--font-body);font-size:11px;cursor:pointer;transition:all .2s}
-.btn-danger:hover{background:rgba(244,100,95,.1);border-color:var(--red)}
-.btn-demo{display:flex;align-items:center;gap:8px;background:transparent;color:var(--gold);border:1px solid var(--gold-border);border-radius:7px;padding:8px 14px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;width:100%;margin-bottom:2px}
-.btn-demo:hover{background:var(--gold-bg);border-color:var(--gold)}
-select.inp{cursor:pointer}
-.menu-btn{background:none;border:none;color:var(--text-d);cursor:pointer;padding:4px 8px;border-radius:4px;font-size:16px;line-height:1;transition:all .2s;position:relative;z-index:2}
-.menu-btn:hover{background:var(--bg4);color:var(--text)}
-.card-menu{position:absolute;top:14px;right:14px;z-index:10}
-.dropdown{position:absolute;top:100%;right:0;background:var(--bg3);border:1px solid var(--border-m);border-radius:8px;padding:4px;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:fadeIn .1s ease}
-.dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .15s;width:100%;border:none;background:none;color:var(--text-m);font-family:var(--font-body);text-align:left}
-.dropdown-item:hover{background:var(--bg4);color:var(--text)}
-.dropdown-item.danger{color:var(--red)}
-.dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
-.stats-strip{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
-.act-tab{background:none;border:1px solid transparent;font-family:var(--font-body);font-size:12px;cursor:pointer;padding:5px 14px;border-radius:6px;transition:all .2s;letter-spacing:.03em}
-.act-tab.on{background:var(--bg3);color:var(--text);border-color:var(--border-m)}
-.act-tab.off{color:var(--text-d)}
-.act-tab.off:hover{color:var(--text-m)}
-.stat-cell{flex:1;padding:12px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
-.stat-cell:last-child{border-right:none}
-.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.nav-item{width:100%;display:flex;align-items:center;padding:8px 12px;border-radius:7px;font-size:13px;color:var(--text-m);background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:left;margin-bottom:2px}
-.nav-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active{color:var(--gold);background:rgba(201,168,76,.08);border-color:var(--gold-border);font-weight:600}
-.nav-item.danger-item{color:var(--text-m)}
-.nav-item.danger-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active-danger{color:var(--red);background:rgba(244,100,95,.06);border-color:rgba(244,100,95,.2);font-weight:600}
-.sidebar{width:210px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
-.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:6px 0 env(safe-area-inset-bottom,12px)}
-.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
-.bottom-nav-item.active{color:var(--gold)}
-.bottom-nav-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
-.demo-banner{background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.filter-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto}
-.filter-tab{padding:8px 14px;font-size:12px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s;white-space:nowrap;flex-shrink:0;letter-spacing:.03em}
-.filter-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
-@media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){
-  .sidebar{display:none}
-  .bottom-nav{display:flex}
-  .mobile-topbar{display:flex}
-  .main-content{margin-left:0!important;max-width:100vw!important;padding:16px 14px 90px!important}
-  .cards-grid{grid-template-columns:1fr}
-  .stats-strip{flex-wrap:wrap}
-  .stat-cell{min-width:50%;border-bottom:1px solid var(--border)}
-  .page-header{flex-direction:column;align-items:flex-start!important;gap:10px!important}
-  .page-header-actions{flex-direction:row!important;width:100%}
-}
-`;
-const fmt = (n: number, prefix = "£") => {
-  if (!n || !isFinite(n) || isNaN(n)) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${prefix}${(n / 1e9).toFixed(2)}bn`;
-  if (abs >= 1e6) return `${prefix}${(n / 1e6).toFixed(2)}m`;
-  if (abs >= 1e3) return `${prefix}${(n / 1e3).toFixed(0)}k`;
-  return `${prefix}${n.toFixed(0)}`;
-};
-const fmtPct = (n: number) => (!n || !isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
-const ASSET_TYPES = ["BTR", "BTS", "Hotel", "Flip"];
-const CURRENCIES = ["GBP", "USD", "EUR", "AED", "SGD", "AUD"];
-const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
-const TRASH_DAYS = 3;
+          </>
+        )}
 
 
+        {/* ── URL IMPORT MODAL ── */}
+        {showUrlModal && (
+          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowUrlModal(false); setUrlImportError(null); } }}>
+            <div className="modal" style={{ width: 500 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 300 }}>Import from URL</div>
+              </div>
+              <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 22 }}>
+                Paste a listing URL from Rightmove, Zoopla, Christie & Co, Savills Hotels or similar — Valora will extract the property data and pre-fill your appraisal.
+              </p>
+
+
+              {/* Asset type selector */}
+              <div className="inp-group">
+                <label className="inp-label">Asset Type</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {(["Flip", "Hotel"] as const).map(t => (
+                    <button key={t} onClick={() => setUrlImportType(t)} style={{
+                      padding: "10px 14px", borderRadius: 8, border: `1px solid ${urlImportType === t ? "var(--gold)" : "var(--border)"}`,
+                      background: urlImportType === t ? "var(--gold-bg)" : "var(--bg3)",
+                      color: urlImportType === t ? "var(--gold)" : "var(--text-m)",
+                      cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: urlImportType === t ? 600 : 400,
+                      transition: "all .2s", textAlign: "left",
+                    }}>
+                      <div style={{ fontSize: 14, marginBottom: 2, fontWeight: 600 }}>{t}</div>
+                      <div style={{ fontSize: 10, color: urlImportType === t ? "var(--gold)" : "var(--text-d)", fontWeight: 400 }}>
+                        {t === "Flip" ? "Residential — Rightmove, Zoopla, Zillow" : "Hotel — Christie & Co, Savills, JLL Hotels"}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+
+              {/* Currency */}
+              <div className="inp-group">
+                <label className="inp-label">Currency</label>
+                <select className="inp" value={urlImportCurrency} onChange={e => setUrlImportCurrency(e.target.value)}>
+                  {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+
+
+              {/* URL input */}
+              <div className="inp-group">
+                <label className="inp-label">Listing URL</label>
+                <input
+                  className="inp"
+                  placeholder={urlImportType === "Flip" ? "https://www.rightmove.co.uk/properties/..." : "https://www.christieandco.com/listing/..."}
+                  value={urlImport}
+                  onChange={e => { setUrlImport(e.target.value); setUrlImportError(null); }}
+                  onKeyDown={e => e.key === "Enter" && createFromUrl()}
+                  autoFocus
+                  style={{ fontFamily: "var(--font-body)", fontSize: 12 }}
+                />
+              </div>
+
+
+              {/* Info note */}
+              <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 12px", marginBottom: 16, fontSize: 11, color: "var(--text-d)", lineHeight: 1.6 }}>
+                ◆ Valora uses AI to infer property data from the URL pattern. The more detail in the URL, the better the extraction. You can always edit fields after import.
+              </div>
+
+
+              {urlImportError && (
+                <div style={{ background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.3)", borderRadius: 7, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "var(--red)" }}>
+                  {urlImportError}
+                </div>
+              )}
+
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-ghost" onClick={() => { setShowUrlModal(false); setUrlImportError(null); setUrlImport(""); }} style={{ flex: 1 }}>Cancel</button>
+                <button className="btn-primary" onClick={createFromUrl} disabled={!urlImport.trim() || urlImporting} style={{ flex: 2, opacity: !urlImport.trim() ? 0.5 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  {urlImporting ? (
+                    <><span style={{ width: 12, height: 12, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />Importing…</>
+                  ) : "Import & Open →"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* ── NEW PROJECT MODAL ── */}
+        {showNewModal && (
+          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowNewModal(false); }}>
+            <div className="modal">
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 300, marginBottom: 4 }}>New Appraisal</div>
+              <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 22 }}>Set up a new project to get started.</p>
+              <div className="inp-group">
+                <label className="inp-label">Project Name *</label>
+                <input className="inp" placeholder="e.g. Chiswick Tower" value={newProject.name} onChange={e => setNewProject(p => ({ ...p, name: e.target.value }))} onKeyDown={e => e.key === "Enter" && createProject()} autoFocus />
+              </div>
+              <div className="inp-group">
+                <label className="inp-label">Location</label>
+                <input className="inp" placeholder="e.g. Hammersmith, London" value={newProject.location} onChange={e => setNewProject(p => ({ ...p, location: e.target.value }))} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div className="inp-group">
+                  <label className="inp-label">Asset Type</label>
+                  <select className="inp" value={newProject.asset_type} onChange={e => setNewProject(p => ({ ...p, asset_type: e.target.value }))}>
+                    {ASSET_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="inp-group">
+                  <label className="inp-label">Currency</label>
+                  <select className="inp" value={newProject.currency} onChange={e => setNewProject(p => ({ ...p, currency: e.target.value }))}>
+                    {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button className="btn-ghost" onClick={() => setShowNewModal(false)} style={{ flex: 1 }}>Cancel</button>
+                <button className="btn-primary" onClick={createProject} disabled={!newProject.name.trim() || creating} style={{ flex: 2, opacity: !newProject.name.trim() ? 0.5 : 1 }}>
+                  {creating ? "Creating…" : "Create & Open →"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* ── CONFIRM DELETE MODAL ── */}
+        {confirmDelete && (
+          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
+            <div className="modal" style={{ width: 400 }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, marginBottom: 6, color: "var(--red)" }}>
+                {confirmDelete.type === "all" ? "Empty Trash" : "Delete Permanently"}
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-m)", marginBottom: 6 }}>
+                {confirmDelete.type === "all" ? `This will permanently delete all ${trashedProjects.length} projects.` : `This will permanently delete "${confirmDelete.project?.name || "this project"}".`}
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24 }}>This action cannot be undone.</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-ghost" onClick={() => setConfirmDelete(null)} style={{ flex: 1 }}>Cancel</button>
+                <button onClick={() => confirmDelete.type === "all" ? emptyTrash() : permanentlyDelete(confirmDelete.project.id)}
+                  style={{ flex: 1, background: "var(--red)", color: "#fff", border: "none", borderRadius: 7, padding: "9px 18px", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  {confirmDelete.type === "all" ? "Empty Trash" : "Delete Forever"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="bottom-nav">
+        <button className={`bottom-nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => setView("portfolio")}>
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Portfolio
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          Pipeline
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/workspace")}>
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Workspace
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Tasks
+        </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/notes")}>
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Notes
+        </button>
+      </nav>
+    </div>
+  );
+}
