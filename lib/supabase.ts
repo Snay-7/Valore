@@ -5,6 +5,26 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholde
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// ─────────────────────────────────────────────────────────────
+// QUERY RULES — read before writing Supabase queries
+//
+// ❌ NEVER use .maybeSingle() on tables where a user
+//    can have multiple rows (firm_members, project_members etc.)
+//    It silently returns null if 2+ rows exist.
+//
+// ✅ ALWAYS use array + [0] for multi-row tables:
+//
+//    const { data } = await supabase
+//      .from("firm_members")
+//      .select("*")
+//      .eq("user_id", uid)
+//      .order("joined_at", { ascending: true });
+//    const row = data?.[0] ?? null;
+//
+// ✅ .maybeSingle() is safe ONLY on guaranteed single-row
+//    tables: subscriptions, profiles, appraisals (by id)
+// ─────────────────────────────────────────────────────────────
+
 export type Profile = {
   id: string
   firm_id: string | null
