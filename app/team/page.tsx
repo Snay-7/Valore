@@ -5,6 +5,8 @@ import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
 
+
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -46,11 +48,15 @@ select.inp{cursor:pointer}
 `;
 
 
+
+
 const ROLES=[
   {id:"admin", label:"Admin",  desc:"Full access — manage team & all projects", bg:"rgba(201,168,76,.12)", color:"#c9a84c", proOnly:true},
   {id:"editor",label:"Editor", desc:"Create and edit appraisals and tasks",      bg:"rgba(91,156,246,.12)", color:"#5b9cf6", proOnly:false},
   {id:"viewer",label:"Viewer", desc:"Read-only access to shared projects",       bg:"rgba(61,220,132,.1)",  color:"#3ddc84", proOnly:false},
 ];
+
+
 
 
 const AVATAR_BG=[
@@ -60,6 +66,8 @@ const AVATAR_BG=[
   {bg:"rgba(240,164,41,.15)",c:"#f0a429"},
   {bg:"rgba(244,100,95,.15)",c:"#f4645f"},
 ];
+
+
 
 
 function initials(email:string){
@@ -74,6 +82,8 @@ function avColor(str:string){
 function fmtDate(d:string){return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"});}
 
 
+
+
 export default function TeamPage(){
   const router=useRouter();
   const[user,setUser]=useState<any>(null);
@@ -82,6 +92,8 @@ export default function TeamPage(){
   const[userProfiles,setUserProfiles]=useState<Record<string,string>>({});
   const[loading,setLoading]=useState(true);
   const[subscription,setSubscription]=useState<any>(null);
+
+
 
 
   // Invite
@@ -93,15 +105,21 @@ export default function TeamPage(){
   const[inviteOk,setInviteOk]=useState(false);
 
 
+
+
   // Role change
   const[roleModal,setRoleModal]=useState<any>(null);
   const[newRole,setNewRole]=useState("editor");
   const[savingRole,setSavingRole]=useState(false);
 
 
+
+
   // Remove
   const[removeModal,setRemoveModal]=useState<any>(null);
   const[removing,setRemoving]=useState(false);
+
+
 
 
   // Firm name
@@ -110,10 +128,14 @@ export default function TeamPage(){
   const[savingName,setSavingName]=useState(false);
 
 
+
+
   // Create firm
   const[createModal,setCreateModal]=useState(false);
   const[newFirmName,setNewFirmName]=useState("");
   const[creating,setCreating]=useState(false);
+
+
 
 
   useEffect(()=>{
@@ -127,6 +149,8 @@ export default function TeamPage(){
     };
     init();
   },[router]);
+
+
 
 
   const load=async(uid:string)=>{
@@ -157,6 +181,8 @@ export default function TeamPage(){
   };
 
 
+
+
   const getMemberEmail=(member:any):string=>{
     // Try various sources for email
     if(member.email)return member.email;
@@ -166,10 +192,12 @@ export default function TeamPage(){
   };
 
 
+
+
   const createFirm=async()=>{
     if(!newFirmName.trim()||!user)return;
     setCreating(true);
-    const{data:f,error:fe}=await supabase.from("firms").insert({name:newFirmName.trim(),created_by:user.id}).select().single();
+    const{data:f,error:fe}=await supabase.from("firms").insert({name:newFirmName.trim(),owner_id:user.id}).select().single();
     if(fe||!f){setCreating(false);return;}
     await supabase.from("firm_members").insert({firm_id:f.id,user_id:user.id,role:"admin",invited_by:user.id});
     setCreating(false);setCreateModal(false);setNewFirmName("");
@@ -177,15 +205,19 @@ export default function TeamPage(){
   };
 
 
+
+
   const sendInvite=async()=>{
     const email=inviteEmail.trim().toLowerCase();
     if(!email||!firm||!user)return;
     setInviting(true);setInviteErr(null);
 
+
     // Check not already an accepted member
     if(members.find(m=>m.email?.toLowerCase()===email&&m.user_id)){
       setInviteErr("This person is already in your team.");setInviting(false);return;
     }
+
 
     // 1. Create a unique invite token in firm_invites
     const token=crypto.randomUUID();
@@ -198,12 +230,14 @@ export default function TeamPage(){
     });
     if(tokenErr){setInviteErr(tokenErr.message||"Failed to create invite.");setInviting(false);return;}
 
+
     // 2. Also add a placeholder row in firm_members (email only, no user_id yet)
     // This lets the admin see a "pending" state. Ignore error if row exists.
     await supabase.from("firm_members").upsert(
       {firm_id:firm.id,email,role:inviteRole,invited_by:user.id},
       {onConflict:"firm_id,email",ignoreDuplicates:true}
     );
+
 
     // 3. Send invite email with the correct /invite/[token] link
     const inviteLink=`${window.location.origin}/invite/${token}`;
@@ -227,11 +261,14 @@ export default function TeamPage(){
       console.warn("Email send failed:",emailErr);
     }
 
+
     setInviteOk(true);
     await load(user.id);
     setTimeout(()=>{setInviteOk(false);setShowInvite(false);setInviteEmail("");setInviteRole("editor");},1600);
     setInviting(false);
   };
+
+
 
 
   const changeRole=async()=>{
@@ -243,6 +280,8 @@ export default function TeamPage(){
   };
 
 
+
+
   const removeMember=async()=>{
     if(!removeModal)return;
     setRemoving(true);
@@ -252,6 +291,8 @@ export default function TeamPage(){
   };
 
 
+
+
   const saveName=async()=>{
     if(!nameVal.trim()||!firm)return;
     setSavingName(true);
@@ -259,6 +300,8 @@ export default function TeamPage(){
     setFirm((f:any)=>({...f,name:nameVal.trim()}));
     setSavingName(false);setEditName(false);
   };
+
+
 
 
   const myMember=members.find(m=>m.user_id===user?.id);
@@ -273,6 +316,8 @@ export default function TeamPage(){
   const canCreateFirm=isPro;
 
 
+
+
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#06070a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
       <img src="data:image/png;base64,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" alt="Valora" style={{height:"32px",width:"auto"}}/>
@@ -283,9 +328,13 @@ export default function TeamPage(){
   );
 
 
+
+
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-body)"}}>
       <style>{CSS}</style>
+
+
 
 
       {/* Nav */}
@@ -297,7 +346,11 @@ export default function TeamPage(){
       </nav>
 
 
+
+
       <div className="main" style={{maxWidth:720,margin:"0 auto",padding:"32px 24px",overflowX:"hidden"}}>
+
+
 
 
         {/* No firm */}
@@ -316,6 +369,8 @@ export default function TeamPage(){
             )}
           </div>
         )}
+
+
 
 
         {/* Firm exists */}
@@ -358,6 +413,8 @@ export default function TeamPage(){
             </div>
 
 
+
+
             {/* Trial banner */}
             {isTrialing&&(
               <div style={{background:"rgba(201,168,76,.08)",border:"1px solid var(--gold-border)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
@@ -370,6 +427,8 @@ export default function TeamPage(){
             )}
 
 
+
+
             {/* Free/Starter upgrade prompt */}
             {!isPro&&!isTrialing&&(
               <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"24px",marginBottom:20,textAlign:"center"}}>
@@ -380,6 +439,8 @@ export default function TeamPage(){
                 </div>
               </div>
             )}
+
+
 
 
             {/* Members list */}
@@ -425,6 +486,8 @@ export default function TeamPage(){
             </div>
 
 
+
+
             {/* Role guide */}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {ROLES.map(r=>(
@@ -438,6 +501,8 @@ export default function TeamPage(){
           </>
         )}
       </div>
+
+
 
 
       {/* ── INVITE MODAL ── */}
@@ -493,6 +558,8 @@ export default function TeamPage(){
       )}
 
 
+
+
       {/* ── CHANGE ROLE MODAL ── */}
       {roleModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setRoleModal(null);}}>
@@ -526,6 +593,8 @@ export default function TeamPage(){
       )}
 
 
+
+
       {/* ── REMOVE MODAL ── */}
       {removeModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setRemoveModal(null);}}>
@@ -543,6 +612,8 @@ export default function TeamPage(){
           </div>
         </div>
       )}
+
+
 
 
       {/* ── CREATE FIRM MODAL ── */}
