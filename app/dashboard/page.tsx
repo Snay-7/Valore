@@ -140,9 +140,11 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/"); return; }
       setUser(session.user);
-      const { data: memberRow } = await supabase.from("firm_members").select("id, firm_id").eq("user_id", session.user.id).maybeSingle();
+      const { data: memberRow } = await supabase.from("firm_members").select("id, firm_id, role").eq("user_id", session.user.id).maybeSingle();
       setHasFirm(!!memberRow);
-      await loadProjects(session.user.id, memberRow?.firm_id || null);
+      // Only admins see all firm projects in portfolio; members only see their own
+      const isAdmin = memberRow?.role === "admin";
+      await loadProjects(session.user.id, isAdmin ? (memberRow?.firm_id || null) : null);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
       // Load team tasks & notes
