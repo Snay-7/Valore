@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = 'force-dynamic'
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -20,6 +20,7 @@ const CSS = `
 html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .pcard{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px;transition:border-color .2s,transform .15s;animation:fadeUp .3s ease both}
 .pcard:hover{border-color:var(--gold-border);transform:translateY(-1px)}
 .metric-pill{background:var(--bg3);border-radius:8px;padding:10px 14px}
@@ -35,6 +36,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-w
 .tab.on{color:var(--text);border-bottom-color:var(--gold)}
 .mem-pill{padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-m);font-family:var(--font-body);transition:all .15s}
 .mem-pill.sel{border-color:var(--gold);background:var(--gold-bg);color:var(--gold)}
+.ws-dropdown{position:absolute;top:calc(100% + 8px);left:0;min-width:220px;background:var(--bg2);border:1px solid var(--border-m);border-radius:12px;padding:6px;box-shadow:0 16px 40px rgba(0,0,0,.6);z-index:200;animation:fadeIn .15s ease}
+.ws-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .15s;border:none;background:none;width:100%;font-family:var(--font-body);text-align:left}
+.ws-item:hover{background:var(--bg3)}
+.ws-item.active{background:var(--gold-bg)}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border-m);border-radius:2px}
 @media(max-width:768px){.cards-grid{grid-template-columns:1fr!important}.page-wrap{padding:24px 16px 80px!important}}
@@ -50,22 +55,49 @@ const fmt = (n: number, p = "£") => {
 const fmtPct = (n: number) => (!n||!isFinite(n)||isNaN(n))?"—":`${(n*100).toFixed(1)}%`;
 const CURR: Record<string,string> = {GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$"};
 
+interface Workspace {
+  id: string;       // firm id
+  name: string;
+  role: string;     // admin | editor | viewer
+  isOwn: boolean;   // true = their own firm
+}
+
 export default function WorkspacePage() {
   const router = useRouter();
-  const [user,        setUser]        = useState<any>(null);
-  const [firm,        setFirm]        = useState<any>(null);
-  const [role,        setRole]        = useState("member");
-  const [isAdmin,     setIsAdmin]     = useState(false);
-  const [isPro,       setIsPro]       = useState(false);
-  const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState<"projects"|"share">("projects");
-  const [myProjects,  setMyProjects]  = useState<any[]>([]);
-  const [sharedIds,   setSharedIds]   = useState<Set<string>>(new Set());
-  const [memberCards, setMemberCards] = useState<any[]>([]);
-  const [firmMembers, setFirmMembers] = useState<any[]>([]);
-  const [sharingId,   setSharingId]   = useState<string|null>(null);
-  const [selectedM,   setSelectedM]   = useState<string[]>([]);
-  const [savingShare, setSavingShare] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [user,         setUser]         = useState<any>(null);
+  const [isPro,        setIsPro]        = useState(false);
+  const [loading,      setLoading]      = useState(true);
+  const [tab,          setTab]          = useState<"projects"|"share">("projects");
+
+  // Multi-workspace
+  const [workspaces,   setWorkspaces]   = useState<Workspace[]>([]);
+  const [activeWs,     setActiveWs]     = useState<Workspace|null>(null);
+  const [showWsDrop,   setShowWsDrop]   = useState(false);
+
+  // No firm state
+  const [noFirm,       setNoFirm]       = useState(false);
+  const [newFirmName,  setNewFirmName]  = useState("");
+  const [creating,     setCreating]     = useState(false);
+
+  // Per-workspace data
+  const [myProjects,   setMyProjects]   = useState<any[]>([]);
+  const [sharedIds,    setSharedIds]    = useState<Set<string>>(new Set());
+  const [memberCards,  setMemberCards]  = useState<any[]>([]);
+  const [firmMembers,  setFirmMembers]  = useState<any[]>([]);
+  const [sharingId,    setSharingId]    = useState<string|null>(null);
+  const [selectedM,    setSelectedM]    = useState<string[]>([]);
+  const [savingShare,  setSavingShare]  = useState(false);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!dropdownRef.current?.contains(e.target as Node)) setShowWsDrop(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -73,58 +105,120 @@ export default function WorkspacePage() {
       if (!session) { router.push("/"); return; }
       setUser(session.user);
 
-      const { data: mr } = await supabase.from("firm_members")
-        .select("*, firms(*)").eq("user_id", session.user.id).maybeSingle();
-      if (!mr) { router.push("/dashboard"); return; }
-
-      setFirm(mr.firms);
-      setRole(mr.role || "member");
-      const admin = mr.role === "admin";
-      setIsAdmin(admin);
-
+      // Subscription check
       const { data: sub } = await supabase.from("subscriptions")
         .select("tier, trial_ends_at").eq("user_id", session.user.id).maybeSingle();
       const tier = sub?.tier || "free";
       const trialing = sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date();
       setIsPro(tier === "professional" || tier === "enterprise" || !!trialing || tier === "starter");
 
-      const { data: tm } = await supabase.from("firm_members")
-        .select("*").eq("firm_id", mr.firm_id);
-      setFirmMembers((tm||[]).filter((m:any) => m.user_id !== session.user.id));
+      // Load ALL firm memberships for this user
+      const { data: allMrRaw } = await supabase.from("firm_members")
+        .select("*, firms(*)").eq("user_id", session.user.id);
 
-      const { data: pm } = await supabase.from("project_members")
-        .select("project_id").eq("firm_id", mr.firm_id);
-      setSharedIds(new Set((pm||[]).map((x:any) => x.project_id)));
+      // Also check direct firm ownership (owner_id) for firms with no member row
+      const { data: ownedFirms } = await supabase.from("firms")
+        .select("*").eq("owner_id", session.user.id);
 
-      if (admin) {
-        const { data: fp } = await supabase.from("projects")
-          .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
-          .eq("firm_id", mr.firm_id).is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        setMyProjects(fp || []);
-      } else {
-        const { data: assigned } = await supabase.from("project_members")
-          .select("project_id, projects(*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at))")
-          .eq("user_id", session.user.id).eq("firm_id", mr.firm_id);
-        setMemberCards((assigned||[]).map((a:any) => ({id: a.project_id, ...a.projects})));
+      // Merge: build synthetic member rows for owned firms not already in allMrRaw
+      const existingFirmIds = new Set((allMrRaw||[]).map((r:any) => r.firm_id));
+      const syntheticRows = (ownedFirms||[])
+        .filter((f:any) => !existingFirmIds.has(f.id))
+        .map((f:any) => ({ firm_id: f.id, role: "admin", firms: f }));
+      const allMr = [...(allMrRaw||[]), ...syntheticRows];
 
-        const { data: ownP } = await supabase.from("projects")
-          .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
-          .eq("created_by", session.user.id).is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        setMyProjects(ownP || []);
+      if (!allMr || allMr.length === 0) {
+        setNoFirm(true); setLoading(false); return;
       }
 
+      // Build workspace list
+      const wsList: Workspace[] = allMr.map((mr: any) => ({
+        id: mr.firm_id,
+        name: mr.firms?.name || "My Workspace",
+        role: mr.role || "member",
+        isOwn: mr.role === "admin",
+      }));
+
+      setWorkspaces(wsList);
+
+      // Default to own workspace (admin) first, then first available
+      const defaultWs = wsList.find(w => w.isOwn) || wsList[0];
+      setActiveWs(defaultWs);
+
+      await loadWorkspaceData(session.user, defaultWs, allMr);
       setLoading(false);
     })();
   }, [router]);
 
+  const loadWorkspaceData = async (u: any, ws: Workspace, allMr?: any[]) => {
+    setMyProjects([]); setMemberCards([]); setSharedIds(new Set()); setFirmMembers([]);
+
+    const isAdmin = ws.role === "admin";
+
+    // Load team members
+    const { data: tm } = await supabase.from("firm_members")
+      .select("*").eq("firm_id", ws.id);
+    setFirmMembers((tm||[]).filter((m:any) => m.user_id !== u.id));
+
+    // Shared project ids
+    const { data: pm } = await supabase.from("project_members")
+      .select("project_id").eq("firm_id", ws.id);
+    setSharedIds(new Set((pm||[]).map((x:any) => x.project_id)));
+
+    if (isAdmin) {
+      const { data: fp } = await supabase.from("projects")
+        .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
+        .eq("firm_id", ws.id).is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      setMyProjects(fp || []);
+    } else {
+      // Member: show assigned projects
+      const { data: assigned } = await supabase.from("project_members")
+        .select("project_id, projects(*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at))")
+        .eq("user_id", u.id).eq("firm_id", ws.id);
+      setMemberCards((assigned||[]).map((a:any) => ({id: a.project_id, ...a.projects})));
+
+      // Own projects available to share
+      const { data: ownP } = await supabase.from("projects")
+        .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
+        .eq("created_by", u.id).is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      setMyProjects(ownP || []);
+    }
+  };
+
+  const switchWorkspace = async (ws: Workspace) => {
+    setShowWsDrop(false);
+    setActiveWs(ws);
+    setTab("projects");
+    setSharingId(null); setSelectedM([]);
+    if (user) await loadWorkspaceData(user, ws);
+  };
+
+  const createFirm = async () => {
+    if (!newFirmName.trim() || !user) return;
+    setCreating(true);
+    const { data: firm, error } = await supabase.from("firms")
+      .insert({ name: newFirmName.trim(), owner_id: user.id }).select().single();
+    if (firm && !error) {
+      await supabase.from("firm_members").insert({
+        firm_id: firm.id, user_id: user.id, role: "admin",
+        invited_by: user.id, email: user.email,
+      });
+      await supabase.from("projects")
+        .update({ firm_id: firm.id })
+        .eq("created_by", user.id).is("firm_id", null);
+      window.location.reload();
+    }
+    setCreating(false);
+  };
+
   const shareWith = async (projectId: string) => {
-    if (!firm || !user || selectedM.length === 0) return;
+    if (!activeWs || !user || selectedM.length === 0) return;
     setSavingShare(true);
     for (const uid of selectedM) {
       await supabase.from("project_members").upsert({
-        project_id: projectId, user_id: uid, firm_id: firm.id, assigned_by: user.id,
+        project_id: projectId, user_id: uid, firm_id: activeWs.id, assigned_by: user.id,
       }, { onConflict: "project_id,user_id" });
     }
     setSharedIds(prev => new Set([...prev, projectId]));
@@ -132,17 +226,48 @@ export default function WorkspacePage() {
   };
 
   const unshare = async (projectId: string) => {
-    if (!firm) return;
-    await supabase.from("project_members").delete().eq("project_id", projectId).eq("firm_id", firm.id);
+    if (!activeWs) return;
+    await supabase.from("project_members").delete().eq("project_id", projectId).eq("firm_id", activeWs.id);
     setSharedIds(prev => { const n = new Set(prev); n.delete(projectId); return n; });
   };
 
+  const isAdmin = activeWs?.role === "admin";
   const displayCards = isAdmin ? myProjects : memberCards;
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ width:30, height:30, border:"2px solid rgba(201,168,76,.15)", borderTopColor:"#c9a84c", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  if (noFirm) return (
+    <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", fontFamily:"var(--font-body)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <style>{CSS}</style>
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", background:"radial-gradient(ellipse 60% 40% at 50% 40%,rgba(201,168,76,.04) 0%,transparent 60%)" }}/>
+      <div style={{ maxWidth:480, width:"100%", padding:"0 24px", position:"relative", zIndex:1, textAlign:"center" }}>
+        <div style={{ fontFamily:"var(--font-display)", fontSize:56, fontWeight:300, color:"var(--gold)", marginBottom:8 }}>◈</div>
+        <h1 style={{ fontFamily:"var(--font-display)", fontSize:40, fontWeight:300, letterSpacing:".02em", marginBottom:12 }}>Create your Workspace</h1>
+        <p style={{ fontSize:14, color:"var(--text-m)", marginBottom:40, lineHeight:1.6 }}>
+          Your workspace is where your team collaborates on projects, tasks and appraisals.
+        </p>
+        <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:16, padding:32, textAlign:"left" }}>
+          <label style={{ fontSize:10, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", display:"block", marginBottom:8 }}>Workspace Name</label>
+          <input value={newFirmName} onChange={e => setNewFirmName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && createFirm()}
+            placeholder="e.g. Valora Capital, Apex Development..."
+            autoFocus
+            style={{ width:"100%", padding:"12px 16px", background:"var(--bg3)", border:"1px solid var(--border-m)", borderRadius:10, color:"var(--text)", fontFamily:"var(--font-body)", fontSize:14, outline:"none", marginBottom:24 }}/>
+          <button onClick={createFirm} disabled={!newFirmName.trim()||creating}
+            style={{ width:"100%", background:"var(--gold)", color:"#06070a", border:"none", borderRadius:10, padding:"13px 0", fontFamily:"var(--font-body)", fontSize:14, fontWeight:700, cursor:"pointer", opacity:!newFirmName.trim()?0.4:1 }}>
+            {creating ? "Creating…" : "Create Workspace →"}
+          </button>
+        </div>
+        <button onClick={() => router.push("/dashboard")}
+          style={{ background:"none", border:"none", color:"var(--text-d)", fontSize:12, cursor:"pointer", marginTop:20, fontFamily:"var(--font-body)" }}>
+          ← Back to Portfolio
+        </button>
+      </div>
     </div>
   );
 
@@ -158,7 +283,6 @@ export default function WorkspacePage() {
           <span style={{ fontSize:10, padding:"2px 9px", borderRadius:10, background:"rgba(125,133,144,.1)", color:"var(--text-m)" }}>{latest?.status||"draft"}</span>
           {shared && <span style={{ fontSize:10, color:"var(--green)", marginLeft:"auto", background:"rgba(61,220,132,.08)", padding:"1px 8px", borderRadius:10, border:"1px solid rgba(61,220,132,.2)" }}>✓ Shared</span>}
         </div>
-
         <div onClick={() => router.push(`/workspace/${p.id}`)} style={{ cursor:"pointer" }}>
           <h3 style={{ fontSize:17, fontWeight:500, fontFamily:"var(--font-display)", marginBottom:3 }}>{p.name||"Untitled"}</h3>
           <p style={{ fontSize:12, color:"var(--text-m)", marginBottom:14 }}>{p.location||"No location"}</p>
@@ -179,8 +303,6 @@ export default function WorkspacePage() {
             <div style={{ background:"var(--bg3)", borderRadius:7, padding:"8px 12px", fontSize:12, color:"var(--text-d)", marginBottom:14 }}>No appraisal saved yet</div>
           )}
         </div>
-
-        {/* Action footer */}
         {!showFooter ? (
           <div style={{ display:"flex", gap:8, paddingTop:12, borderTop:"1px solid var(--border)" }}>
             <button onClick={() => router.push(latest ? `/appraisal?project=${p.id}&appraisal=${latest.id}` : `/appraisal?project=${p.id}`)}
@@ -229,7 +351,7 @@ export default function WorkspacePage() {
                     return (
                       <button key={m.id} className={`mem-pill ${sel?"sel":""}`}
                         onClick={() => setSelectedM(prev => sel ? prev.filter(x=>x!==m.user_id) : [...prev, m.user_id])}>
-                        {m.email || m.role}
+                        {m.Name || m.email || m.role}
                       </button>
                     );
                   })}
@@ -256,21 +378,54 @@ export default function WorkspacePage() {
       {/* Nav */}
       <nav style={{ position:"sticky", top:0, zIndex:50, background:"rgba(6,7,10,.92)", backdropFilter:"blur(16px)", borderBottom:"1px solid var(--border)", height:54, display:"flex", alignItems:"center", padding:"0 28px", gap:14 }}>
         <button className="nbtn" onClick={() => router.push("/dashboard")}>← Portfolio</button>
-        {firm && <><span style={{ color:"var(--text-d)", fontSize:14 }}>/</span><span style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em" }}>{firm.name}</span></>}
+
+        {/* Workspace Switcher */}
+        <div ref={dropdownRef} style={{ position:"relative" }}>
+          <button
+            onClick={() => setShowWsDrop(v => !v)}
+            style={{ display:"flex", alignItems:"center", gap:8, background:"none", border:"1px solid var(--border)", borderRadius:8, padding:"5px 12px", cursor:"pointer", fontFamily:"var(--font-body)", transition:"all .2s", borderColor: showWsDrop ? "var(--gold-border)" : "var(--border)" }}>
+            <span style={{ fontSize:11, color:"var(--gold)", letterSpacing:".02em" }}>◈</span>
+            <span style={{ fontSize:12, color:"var(--text)", fontWeight:500 }}>{activeWs?.name || "Workspace"}</span>
+            <span style={{ fontSize:9, color:"var(--text-d)", background:"var(--bg3)", padding:"1px 6px", borderRadius:4, fontWeight:600, textTransform:"uppercase" }}>{activeWs?.role}</span>
+            <span style={{ fontSize:10, color:"var(--text-d)", marginLeft:2 }}>{showWsDrop ? "▲" : "▼"}</span>
+          </button>
+
+          {showWsDrop && (
+            <div className="ws-dropdown">
+              <div style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", padding:"6px 12px 4px" }}>Your Workspaces</div>
+              {workspaces.map(ws => (
+                <button key={ws.id} className={`ws-item ${activeWs?.id === ws.id ? "active" : ""}`} onClick={() => switchWorkspace(ws)}>
+                  <span style={{ fontSize:13, color:"var(--gold)" }}>◈</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, color:"var(--text)", fontWeight:500 }}>{ws.name}</div>
+                    <div style={{ fontSize:10, color:"var(--text-d)", marginTop:1, textTransform:"uppercase", letterSpacing:".06em" }}>{ws.role}</div>
+                  </div>
+                  {activeWs?.id === ws.id && <span style={{ fontSize:10, color:"var(--gold)" }}>✓</span>}
+                </button>
+              ))}
+              <div style={{ height:1, background:"var(--border)", margin:"4px 0" }}/>
+              <button className="ws-item" onClick={() => { setShowWsDrop(false); setNoFirm(true); }}>
+                <span style={{ fontSize:13, color:"var(--text-d)" }}>+</span>
+                <div style={{ fontSize:12, color:"var(--text-m)" }}>New Workspace</div>
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{ flex:1 }}/>
         <button className="nbtn" onClick={() => router.push("/tasks")}>Tasks</button>
         {isAdmin && <button className="nbtn" onClick={() => router.push("/team")}>+ Team</button>}
-        <span style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{role}</span>
+        <span style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{activeWs?.role}</span>
       </nav>
 
       <div className="page-wrap" style={{ maxWidth:1000, margin:"0 auto", padding:"40px 28px 80px", position:"relative", zIndex:1 }}>
 
         {/* Header */}
         <div style={{ marginBottom:32 }}>
-          <div style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".12em", marginBottom:8 }}>{firm?.name}</div>
+          <div style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".12em", marginBottom:8 }}>{activeWs?.name}</div>
           <h1 style={{ fontFamily:"var(--font-display)", fontSize:48, fontWeight:300, letterSpacing:".01em", marginBottom:6 }}>Workspace</h1>
           <p style={{ fontSize:13, color:"var(--text-m)" }}>
-            {displayCards.length} project{displayCards.length !== 1 ? "s" : ""} · {role}
+            {displayCards.length} project{displayCards.length !== 1 ? "s" : ""} · {activeWs?.role}
           </p>
         </div>
 
@@ -285,13 +440,13 @@ export default function WorkspacePage() {
           </button>
         </div>
 
-        {/* ── PROJECTS TAB ── */}
+        {/* PROJECTS TAB */}
         {tab === "projects" && (
           displayCards.length === 0 ? (
             <div style={{ textAlign:"center", padding:"80px 0" }}>
               <div style={{ fontFamily:"var(--font-display)", fontSize:48, fontWeight:300, color:"var(--text-d)", marginBottom:16 }}>◈</div>
               <p style={{ fontSize:15, color:"var(--text-d)", marginBottom:8 }}>
-                {isAdmin ? "No projects in your firm yet" : "No projects shared with you yet"}
+                {isAdmin ? "No projects in this workspace yet" : "No projects shared with you yet"}
               </p>
               <p style={{ fontSize:13, color:"var(--text-d)", marginBottom:24 }}>
                 {isAdmin ? "Use Share a Project to share with your team." : "Your workspace admin will share projects with you."}
@@ -305,7 +460,7 @@ export default function WorkspacePage() {
           )
         )}
 
-        {/* ── SHARE TAB ── */}
+        {/* SHARE TAB */}
         {tab === "share" && (
           <>
             <div style={{ fontSize:13, color:"var(--text-m)", marginBottom:24 }}>
