@@ -134,7 +134,8 @@ export default function Dashboard() {
       if (!session) { router.push("/"); return; }
       setUser(session.user);
       const { data: memberRow } = await supabase.from("firm_members").select("id, firm_id, role").eq("user_id", session.user.id).maybeSingle();
-      setHasFirm(!!memberRow);
+      const { data: ownedFirm } = await supabase.from("firms").select("id").eq("owner_id", session.user.id).maybeSingle();
+      setHasFirm(!!(memberRow || ownedFirm));
       const isAdmin = memberRow?.role === "admin";
       await loadProjects(session.user.id, isAdmin ? (memberRow?.firm_id || null) : null);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
