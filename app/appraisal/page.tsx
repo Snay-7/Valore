@@ -903,7 +903,7 @@ const DEFAULTS={
   BTR:{assetType:"BTR",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   Hotel:{assetType:"Hotel",vatPct:20,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
-  MixedUse:{assetType:"MixedUse",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+  MixedUse:{assetType:"MixedUse",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,benchmark_rate:"SONIA",
     programmMonths:24,landCost:3000000,
     vatPct:0,cilPsf:0,s106:0,
     ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,
@@ -1526,18 +1526,37 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);if(type==="MixedUse")setActiveTab("zones");}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);}
+        // MixedUse: tab handled by TABS_MU — opens on general by default
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
       setLoading(false);
     };
     load();
   },[appraisalParam,user]);
+  // When opening a brand-new project (no appraisal yet), initialise assetType from the project row
+  useEffect(()=>{
+    if(appraisalParam||!projectId||!user)return;
+    const loadProject=async()=>{
+      const{data:proj}=await supabase.from("projects").select("asset_type,currency,name,location").eq("id",projectId).single();
+      if(proj&&proj.asset_type){
+        const type=proj.asset_type as AssetType;
+        const defaults={...DEFAULTS[type]||DEFAULTS.BTR};
+        if(proj.currency)defaults.currency=proj.currency;
+        if(proj.name)defaults.name=proj.name;
+        if(proj.location)defaults.location=proj.location;
+        setAssetType(type);
+        setData(defaults);
+        setActiveTab(type==="MixedUse"?"zones":"general");
+      }
+    };
+    loadProject();
+  },[projectId,appraisalParam,user]);
   const set=useCallback((field:string,value:any)=>{
     setData((prev:any)=>({...prev,[field]:value}));
     setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);
   },[]);
-  const switchAssetType=(type:AssetType)=>{setAssetType(type);setData({...DEFAULTS[type]});setActiveTab(type==="MixedUse"?"zones":"general");setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);};
+  const switchAssetType=(type:AssetType)=>{setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);};
   const updateUnit=(index:number,field:string,value:any)=>{const units=[...data.units];units[index]={...units[index],[field]:value};set("units",units);};
   const addUnit=()=>{const units=[...(data.units||[])];units.push(assetType==="BTS"?{type:"New Type",count:10,salePricePsf:800,size:700}:{type:"New Type",count:10,rentPcm:2000,size:700});set("units",units);};
   const removeUnit=(i:number)=>{set("units",data.units.filter((_:any,idx:number)=>idx!==i));};
@@ -1917,7 +1936,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_BTS=["general","revenue","costs","finance","analysis"];
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_FLIP=["general","costs","finance","comps","analysis"];
-  const TABS_MU=["zones","costs","finance","analysis"];
+  const TABS_MU=["general","zones","costs","finance","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones",};
   const ASSET_LABELS:Record<string,string>={BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use"};
@@ -2893,7 +2912,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     ))}
                   </>
-                ):(<>
+                ):(assetType==="Flip"&&<>
                     <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:12}}>Bridging Finance</div>
                     <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.flipLTV} onChange={e=>set("flipLTV",e.target.value)}/></div>
@@ -2950,6 +2969,41 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* ─── MIXED USE — GENERAL TAB ────────────────────────────────────────── */}
+            {activeTab==="general"&&assetType==="MixedUse"&&(
+              <div>
+                <div className="section-title">Project Details</div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. Chiswick Mixed Use"/></div>
+                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location||""} onChange={e=>set("location",e.target.value)} placeholder="e.g. Chiswick, London"/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group">
+                    <label className="inp-label">Currency</label>
+                    <select className="inp" value={data.currency||"GBP"} onChange={e=>set("currency",e.target.value)}>
+                      {["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"].map(c=><option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths||24} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                </div>
+                <div className="section-title" style={{marginTop:24}}>Benchmark Rate</div>
+                <div className="inp-row">
+                  <div className="inp-group">
+                    <label className="inp-label">Benchmark</label>
+                    <select className="inp" value={data.benchmark||"SONIA"} onChange={e=>set("benchmark",e.target.value)}>
+                      {["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"].map(b=><option key={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate||3.97} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
+                </div>
+                <div style={{marginTop:24,padding:"14px 16px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"var(--gold)",marginBottom:4}}>Next: Configure your zones</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Add each component of your scheme — residential, commercial, retail, parking — with individual costs and exit strategies.</div>
+                  <button className="btn-primary" style={{fontSize:12,padding:"7px 16px"}} onClick={()=>setActiveTab("zones")}>Go to Zones →</button>
+                </div>
               </div>
             )}
 
