@@ -896,6 +896,156 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       financeRate:annualRate,
     };
   }
+  if(assetType==="Commercial"){
+    const SQM_TO_SQFT=10.7639;
+    const units:any[]=data.units||[];
+    const landCost=num(String(data.landCost||0));
+    const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
+    const buildCostPsm=num(String(data.buildCostPsm||0));
+    // Total lettable area from units (sqm)
+    const totalAreaSqm=units.reduce((s:number,u:any)=>s+num(String(u.areaSqm||0)),0);
+    const totalAreaSqft=totalAreaSqm*SQM_TO_SQFT;
+    const buildCost=totalAreaSqm*buildCostPsm;
+    const profFees=buildCost*(num(String(data.professionalFeesPct||8))/100);
+    const contingency=buildCost*(num(String(data.contingencyPct||5))/100);
+    const otherCosts=num(String(data.otherCosts||0));
+    const vatPct=num(String(data.vatPct||20))/100;
+    const vat=(buildCost+profFees)*vatPct;
+    const cil=num(String(data.cilPsf||0))*totalAreaSqft;
+    const s106=num(String(data.s106||0));
+    const devCost=buildCost+profFees+contingency+otherCosts+vat+cil+s106;
+
+    // ── Per-unit revenue ────────────────────────────────────────────────────
+    const unitResults=units.map((u:any)=>{
+      const areaSqm=num(String(u.areaSqm||0));
+      const erv=num(String(u.erv||0)); // £/sqm/yr ERV
+      const passingRent=num(String(u.passingRent||0)); // £/sqm/yr passing
+      const wault=num(String(u.wault||0)); // years
+      const voidPct=num(String(u.voidPct||0))/100;
+      const rentFreeMonths=num(String(u.rentFreeMonths||0));
+      const grossErv=areaSqm*erv;
+      const grossPassing=areaSqm*passingRent;
+      const netPassing=grossPassing*(1-voidPct);
+      const rentFreeCost=grossErv*(rentFreeMonths/12);
+      const reversion=grossErv-grossPassing; // reversionary uplift
+      return{id:u.id,label:u.label||"Unit",use:u.use||"office",
+        areaSqm,erv,passingRent,wault,voidPct,rentFreeMonths,
+        grossErv,grossPassing,netPassing,rentFreeCost,reversion};
+    });
+
+    // ── Scheme income ───────────────────────────────────────────────────────
+    const totalErv=unitResults.reduce((s:number,u:any)=>s+u.grossErv,0);
+    const totalPassing=unitResults.reduce((s:number,u:any)=>s+u.grossPassing,0);
+    const totalNetPassing=unitResults.reduce((s:number,u:any)=>s+u.netPassing,0);
+    const totalRentFreeCost=unitResults.reduce((s:number,u:any)=>s+u.rentFreeCost,0);
+    const avgWault=units.length>0?unitResults.reduce((s:number,u:any)=>s+u.wault*(u.areaSqm/Math.max(totalAreaSqm,1)),0):0;
+    // Reversionary yield (passing as % of ERV)
+    const reversionaryPct=totalErv>0?totalPassing/totalErv:1;
+
+    // ── Rent review uplift ───────────────────────────────────────────────────
+    const rentReviewType=data.rentReviewType||"fixed";
+    const rentReviewPct=num(String(data.rentReviewPct||3))/100;
+    const rentReviewYears=Math.max(1,num(String(data.rentReviewYears||5)));
+    // Projected ERV at next review
+    const reviewMultiplier=rentReviewType==="fixed"?Math.pow(1+rentReviewPct,rentReviewYears):1+rentReviewPct; // CPI/RPI: single period uplift
+    const projectedErv=totalErv*reviewMultiplier;
+
+    // ── Exit valuation — three methods ──────────────────────────────────────
+    const exitMethod=data.exitMethod||"investment";
+    const niy=num(String(data.niy||5.5))/100;
+    const equivalentYield=num(String(data.equivalentYield||5.75))/100;
+    const vpValuePsm=num(String(data.vpValuePsm||0));
+    let gdv=0;
+    if(exitMethod==="investment"){
+      gdv=niy>0?totalNetPassing/niy:0;
+    } else if(exitMethod==="equivalent"){
+      // Proper UK hardcore/term+reversion equivalent yield valuation
+      // Term: PV of passing rent annuity for WAULT years at equivalent yield
+      // Reversion: PV of ERV in perpetuity deferred by WAULT years at equivalent yield
+      if(equivalentYield>0){
+        const pvAnnuity=(income:number,rate:number,years:number)=>years>0?income*(1-Math.pow(1+rate,-years))/rate:0;
+        const pvPerpetuity=(income:number,rate:number,years:number)=>(income/rate)/Math.pow(1+rate,years);
+        gdv=pvAnnuity(totalNetPassing,equivalentYield,avgWault)+pvPerpetuity(totalErv,equivalentYield,avgWault);
+      }
+    } else {
+      // Vacant possession / B&M
+      gdv=totalAreaSqm*vpValuePsm;
+    }
+
+    // ── Finance ──────────────────────────────────────────────────────────────
+    const annualRate=(num(String(data.benchmarkRate||3.97))+num(String(data.marginOverBenchmark||2.5)))/100;
+    const ltcPct=num(String(data.ltc||60))/100;
+    const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths||18))));
+    const stabMonths=Math.max(1,Math.round(num(String(data.stabilisationMonths||12))));
+    const totalMonths=buildMonths+stabMonths;
+    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:devCost,buildMonths,annualRate,ltcPct,
+      arrangementFeePct:num(String(data.arrangementFeePct||1.0))/100,costProfile:"scurve"});
+
+    // ── Returns ──────────────────────────────────────────────────────────────
+    const totalCost=landCost+sdlt+devCost+fin.totalFinanceCost;
+    const profit=gdv-totalCost;
+    const poc=totalCost>0?profit/totalCost:0;
+    const margin=gdv>0?profit/gdv:0;
+    const yoc=totalCost>0?totalNetPassing/totalCost:0;
+    const rlv=gdv*(1-0.20)-devCost-fin.totalFinanceCost-sdlt; // 20% developer profit target
+    const equity=Math.max(0,totalCost-fin.loanAmount);
+    const moic=equity>0?(equity+profit)/equity:0;
+    const annualDebtService=fin.peakLoanBalance*annualRate;
+    const dscr=annualDebtService>0?totalNetPassing/annualDebtService:Infinity;
+    // Break-even rent & yield
+    const breakEvenRentPsm=totalAreaSqm>0?totalCost*(niy>0?niy:0.055)/totalAreaSqm:0;
+    const breakEvenYield=gdv>0?totalNetPassing/totalCost:0;
+
+    // ── Cashflows (monthly) ───────────────────────────────────────────────────
+    const buildProfile=buildDrawdownProfile(buildMonths,"scurve");
+    const equityRatio=totalCost>0?equity/totalCost:1;
+    const uCfs:number[]=Array(totalMonths).fill(0);
+    const lCfs:number[]=Array(totalMonths).fill(0);
+    uCfs[0]-=landCost+sdlt+fin.arrangementFee;
+    lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
+    for(let m=0;m<buildMonths;m++){
+      const draw=devCost*buildProfile[m];
+      uCfs[m]-=draw; lCfs[m]-=draw*equityRatio+(fin.monthlyInterestArr[m]??0);
+    }
+    // Stabilisation: NOI ramps from 0 to stabilised over stabMonths
+    for(let m=0;m<stabMonths;m++){
+      const ramp=(m+1)/stabMonths;
+      const mNOI=(totalNetPassing*ramp)/12;
+      const idx=buildMonths+m;
+      uCfs[idx]+=mNOI; lCfs[idx]+=mNOI-(fin.peakLoanBalance*annualRate)/12;
+    }
+    uCfs[totalMonths-1]+=gdv; lCfs[totalMonths-1]+=gdv-fin.peakLoanBalance;
+    const rawIrr=calcIRR(uCfs);
+    const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
+    const rawIrrL=equity>0?calcIRR(lCfs):0;
+    const irrLevered=equity>0&&isFinite(rawIrrL)&&rawIrrL>-1&&rawIrrL<100?Math.pow(1+rawIrrL,12)-1:0;
+    const paybackMonth=calcPaybackMonth(uCfs);
+
+    // ── Sensitivity: NIY (rows) × passing rent shift % (cols) ────────────────
+    // Base income = totalNetPassing so base case matches returns summary exactly
+    const niySteps=[-0.5,-0.25,0,0.25,0.5].map(d=>niy*100+d);
+    const rentSteps=[-10,-5,0,5,10];
+    const sensMatrix=niySteps.map(n=>rentSteps.map(e=>{
+      const mNoi=totalNetPassing*(1+e/100);
+      const mGdv=(n/100)>0?mNoi/(n/100):0;
+      return totalCost>0?(mGdv-totalCost)/totalCost:0;
+    }));
+
+    return{
+      totalAreaSqm,totalAreaSqft,buildCost,devCost,vat,cil,s106,
+      totalErv,totalPassing,totalNetPassing,totalRentFreeCost,avgWault,
+      reversionaryPct,projectedErv,rentReviewType,reviewMultiplier,
+      gdv,exitMethod,niy,equivalentYield,vpValuePsm,
+      landCost,sdlt,profFees,contingency,
+      totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
+      interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
+      monthlyInterestArr:fin.monthlyInterestArr,
+      totalCost,profit,poc,margin,yoc,rlv,equity,moic,dscr,
+      breakEvenRentPsm,breakEvenYield,irr,irrLevered,paybackMonth,
+      financeRate:annualRate,buildMonths,stabMonths,totalMonths,
+      buildProfile,uCfs,lCfs,sensMatrix,unitResults,
+    };
+  }
   return{};
 }
 // ─── DEFAULTS ─────────────────────────────────────────────────────────────────
@@ -903,6 +1053,21 @@ const DEFAULTS={
   BTR:{assetType:"BTR",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   Hotel:{assetType:"Hotel",vatPct:20,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
+  Commercial:{assetType:"Commercial",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
+    programmMonths:18,stabilisationMonths:12,
+    landCost:5000000,buildCostPsm:1200,
+    professionalFeesPct:8,contingencyPct:5,otherCosts:100000,
+    vatPct:20,cilPsf:0,s106:0,
+    ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,
+    sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,
+    exitMethod:"investment" as const,
+    niy:5.5,equivalentYield:5.75,vpValuePsm:8000,
+    rentReviewType:"fixed" as const,rentReviewPct:3,rentReviewYears:5,
+    units:[
+      {id:"u1",label:"Ground Floor Retail",use:"retail",areaSqm:500,erv:350,passingRent:300,wault:5,voidPct:5,rentFreeMonths:6},
+      {id:"u2",label:"Office Floor 1",use:"office",areaSqm:800,erv:450,passingRent:420,wault:3,voidPct:10,rentFreeMonths:3},
+    ],
+  },
   MixedUse:{assetType:"MixedUse",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,benchmark_rate:"SONIA",
     programmMonths:24,landCost:3000000,
     vatPct:0,cilPsf:0,s106:0,
@@ -918,7 +1083,7 @@ const DEFAULTS={
   },
   Flip:{assetType:"Flip",vatPct:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,areaModelOn:false,unitSystem:"sqft",existingArea:900,newArea:0,existingCostPsf:95,newCostPsf:180,architectPct:0,structEngPct:0,interiorPct:0,ffeCost:0,otherProfFees:0},
 };
-type AssetType="BTR"|"BTS"|"Hotel"|"Flip"|"MixedUse";
+type AssetType="BTR"|"BTS"|"Hotel"|"Flip"|"MixedUse"|"Commercial";
 type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
 
 
@@ -1937,9 +2102,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_FLIP=["general","costs","finance","comps","analysis"];
   const TABS_MU=["general","zones","costs","finance","analysis"];
-  const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:TABS_FLIP;
+  const TABS_COM=["general","revenue","costs","finance","cashflow","analysis"];
+  const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:assetType==="Commercial"?TABS_COM:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones",};
-  const ASSET_LABELS:Record<string,string>={BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use"};
+  const ASSET_LABELS:Record<string,string>={BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use",Commercial:"Commercial"};
   const currencies=["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"];
   const benchmarks=["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"];
   const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
@@ -1976,7 +2142,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
       {/* Asset switcher */}
       <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",padding:"0 12px",display:"flex",alignItems:"center",gap:5,height:42,overflowX:"auto",flexShrink:0}}>
         <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginRight:2,flexShrink:0}}>Type:</span>
-        {(["BTR","BTS","Hotel","Flip","MixedUse"] as AssetType[]).map(t=>(
+        {(["BTR","BTS","Hotel","Flip","MixedUse","Commercial"] as AssetType[]).map(t=>(
           <button key={t} onClick={()=>{if(appraisalId)return;switchAssetType(t);}} style={{padding:"3px 10px",borderRadius:5,fontSize:11,fontWeight:600,cursor:appraisalId?"not-allowed":"pointer",border:"1px solid",background:assetType===t?"rgba(201,168,76,.12)":"transparent",borderColor:assetType===t?"var(--gold)":"var(--border)",color:assetType===t?"var(--gold)":"var(--text-d)",fontFamily:"var(--font-body)",transition:"all .2s",opacity:appraisalId&&assetType!==t?0.35:1,flexShrink:0,whiteSpace:"nowrap"}}>{ASSET_LABELS[t]||t}</button>
         ))}
         {appraisalId&&<span style={{fontSize:9,color:"var(--text-d)",flexShrink:0}}>· locked</span>}
@@ -2384,7 +2550,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
               </div>
             )}
             {/* COSTS BTR/BTS */}
-            {activeTab==="costs"&&assetType!=="Flip"&&assetType!=="Hotel"&&assetType!=="MixedUse"&&(
+            {activeTab==="costs"&&assetType!=="Flip"&&assetType!=="Hotel"&&assetType!=="MixedUse"&&assetType!=="Commercial"&&(
               <div>
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
@@ -3176,6 +3342,355 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                COMMERCIAL — GENERAL TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="general"&&assetType==="Commercial"&&(
+              <div>
+                <div className="section-title">Project Details</div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Project Name</label><input className="inp" value={data.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. Farringdon Office Block"/></div>
+                  <div className="inp-group"><label className="inp-label">Location</label><input className="inp" value={data.location||""} onChange={e=>set("location",e.target.value)} placeholder="e.g. Farringdon, London"/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Currency</label>
+                    <select className="inp" value={data.currency||"GBP"} onChange={e=>set("currency",e.target.value)}>
+                      {["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"].map(c=><option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths||18} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Benchmark</label>
+                    <select className="inp" value={data.benchmark||"SONIA"} onChange={e=>set("benchmark",e.target.value)}>
+                      {["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"].map(b=><option key={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate||3.97} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
+                </div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths||12} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                COMMERCIAL — REVENUE TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="revenue"&&assetType==="Commercial"&&(
+              <div>
+                <div className="section-title">Lettable Units</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>Add each lettable unit or floor. ERV and passing rent in {currencySymbol}/sqm/yr.</div>
+
+                {/* Unit table header */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px 60px 60px 28px",gap:6,padding:"6px 10px",background:"var(--bg3)",borderRadius:"8px 8px 0 0",border:"1px solid var(--border)",borderBottom:"none"}}>
+                  {["Label","Area (sqm)","ERV /sqm","Passing /sqm","WAULT (yrs)","Void %","RF (mo)",""].map(h=>(
+                    <div key={h} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>
+                  ))}
+                </div>
+
+                {(data.units||[]).map((u:any,ui:number)=>{
+                  const ur=(r.unitResults||[])[ui]||{};
+                  const upd=(f:string,v:any)=>{const units=[...(data.units||[])];units[ui]={...units[ui],[f]:v};set("units",units);};
+                  return(
+                    <div key={u.id||ui} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px 60px 60px 28px",gap:6,padding:"8px 10px",background:"var(--bg2)",border:"1px solid var(--border)",borderTop:"none"}}>
+                      <input className="inp" value={u.label||""} onChange={e=>upd("label",e.target.value)} style={{fontSize:12,padding:"5px 8px"}} placeholder="Unit name"/>
+                      <input className="inp" type="number" value={u.areaSqm||""} onChange={e=>upd("areaSqm",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <input className="inp" type="number" value={u.erv||""} onChange={e=>upd("erv",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <input className="inp" type="number" value={u.passingRent||""} onChange={e=>upd("passingRent",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <input className="inp" type="number" step="0.5" value={u.wault||""} onChange={e=>upd("wault",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <input className="inp" type="number" value={u.voidPct||""} onChange={e=>upd("voidPct",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <input className="inp" type="number" value={u.rentFreeMonths||""} onChange={e=>upd("rentFreeMonths",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
+                      <button className="btn-danger" onClick={()=>set("units",(data.units||[]).filter((_:any,i:number)=>i!==ui))} style={{padding:"4px 6px",fontSize:12}}>✕</button>
+                    </div>
+                  );
+                })}
+                {/* Totals row */}
+                {(data.units||[]).length>0&&(
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px 60px 60px 28px",gap:6,padding:"8px 10px",background:"var(--bg3)",border:"1px solid var(--border)",borderTop:"1px solid var(--gold-border)",borderRadius:"0 0 8px 8px"}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--text)"}}>Total / Avg</div>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text)"}}>{Math.round(r.totalAreaSqm||0)}</div>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--gold)"}}>{currencySymbol}{r.totalAreaSqm>0?Math.round((r.totalErv||0)/r.totalAreaSqm):0}</div>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-m)"}}>{currencySymbol}{r.totalAreaSqm>0?Math.round((r.totalPassing||0)/r.totalAreaSqm):0}</div>
+                    <div style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--blue)"}}>{(r.avgWault||0).toFixed(1)} yrs</div>
+                    <div/>
+                    <div/>
+                    <div/>
+                  </div>
+                )}
+
+                <button className="btn-ghost" style={{width:"100%",marginTop:8,justifyContent:"center"}} onClick={()=>{
+                  const units=[...(data.units||[])];
+                  units.push({id:"u"+Date.now(),label:"New Unit",use:"office",areaSqm:500,erv:400,passingRent:400,wault:5,voidPct:5,rentFreeMonths:3});
+                  set("units",units);
+                }}>+ Add unit</button>
+
+                {/* Income summary */}
+                {(r.totalErv||0)>0&&(
+                  <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Income Summary</div>
+                    {[
+                      ["Total ERV pa",fmt(r.totalErv||0,currencySymbol),"var(--gold)"],
+                      ["Passing Rent pa",fmt(r.totalPassing||0,currencySymbol),"var(--text-m)"],
+                      ["Net Passing (after void)",fmt(r.totalNetPassing||0,currencySymbol),"var(--text)"],
+                      ["Reversionary Gap",fmt((r.totalErv||0)-(r.totalPassing||0),currencySymbol),(r.totalErv||0)>=(r.totalPassing||0)?"var(--green)":"var(--red)"],
+                      ["Rent-Free Cost",fmt(r.totalRentFreeCost||0,currencySymbol),"var(--amber)"],
+                      ["Avg WAULT",`${(r.avgWault||0).toFixed(1)} yrs`,"var(--blue)"],
+                      ["ERV /sqm/yr",r.totalAreaSqm>0?`${currencySymbol}${Math.round((r.totalErv||0)/r.totalAreaSqm)}`:"—","var(--text-m)"],
+                    ].map(([l,v,c]:any)=>(
+                      <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                        <span style={{color:"var(--text-m)"}}>{l}</span>
+                        <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:500}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Rent review */}
+                <div className="section-title" style={{marginTop:24}}>Rent Review</div>
+                <div className="inp-row-3">
+                  <div className="inp-group">
+                    <label className="inp-label">Review type</label>
+                    <select className="inp" value={data.rentReviewType||"fixed"} onChange={e=>set("rentReviewType",e.target.value)}>
+                      <option value="fixed">Fixed %</option>
+                      <option value="cpi">CPI-linked</option>
+                      <option value="rpi">RPI-linked</option>
+                      <option value="omo">Open Market (OMO)</option>
+                    </select>
+                  </div>
+                  <div className="inp-group"><label className="inp-label">{data.rentReviewType==="cpi"?"CPI rate (%)":data.rentReviewType==="rpi"?"RPI rate (%)":"Uplift (%)"}</label><input className="inp" type="number" step="0.5" value={data.rentReviewPct||3} onChange={e=>set("rentReviewPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Review period (yrs)</label><input className="inp" type="number" value={data.rentReviewYears||5} onChange={e=>set("rentReviewYears",e.target.value)}/></div>
+                </div>
+                {(r.projectedErv||0)>0&&(
+                  <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-d)",marginTop:4}}>
+                    ERV after {data.rentReviewYears||5}-yr review: <span style={{color:"var(--green)"}}>{fmt(r.projectedErv||0,currencySymbol)}</span>
+                    <span style={{marginLeft:12}}>Uplift: <span style={{color:"var(--green)"}}>{(((r.reviewMultiplier||1)-1)*100).toFixed(1)}%</span></span>
+                  </div>
+                )}
+
+                {/* Exit method */}
+                <div className="section-title" style={{marginTop:24}}>Exit Valuation Method</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+                  {([
+                    {key:"investment",label:"Investment Sale",desc:"NIY capitalisation of net passing rent"},
+                    {key:"equivalent",label:"Equivalent Yield",desc:"Blend of initial + reversionary yield"},
+                    {key:"vp",label:"Vacant Possession",desc:"Physical asset value per sqm (B&M / alt use)"},
+                  ] as const).map(opt=>(
+                    <button key={opt.key} onClick={()=>set("exitMethod",opt.key)} style={{padding:"10px 12px",borderRadius:8,border:`1px solid ${(data.exitMethod||"investment")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.exitMethod||"investment")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"left",transition:"all .2s"}}>
+                      <div style={{fontSize:12,fontWeight:600,color:(data.exitMethod||"investment")===opt.key?"var(--gold)":"var(--text)",marginBottom:3}}>{opt.label}</div>
+                      <div style={{fontSize:10,color:"var(--text-d)"}}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {(data.exitMethod||"investment")==="investment"&&(
+                  <div className="inp-row">
+                    <div className="inp-group"><label className="inp-label">NIY / Exit Cap Rate (%)</label><input className="inp" type="number" step="0.25" value={data.niy||5.5} onChange={e=>set("niy",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">GDV (auto)</label><div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>{fmt(r.gdv||0,currencySymbol)}</div></div>
+                  </div>
+                )}
+                {(data.exitMethod||"investment")==="equivalent"&&(
+                  <div className="inp-row">
+                    <div className="inp-group"><label className="inp-label">Initial Yield / NIY (%)</label><input className="inp" type="number" step="0.25" value={data.niy||5.5} onChange={e=>set("niy",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Equivalent Yield (%)</label><input className="inp" type="number" step="0.25" value={data.equivalentYield||5.75} onChange={e=>set("equivalentYield",e.target.value)}/></div>
+                  </div>
+                )}
+                {data.exitMethod==="vp"&&(
+                  <div className="inp-row">
+                    <div className="inp-group"><label className="inp-label">VP Value ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.vpValuePsm||0} onChange={e=>set("vpValuePsm",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">GDV (auto)</label><div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>{fmt(r.gdv||0,currencySymbol)}</div></div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                COMMERCIAL — COSTS TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="costs"&&assetType==="Commercial"&&(
+              <div>
+                <div className="section-title">Acquisition</div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Land Cost ({currencySymbol})</label><input className="inp" type="number" value={data.landCost||0} onChange={e=>set("landCost",e.target.value)}/></div>
+                  <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
+                </div>
+                <div className="section-title" style={{marginTop:24}}>Build Costs</div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Build Cost ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.buildCostPsm||1200} onChange={e=>set("buildCostPsm",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Total Area (sqm) — from units</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{Math.round(r.totalAreaSqm||0)} sqm</div></div>
+                </div>
+                {r.buildCost>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-d)",marginBottom:12}}>Total build cost: <span style={{color:"var(--amber)"}}>{fmt(r.buildCost||0,currencySymbol)}</span></div>}
+                <div className="inp-row-3">
+                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct||8} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct||5} onChange={e=>set("contingencyPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts||0} onChange={e=>set("otherCosts",e.target.value)}/></div>
+                </div>
+                <VATCILBlock data={data} set={set} r={r} currencySymbol={currencySymbol} showCIL={true}/>
+                {/* Cost summary */}
+                {(r.totalCost||0)>0&&(
+                  <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Cost Summary</div>
+                    {[
+                      ["Land",r.landCost||0,"var(--text-m)"],
+                      ["SDLT",r.sdlt||0,"var(--text-d)"],
+                      ["Build Cost",r.buildCost||0,"var(--text-m)"],
+                      ["Prof Fees + Contingency",(r.profFees||0)+(r.contingency||0),"var(--text-d)"],
+                      ...(r.vat>0?[[vatLabel(data.currency||"GBP"),r.vat,"var(--amber)"]]:[] as any),
+                      ...(r.cil>0?[["CIL",r.cil,"var(--amber)"]]:[] as any),
+                      ...(r.s106>0?[["Section 106",r.s106,"var(--amber)"]]:[] as any),
+                      ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
+                      ["Total",r.totalCost||0,"var(--gold)"],
+                    ].map(([l,v,c]:any)=>(
+                      <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                        <span style={{color:"var(--text-m)"}}>{l}</span>
+                        <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total"?600:400}}>{fmt(v,currencySymbol)}</span>
+                      </div>
+                    ))}
+                    {r.totalAreaSqm>0&&<div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontFamily:"var(--font-mono)"}}>
+                      Cost/sqm: <span style={{color:"var(--text-m)"}}>{currencySymbol}{Math.round((r.totalCost||0)/r.totalAreaSqm)}</span>
+                    </div>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                COMMERCIAL — CASHFLOW TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="cashflow"&&assetType==="Commercial"&&(
+              <div>
+                <div className="section-title">Monthly Cashflow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>Build draw (S-curve) → letting-up ramp → exit at month {(r.totalMonths||0)}.</div>
+                {(r.uCfs||[]).length>0&&(
+                  <>
+                    {/* Chart */}
+                    <div style={{overflowX:"auto",marginBottom:20}}>
+                      <div style={{display:"flex",alignItems:"flex-end",gap:2,height:120,minWidth:Math.max(400,(r.uCfs||[]).length*16)}}>
+                        {(r.uCfs||[]).map((cf:number,m:number)=>{
+                          const maxAbs=Math.max(...(r.uCfs||[]).map((v:number)=>Math.abs(v)),1);
+                          const pct=Math.abs(cf)/maxAbs;
+                          const h=Math.max(2,pct*110);
+                          const isExit=m===(r.totalMonths||0)-1;
+                          return(
+                            <div key={m} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                              {cf>0&&<div style={{width:"100%",height:h,background:isExit?"var(--gold)":"var(--green)",borderRadius:"2px 2px 0 0",opacity:.85}}/>}
+                              <div style={{width:"100%",height:2,background:"var(--border)"}}/>
+                              {cf<0&&<div style={{width:"100%",height:Math.abs(cf)/maxAbs*110,background:"var(--red)",borderRadius:"0 0 2px 2px",opacity:.7}}/>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-d)",marginTop:4,fontFamily:"var(--font-mono)"}}>
+                        <span>Month 1</span>
+                        <span>Build ({r.buildMonths}m)</span>
+                        <span>Letting-up ({r.stabMonths}m)</span>
+                        <span>Exit M{r.totalMonths}</span>
+                      </div>
+                    </div>
+                    {/* Legend */}
+                    <div style={{display:"flex",gap:16,marginBottom:16}}>
+                      {[["var(--red)","Build draw / equity out"],["var(--green)","NOI income"],["var(--gold)","Exit proceeds"]].map(([c,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c}}/>{l}</div>
+                      ))}
+                    </div>
+                    {/* Monthly table — show key months */}
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"var(--font-mono)"}}>
+                        <thead>
+                          <tr style={{borderBottom:"1px solid var(--border)"}}>
+                            {["Month","Cashflow","Cumulative","Phase"].map(h=>(
+                              <th key={h} style={{padding:"6px 8px",textAlign:"left",fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(r.uCfs||[]).map((cf:number,m:number)=>{
+                            const cum=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
+                            const phase=m<(r.buildMonths||0)?"Build":m<(r.totalMonths||0)-1?"Letting-up":"Exit";
+                            const isExit=m===(r.totalMonths||0)-1;
+                            if(!isExit&&Math.abs(cf)<1)return null;
+                            return(
+                              <tr key={m} style={{borderBottom:"1px solid var(--bg4)",background:isExit?"rgba(201,168,76,.04)":"transparent"}}>
+                                <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{m+1}</td>
+                                <td style={{padding:"5px 8px",color:cf>=0?"var(--green)":"var(--red)"}}>{cf>=0?"+":""}{fmt(cf,currencySymbol)}</td>
+                                <td style={{padding:"5px 8px",color:cum>=0?"var(--green)":"var(--red)"}}>{cum>=0?"+":""}{fmt(cum,currencySymbol)}</td>
+                                <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{phase}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                COMMERCIAL — ANALYSIS TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="analysis"&&assetType==="Commercial"&&(
+              <div>
+                <div className="section-title">Returns Summary</div>
+                <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,marginBottom:20}}>
+                  {([
+                    ["GDV",fmt(r.gdv||0,currencySymbol),"var(--gold)"],
+                    ["Total ERV pa",fmt(r.totalErv||0,currencySymbol),"var(--text)"],
+                    ["Net Passing Rent pa",fmt(r.totalNetPassing||0,currencySymbol),"var(--text-m)"],
+                    ["Total Cost",fmt(r.totalCost||0,currencySymbol),"var(--text-m)"],
+                    ["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],
+                    [vatLabel(data.currency||"GBP"),(r.vat||0)>0?fmt(r.vat||0,currencySymbol):"—",(r.vat||0)>0?"var(--amber)":"var(--text-d)"],
+                    ["CIL",(r.cil||0)>0?fmt(r.cil||0,currencySymbol):"—",(r.cil||0)>0?"var(--amber)":"var(--text-d)"],
+                    ["Section 106",(r.s106||0)>0?fmt(r.s106||0,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                    ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--amber)"],
+                    ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
+                    ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
+                    ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
+                    ["Profit on GDV",fmtPct(r.margin||0),"var(--text-m)"],
+                    ["Yield on Cost",fmtPct(r.yoc||0),"var(--blue)"],
+                    ["DSCR",isFinite(r.dscr||0)?fmtX(r.dscr||0):"—",(r.dscr||0)>=1.5?"var(--green)":(r.dscr||0)>=1.25?"var(--amber)":"var(--red)"],
+                    ["Residual Land Value",fmt(r.rlv||0,currencySymbol),(r.rlv||0)>0?"var(--gold)":"var(--red)"],
+                    ["Break-even Rent",r.totalAreaSqm>0?`${currencySymbol}${Math.round(r.breakEvenRentPsm||0)}/sqm/yr`:"—","var(--text-m)"],
+                    ["Break-even Yield",fmtPct(r.breakEvenYield||0),"var(--text-m)"],
+                    ["IRR (Unlevered)",fmtPct(r.irr||0),irrCol(r.irr||0)],
+                    ["IRR (Levered)",fmtPct(r.irrLevered||0),irrCol(r.irrLevered||0)],
+                    ["Equity Multiple",fmtX(r.moic||0),(r.moic||0)>1.5?"var(--green)":"var(--text)"],
+                    ["Avg WAULT",`${(r.avgWault||0).toFixed(1)} yrs`,"var(--blue)"],
+                    ["Reversion to ERV",(r.totalErv||0)>0?fmtPct(((r.totalErv||0)-(r.totalPassing||0))/(r.totalErv||1)):"—","var(--text-d)"],
+                  ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
+                </div>
+
+                {/* Sensitivity matrix: NIY rows × ERV shift cols */}
+                {(r.sensMatrix||[]).length>0&&(
+                  <div style={{marginBottom:28}}>
+                    <div className="section-title">Sensitivity — Profit on Cost %</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>NIY / exit cap rate (rows) × net passing rent shift (columns)</div>
+                    <div className="sens-wrap">
+                      <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,minWidth:380}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",display:"flex",alignItems:"flex-end",paddingBottom:4}}>NIY ↕</div>
+                        {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontSize:10}}>{h}</div>)}
+                        {(r.sensMatrix||[]).map((row:number[],si:number)=>{
+                          const niyVal=((r.niy||0.055)*100+[-0.5,-0.25,0,0.25,0.5][si]).toFixed(2);
+                          return(
+                            <React.Fragment key={si}>
+                              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)",fontFamily:"var(--font-mono)",fontSize:10}}>{niyVal}%</div>
+                              {row.map((poc:number,ri:number)=>(
+                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:16,marginTop:10}}>
+                      {([["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]] as [string,string][]).map(([bg,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {/* COMPARABLES TAB — Flip only */}
@@ -3972,6 +4487,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {assetType==="BTR"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},{label:"IRR (Unlevered)",value:fmtPct(r.irr),color:"var(--blue)"},{label:"IRR (Levered)",value:fmtPct(r.irrLevered),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
             {assetType==="BTS"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Profit on GDV",value:fmtPct(r.margin),color:"var(--text)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Hotel"&&[{label:"Exit Value",value:fmt(r.exitValue,currencySymbol),color:"var(--gold)"},{label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol),color:"var(--green)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Return on Cost",value:fmtPct(r.poc),color:r.poc>0.15?"var(--green)":"var(--amber)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            {assetType==="Commercial"&&[
+              {label:"GDV",value:fmt(r.gdv||0,currencySymbol),color:"var(--gold)"},
+              {label:"Profit",value:fmt(r.profit||0,currencySymbol),color:(r.profit||0)>0?"var(--green)":"var(--red)"},
+              {label:"Profit on Cost",value:fmtPct(r.poc||0),color:(r.poc||0)>0.2?"var(--green)":"var(--amber)"},
+              {label:"IRR (Unlev.)",value:fmtPct(r.irr||0),color:"var(--blue)"},
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
             {assetType==="MixedUse"&&[
               {label:"Total GDV",value:currencySymbol+(Math.round(r.totalGDV||0)).toLocaleString(),color:"var(--gold)"},
               {label:"Profit",value:currencySymbol+(Math.round(r.profit||0)).toLocaleString(),color:(r.profit||0)>0?"var(--green)":"var(--red)"},
