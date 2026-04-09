@@ -1090,6 +1090,73 @@ type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessmen
 
 
 
+
+// ─── SHARED CASHFLOW CHART ────────────────────────────────────────────────────
+function CashflowChart({uCfs,totalMonths,buildMonths,exitLabel,currencySymbol,phaseLabels}:{uCfs:number[];totalMonths:number;buildMonths:number;exitLabel:string;currencySymbol:string;phaseLabels?:string[]}){
+  if(!uCfs||uCfs.length===0)return null;
+  const maxAbs=Math.max(...uCfs.map(v=>Math.abs(v)),1);
+  let cumulative=0;
+  const rows=uCfs.map((cf,m)=>{cumulative+=cf;return{cf,cum:cumulative,m};});
+  return(
+    <div>
+      {/* Bar chart */}
+      <div style={{overflowX:"auto",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"flex-end",gap:2,height:120,minWidth:Math.max(400,uCfs.length*14)}}>
+          {uCfs.map((cf,m)=>{
+            const pct=Math.abs(cf)/maxAbs;
+            const h=Math.max(2,pct*110);
+            const isExit=m===totalMonths-1;
+            return(
+              <div key={m} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                {cf>0&&<div style={{width:"100%",height:h,background:isExit?"var(--gold)":"var(--green)",borderRadius:"2px 2px 0 0",opacity:.85}}/>}
+                <div style={{width:"100%",height:2,background:"var(--border)"}}/>
+                {cf<0&&<div style={{width:"100%",height:Math.abs(cf)/maxAbs*110,background:"var(--red)",borderRadius:"0 0 2px 2px",opacity:.7}}/>}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-d)",marginTop:4,fontFamily:"var(--font-mono)"}}>
+          <span>Month 1</span>
+          {phaseLabels?phaseLabels.map((l,i)=><span key={i}>{l}</span>):<span>Build ({buildMonths}m)</span>}
+          <span>Exit M{totalMonths}</span>
+        </div>
+      </div>
+      {/* Legend */}
+      <div style={{display:"flex",gap:16,marginBottom:16,flexWrap:"wrap"}}>
+        {[["var(--red)","Cash out"],["var(--green)","Cash in"],["var(--gold)",exitLabel||"Exit proceeds"]].map(([c,l])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c as string}}/>{l}</div>
+        ))}
+        <div style={{marginLeft:"auto",fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>
+          Payback: {rows.find(r=>r.cum>=0)?`Month ${rows.find(r=>r.cum>=0)!.m+1}`:"Beyond horizon"}
+        </div>
+      </div>
+      {/* Table */}
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"var(--font-mono)"}}>
+          <thead>
+            <tr style={{borderBottom:"1px solid var(--border)"}}>
+              {["Month","Cashflow","Cumulative"].map(h=>(
+                <th key={h} style={{padding:"6px 8px",textAlign:"left",fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.filter(({cf,m})=>Math.abs(cf)>0||(m===totalMonths-1)).map(({cf,cum,m})=>{
+              const isExit=m===totalMonths-1;
+              return(
+                <tr key={m} style={{borderBottom:"1px solid var(--bg4)",background:isExit?"rgba(201,168,76,.04)":"transparent"}}>
+                  <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{m+1}{isExit?" (Exit)":""}</td>
+                  <td style={{padding:"5px 8px",color:cf>=0?"var(--green)":"var(--red)"}}>{cf>=0?"+":""}{currencySymbol}{Math.abs(Math.round(cf)).toLocaleString()}</td>
+                  <td style={{padding:"5px 8px",color:cum>=0?"var(--green)":"var(--text-m)"}}>{cum>=0?"+":""}{currencySymbol}{Math.abs(Math.round(cum)).toLocaleString()}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 // ─── VAT / CIL / S106 BLOCK ───────────────────────────────────────────────────
 function VATCILBlock({data,set,r,currencySymbol,showCIL=true}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string;showCIL?:boolean}){
   const currency=data.currency||"GBP";
@@ -2098,10 +2165,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   };
   const[panelOpen,setPanelOpen]=useState(true);
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
-  const TABS_BTS=["general","revenue","costs","finance","analysis"];
+  const TABS_BTS=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
-  const TABS_FLIP=["general","costs","finance","comps","analysis"];
-  const TABS_MU=["general","zones","costs","finance","analysis"];
+  const TABS_FLIP=["general","costs","finance","comps","cashflow","analysis"];
+  const TABS_MU=["general","zones","costs","finance","cashflow","analysis"];
   const TABS_COM=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:assetType==="Commercial"?TABS_COM:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones",};
@@ -3065,48 +3132,120 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </div>
                   </>
                 )}
-                {assetType!=="Flip"&&assetType!=="MixedUse"&&assetType!=="Commercial"?(
+                {(assetType==="BTR"||assetType==="BTS"||assetType==="Commercial"||assetType==="MixedUse")&&(
                   <>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e=>set("ltc",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
-                    </div>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
-                    </div>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
-                      <div className="inp-group"><label className="inp-label">Peak Loan Balance (rolled)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.peakLoanBalance||0,currencySymbol)}</div></div>
-                    </div>
-                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20}}>
-                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Breakdown</div>
-                      {([["Arrangement Fee",r.arrangementFee||0,"var(--amber)"],["Interest (Rolled Monthly)",r.interestCost||0,"var(--amber)"],["Total Finance Cost",r.totalFinanceCost||0,"var(--gold)"]] as any[]).map(([l,v,c])=>(
-                        <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
-                          <span style={{color:"var(--text-m)"}}>{l}</span>
-                          <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Finance Cost"?600:400}}>{fmt(v,currencySymbol)}</span>
-                        </div>
-                      ))}
-                      <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontStyle:"italic"}}>Interest accrues monthly on drawn balance (rolled / PIK). Exact S-curve model.</div>
-                    </div>
-                    <div className="section-title" style={{marginTop:28}}>Promote Waterfall</div>
-                    {[1,2,3].map(tier=>(
-                      <div key={tier} className="waterfall-tier">
-                        <div style={{fontSize:12,color:"var(--gold)",fontWeight:500,marginBottom:12}}>Tier {tier}</div>
-                        <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">IRR Hurdle (%)</label><input className="inp" type="number" value={data[`tier${tier}Hurdle`]} onChange={e=>set(`tier${tier}Hurdle`,e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Developer Share (%)</label><input className="inp" type="number" value={data[`tier${tier}DevShare`]} onChange={e=>set(`tier${tier}DevShare`,e.target.value)}/></div>
-                        </div>
-                        <div style={{height:6,background:"var(--bg4)",borderRadius:3,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${data[`tier${tier}DevShare`]}%`,background:"linear-gradient(90deg,var(--gold),var(--gold-l))",borderRadius:3}}/>
-                        </div>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text-d)",marginTop:4}}>
-                          <span>Developer: {data[`tier${tier}DevShare`]}%</span><span>Investor: {100-data[`tier${tier}DevShare`]}%</span>
-                        </div>
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Financing Structure</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                        {([{key:"equity",label:"All Equity",desc:"No debt"},{key:"single",label:"Single Facility",desc:"One LTC loan"},{key:"dual",label:"Dual Facility",desc:"Acq + build"},{key:"fullstack",label:"Full Stack",desc:"Senior + Mezz"}] as const).map(opt=>(
+                          <button key={opt.key} onClick={()=>set("capStructure",opt.key)} style={{padding:"10px 8px",borderRadius:8,border:`1px solid ${(data.capStructure||"single")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.capStructure||"single")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"center",transition:"all .2s"}}>
+                            <div style={{fontSize:11,fontWeight:600,color:(data.capStructure||"single")===opt.key?"var(--gold)":"var(--text)",marginBottom:2}}>{opt.label}</div>
+                            <div style={{fontSize:9,color:"var(--text-d)"}}>{opt.desc}</div>
+                          </button>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                    {(data.capStructure||"single")==="equity"&&(
+                      <div style={{padding:"16px",background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
+                        <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
+                      </div>
+                    )}
+                    {(data.capStructure||"single")==="single"&&(
+                      <>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
+                          <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--amber)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
+                        </div>
+                      </>
+                    )}
+                    {(data.capStructure||"single")==="dual"&&(
+                      <>
+                        <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Land / Acquisition Facility</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.acqLTV||65} onChange={e=>set("acqLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.acqRate||7.5} onChange={e=>set("acqRate",e.target.value)}/></div>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--blue)",fontWeight:600,margin:"16px 0 10px"}}>Development / Build Facility</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTC (%)</label><input className="inp" type="number" step="1" value={data.capexLTC||60} onChange={e=>set("capexLTC",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.capexRate||8.0} onChange={e=>set("capexRate",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                        </div>
+                      </>
+                    )}
+                    {(data.capStructure||"single")==="fullstack"&&(
+                      <>
+                        <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Senior Debt</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Senior LTV (%)</label><input className="inp" type="number" step="1" value={data.seniorLTV||60} onChange={e=>set("seniorLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Senior Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.seniorRate||7.0} onChange={e=>set("seniorRate",e.target.value)}/></div>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--amber)",fontWeight:600,margin:"16px 0 10px"}}>Mezzanine</div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Mezz LTV (%)</label><input className="inp" type="number" step="1" value={data.mezzLTV||75} onChange={e=>set("mezzLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mezz Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.mezzRate||12.0} onChange={e=>set("mezzRate",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                        </div>
+                      </>
+                    )}
+                    {(data.capStructure||"single")!=="equity"&&(
+                      <div style={{marginTop:16,display:"flex",gap:16,flexWrap:"wrap",alignItems:"center"}}>
+                        <label style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--text-m)",cursor:"pointer"}}>
+                          <input type="checkbox" checked={data.hedgingEnabled||false} onChange={e=>set("hedgingEnabled",e.target.checked)} style={{width:14,height:14}}/>
+                          Day 1 Hedging / Rate Cap
+                        </label>
+                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost||0} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:140}}/>}
+                      </div>
+                    )}
+                    {(data.capStructure||"single")!=="equity"&&(r.totalFinanceCost||0)>0&&(
+                      <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Breakdown</div>
+                        {[["Loan Amount",r.loanAmount||0,"var(--text-m)"],["Peak Loan Balance",r.peakLoanBalance||0,"var(--amber)"],["Arrangement Fee",r.arrangementFee||0,"var(--text-d)"],["Interest (Rolled)",r.interestCost||0,"var(--amber)"],["Total Finance Cost",r.totalFinanceCost||0,"var(--gold)"]].map(([l,v,c]:any)=>(
+                          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                            <span style={{color:"var(--text-m)"}}>{l}</span>
+                            <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Finance Cost"?600:400}}>{fmt(v,currencySymbol)}</span>
+                          </div>
+                        ))}
+                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontStyle:"italic"}}>S-curve drawdown · interest rolled monthly on drawn balance.</div>
+                      </div>
+                    )}
+                    {(assetType==="BTR"||assetType==="BTS")&&(
+                      <>
+                        <div className="section-title" style={{marginTop:28}}>Promote Waterfall</div>
+                        {[1,2,3].map(tier=>(
+                          <div key={tier} className="waterfall-tier">
+                            <div style={{fontSize:12,color:"var(--gold)",fontWeight:500,marginBottom:12}}>Tier {tier}</div>
+                            <div className="inp-row">
+                              <div className="inp-group"><label className="inp-label">IRR Hurdle (%)</label><input className="inp" type="number" value={data[`tier${tier}Hurdle`]} onChange={e=>set(`tier${tier}Hurdle`,e.target.value)}/></div>
+                              <div className="inp-group"><label className="inp-label">Developer Share (%)</label><input className="inp" type="number" value={data[`tier${tier}DevShare`]} onChange={e=>set(`tier${tier}DevShare`,e.target.value)}/></div>
+                            </div>
+                            <div style={{height:6,background:"var(--bg4)",borderRadius:3,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:`${data[`tier${tier}DevShare`]}%`,background:"linear-gradient(90deg,var(--gold),var(--gold-l))",borderRadius:3}}/>
+                            </div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text-d)",marginTop:4}}>
+                              <span>Developer: {data[`tier${tier}DevShare`]}%</span><span>Investor: {100-data[`tier${tier}DevShare`]}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </>
-                ):(assetType==="Flip"&&<>
+                )}
+                {assetType==="Flip"&&<>
                     <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:12}}>Bridging Finance</div>
                     <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.flipLTV} onChange={e=>set("flipLTV",e.target.value)}/></div>
@@ -3161,8 +3300,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         )}
                       </>
                     )}
-                  </>
-                )}
+                  </>}
               </div>
             )}
 
@@ -3589,72 +3727,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             ══════════════════════════════════════════════════════════════ */}
             {activeTab==="cashflow"&&assetType==="Commercial"&&(
               <div>
-                <div className="section-title">Monthly Cashflow</div>
-                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>Build draw (S-curve) → letting-up ramp → exit at month {(r.totalMonths||0)}.</div>
-                {(r.uCfs||[]).length>0&&(
-                  <>
-                    {/* Chart */}
-                    <div style={{overflowX:"auto",marginBottom:20}}>
-                      <div style={{display:"flex",alignItems:"flex-end",gap:2,height:120,minWidth:Math.max(400,(r.uCfs||[]).length*16)}}>
-                        {(r.uCfs||[]).map((cf:number,m:number)=>{
-                          const maxAbs=Math.max(...(r.uCfs||[]).map((v:number)=>Math.abs(v)),1);
-                          const pct=Math.abs(cf)/maxAbs;
-                          const h=Math.max(2,pct*110);
-                          const isExit=m===(r.totalMonths||0)-1;
-                          return(
-                            <div key={m} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                              {cf>0&&<div style={{width:"100%",height:h,background:isExit?"var(--gold)":"var(--green)",borderRadius:"2px 2px 0 0",opacity:.85}}/>}
-                              <div style={{width:"100%",height:2,background:"var(--border)"}}/>
-                              {cf<0&&<div style={{width:"100%",height:Math.abs(cf)/maxAbs*110,background:"var(--red)",borderRadius:"0 0 2px 2px",opacity:.7}}/>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-d)",marginTop:4,fontFamily:"var(--font-mono)"}}>
-                        <span>Month 1</span>
-                        <span>Build ({r.buildMonths}m)</span>
-                        <span>Letting-up ({r.stabMonths}m)</span>
-                        <span>Exit M{r.totalMonths}</span>
-                      </div>
-                    </div>
-                    {/* Legend */}
-                    <div style={{display:"flex",gap:16,marginBottom:16}}>
-                      {[["var(--red)","Build draw / equity out"],["var(--green)","NOI income"],["var(--gold)","Exit proceeds"]].map(([c,l])=>(
-                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c}}/>{l}</div>
-                      ))}
-                    </div>
-                    {/* Monthly table — show key months */}
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"var(--font-mono)"}}>
-                        <thead>
-                          <tr style={{borderBottom:"1px solid var(--border)"}}>
-                            {["Month","Cashflow","Cumulative","Phase"].map(h=>(
-                              <th key={h} style={{padding:"6px 8px",textAlign:"left",fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(r.uCfs||[]).map((cf:number,m:number)=>{
-                            const cum=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                            const phase=m<(r.buildMonths||0)?"Build":m<(r.totalMonths||0)-1?"Letting-up":"Exit";
-                            const isExit=m===(r.totalMonths||0)-1;
-                            if(!isExit&&Math.abs(cf)<1)return null;
-                            return(
-                              <tr key={m} style={{borderBottom:"1px solid var(--bg4)",background:isExit?"rgba(201,168,76,.04)":"transparent"}}>
-                                <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{m+1}</td>
-                                <td style={{padding:"5px 8px",color:cf>=0?"var(--green)":"var(--red)"}}>{cf>=0?"+":""}{fmt(cf,currencySymbol)}</td>
-                                <td style={{padding:"5px 8px",color:cum>=0?"var(--green)":"var(--red)"}}>{cum>=0?"+":""}{fmt(cum,currencySymbol)}</td>
-                                <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{phase}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
+                <div className="section-title">Cashflow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
+                  S-curve build draw · {r.buildMonths}m construction · {r.stabMonths}m letting-up ramp · exit at {r.exitMethod==="vp"?"VP value":r.exitMethod==="equivalent"?"equivalent yield":"NIY"}
+                </div>
+                <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel={r.exitMethod==="vp"?"VP exit":r.exitMethod==="equivalent"?"EY exit":"NIY exit"} currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Letting-up (${r.stabMonths}m)`]}/>
               </div>
             )}
+
 
             {/* ══════════════════════════════════════════════════════════════
                 COMMERCIAL — ANALYSIS TAB
@@ -3895,108 +3975,55 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* CASHFLOW HOTEL */}
             {activeTab==="cashflow"&&assetType==="Hotel"&&(
               <div>
-                <div className="section-title">Monthly Cash Flow</div>
+                <div className="section-title">Cashflow</div>
                 <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
-                  {data.costProfile==="scurve"?"S-Curve":data.costProfile==="frontloaded"?"Front-Loaded":"Straight-Line"} · {r.buildMonths}m renovation/fit-out · {r.stabMonths}m stabilisation
-                  <span style={{marginLeft:12,color:"var(--gold)",fontFamily:"var(--font-mono)",fontSize:11}}>Interest rolls monthly on drawn balance</span>
+                  {r.buildMonths}m refurb / fit-out · {r.stabMonths}m ramp-up to stabilised EBITDA · exit at cap rate
                 </div>
-                <div style={{overflowX:"auto"}}>
-                  <div className="cf-row" style={{marginBottom:8}}>
-                    {["Month","CapEx Draw","Loan Bal","Interest","EBITDA","Net CF","Cum CF","Phase"].map(h=><div key={h} className="cf-header">{h}</div>)}
-                  </div>
-                  {(r.monthlyDrawArr||[]).slice(0,Math.min((r.buildMonths||24),36)).map((draw:number,m:number)=>{
-                    const interest=r.monthlyInterestArr?.[m]||0;
-                    const loanBal=(r.monthlyDrawArr||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0)*(r.ltcPct||0.60);
-                    const cumCf=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                    const cumPct=((r.buildProfile||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0)*100).toFixed(0);
-                    return(<div key={`b${m}`} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
-                      <div style={{color:"var(--text-d)"}}>R{m+1}</div>
-                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(draw,currencySymbol)}</div>
-                      <div style={{color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{fmt(loanBal,currencySymbol)}</div>
-                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)"}}>{fmt(interest,currencySymbol)}</div>
-                      <div style={{color:"var(--text-d)"}}>—</div>
-                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(r.uCfs?.[m]||0,currencySymbol)}</div>
-                      <div style={{color:"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
-                      <div style={{color:"var(--amber)",fontSize:10}}>{cumPct}% done</div>
-                    </div>);
-                  })}
-                  {Array.from({length:Math.min(r.stabMonths||18,18)},(_,m)=>{
-                    const idx=(r.buildMonths||24)+m;
-                    const ebitda=r.uCfs?.[idx]||0;
-                    const cumCf=(r.uCfs||[]).slice(0,idx+1).reduce((a:number,b:number)=>a+b,0);
-                    const rampPct=Math.round((0.4+0.6*((m+1)/(r.stabMonths||18)))*100);
-                    return(<div key={`s${m}`} className="cf-row" style={{background:"rgba(61,220,132,.03)"}}>
-                      <div style={{color:"var(--green)",fontSize:10}}>S{m+1}</div>
-                      <div style={{color:"var(--text-d)"}}>—</div>
-                      <div style={{color:"var(--text-d)"}}>—</div>
-                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)",fontSize:10}}>{fmt((r.peakLoanBalance||0)*(r.financeRate||0)/12,currencySymbol)}</div>
-                      <div style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(ebitda,currencySymbol)}</div>
-                      <div style={{color:ebitda>=0?"var(--green)":"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(ebitda,currencySymbol)}</div>
-                      <div style={{color:cumCf>=0?"var(--green)":"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
-                      <div style={{color:"var(--green)",fontSize:10}}>{rampPct}% occ</div>
-                    </div>);
-                  })}
-                </div>
-                <div style={{marginTop:12,display:"flex",gap:16,flexWrap:"wrap"}}>
-                  {[["var(--red)","Renovation/CapEx"],["var(--amber)","Interest (Rolled)"],["var(--green)","EBITDA (Stabilisation)"]].map(([c,l])=>(
-                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c}}/>{l}</div>
-                  ))}
-                </div>
+                <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="Exit value" currencySymbol={currencySymbol} phaseLabels={[`Refurb (${r.buildMonths}m)`,`Stabilisation (${r.stabMonths}m)`]}/>
               </div>
             )}
-            {/* CASHFLOW BTR */}
+
+
             {activeTab==="cashflow"&&assetType==="BTR"&&(
               <div>
-                <div className="section-title">Monthly Cash Flow</div>
+                <div className="section-title">Cashflow</div>
                 <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
-                  {data.costProfile==="scurve"?"S-Curve":data.costProfile==="frontloaded"?"Front-Loaded":"Straight-Line"} · {r.buildMonths}m build · {r.stabMonths}m stabilisation
-                  <span style={{marginLeft:12,color:"var(--gold)",fontFamily:"var(--font-mono)",fontSize:11}}>Interest rolls monthly on drawn balance</span>
+                  {data.costProfile==="scurve"?"S-Curve":data.costProfile==="frontloaded"?"Front-Loaded":"Straight-Line"} · {r.buildMonths}m build · {r.stabMonths}m stabilisation · exit at GDV
                 </div>
-                <div style={{overflowX:"auto"}}>
-                  <div className="cf-row" style={{marginBottom:8}}>
-                    {["Month","Draw","Loan Bal","Interest","NOI","Net CF","Cum CF","% Done"].map(h=><div key={h} className="cf-header">{h}</div>)}
-                  </div>
-                  {(r.monthlyDrawArr||[]).slice(0,Math.min((r.buildMonths||36),36)).map((draw:number,m:number)=>{
-                    const interest=r.monthlyInterestArr?.[m]||0;
-                    const loanBal=r.monthlyDrawArr?.slice(0,m+1).reduce((a:number,b:number)=>a+b,0)||0;
-                    const cumCf=(r.uCfs||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                    const cumPct=(r.buildProfile||[]).slice(0,m+1).reduce((a:number,b:number)=>a+b,0);
-                    return(<div key={`b${m}`} className="cf-row" style={{background:m%2===0?"transparent":"rgba(255,255,255,.015)"}}>
-                      <div style={{color:"var(--text-d)"}}>B{m+1}</div>
-                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(draw,currencySymbol)}</div>
-                      <div style={{color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{fmt(loanBal*(r.ltcPct||0.65),currencySymbol)}</div>
-                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)"}}>{fmt(interest,currencySymbol)}</div>
-                      <div style={{color:"var(--text-d)"}}>—</div>
-                      <div style={{color:"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(r.uCfs?.[m]||0,currencySymbol)}</div>
-                      <div style={{color:"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
-                      <div style={{color:"var(--green)"}}>{((cumPct)*100).toFixed(0)}%</div>
-                    </div>);
-                  })}
-                  {Array.from({length:Math.min(r.stabMonths||12,12)},(_,m)=>{
-                    const idx=(r.buildMonths||36)+m;
-                    const noi=r.uCfs?.[idx]||0;
-                    const cumCf=(r.uCfs||[]).slice(0,idx+1).reduce((a:number,b:number)=>a+b,0);
-                    const occPct=Math.round((0.5+(0.5-((r.voidPct||2)/100))*((m+1)/(r.stabMonths||12)))*100);
-                    return(<div key={`s${m}`} className="cf-row" style={{background:"rgba(61,220,132,.03)"}}>
-                      <div style={{color:"var(--green)",fontSize:10}}>S{m+1}</div>
-                      <div style={{color:"var(--text-d)"}}>—</div><div style={{color:"var(--text-d)"}}>—</div>
-                      <div style={{color:"var(--amber)",fontFamily:"var(--font-mono)",fontSize:10}}>{fmt((r.peakLoanBalance||0)*(r.financeRate||0)/12,currencySymbol)}</div>
-                      <div style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(noi,currencySymbol)}</div>
-                      <div style={{color:noi>=0?"var(--green)":"var(--red)",fontFamily:"var(--font-mono)"}}>{fmt(noi,currencySymbol)}</div>
-                      <div style={{color:cumCf>=0?"var(--green)":"var(--text-m)",fontFamily:"var(--font-mono)"}}>{fmt(cumCf,currencySymbol)}</div>
-                      <div style={{color:"var(--green)"}}>{occPct}% occ</div>
-                    </div>);
-                  })}
-                  <div className="cf-row" style={{background:"rgba(201,168,76,.05)",borderTop:"1px solid var(--gold)44"}}>
-                    <div style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600}}>EXIT</div>
-                    <div/><div/><div/>
-                    <div style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600,gridColumn:"span 2"}}>{fmt(r.gdv||0,currencySymbol)}</div>
-                    <div/><div style={{color:"var(--green)"}}>100%</div>
-                  </div>
-                </div>
-                {r.paybackMonth&&(<div style={{marginTop:16,padding:"10px 14px",background:"rgba(61,220,132,.06)",border:"1px solid rgba(61,220,132,.2)",borderRadius:8,fontSize:12,color:"var(--green)"}}>✓ Cumulative cash flow turns positive at <strong>Month {r.paybackMonth}</strong></div>)}
+                <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="GDV exit" currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Stabilisation (${r.stabMonths}m)`]}/>
               </div>
             )}
+
+            {activeTab==="cashflow"&&assetType==="BTS"&&(
+              <div>
+                <div className="section-title">Cashflow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
+                  {data.costProfile==="scurve"?"S-Curve":"Straight-Line"} · {r.buildMonths}m build · {r.absMonths}m absorption · sales proceeds received over absorption period
+                </div>
+                <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="Sales proceeds" currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Absorption (${r.absMonths}m)`]}/>
+              </div>
+            )}
+
+            {activeTab==="cashflow"&&assetType==="Flip"&&(
+              <div>
+                <div className="section-title">Cashflow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
+                  {r.flipMode==="hold"?`Bridge (${r.bridgingMonths}m) → hold (${r.refiMonths}m) → exit`:`Bridge (${r.bridgingMonths}m) → sell on completion`}
+                </div>
+                <CashflowChart uCfs={r.flipMode==="hold"?(r.cfs||[]):(r.cfs||[])} totalMonths={r.flipMode==="hold"?r.totalHoldMonths:r.bridgingMonths} buildMonths={r.bridgingMonths||0} exitLabel={r.flipMode==="hold"?"Sale + refi repaid":"Net sale proceeds"} currencySymbol={currencySymbol}/>
+              </div>
+            )}
+
+            {activeTab==="cashflow"&&assetType==="MixedUse"&&(
+              <div>
+                <div className="section-title">Cashflow</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
+                  {r.buildMonths}m programme · active zone income offsets carry costs during build · GDV at completion
+                </div>
+                <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="GDV / exit" currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,""]}/>
+              </div>
+            )}
+
             {/* ANALYSIS */}
             {activeTab==="analysis"&&(
               <div>
