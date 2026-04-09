@@ -123,24 +123,21 @@ a{text-decoration:none;color:inherit}
   .nav{padding:0 20px;height:56px}.nav-links,.nav-btns{display:none}.hamburger{display:flex}
   .container{padding:0 20px}
   .hero-grid{grid-template-columns:1fr !important}.hero-right{display:none !important}
-  .features-grid{grid-template-columns:1fr !important}
-  .asset-grid{grid-template-columns:repeat(2,1fr) !important}
   .pricing-grid{grid-template-columns:1fr !important;max-width:100% !important}
   .footer-grid{grid-template-columns:1fr !important;gap:32px !important}
   .footer-bottom{flex-direction:column !important;gap:16px !important;text-align:center}
   .login-wrap{grid-template-columns:1fr}.login-left{display:none}.login-right{padding:24px 20px}.login-card{padding:32px 24px}
-  .why-grid{grid-template-columns:1fr !important}.lender-grid{grid-template-columns:1fr !important}
-  .pipeline-section{grid-template-columns:1fr !important}.workspace-section{grid-template-columns:1fr !important}
   .support-grid{grid-template-columns:1fr !important}
   .hero-btns{flex-direction:column !important}.hero-btns button{width:100%}
-  .cta-btns{flex-direction:column !important;align-items:center}
-  .legal-content{padding:100px 20px 60px}.showcase-tabs{overflow-x:auto}
-  .sticky-cta{padding:10px 20px;flex-direction:column;gap:8px}.sticky-cta-text{display:none}
-  .cta-strip{flex-direction:column;text-align:center;padding:28px 24px}
-  .video-section-grid{grid-template-columns:1fr !important}
+  .legal-content{padding:100px 20px 60px}
   .testimonials-grid{grid-template-columns:1fr !important}
-  .problem-inner{grid-template-columns:1fr !important}
-  .built-for-grid{grid-template-columns:1fr !important}
+  .three-col{grid-template-columns:1fr !important;overflow:hidden !important}
+  .problems-grid > div:last-child{grid-column:1 !important}
+  .sticky-cta{padding:12px 20px !important;flex-direction:column;gap:8px}
+  .sticky-cta > div:first-child{display:none !important}
+  .sticky-cta > div:last-child{width:100%;display:flex;gap:8px}
+  .sticky-cta > div:last-child button{flex:1;justify-content:center;font-size:10px;padding:10px 8px !important}
+  section{padding:64px 0 !important}
 }
 @media(max-width:480px){.asset-grid{grid-template-columns:1fr !important}}
 `;
@@ -591,7 +588,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
       ══════════════════════════════════════ */}
       <div style={{borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)",background:"var(--bg1)",padding:"22px 0"}}>
         <div className="container">
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:32,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:16,flexWrap:"wrap"}}>
             {[["$100m+","Deals modelled"],["12","Countries"],["< 5 min","First appraisal"],["99.9%","Uptime"]].map(([v,l])=>(
               <div key={l} style={{textAlign:"center"}}>
                 <div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:"var(--gold-l)",letterSpacing:"-.01em"}}>{v}</div>
@@ -621,7 +618,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
             </h2>
             <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.85,fontWeight:300}}>Most underwriting lives in spreadsheets, WhatsApp messages and memory. That's not infrastructure — that's risk. Valora was built to fix it.</p>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:2,background:"var(--border)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}} className="three-col">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:2,background:"var(--border)",border:"1px solid var(--border)",borderRadius:12,overflow:"hidden"}} className="three-col problems-grid">
             {[
               {no:"01",problem:"Too much time on deals that should die in 10 minutes",solution:"Valora gives you a structured go / no-go in minutes — not after a full model build.",color:"var(--red)"},
               {no:"02",problem:"Good deals analysed too slowly",solution:"By the time the numbers are ready, the deal is gone. Valora produces institutional analysis the moment you enter your assumptions.",color:"var(--amber)"},
