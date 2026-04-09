@@ -1184,6 +1184,9 @@ function AppraisalPage(){
   const[urlImport,setUrlImport]=useState("");
   const[urlImporting,setUrlImporting]=useState(false);
   const[urlImportError,setUrlImportError]=useState<string|null>(null);
+  const[rentalBenchmark,setRentalBenchmark]=useState<{avgRentPcm:number;lowRentPcm:number;highRentPcm:number;avgRentPsf:number;notes:string}|null>(null);
+  const[rentalBenchmarkRunning,setRentalBenchmarkRunning]=useState(false);
+  const[rentalBenchmarkError,setRentalBenchmarkError]=useState<string|null>(null);
   const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
@@ -1259,7 +1262,7 @@ function AppraisalPage(){
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
     const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
     try{
-      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Provide residential property comparables for a house flip. Location: ${data.location||"UK"}. Property size: ${data.propertySqft||"unknown"} sqft. Purchase price: ${currSym}${data.purchasePrice||"unknown"}. Currency: ${data.currency||"GBP"}.\n\nRespond ONLY with a JSON object: {"comparables":[{"address":"...","price":number,"sqft":number,"pricePsf":number,"bedrooms":number,"type":"...","sold":"YYYY-MM","notes":"..."}],"marketContext":"...","avgPricePsf":number,"refurbUplift":{"low":number,"high":number,"notes":"..."},"rentalComps":[{"address":"...","rentPcm":number,"bedrooms":number,"type":"...","notes":"..."}],"avgRentPcm":number}. Include 4-5 sold comps and 3-4 rental comps. Use training knowledge only.`})});
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Provide residential property comparables for a house flip. Location: ${data.location||"UK"}. Property size: ${data.propertySqft||"unknown"} sqft. Purchase price: ${currSym}${data.purchasePrice||"unknown"}. Currency: ${data.currency||"GBP"}.\n\nRespond ONLY with valid JSON containing these keys: comparables (array with address, price, sqft, pricePsf, bedrooms, type, sold, notes), marketContext (string), avgPricePsf (number), refurbUplift (object with low, high, notes), rentalComps (array with address, rentPcm, bedrooms, type, notes), avgRentPcm (number). Include 4-5 sold comps and 3-4 rental comps. Use training knowledge only.`})});
       const d=await res.json();
       // Try to parse JSON from the AI sense check response
       if(d.flags||d.summary){
@@ -1325,6 +1328,8 @@ Use realistic figures for ${data.location}. Output ONLY the JSON object.`})});
     let source="";
     let propertyId="";
     let inferredLocation="";
+    let inferredBeds="";
+    // Parse URL client-side first
     try{
       const u=new URL(url);
       const host=u.hostname.replace("www.","");
@@ -1332,33 +1337,97 @@ Use realistic figures for ${data.location}. Output ONLY the JSON object.`})});
         source="Rightmove";
         const m=url.match(/properties\/([0-9]+)/);
         if(m)propertyId=m[1];
+        // Extract location from slug e.g. /property-for-sale/find.html?locationIdentifier=...
+        const locM=url.match(/find\.html\?.*locationIdentifier=([^&]+)/);
+        if(locM)inferredLocation=decodeURIComponent(locM[1]).replace(/^[A-Z]+\^[0-9]+,/,"").replace(/\+/g," ").trim();
       }else if(host.includes("zoopla")){
         source="Zoopla";
         const m=url.match(/details\/([0-9]+)/);
         if(m)propertyId=m[1];
-        const locM=url.match(/\/for-sale\/(?:details\/)?([^/]+)/);
+        const locM=url.match(/\/(?:for-sale|to-rent)\/details\/([^/]+)\//);
         if(locM)inferredLocation=locM[1].replace(/-/g," ");
+        const bedM=url.match(/(\d)-bed/);
+        if(bedM)inferredBeds=bedM[1];
       }else if(host.includes("zillow")){
         source="Zillow";
         const m=url.match(/([0-9]+)_zpid/);
         if(m)propertyId=m[1];
+        const locM=url.match(/\/([^/]+)\/([^/]+)_rb\//);
+        if(locM)inferredLocation=locM[1].replace(/-/g," ");
       }else if(host.includes("onthemarket")){
         source="OnTheMarket";
         const m=url.match(/details\/([a-z0-9-]+)/i);
         if(m)propertyId=m[1];
       }else{
-        source="Property listing";
+        source="Listing";
       }
     }catch(e){
-      setUrlImportError("Invalid URL format — please check and try again");
+      setUrlImportError("Invalid URL — please paste a full URL including https://");
       setUrlImporting(false);
       return;
     }
+    // Pre-fill location if extracted
     if(inferredLocation&&!data.location)set("location",inferredLocation);
-    const idLabel=propertyId?" (ID: "+propertyId+")":"";
-    setUrlImportError(source+idLabel+" identified. AI cannot access live listings — please enter price, size and location directly from the listing page."+(inferredLocation&&!data.location?" Location pre-filled from URL.":""));
+    if(inferredBeds&&!data.bedrooms)set("bedrooms",inferredBeds);
+    // Ask AI for market context based on what we know from the URL
+    const locationForAI=inferredLocation||data.location||"UK";
+    const bedsForAI=inferredBeds||data.bedrooms||"";
+    try{
+      const prompt=`A user has pasted a ${source} property URL${propertyId?" (listing ID: "+propertyId+")":""}.
+Location extracted from URL: ${locationForAI}${bedsForAI?" | Bedrooms: "+bedsForAI+" bed":""}
+The AI cannot fetch live URLs. Based purely on your knowledge of the ${locationForAI} property market, provide typical values.
+
+Respond ONLY with valid JSON, no markdown:
+{"estimatedPurchasePrice":number,"estimatedSqft":number,"estimatedSalePrice":number,"estimatedRentPcm":number,"avgPricePsf":number,"notes":"1 sentence market context","confidence":"low"}
+
+Use typical ${bedsForAI?bedsForAI+"-bed ":""}residential property values for ${locationForAI}. If location is too vague, use UK averages.`;
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:prompt})});
+      const text=await res.text();
+      let parsed:any=null;
+      try{const d=JSON.parse(text);if(d.estimatedPurchasePrice||d.avgPricePsf)parsed=d;else if(d.summary){const m=(d.summary||"").match(/\{[\s\S]*\}/);if(m)try{const o=JSON.parse(m[0]);if(o.estimatedPurchasePrice||o.avgPricePsf)parsed=o;}catch(e){}}}catch(e){}
+      if(!parsed){const blocks=(text.match(/\{[\s\S]*?\}/g)||[]);for(const b of blocks){try{const o=JSON.parse(b);if(o.estimatedPurchasePrice||o.avgPricePsf){parsed=o;break;}}catch(e){}}}
+      if(parsed){
+        if(parsed.estimatedPurchasePrice&&!data.purchasePrice)set("purchasePrice",parsed.estimatedPurchasePrice);
+        if(parsed.estimatedSqft&&!data.propertySqft){set("propertySqft",parsed.estimatedSqft);set("existingAreaSqft",parsed.estimatedSqft);}
+        if(parsed.estimatedSalePrice&&!data.salePrice){set("salePrice",parsed.estimatedSalePrice);if(parsed.estimatedSqft)set("salePricePsf",Math.round(parsed.estimatedSalePrice/parsed.estimatedSqft));}
+        if(parsed.estimatedRentPcm&&!data.rentPcm)set("rentPcm",parsed.estimatedRentPcm);
+        setUrlImportError("✓ "+source+(propertyId?" #"+propertyId:"")+" — values pre-filled from AI market estimates for "+locationForAI+". Verify against the actual listing.");
+      }else{
+        setUrlImportError("✓ "+source+(propertyId?" #"+propertyId:"")+" detected"+(inferredLocation?" · Location: "+inferredLocation:"")+". AI couldn't estimate values — enter price and size from the listing manually.");
+      }
+    }catch(e:any){
+      setUrlImportError("✓ "+source+" URL parsed"+(inferredLocation?" · Location pre-filled":"")+". Enter remaining details from the listing.");
+    }
     setUrlImport("");
     setUrlImporting(false);
+  };
+  const runRentalBenchmarkAI=async()=>{
+    if(!data.location)return;
+    setRentalBenchmarkRunning(true);setRentalBenchmarkError(null);setRentalBenchmark(null);
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    const totalSqft=(num(String(data.existingAreaSqft||0))+num(String(data.newAreaSqft||0)))||num(String(data.propertySqft||0));
+    const beds=data.bedrooms||"";
+    try{
+      const prompt=`You are a UK lettings market analyst. Provide rental market benchmarks for residential property.
+
+Location: ${data.location}
+${beds?`Bedrooms: ${beds} bed`:""}
+${totalSqft>0?`Property size: ${totalSqft} sqft`:""}
+Currency: ${data.currency||"GBP"}
+
+Respond ONLY with valid JSON, no markdown, no explanation:
+{"avgRentPcm":number,"lowRentPcm":number,"highRentPcm":number,"avgRentPsf":number,"grossYieldPct":number,"notes":"1-2 sentences on rental demand and trends in this area"}
+
+Base your response on current lettings market data for ${data.location}${beds?" for "+beds+"-bedroom properties":""}.`;
+      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:prompt})});
+      const text=await res.text();
+      let parsed:any=null;
+      try{const d=JSON.parse(text);if(d.avgRentPcm)parsed=d;else if(d.summary){const m=(d.summary||"").match(/\{[\s\S]*\}/);if(m)try{const o=JSON.parse(m[0]);if(o.avgRentPcm)parsed=o;}catch(e){}}}catch(e){}
+      if(!parsed){const blocks=(text.match(/\{[\s\S]*?\}/g)||[]);for(const b of blocks){try{const o=JSON.parse(b);if(o.avgRentPcm){parsed=o;break;}}catch(e){}}}
+      if(parsed&&parsed.avgRentPcm){setRentalBenchmark(parsed);}
+      else{throw new Error("No rental data returned — please try again.");}
+    }catch(e:any){setRentalBenchmarkError(e.message||"Failed — please try again");}
+    setRentalBenchmarkRunning(false);
   };
   const runHotelComps=async()=>{
     if(!data.location)return;
@@ -2156,14 +2225,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {/* URL Import */}
                 <div style={{background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10,padding:14,marginBottom:20}}>
                   <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:8}}>◈ Import from Listing URL</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Paste a Rightmove, Zoopla or Zillow URL — AI will attempt to extract price, size and location</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Paste a Rightmove, Zoopla, Zillow or OnTheMarket URL — AI will pre-fill estimated values based on location</div>
                   <div style={{display:"flex",gap:8}}>
                     <input className="inp" value={urlImport} onChange={e=>setUrlImport(e.target.value)} placeholder="https://www.rightmove.co.uk/properties/..." style={{flex:1,fontSize:12}}/>
                     <button onClick={handleUrlImport} disabled={urlImporting||!urlImport.trim()} className="btn-primary" style={{padding:"8px 14px",fontSize:12,flexShrink:0}}>
                       {urlImporting?<><span style={{width:10,height:10,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Importing…</>:"Import"}
                     </button>
                   </div>
-                  {urlImportError&&<div style={{fontSize:11,color:"var(--amber)",marginTop:6}}>{urlImportError}</div>}
+                  {urlImportError&&<div style={{fontSize:11,color:urlImportError.startsWith("✓")?"var(--green)":"var(--amber)",marginTop:6}}>{urlImportError}</div>}
                 </div>
 
 
@@ -2286,6 +2355,53 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div className="inp-group"><label className="inp-label">Monthly OpEx ({currencySymbol})</label><input className="inp" type="number" value={data.holdOpexPm} onChange={e=>set("holdOpexPm",e.target.value)} placeholder="Service charge, insurance etc"/></div>
                       <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
                     </div>
+
+                    {/* ── AI Rental Benchmark ── */}
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:4,marginBottom:4}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:rentalBenchmark||rentalBenchmarkError?10:0}}>
+                        <div>
+                          <div style={{fontSize:11,fontWeight:600,color:"var(--text-m)"}}>◈ AI Rental Benchmark</div>
+                          <div style={{fontSize:10,color:"var(--text-d)",marginTop:2}}>Market rental range for {data.location||"this location"}{data.bedrooms?" · "+data.bedrooms+" bed":""}</div>
+                        </div>
+                        <button
+                          onClick={runRentalBenchmarkAI}
+                          disabled={rentalBenchmarkRunning||!data.location}
+                          className="btn-ghost"
+                          style={{padding:"5px 12px",fontSize:11,flexShrink:0}}
+                        >
+                          {rentalBenchmarkRunning?<><span style={{width:8,height:8,border:"1.5px solid var(--gold)",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite",marginRight:6}}/>Checking…</>:"Benchmark Rent"}
+                        </button>
+                      </div>
+                      {rentalBenchmarkError&&<div style={{fontSize:11,color:"var(--red)"}}>{rentalBenchmarkError}</div>}
+                      {rentalBenchmark&&(
+                        <div style={{animation:"fadeIn .3s ease"}}>
+                          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                            {[
+                              ["Low",rentalBenchmark.lowRentPcm,"var(--text-m)"],
+                              ["Market Avg",rentalBenchmark.avgRentPcm,"var(--gold)"],
+                              ["High",rentalBenchmark.highRentPcm,"var(--green)"],
+                            ].map(([label,val,color]:any)=>(
+                              <div key={label} style={{flex:1,minWidth:80,background:"var(--bg4)",borderRadius:7,padding:"8px 10px",textAlign:"center"}}>
+                                <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+                                <div style={{fontFamily:"var(--font-mono)",fontSize:13,fontWeight:600,color}}>{currencySymbol}{val?.toLocaleString()}<span style={{fontSize:9,color:"var(--text-d)",fontWeight:400}}>/mo</span></div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{display:"flex",gap:12,fontSize:10,color:"var(--text-d)",flexWrap:"wrap",marginBottom:8}}>
+                            {rentalBenchmark.avgRentPsf>0&&<span style={{fontFamily:"var(--font-mono)"}}>{currencySymbol}{rentalBenchmark.avgRentPsf.toFixed(2)}/sqft/mo avg</span>}
+                            {rentalBenchmark.grossYieldPct>0&&<span style={{fontFamily:"var(--font-mono)",color:"var(--amber)"}}>{rentalBenchmark.grossYieldPct.toFixed(1)}% gross yield</span>}
+                          </div>
+                          {rentalBenchmark.notes&&<div style={{fontSize:11,color:"var(--text-d)",lineHeight:1.5,fontStyle:"italic"}}>{rentalBenchmark.notes}</div>}
+                          <button
+                            onClick={()=>set("rentPcm",rentalBenchmark.avgRentPcm)}
+                            style={{marginTop:8,padding:"4px 12px",background:"rgba(201,168,76,.1)",border:"1px solid var(--gold-border)",borderRadius:5,fontSize:10,color:"var(--gold)",cursor:"pointer",fontFamily:"var(--font-body)"}}
+                          >
+                            Use market avg ({currencySymbol}{rentalBenchmark.avgRentPcm}/mo)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     {r.netCashflowPm!==undefined&&(
                       <div style={{background:r.netCashflowPm>0?"rgba(61,220,132,.07)":"rgba(244,100,95,.07)",border:`1px solid ${r.netCashflowPm>0?"rgba(61,220,132,.2)":"rgba(244,100,95,.2)"}`,borderRadius:8,padding:"10px 14px",fontSize:12,marginTop:4}}>
                         <span style={{color:"var(--text-m)"}}>Monthly net cashflow after refi interest: </span>
