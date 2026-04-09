@@ -109,7 +109,7 @@ export default function WorkspacePage() {
       const { data: mr } = await supabase.from("firm_members")
         .select("*, firms(*)")
         .eq("user_id", session.user.id).maybeSingle();
-      if (!mr) { router.push("/dashboard"); return; }
+      if (!mr) { router.push("/tasks"); return; }
 
       setFirm(mr.firms);
       setRole(mr.role || "member");
@@ -209,7 +209,7 @@ export default function WorkspacePage() {
 
       {/* Nav */}
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(6,7,10,.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--border)", height: 54, display: "flex", alignItems: "center", padding: "0 28px", gap: 14 }}>
-        <button className="nbtn" onClick={() => router.push("/dashboard")}>← Portfolio</button>
+        <button className="nbtn" onClick={() => router.push("/tasks")}>← Portfolio</button>
         {firm && <><span style={{ color: "var(--text-d)", fontSize: 14 }}>/</span><span style={{ fontSize: 11, color: "var(--gold)", textTransform: "uppercase", letterSpacing: ".1em" }}>{firm.name}</span></>}
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "3px 11px", border: "1px solid var(--border)", borderRadius: 20, fontWeight: 600 }}>{role}</span>
@@ -250,7 +250,7 @@ export default function WorkspacePage() {
                 <p style={{ fontSize: 15, color: "var(--text-d)", marginBottom: 8 }}>
                   {isAdmin ? "No projects in your firm yet" : "No projects assigned to you yet"}
                 </p>
-                {isAdmin && <button className="btn-gold" onClick={() => router.push("/dashboard")} style={{ marginTop: 16 }}>Go to Portfolio →</button>}
+                {isAdmin && <button className="btn-gold" onClick={() => router.push("/tasks")} style={{ marginTop: 16 }}>Go to Portfolio →</button>}
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
