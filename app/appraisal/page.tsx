@@ -1324,80 +1324,48 @@ Use realistic figures for ${data.location}. Output ONLY the JSON object.`})});
   const handleUrlImport=async()=>{
     if(!urlImport.trim())return;
     setUrlImporting(true);setUrlImportError(null);
-    const url=urlImport.trim();
-    let source="";
-    let propertyId="";
-    let inferredLocation="";
-    let inferredBeds="";
+    const text=urlImport.trim();
     try{
-      const u=new URL(url);
-      const host=u.hostname.replace("www.","");
-      if(host.includes("rightmove")){
-        source="Rightmove";
-        const m=url.match(/properties\/([0-9]+)/);
-        if(m)propertyId=m[1];
-        const bedM=url.match(/(\d)-bedroom/i);
-        if(bedM)inferredBeds=bedM[1];
-      }else if(host.includes("zoopla")){
-        source="Zoopla";
-        const m=url.match(/details\/([0-9]+)/);
-        if(m)propertyId=m[1];
-        const locM=url.match(/\/(?:for-sale|to-rent)\/details\/([^/]+)\//);
-        if(locM)inferredLocation=locM[1].replace(/-/g," ");
-        const bedM=url.match(/(\d)-bed/i);
-        if(bedM)inferredBeds=bedM[1];
-      }else if(host.includes("zillow")){
-        source="Zillow";
-        const m=url.match(/([0-9]+)_zpid/);
-        if(m)propertyId=m[1];
-      }else if(host.includes("onthemarket")){
-        source="OnTheMarket";
-        const m=url.match(/details\/([a-z0-9-]+)/i);
-        if(m)propertyId=m[1];
-        const bedM=url.match(/(\d)-bed/i);
-        if(bedM)inferredBeds=bedM[1];
-      }else{
-        source="Listing";
-      }
-    }catch(e){
-      setUrlImportError("Invalid URL format — please check and try again");
-      setUrlImporting(false);
-      return;
-    }
-    // Pre-fill location + beds if extracted from URL
-    if(inferredLocation&&!data.location)set("location",inferredLocation);
-    if(inferredBeds&&!data.bedrooms)set("bedrooms",inferredBeds);
-    const locationForAI=inferredLocation||data.location||"UK";
-    const bedsForAI=inferredBeds||data.bedrooms||"";
-    // Call AI for market estimates
-    try{
-      const prompt=`You are a UK property market analyst. A user pasted a ${source} listing URL (ID: ${propertyId||"unknown"}).
-Location: ${locationForAI}${bedsForAI?" | "+bedsForAI+" bed":""}
+      const prompt=`You are a property data extraction assistant. A user has pasted the description/details of a property listing below.
 
-You cannot fetch the URL. Using your knowledge of the ${locationForAI} property market, give typical values for a${bedsForAI?" "+bedsForAI+"-bedroom":""} residential property.
+Extract every data point you can find and return ONLY a JSON object, no markdown, no explanation, starting with { and ending with }:
+{"purchasePrice":number_or_null,"propertySqft":number_or_null,"bedrooms":number_or_null,"location":"string_or_null","propertyType":"string_or_null","salePrice":number_or_null,"estimatedRentPcm":number_or_null,"avgPricePsf":number_or_null,"notes":"brief summary of the property"}
 
-Reply with ONLY a JSON object, no markdown, no explanation, starting with { and ending with }:
-{"estimatedPurchasePrice":number,"estimatedSqft":number,"estimatedSalePrice":number,"estimatedRentPcm":number,"avgPricePsf":number,"notes":"one sentence","confidence":"low"}`;
+Rules:
+- purchasePrice = the asking/sale price in the listing (number only, no currency symbols)
+- propertySqft = total floor area in sqft (convert from sq metres if needed: 1 sqm = 10.764 sqft)
+- location = full address or area, e.g. "Hackney, London" or "14 Church Street, Bristol"
+- bedrooms = number of bedrooms
+- salePrice = same as purchasePrice unless a separate estimated sale/GDV is mentioned
+- estimatedRentPcm = monthly rent if mentioned, otherwise estimate based on location and size
+- If a value is not mentioned and cannot be reasonably inferred, use null
+
+Listing text:
+${text}`;
       const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:prompt})});
       const raw=await res.text();
-      // sensecheck API wraps responses — extract JSON from wherever it lands
+      // Extract JSON from sensecheck wrapper or direct response
       let parsed:any=null;
-      try{const o=JSON.parse(raw);if(o.estimatedPurchasePrice!==undefined||o.avgPricePsf)parsed=o;}catch(e){}
-      if(!parsed){try{const wrap=JSON.parse(raw);const s=wrap.summary||wrap.overall||"";const m=s.match(/\{[\s\S]*\}/);if(m)try{const o=JSON.parse(m[0]);if(o.estimatedPurchasePrice!==undefined)parsed=o;}catch(e){}}catch(e){}}
-      if(!parsed){const blocks=(raw.match(/\{[\s\S]*?\}/g)||[]);for(const b of blocks){try{const o=JSON.parse(b);if(o.estimatedPurchasePrice!==undefined){parsed=o;break;}}catch(e){}}}
-      if(parsed&&parsed.estimatedPurchasePrice){
+      try{const o=JSON.parse(raw);if(o.purchasePrice!==undefined||o.location)parsed=o;}catch(e){}
+      if(!parsed){try{const wrap=JSON.parse(raw);const s=wrap.summary||wrap.overall||"";const m=s.match(/\{[\s\S]*\}/);if(m)try{const o=JSON.parse(m[0]);if(o.purchasePrice!==undefined||o.location)parsed=o;}catch(e){}}catch(e){}}
+      if(!parsed){const blocks=(raw.match(/\{[\s\S]*?\}/g)||[]);for(const b of blocks){try{const o=JSON.parse(b);if(o.purchasePrice!==undefined||o.location||o.bedrooms){parsed=o;break;}}catch(e){}}}
+      if(parsed){
         const filled:string[]=[];
-        if(!data.purchasePrice){set("purchasePrice",parsed.estimatedPurchasePrice);filled.push("price");}
-        if(parsed.estimatedSqft&&!data.propertySqft){set("propertySqft",parsed.estimatedSqft);set("existingAreaSqft",parsed.estimatedSqft);filled.push("size");}
-        if(parsed.estimatedSalePrice&&!data.salePrice){set("salePrice",parsed.estimatedSalePrice);if(parsed.estimatedSqft)set("salePricePsf",Math.round(parsed.estimatedSalePrice/parsed.estimatedSqft));filled.push("sale price");}
-        if(parsed.estimatedRentPcm&&!data.rentPcm){set("rentPcm",parsed.estimatedRentPcm);filled.push("rent");}
-        setUrlImportError("✓ "+source+(propertyId?" #"+propertyId:"")+", "+locationForAI+(bedsForAI?", "+bedsForAI+" bed":"")+". Pre-filled: "+filled.join(", ")+". Verify against the actual listing.");
+        if(parsed.purchasePrice){set("purchasePrice",parsed.purchasePrice);filled.push("price");}
+        if(parsed.propertySqft){set("propertySqft",parsed.propertySqft);set("existingAreaSqft",parsed.propertySqft);filled.push("size");}
+        if(parsed.bedrooms){set("bedrooms",String(parsed.bedrooms));filled.push("bedrooms");}
+        if(parsed.location&&!data.location){set("location",parsed.location);filled.push("location");}
+        if(parsed.salePrice&&!data.salePrice){set("salePrice",parsed.salePrice);if(parsed.propertySqft)set("salePricePsf",Math.round(parsed.salePrice/parsed.propertySqft));filled.push("sale price");}
+        if(parsed.estimatedRentPcm&&!data.rentPcm){set("rentPcm",parsed.estimatedRentPcm);filled.push("rent estimate");}
+        if(filled.length>0){
+          setUrlImportError("✓ Pre-filled: "+filled.join(", ")+"."+(parsed.notes?" "+parsed.notes:"")+" Check values before saving.");
+        }else{
+          setUrlImportError("Listing read but no values could be extracted — try pasting more detail (price, address, size).");
+        }
       }else{
-        setUrlImportError("✓ "+source+(propertyId?" #"+propertyId:"")+" detected"+(inferredLocation?", "+inferredLocation:"")+". AI couldn't estimate values — enter price and size from the listing.");
+        setUrlImportError("Could not extract property data — try pasting more of the listing details including price, address and size.");
       }
-    }catch(e:any){
-      setUrlImportError("✓ "+source+" URL parsed"+(inferredLocation?", "+inferredLocation+" pre-filled":"")+". Enter details from the listing.");
-    }
+    }catch(e:any){setUrlImportError("Extract failed — please try again.");}
     setUrlImport("");
     setUrlImporting(false);
   };
@@ -2220,17 +2188,26 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* COSTS FLIP */}
             {activeTab==="costs"&&assetType==="Flip"&&(
               <div>
-                {/* URL Import */}
+                {/* Listing Import */}
                 <div style={{background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10,padding:14,marginBottom:20}}>
-                  <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:8}}>◈ Import from Listing URL</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Paste a Rightmove, Zoopla or Zillow URL — AI will attempt to extract price, size and location</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <input className="inp" value={urlImport} onChange={e=>setUrlImport(e.target.value)} placeholder="https://www.rightmove.co.uk/properties/..." style={{flex:1,fontSize:12}}/>
-                    <button onClick={handleUrlImport} disabled={urlImporting||!urlImport.trim()} className="btn-primary" style={{padding:"8px 14px",fontSize:12,flexShrink:0}}>
-                      {urlImporting?<><span style={{width:10,height:10,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/>Importing…</>:"Import"}
-                    </button>
+                  <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:4}}>◈ Import from Listing</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10,lineHeight:1.5}}>
+                    Copy the property details from Rightmove, Zoopla or any listing — address, price, bedrooms, size — and paste below. AI will extract and pre-fill the fields.
                   </div>
-                  {urlImportError&&<div style={{fontSize:11,color:urlImportError.startsWith("✓")?"var(--green)":"var(--amber)",marginTop:6}}>{urlImportError}</div>}
+                  <textarea
+                    className="inp"
+                    value={urlImport}
+                    onChange={e=>setUrlImport(e.target.value)}
+                    placeholder={"e.g.:\n3 bed terraced house for sale\n14 Church Street, Hackney, London E8 3PQ\nAsking price: £485,000\n86 sqm (925 sqft) | 3 bedrooms | 2 bathrooms\nRecently refurbished..."}
+                    style={{width:"100%",minHeight:110,resize:"vertical",fontFamily:"var(--font-body)",fontSize:11,lineHeight:1.5,marginBottom:8}}
+                  />
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <button onClick={handleUrlImport} disabled={urlImporting||!urlImport.trim()} className="btn-primary" style={{padding:"8px 16px",fontSize:12}}>
+                      {urlImporting?<><span style={{width:10,height:10,border:"2px solid #06070a44",borderTopColor:"#06070a",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite",marginRight:6}}/>Reading…</>:"Extract & Fill"}
+                    </button>
+                    {urlImport.trim()&&<button onClick={()=>{setUrlImport("");setUrlImportError(null);}} style={{background:"none",border:"none",fontSize:11,color:"var(--text-d)",cursor:"pointer"}}>Clear</button>}
+                  </div>
+                  {urlImportError&&<div style={{fontSize:11,color:urlImportError.startsWith("✓")?"var(--green)":"var(--amber)",marginTop:8,lineHeight:1.5}}>{urlImportError}</div>}
                 </div>
 
 
@@ -2353,7 +2330,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div className="inp-group"><label className="inp-label">Monthly OpEx ({currencySymbol})</label><input className="inp" type="number" value={data.holdOpexPm} onChange={e=>set("holdOpexPm",e.target.value)} placeholder="Service charge, insurance etc"/></div>
                       <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
                     </div>
-                    {/* ── AI Rental Benchmark ── */}
+                    {/* AI Rental Benchmark */}
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:4,marginBottom:4}}>
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:rentalBenchmark||rentalBenchmarkError?10:0}}>
                         <div>
