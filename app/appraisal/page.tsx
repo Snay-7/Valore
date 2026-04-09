@@ -1288,10 +1288,9 @@ Property details:
 - Bedrooms: ${data.bedrooms||"unknown"}
 - Currency: ${data.currency||"GBP"}
 
-Schema:
-{"comparables":[{"address":"14 High St, ${data.location}","price":350000,"sqft":850,"pricePsf":412,"bedrooms":3,"type":"Terraced","sold":"2024-Q3","notes":"Refurbished"}],"marketContext":"Brief market summary.","avgPricePsf":410,"refurbUplift":{"low":25000,"high":50000,"notes":"Kitchen/bathroom focus"},"rentalComps":[{"address":"12 Church St, ${data.location}","rentPcm":1800,"bedrooms":3,"type":"Terraced","notes":"Furnished"}],"avgRentPcm":1800}
+Return a JSON object with keys: comparables (array of 4-5 sold comps with address, price, sqft, pricePsf, bedrooms, type, sold, notes), marketContext (string), avgPricePsf (number), refurbUplift (object with low, high, notes), rentalComps (array of 3-4 rental comps with address, rentPcm, bedrooms, type, notes), avgRentPcm (number).
 
-Provide 4-5 sold comps and 3-4 rental comps with realistic figures for ${data.location}. Output ONLY the JSON object.`})});
+Use realistic figures for ${data.location}. Output ONLY the JSON object.`})});
       const text=await res.text();
       let parsed:any=null;
       // Stage 1: direct parse — check if response has comparables or marketContext
@@ -2254,7 +2253,6 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {(()=>{const sqft=num(String(data.newAreaSqft||0));const psf=num(String(data.newBuildPsf||0));const ovr=num(String(data.newBuildBudget||0));const cost=ovr>0?ovr:sqft*psf;return cost>0?(<div style={{fontSize:11,color:"var(--blue)",fontFamily:"var(--font-mono)",marginBottom:8}}>New build: {fmt(cost,currencySymbol)}{sqft>0&&psf>0&&!ovr&&<span style={{color:"var(--text-d)",marginLeft:6}}>({sqft.toLocaleString()}sqft × {currencySymbol}{psf}/sqft)</span>}</div>):null;})()}
                 {(()=>{const existSqft=num(String(data.existingAreaSqft||(data.newAreaSqft?0:data.propertySqft)||0));const newSqft=num(String(data.newAreaSqft||0));const existCost=num(String(data.existingRefurbBudget||0))>0?num(String(data.existingRefurbBudget)):existSqft*num(String(data.existingRefurbPsf||data.refurbPsf||0));const newCost=num(String(data.newBuildBudget||0))>0?num(String(data.newBuildBudget)):newSqft*num(String(data.newBuildPsf||0));const totalSqft=existSqft+newSqft;const totalCost=existCost+newCost;if(totalCost<=0)return null;return(<div style={{background:"rgba(201,168,76,.06)",border:"1px solid var(--gold-border)",borderRadius:8,padding:"10px 14px",marginBottom:4,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}><div><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:2}}>Total Refurb + New Build</div><div style={{display:"flex",gap:12,fontSize:10,color:"var(--text-d)",flexWrap:"wrap"}}>{totalSqft>0&&<span>{totalSqft.toLocaleString()} sqft</span>}{newSqft>0&&<span style={{color:"var(--blue)"}}>+{newSqft.toLocaleString()}sqft new</span>}{totalSqft>0&&<span style={{fontFamily:"var(--font-mono)"}}>{currencySymbol}{Math.round(totalCost/totalSqft)}/sqft blended</span>}</div></div><div style={{fontFamily:"var(--font-mono)",color:"var(--gold)",fontSize:16,fontWeight:600}}>{fmt(totalCost,currencySymbol)}</div></div>);})()}
 
-                <div className="inp-row">
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
