@@ -48,6 +48,10 @@ select.inp{cursor:pointer}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
 .stats-strip{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
+.act-tab{background:none;border:1px solid transparent;font-family:var(--font-body);font-size:12px;cursor:pointer;padding:5px 14px;border-radius:6px;transition:all .2s;letter-spacing:.03em}
+.act-tab.on{background:var(--bg3);color:var(--text);border-color:var(--border-m)}
+.act-tab.off{color:var(--text-d)}
+.act-tab.off:hover{color:var(--text-m)}
 .stat-cell{flex:1;padding:12px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
 .stat-cell:last-child{border-right:none}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -111,6 +115,9 @@ export default function Dashboard() {
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
   const [hasFirm, setHasFirm] = useState(false);
+  const [myTasks, setMyTasks] = useState<any[]>([]);
+  const [myNotes, setMyNotes] = useState<any[]>([]);
+  const [actTab, setActTab] = useState<"tasks"|"notes">("tasks");
   // URL Import state
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [urlImport, setUrlImport] = useState("");
@@ -138,6 +145,13 @@ export default function Dashboard() {
       await loadProjects(session.user.id, memberRow?.firm_id || null);
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
+      // Load team tasks & notes
+      if (memberRow?.firm_id) {
+        const { data: allTasks } = await supabase.from("project_tasks").select("*, projects(name)").eq("firm_id", memberRow.firm_id).order("created_at", { ascending: false }).limit(30);
+        setMyTasks(allTasks || []);
+        const { data: allNotes } = await supabase.from("project_notes").select("*, projects(name)").eq("firm_id", memberRow.firm_id).order("created_at", { ascending: false }).limit(20);
+        setMyNotes(allNotes || []);
+      }
     };
     init();
   }, [router]);
@@ -616,6 +630,58 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {/* Team Activity */}
+            {hasFirm && (myTasks.length > 0 || myNotes.length > 0) && (
+              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 24px", marginTop: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-m)", textTransform: "uppercase", letterSpacing: ".1em" }}>Team Activity</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className={`act-tab ${actTab === "tasks" ? "on" : "off"}`} onClick={() => setActTab("tasks")}>
+                      Tasks {myTasks.filter(t => t.status !== "done").length > 0 && (
+                        <span style={{ marginLeft: 4, background: "var(--blue)", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: 9, fontWeight: 700 }}>
+                          {myTasks.filter(t => t.status !== "done").length}
+                        </span>
+                      )}
+                    </button>
+                    <button className={`act-tab ${actTab === "notes" ? "on" : "off"}`} onClick={() => setActTab("notes")}>Notes</button>
+                  </div>
+                </div>
+                {actTab === "tasks" && (
+                  myTasks.length === 0
+                    ? <p style={{ fontSize: 12, color: "var(--text-d)", textAlign: "center", padding: "20px 0" }}>No tasks yet</p>
+                    : myTasks.map(t => {
+                        const priColors: Record<string,string> = { low: "#3ddc84", medium: "#f0a429", high: "#f4645f", urgent: "#a78bfa" };
+                        const done = t.status === "done";
+                        return (
+                          <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: priColors[t.priority] || "#f0a429", flexShrink: 0, marginTop: 5 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, color: done ? "var(--text-d)" : "var(--text)", textDecoration: done ? "line-through" : "none", marginBottom: 2 }}>{t.title}</div>
+                              <div style={{ display: "flex", gap: 8, fontSize: 10, color: "var(--text-d)", flexWrap: "wrap" }}>
+                                {t.projects?.name && <span style={{ color: "var(--gold)", opacity: .7 }}>{t.projects.name}</span>}
+                                {t.due_date && <span>Due {new Date(t.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 4, background: done ? "rgba(61,220,132,.1)" : "rgba(240,164,41,.1)", color: done ? "var(--green)" : "var(--amber)", flexShrink: 0 }}>{done ? "done" : "open"}</span>
+                          </div>
+                        );
+                      })
+                )}
+                {actTab === "notes" && (
+                  myNotes.length === 0
+                    ? <p style={{ fontSize: 12, color: "var(--text-d)", textAlign: "center", padding: "20px 0" }}>No notes yet</p>
+                    : myNotes.map(n => (
+                        <div key={n.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                          <div style={{ fontSize: 12, color: "var(--text)", lineHeight: 1.5, marginBottom: 3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>{n.content}</div>
+                          <div style={{ display: "flex", gap: 8, fontSize: 10, color: "var(--text-d)" }}>
+                            {n.projects?.name && <span style={{ color: "var(--gold)", opacity: .7 }}>{n.projects.name}</span>}
+                            <span>{new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          </div>
+                        </div>
+                      ))
+                )}
               </div>
             )}
           </>
