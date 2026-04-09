@@ -8,10 +8,10 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
-  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;
+  --gold:#c9a84c;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
+  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;
   --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
-  --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
+  --border:rgba(255,255,255,0.06);
   --green:#3ddc84;--red:#f4645f;--amber:#f0a429;--blue:#5b9cf6;
   --font-display:'Cormorant Garamond',Georgia,serif;
   --font-body:'Instrument Sans',system-ui,sans-serif;
@@ -28,7 +28,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 const fmt = (n: number, prefix = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
   const abs = Math.abs(n);
-  if (abs >= 1e9) return `${prefix}${(n / 1e9).toFixed(2)}bn`;
   if (abs >= 1e6) return `${prefix}${(n / 1e6).toFixed(2)}m`;
   if (abs >= 1e3) return `${prefix}${(n / 1e3).toFixed(0)}k`;
   return `${prefix}${n.toFixed(0)}`;
@@ -44,22 +43,22 @@ export default function WorkspaceProjectPage() {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<any>(null);
   const [appraisal, setAppraisal] = useState<any>(null);
+  const [appraisalCount, setAppraisalCount] = useState(0);
   const [firm, setFirm] = useState<any>(null);
   const [memberRole, setMemberRole] = useState<string>("member");
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    if (!projectId) { router.push("/workspace"); return; }
     const init = async () => {
-      if (!projectId) { router.push("/workspace"); return; }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/"); return; }
-      const u = session.user;
 
+      // Get firm membership
       const { data: memberRow } = await supabase
         .from("firm_members")
-        .select("*, firms(*)")
-        .eq("user_id", u.id)
+        .select("firm_id, role, firms(id, name)")
+        .eq("user_id", session.user.id)
         .maybeSingle();
 
       if (memberRow?.firms) {
@@ -67,40 +66,32 @@ export default function WorkspaceProjectPage() {
         setMemberRole(memberRow.role || "member");
       }
 
-      // Try direct project access (own or firm via RLS)
-      const { data: proj } = await supabase
+      // Fetch project directly (no nested join)
+      const { data: proj, error: projErr } = await supabase
         .from("projects")
-        .select("*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at, data)")
+        .select("id, name, location, asset_type, currency, firm_id, created_by, stage")
         .eq("id", projectId)
         .maybeSingle();
 
-      if (proj) {
-        setProject(proj);
-        const appraisals = (proj.appraisals || []).sort((a: any, b: any) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setAppraisal(appraisals[0] || null);
+      if (projErr || !proj) {
+        setNotFound(true);
         setLoading(false);
         return;
       }
 
-      // Try via project_members (explicitly shared)
-      const { data: pm } = await supabase
-        .from("project_members")
-        .select("project_id, projects(*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at, data))")
-        .eq("project_id", projectId)
-        .eq("user_id", u.id)
-        .maybeSingle();
+      setProject(proj);
 
-      if (pm?.projects) {
-        const p = pm.projects as any;
-        setProject(p);
-        const appraisals = (p.appraisals || []).sort((a: any, b: any) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setAppraisal(appraisals[0] || null);
-      } else {
-        setNotFound(true);
+      // Fetch latest appraisal separately (no nested join)
+      const { data: appraisals } = await supabase
+        .from("appraisals")
+        .select("id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at, snapshot")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (appraisals && appraisals.length > 0) {
+        setAppraisal(appraisals[0]);
+        setAppraisalCount(appraisals.length);
       }
 
       setLoading(false);
@@ -136,7 +127,7 @@ export default function WorkspaceProjectPage() {
 
   const sym = CURRENCY_SYMBOLS[project?.currency] || "£";
   const pocColor = appraisal?.profit_on_cost > 0.2 ? "var(--green)" : appraisal?.profit_on_cost > 0.1 ? "var(--amber)" : "var(--red)";
-  const snap = appraisal?.data || {};
+  const snap = appraisal?.snapshot || {};
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
@@ -160,9 +151,11 @@ export default function WorkspaceProjectPage() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>
-              {project?.asset_type}
-            </span>
+            {project?.asset_type && (
+              <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>
+                {project.asset_type}
+              </span>
+            )}
             <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 8, background: "rgba(125,133,144,.1)", color: "var(--text-m)" }}>
               {appraisal?.status || "draft"}
             </span>
@@ -173,7 +166,7 @@ export default function WorkspaceProjectPage() {
           <p style={{ fontSize: 13, color: "var(--text-m)" }}>{project?.location || "No location set"}</p>
         </div>
 
-        {/* Metrics grid */}
+        {/* Metrics */}
         {appraisal ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 32 }}>
             {[
@@ -182,7 +175,7 @@ export default function WorkspaceProjectPage() {
               { label: "Profit", value: fmt(appraisal.profit, sym), color: appraisal.profit > 0 ? "var(--green)" : "var(--red)" },
               { label: "Profit on Cost", value: fmtPct(appraisal.profit_on_cost), color: pocColor },
               { label: "IRR (Unlevered)", value: fmtPct(appraisal.irr_unlevered), color: "var(--blue)" },
-              { label: "Appraisals", value: String(project?.appraisals?.length || 1), color: "var(--text-m)" },
+              { label: "Appraisals", value: String(appraisalCount), color: "var(--text-m)" },
             ].map(m => (
               <div key={m.label} className="metric-card">
                 <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 6 }}>{m.label}</div>
@@ -196,7 +189,6 @@ export default function WorkspaceProjectPage() {
           </div>
         )}
 
-        {/* Divider */}
         <div style={{ height: 1, background: "var(--border)", marginBottom: 24 }} />
 
         {/* Actions */}
@@ -236,7 +228,7 @@ export default function WorkspaceProjectPage() {
           </button>
         </div>
 
-        {/* Deal snapshot */}
+        {/* Deal snapshot from saved appraisal */}
         {snap && Object.keys(snap).length > 0 && (
           <>
             <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 12 }}>Deal Info</div>
