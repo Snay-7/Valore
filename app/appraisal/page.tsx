@@ -3011,6 +3011,34 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
                   </>
                 )}
+                {assetType==="Commercial"&&(
+                  <>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                    </div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
+                    </div>
+                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20}}>
+                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Breakdown</div>
+                      {[
+                        ["Loan Amount",fmt(r.loanAmount||0,currencySymbol),"var(--text-m)"],
+                        ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
+                        ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),"var(--text-d)"],
+                        ["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),"var(--amber)"],
+                        ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--gold)"],
+                      ].map(([l,v,c]:any)=>(
+                        <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                          <span style={{color:"var(--text-m)"}}>{l}</span>
+                          <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Finance Cost"?600:400}}>{v}</span>
+                        </div>
+                      ))}
+                      <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontStyle:"italic"}}>S-curve drawdown on total development cost. Interest rolled monthly on drawn balance.</div>
+                    </div>
+                  </>
+                )}
                 {assetType==="MixedUse"&&(
                   <>
                     <div className="inp-row">
@@ -3037,7 +3065,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </div>
                   </>
                 )}
-                {assetType!=="Flip"&&assetType!=="MixedUse"?(
+                {assetType!=="Flip"&&assetType!=="MixedUse"&&assetType!=="Commercial"?(
                   <>
                     <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e=>set("ltc",e.target.value)}/></div>
