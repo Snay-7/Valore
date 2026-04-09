@@ -53,6 +53,7 @@ function InvitePage() {
   const [user, setUser] = useState<any>(null);
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -71,7 +72,6 @@ function InvitePage() {
 
       setInvite(inv);
 
-      // Check if already logged in
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUser(session.user);
@@ -87,40 +87,99 @@ function InvitePage() {
   const acceptInvite = async (userId: string) => {
     if (!invite) return;
     setJoining(true);
+    setJoinError(null);
 
-    // Update the existing firm_members row created at invite time
-    const { data: existing } = await supabase
-      .from("firm_members")
-      .select("id")
-      .eq("firm_id", invite.firm_id)
-      .eq("email", invite.email)
-      .maybeSingle();
+    try {
+      // ── Step 1: Try to find a placeholder row by email ──
+      const { data: existing } = await supabase
+        .from("firm_members")
+        .select("id")
+        .eq("firm_id", invite.firm_id)
+        .eq("email", invite.email)
+        .maybeSingle();
 
-    if (existing) {
-      await supabase.from("firm_members")
-        .update({ user_id: userId, joined_at: new Date().toISOString() })
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("firm_members").insert({
-        firm_id: invite.firm_id,
-        user_id: userId,
-        email: invite.email,
-        role: invite.role || "member",
-        invited_by: invite.invited_by,
-        joined_at: new Date().toISOString(),
-      });
+      if (existing) {
+        // Update the placeholder with the real user_id
+        const { error: updateErr } = await supabase
+          .from("firm_members")
+          .update({ user_id: userId, joined_at: new Date().toISOString() })
+          .eq("id", existing.id);
+
+        if (updateErr) {
+          console.error("firm_members update error:", updateErr);
+          // Fall through to upsert
+        } else {
+          // Update succeeded — mark invite accepted and finish
+          await supabase.from("firm_invites")
+            .update({ accepted_at: new Date().toISOString() })
+            .eq("id", invite.id);
+          setJoined(true);
+          setJoining(false);
+          setTimeout(() => router.push("/dashboard"), 2000);
+          return;
+        }
+      }
+
+      // ── Step 2: Upsert by (firm_id, user_id) ──
+      const { error: upsertErr } = await supabase
+        .from("firm_members")
+        .upsert(
+          {
+            firm_id: invite.firm_id,
+            user_id: userId,
+            email: invite.email,
+            role: invite.role || "member",
+            invited_by: invite.invited_by,
+            joined_at: new Date().toISOString(),
+          },
+          { onConflict: "firm_id,user_id", ignoreDuplicates: false }
+        );
+
+      if (upsertErr) {
+        console.error("firm_members upsert error:", upsertErr);
+
+        // ── Step 3: Plain insert as last resort ──
+        const { error: insertErr } = await supabase
+          .from("firm_members")
+          .insert({
+            firm_id: invite.firm_id,
+            user_id: userId,
+            email: invite.email,
+            role: invite.role || "member",
+            invited_by: invite.invited_by,
+            joined_at: new Date().toISOString(),
+          });
+
+        if (insertErr) {
+          console.error("firm_members insert error:", insertErr);
+          setJoinError(
+            `Failed to join workspace: ${insertErr.message}. ` +
+            `Please ask your admin to check RLS permissions on firm_members.`
+          );
+          setJoining(false);
+          return;
+        }
+      }
+
+      // ── Mark invite accepted ──
+      const { error: inviteErr } = await supabase
+        .from("firm_invites")
+        .update({ accepted_at: new Date().toISOString() })
+        .eq("id", invite.id);
+
+      if (inviteErr) {
+        console.error("firm_invites update error (non-fatal):", inviteErr);
+      }
+
+      setJoined(true);
+      setJoining(false);
+      setTimeout(() => router.push("/dashboard"), 2000);
+
+    } catch (err: any) {
+      console.error("acceptInvite unexpected error:", err);
+      setJoinError("Something went wrong. Please try again or contact your admin.");
+      setJoining(false);
     }
-
-    // Mark invite accepted
-    await supabase.from("firm_invites")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", invite.id);
-
-    setJoined(true);
-    setJoining(false);
-
-    // Redirect straight to dashboard after short delay
-    setTimeout(() => router.push("/dashboard"), 2000);
   };
 
   const handleAuth = async (e: any) => {
@@ -132,10 +191,9 @@ function InvitePage() {
         email,
         password,
         options: {
-          // Skip email confirmation — go straight to dashboard
           emailRedirectTo: undefined,
-          data: { invited_to_firm: invite?.firm_id }
-        }
+          data: { invited_to_firm: invite?.firm_id },
+        },
       });
       if (error) { setAuthError(error.message); return; }
       if (data.user) {
@@ -225,7 +283,7 @@ function InvitePage() {
               </p>
             </div>
 
-            {/* Role */}
+            {/* Role badge */}
             <div style={{ background: "var(--bg3)", borderRadius: 10, padding: "14px 16px", marginBottom: 28, display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: roleInfo.color, flexShrink: 0 }} />
               <div>
@@ -233,6 +291,14 @@ function InvitePage() {
                 <div style={{ fontSize: 11, color: "var(--text-d)" }}>{roleInfo.desc}</div>
               </div>
             </div>
+
+            {/* Join error */}
+            {joinError && (
+              <div style={{ background: "rgba(244,100,95,.08)", border: "1px solid rgba(244,100,95,.25)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--red)", marginBottom: 20, lineHeight: 1.6 }}>
+                <strong style={{ display: "block", marginBottom: 4 }}>Could not join workspace</strong>
+                {joinError}
+              </div>
+            )}
 
             {/* Already logged in */}
             {user ? (
@@ -247,9 +313,14 @@ function InvitePage() {
                   </div>
                 </div>
                 <button className="btn-primary" onClick={() => acceptInvite(user.id)} disabled={joining}>
-                  {joining ? "Joining workspace…" : `Accept & Join ${invite.firms?.name} →`}
+                  {joining ? (
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
+                      Joining workspace…
+                    </span>
+                  ) : `Accept & Join ${invite.firms?.name} →`}
                 </button>
-                <button className="btn-ghost" onClick={async () => { await supabase.auth.signOut(); setUser(null); }}>
+                <button className="btn-ghost" onClick={async () => { await supabase.auth.signOut(); setUser(null); setJoinError(null); }}>
                   Sign in with a different account
                 </button>
               </div>
@@ -283,8 +354,13 @@ function InvitePage() {
                   </div>
                 )}
 
-                <button type="submit" className="btn-primary">
-                  {authMode === "signup" ? "Create Account & Join →" : "Sign In & Join →"}
+                <button type="submit" className="btn-primary" disabled={joining}>
+                  {joining ? (
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
+                      Joining…
+                    </span>
+                  ) : authMode === "signup" ? "Create Account & Join →" : "Sign In & Join →"}
                 </button>
 
                 <p style={{ fontSize: 11, color: "var(--text-d)", textAlign: "center", marginTop: 16, lineHeight: 1.5 }}>
