@@ -130,13 +130,27 @@ export default function WorkspacePage() {
       setTasks(allTasks || []);
 
       if (admin) {
-        // All firm projects
-        const { data: fp } = await supabase.from("projects")
-          .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
-          .eq("firm_id", mr.firm_id)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false });
-        setFirmProjects(fp || []);
+        // All firm projects — including any created by admin with null firm_id
+        const [{ data: fp }, { data: ownFp }] = await Promise.all([
+          supabase.from("projects")
+            .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
+            .eq("firm_id", mr.firm_id)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false }),
+          supabase.from("projects")
+            .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
+            .eq("created_by", session.user.id)
+            .is("firm_id", null)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false }),
+        ]);
+        // Merge and deduplicate
+        const seen = new Set<string>();
+        const allFp: any[] = [];
+        for (const p of [...(fp||[]), ...(ownFp||[])]) {
+          if (!seen.has(p.id)) { seen.add(p.id); allFp.push(p); }
+        }
+        setFirmProjects(allFp);
 
         // Which ones are shared
         const { data: pm } = await supabase.from("project_members")
@@ -297,15 +311,22 @@ export default function WorkspacePage() {
                         ) : (
                           <div style={{ background: "var(--bg3)", borderRadius: 7, padding: "8px 12px", fontSize: 12, color: "var(--text-d)", marginBottom: 14 }}>No appraisal saved yet</div>
                         )}
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-                        </div>
                       </div>
+
+                      {/* Action footer — outside click area to prevent event conflict */}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTop: "1px solid var(--border)", marginTop: 2 }}>
                         <span style={{ fontSize: 11, color: "var(--text-d)" }}>{p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}</span>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={() => { const a = (p.appraisals||[]).sort((x:any,y:any)=>new Date(y.created_at).getTime()-new Date(x.created_at).getTime())[0]; router.push(a ? `/appraisal?project=${p.id}&appraisal=${a.id}` : `/appraisal?project=${p.id}`); }} style={{ fontSize: 11, color: "var(--text-m)", cursor: "pointer", padding: "3px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "none", fontFamily: "var(--font-body)", transition: "all .2s" }}>Open Appraisal</button>
-                          <button onClick={() => router.push(`/workspace/${p.id}`)} style={{ fontSize: 11, color: "var(--gold)", cursor: "pointer", padding: "3px 10px", borderRadius: 6, border: "1px solid var(--gold-border)", background: "var(--gold-bg)", fontFamily: "var(--font-body)" }}>Detail →</button>
+                          <button onClick={() => router.push(latest ? `/appraisal?project=${p.id}&appraisal=${latest.id}` : `/appraisal?project=${p.id}`)}
+                            style={{ fontSize: 11, color: "var(--text-m)", cursor: "pointer", padding: "3px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "none", fontFamily: "var(--font-body)", transition: "all .2s" }}
+                            onMouseEnter={e => { e.currentTarget.style.color="var(--gold)"; e.currentTarget.style.borderColor="var(--gold-border)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.color="var(--text-m)"; e.currentTarget.style.borderColor="var(--border)"; }}>
+                            Open Appraisal
+                          </button>
+                          <button onClick={() => router.push(`/workspace/${p.id}`)}
+                            style={{ fontSize: 11, color: "var(--gold)", cursor: "pointer", padding: "3px 10px", borderRadius: 6, border: "1px solid var(--gold-border)", background: "var(--gold-bg)", fontFamily: "var(--font-body)", transition: "all .2s" }}>
+                            Detail →
+                          </button>
                         </div>
                       </div>
 
@@ -353,7 +374,7 @@ export default function WorkspacePage() {
                   </button>
                 ))}
               </div>
-              <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12 }} onClick={() => router.push("/dashboard")}>
+              <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12 }} onClick={() => router.push("/tasks")}>
                 All Tasks Page →
               </button>
             </div>
