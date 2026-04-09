@@ -58,9 +58,6 @@ export default function WorkspacePage() {
   const [isAdmin,     setIsAdmin]     = useState(false);
   const [isPro,       setIsPro]       = useState(false);
   const [loading,     setLoading]     = useState(true);
-  const [noFirm,      setNoFirm]      = useState(false);
-  const [newFirmName, setNewFirmName] = useState("");
-  const [creating,    setCreating]    = useState(false);
   const [tab,         setTab]         = useState<"projects"|"share">("projects");
   const [myProjects,  setMyProjects]  = useState<any[]>([]);
   const [sharedIds,   setSharedIds]   = useState<Set<string>>(new Set());
@@ -78,7 +75,7 @@ export default function WorkspacePage() {
 
       const { data: mr } = await supabase.from("firm_members")
         .select("*, firms(*)").eq("user_id", session.user.id).maybeSingle();
-      if (!mr) { setNoFirm(true); setLoading(false); return; }
+      if (!mr) { router.push("/dashboard"); return; }
 
       setFirm(mr.firms);
       setRole(mr.role || "member");
@@ -140,70 +137,12 @@ export default function WorkspacePage() {
     setSharedIds(prev => { const n = new Set(prev); n.delete(projectId); return n; });
   };
 
-  const createFirm = async () => {
-    if (!newFirmName.trim() || !user) return;
-    setCreating(true);
-    const { data: firm, error } = await supabase.from("firms")
-      .insert({ name: newFirmName.trim(), owner_id: user.id }).select().single();
-    if (firm && !error) {
-      await supabase.from("firm_members").insert({
-        firm_id: firm.id, user_id: user.id, role: "admin",
-        invited_by: user.id, email: user.email,
-      });
-      // Update all existing projects with the new firm_id
-      await supabase.from("projects")
-        .update({ firm_id: firm.id })
-        .eq("created_by", user.id)
-        .is("firm_id", null);
-      router.refresh();
-      window.location.reload();
-    }
-    setCreating(false);
-  };
-
   const displayCards = isAdmin ? myProjects : memberCards;
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ width:30, height:30, border:"2px solid rgba(201,168,76,.15)", borderTopColor:"#c9a84c", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
-  );
-
-  if (noFirm) return (
-    <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", fontFamily:"var(--font-body)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <style>{CSS}</style>
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", background:"radial-gradient(ellipse 60% 40% at 50% 40%,rgba(201,168,76,.04) 0%,transparent 60%)" }}/>
-      <div style={{ maxWidth:480, width:"100%", padding:"0 24px", position:"relative", zIndex:1, textAlign:"center" }}>
-        <div style={{ fontFamily:"var(--font-display)", fontSize:56, fontWeight:300, color:"var(--gold)", marginBottom:8, letterSpacing:".05em" }}>◈</div>
-        <h1 style={{ fontFamily:"var(--font-display)", fontSize:40, fontWeight:300, letterSpacing:".02em", marginBottom:12 }}>Create your Workspace</h1>
-        <p style={{ fontSize:14, color:"var(--text-m)", marginBottom:40, lineHeight:1.6 }}>
-          Your workspace is where your team collaborates on projects, tasks and appraisals. Give it a name to get started.
-        </p>
-        <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:16, padding:32, textAlign:"left" }}>
-          <label style={{ fontSize:10, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".1em", display:"block", marginBottom:8 }}>Workspace Name</label>
-          <input
-            value={newFirmName}
-            onChange={e => setNewFirmName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && createFirm()}
-            placeholder="e.g. Valora Capital, Apex Development..."
-            autoFocus
-            style={{ width:"100%", padding:"12px 16px", background:"var(--bg3)", border:"1px solid var(--border-m)", borderRadius:10, color:"var(--text)", fontFamily:"var(--font-body)", fontSize:14, outline:"none", marginBottom:24, boxSizing:"border-box" }}
-          />
-          <button
-            onClick={createFirm}
-            disabled={!newFirmName.trim() || creating}
-            style={{ width:"100%", background:"var(--gold)", color:"#06070a", border:"none", borderRadius:10, padding:"13px 0", fontFamily:"var(--font-body)", fontSize:14, fontWeight:700, cursor:"pointer", opacity:!newFirmName.trim()?0.4:1, letterSpacing:".02em" }}>
-            {creating ? "Creating…" : "Create Workspace →"}
-          </button>
-        </div>
-        <p style={{ fontSize:12, color:"var(--text-d)", marginTop:20 }}>
-          You can invite team members after setup.
-        </p>
-        <button onClick={() => router.push("/dashboard")} style={{ background:"none", border:"none", color:"var(--text-d)", fontSize:12, cursor:"pointer", marginTop:12, fontFamily:"var(--font-body)" }}>
-          ← Back to Portfolio
-        </button>
-      </div>
     </div>
   );
 
