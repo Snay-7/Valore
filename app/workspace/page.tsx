@@ -291,7 +291,7 @@ export default function WorkspacePage() {
                       </div>
 
                       {/* Click area → detail page */}
-                      <div onClick={() => router.push(`/workspace/${p.id}`)} style={{ cursor: "pointer" }}>
+                      <div onClick={() => { const a = (p.appraisals||[]).sort((x:any,y:any)=>new Date(y.created_at).getTime()-new Date(x.created_at).getTime())[0]; router.push(a ? `/appraisal?project=${p.id}&appraisal=${a.id}` : `/appraisal?project=${p.id}`); }} style={{ cursor: "pointer" }}>
                         <h3 style={{ fontSize: 17, fontWeight: 500, fontFamily: "var(--font-display)", marginBottom: 3 }}>{p.name || "Untitled"}</h3>
                         <p style={{ fontSize: 12, color: "var(--text-m)", marginBottom: 14 }}>{p.location || "No location"}</p>
 
