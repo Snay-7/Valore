@@ -7,6 +7,10 @@ import { useRouter } from "next/navigation";
 
 
 
+
+
+
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -143,6 +147,8 @@ a{text-decoration:none;color:inherit}
 `;
 
 
+
+
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 const SCREENSHOTS = {
   analysis:    "/screenshots/analysis-btr.png",
@@ -160,7 +166,7 @@ const FEATURES = [
   { icon:"◈", label:"3-Tier Promote Waterfall", desc:"Configurable IRR hurdles with developer and investor allocations across all tiers. Visual split bar per hurdle. Fully scenario-aware.", tag:"JV" },
   { icon:"◈", label:"DSCR / ICR & Equity Multiple", desc:"Debt service cover ratio, ICR, equity multiple (MOIC), payback period and break-even yield — the exact metrics a lender or equity partner will stress test.", tag:"Institutional" },
   { icon:"◈", label:"AI Sense Check", desc:"Automatically benchmarks your assumptions against market data. Flags DSCR breaches, aggressive exit yields, LTC limits, and build cost issues before credit committee.", tag:"AI" },
-  { icon:"◈", label:"AI Investor Brochures", desc:"Upload photos, generate a full investment memorandum. Branded PDF with live share links — investors always see the latest version.", tag:"AI" },
+  { icon:"◈", label:"Cashflow Visualiser", desc:"Bar chart of monthly inflows, outflows and exit proceeds — with payback month highlighted. Included on every model.", tag:"Core" },
   { icon:"◈", label:"Team Workspace", desc:"Collaborate on appraisals with your team. Shared workspace with notes, tasks, activity feed and role-based permissions — everything linked to the deal.", tag:"Team" },
   { icon:"◈", label:"Property Transfer Tax Engine", desc:"Auto-calculates UK SDLT across all modes. International deal? Switch to Override for IMT, DLD Fee, Grunderwerbsteuer and any jurisdiction globally.", tag:"Tax" },
   { icon:"◈", label:"Deal Pipeline & Tasks", desc:"Kanban pipeline boards with customisable stages. Tasks, notes and activity feed on every deal. Move projects from Prospect through to Completion.", tag:"PM" },
@@ -171,8 +177,11 @@ const PIPELINE_COLS = [
   { stage:"Feasibility", color:"var(--amber)", count:2, items:[{ name:"Chiswick Tower", type:"BTR", poc:"43.7%", gdv:"£208.5m" },{ name:"Shoreditch Hotel", type:"Hotel", poc:"22.1%", gdv:"£42.0m" }]},
   { stage:"Under Offer", color:"var(--blue)", count:1, items:[{ name:"Notting Hill Flip", type:"Flip", poc:"31.2%", gdv:"£1.25m" }]},
   { stage:"In Development", color:"var(--green)", count:1, items:[{ name:"Dubai Marina", type:"BTS", poc:"22.5%", gdv:"د.إ380m" }]},
+  { stage:"Prospect", color:"var(--text-d)", count:2, items:[{ name:"Farringdon EC1", type:"MixedUse", poc:"—", gdv:"" },{ name:"Leeds Retail Park", type:"Commercial", poc:"—", gdv:"" }]},
 ];
-const TYPE_COLORS:any = { BTR:"var(--gold)", BTS:"var(--blue)", Hotel:"var(--amber)", Flip:"var(--green)" };
+const TYPE_COLORS:any = { BTR:"var(--gold)", BTS:"var(--blue)", Hotel:"var(--amber)", Flip:"var(--green)", MixedUse:"var(--text-m)", Commercial:"var(--red)", Industrial:"var(--green)" };
+
+
 
 
 function useScrolled(t=30) {
@@ -180,6 +189,8 @@ function useScrolled(t=30) {
   useEffect(()=>{ const fn=()=>setS(window.scrollY>t); window.addEventListener("scroll",fn,{passive:true}); return ()=>window.removeEventListener("scroll",fn); },[t]);
   return s;
 }
+
+
 
 
 function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
@@ -195,6 +206,8 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2200}:any) {
 }
 
 
+
+
 function VideoModal({onClose}:{onClose:()=>void}) {
   useEffect(()=>{ const fn=(e:KeyboardEvent)=>{ if(e.key==="Escape") onClose(); }; window.addEventListener("keydown",fn); return()=>window.removeEventListener("keydown",fn); },[onClose]);
   return(
@@ -206,6 +219,8 @@ function VideoModal({onClose}:{onClose:()=>void}) {
     </div>
   );
 }
+
+
 
 
 function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) {
@@ -221,6 +236,8 @@ function CTAStrip({onLogin,text,btn}:{onLogin:()=>void;text:string;btn:string}) 
 }
 
 
+
+
 function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
   const [selected,setSelected]=useState<string|null>(null);
   const assets=[
@@ -228,6 +245,9 @@ function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
     {key:"BTS",label:"Build to Sell",icon:"◎",color:"#5b9cf6",sub:"Development & conversion"},
     {key:"Hotel",label:"Hotel",icon:"◉",color:"#f0a429",sub:"Acquisition & repositioning"},
     {key:"Flip",label:"House Flip",icon:"◫",color:"#3ddc84",sub:"Refurb & quick exit"},
+    {key:"MixedUse",label:"Mixed Use",icon:"◐",color:"#7d8590",sub:"Multi-zone development"},
+    {key:"Commercial",label:"Commercial",icon:"◧",color:"#f4645f",sub:"Office, retail & industrial"},
+    {key:"Industrial",label:"Industrial",icon:"◩",color:"#3ddc84",sub:"Logistics & warehousing"},
   ];
   return (
     <div style={{background:"rgba(18,21,26,0.97)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:28,width:340,boxShadow:"0 40px 80px rgba(0,0,0,.8),0 0 0 1px rgba(201,168,76,.05)",position:"relative",animation:"fadeSlideIn .7s cubic-bezier(.16,1,.3,1) .6s both"}}>
@@ -254,6 +274,8 @@ function AssetSelectorCard({onLogin}:{onLogin:()=>void}) {
     </div>
   );
 }
+
+
 
 
 function ProductShowcase() {
@@ -294,6 +316,8 @@ function ProductShowcase() {
 }
 
 
+
+
 const PipelineMock=()=>(
   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,width:"100%"}}>
     {PIPELINE_COLS.map((col)=>(
@@ -316,6 +340,8 @@ const PipelineMock=()=>(
     ))}
   </div>
 );
+
+
 
 
 function Nav({onLogin,onPage,scrolled,currentPage}:any) {
@@ -357,6 +383,8 @@ function Nav({onLogin,onPage,scrolled,currentPage}:any) {
 }
 
 
+
+
 function Footer({onPage}:any) {
   return (
     <footer style={{background:"var(--bg1)",borderTop:"1px solid var(--border)",padding:"64px 0 40px"}}>
@@ -368,7 +396,7 @@ function Footer({onPage}:any) {
           </div>
           {[
             {h:"Platform",links:[["Features","landing"],["Pricing","landing"],["Support","support"]]},
-            {h:"Asset Types",links:[["Build to Rent","landing"],["Build to Sell","landing"],["Hotel","landing"],["House Flip","landing"]]},
+            {h:"Asset Types",links:[["Build to Rent","landing"],["Build to Sell","landing"],["Hotel","landing"],["House Flip","landing"],["Mixed Use","landing"],["Commercial","landing"],["Industrial","landing"]]},
             {h:"Company",links:[["Support","support"],["Privacy","privacy"],["Terms","terms"],["Cookies","cookies"]]},
           ].map(col=>(
             <div key={col.h}>
@@ -389,10 +417,12 @@ function Footer({onPage}:any) {
 }
 
 
+
+
 function BuiltForSection({onLogin}:{onLogin:()=>void}) {
   const [active,setActive]=useState(0);
   const personas=[
-    {icon:"◈",label:"Developers",color:"var(--gold)",headline:"Model any deal with investment-bank rigour",desc:"From a £2m house flip to a £500m BTR fund — Valora handles new-build, conversion, refurbishment and income-producing assets. True monthly cashflows, DSCR checking, promote waterfalls and AI sense check, all in one place.",points:[["◆","All 4 asset types","BTR, BTS, Hotel, Flip — new-build, conversion & income-producing"],["◆","True monthly CF","S-curve drawdown with interest rolled on actual drawn balances"],["◆","DSCR / ICR & IRR","Auto-calculated. Flagged before credit committee sees it"],["◆","AI Sense Check","Benchmarks your assumptions against market data in real time"],["◆","Live share links","Investors and lenders always see the latest version"]]},
+    {icon:"◈",label:"Developers",color:"var(--gold)",headline:"Model any deal with investment-bank rigour",desc:"From a £2m house flip to a £500m BTR fund — Valora handles new-build, conversion, refurbishment and income-producing assets. True monthly cashflows, DSCR checking, promote waterfalls and AI sense check, all in one place.",points:[["◆","7 asset types","BTR, BTS, Hotel, Flip, Mixed Use, Commercial & Industrial"],["◆","True monthly CF","S-curve drawdown with interest rolled on actual drawn balances"],["◆","DSCR / ICR & IRR","Auto-calculated. Flagged before credit committee sees it"],["◆","AI Sense Check","Benchmarks your assumptions against market data in real time"],["◆","Live share links","Investors and lenders always see the latest version"]]},
     {icon:"◎",label:"Lenders & Banks",color:"var(--blue)",headline:"Underwriting you can trust, every time",desc:"Valora produces the exact format a senior underwriter needs to approve a development loan. Monthly cashflow shows precise drawdown profile, DSCR checked automatically, and the model is always current.",points:[["◆","Standardised model","Every borrower appraisal in one consistent format"],["◆","Drawdown profile","Monthly cashflow shows exactly how the facility is drawn"],["◆","DSCR / ICR auto-checked","Flagged when debt service cover drops below covenant"],["◆","Live link","Always the latest model — no stale email attachments"],["◆","AI Sense Check","LTC, exit yield and build cost issues flagged upfront"]]},
     {icon:"◉",label:"Investment Managers",color:"var(--green)",headline:"Stress test before you commit a single pound",desc:"Run 45-scenario sensitivity matrices, model promote waterfalls across IRR hurdles, and track your entire development pipeline from prospect to completion — all from one platform.",points:[["◆","45-scenario matrices","Exit yield vs rent — RAG coded, recalculated live"],["◆","Promote waterfall","3-tier with configurable IRR hurdles and visual distribution split"],["◆","Deal pipeline","Kanban board from Prospect through to Completion"],["◆","Team workspace","Your whole team on the same live model"],["◆","Portfolio view","Track GDV, IRR and PoC across all active deals"]]},
     {icon:"◫",label:"Valuers & Advisors",color:"var(--amber)",headline:"RLV, sensitivity and transfer tax — all automated",desc:"Residual land value updates as you type. Exit yield sensitivity matrices with colour-coded RAG. UK SDLT auto-calculated, with override for any jurisdiction globally. Branded PDF exports for client delivery.",points:[["◆","Live RLV","Residual land value recalculated on every keystroke"],["◆","Sensitivity matrices","Exit yield and rent sensitivity with 45 RAG-coded scenarios"],["◆","Transfer Tax Engine","UK SDLT auto-calculated. Override for IMT, DLD Fee, Grunderwerbsteuer and any jurisdiction."],["◆","Stabilisation modelling","Void periods and rent-free modelled in the cashflow"],["◆","Branded PDF","Professional export with your firm details for client delivery"]]},
@@ -434,6 +464,8 @@ function BuiltForSection({onLogin}:{onLogin:()=>void}) {
 }
 
 
+
+
 function WorkspaceDemo() {
   const [activeTab,setActiveTab]=useState(0);
   const tabs=["Overview","Tasks","Notes","Activity"];
@@ -452,6 +484,8 @@ function WorkspaceDemo() {
     </div>
   );
 }
+
+
 
 
 export default function App() {
@@ -481,10 +515,13 @@ export default function App() {
 }
 
 
+
+
 function Landing({onLogin,onPage,scrolled}:any) {
   const [stickyVisible,setStickyVisible]=useState(false);
   const [openFaq,setOpenFaq]=useState<any>(null);
   useEffect(()=>{ const fn=()=>setStickyVisible(window.scrollY>500); window.addEventListener("scroll",fn,{passive:true}); return()=>window.removeEventListener("scroll",fn); },[]);
+
 
   const PLANS=[
     {name:"Free",price:"$0",period:"",desc:"Start modelling today. No card needed.",features:["3 active projects","All real estate models","Monthly cashflow engine","DSCR / ICR & equity multiple","Deal Pipeline & Tasks","Plain PDF export"],featured:false,cta:"Start for free →"},
@@ -492,15 +529,17 @@ function Landing({onLogin,onPage,scrolled}:any) {
     {name:"Enterprise",price:"$499",period:"/mo",desc:"For firms and investment teams.",features:["Everything in Pro","Full team workspace with roles","Multi-firm support","White label PDF exports","Dedicated onboarding","SLA support"],featured:false,cta:"Start free trial →"},
   ];
 
+
   const FAQS=[
     {q:"What is property development appraisal software?",a:"Property development appraisal software helps developers, investors and advisors model the financial viability of a real estate deal — including cashflows, returns, debt, tax and sensitivity analysis. Valora replaces the spreadsheet with a structured, auditable model built specifically for development finance."},
-    {q:"Which real estate models does Valora include?",a:"Valora includes models for Build to Rent (BTR), Build to Sell (BTS), Hotel acquisition and repositioning, and House Flip. Industrial, Commercial and Mixed-Use models are coming soon. All models are available on every plan — Free, Pro and Enterprise."},
+    {q:"Which real estate models does Valora include?",a:"Valora includes models for Build to Rent (BTR), Build to Sell (BTS), Hotel acquisition and repositioning, House Flip, Mixed Use, Commercial and Industrial. All models are available on every plan — Free, Pro and Enterprise."},
     {q:"How is Valora different from a spreadsheet?",a:"Spreadsheets break. Formulas get overwritten. Versions multiply. Valora gives you a purpose-built development finance model with automatic DSCR checking, live sensitivity matrices, AI Sense Check, and live share links — all in one place, always up to date."},
     {q:"Can I share my appraisal with investors or lenders?",a:"Yes. Pro and Enterprise plans include live share links. Anyone with the link sees your latest numbers in real time — no email attachments, no stale versions, no 'which model did you send?'"},
     {q:"What is DSCR and does Valora calculate it automatically?",a:"DSCR (Debt Service Cover Ratio) measures how comfortably your deal services its debt. Valora calculates DSCR and ICR automatically and flags when you drop below the standard 1.25× lender covenant — before your credit committee does."},
     {q:"Is Valora suitable for smaller developers and investors?",a:"Yes. The Free plan is designed for individual developers, investors and deal sourcers. You get three full appraisals, all models, and all the core analysis tools. Upgrade to Pro when your deal needs a live investor link or unlimited projects."},
     {q:"Do I need a credit card to start?",a:"No. The Free plan requires no payment details. Create an account and model your first deal in under 5 minutes."},
   ];
+
 
   return (
     <div itemScope itemType="https://schema.org/SoftwareApplication">
@@ -520,7 +559,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
         ]
       })}}/>
 
+
       <Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="landing"/>
+
 
       {/* ══════════════════════════════════════
           SECTION 1 — HERO
@@ -539,19 +580,23 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 </span>
               </div>
 
+
               {/* H1 — primary keyword embedded naturally */}
               <h1 className="fu" itemProp="name" style={{fontFamily:"var(--font-display)",fontSize:"clamp(42px,5.2vw,76px)",fontWeight:300,lineHeight:1.03,marginBottom:22,letterSpacing:"-.01em",animationDelay:".2s"}}>
                 Know if the deal works.<br/><em style={{fontStyle:"italic",background:"linear-gradient(135deg,#e2c97e 0%,#c9a84c 50%,#a07030 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>Before anyone else does.</em>
               </h1>
 
+
               <p className="fu" itemProp="description" style={{fontSize:18,color:"var(--text-m)",lineHeight:1.8,maxWidth:500,marginBottom:14,animationDelay:".3s",fontWeight:300}}>
                 Valora is real estate underwriting infrastructure for property professionals. Stop wasting hours on deals that should have been killed in 10 minutes.
               </p>
+
 
               {/* Brand trust line */}
               <p className="fu" style={{fontSize:13,color:"var(--gold)",fontFamily:"var(--font-display)",fontStyle:"italic",fontWeight:400,marginBottom:32,animationDelay:".35s",letterSpacing:".01em"}}>
                 Built from real models trusted on $100m+ of deals.
               </p>
+
 
               <div className="fu hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36,animationDelay:".4s"}}>
                 <button className="btn-primary" onClick={onLogin} style={{padding:"15px 40px",fontSize:12}} aria-label="Start free property development appraisal">
@@ -563,10 +608,12 @@ function Landing({onLogin,onPage,scrolled}:any) {
                 </button>
               </div>
 
+
               <div className="fu" style={{fontSize:10,color:"var(--text-d)",letterSpacing:".08em",textTransform:"uppercase",animationDelay:".5s"}}>
                 Free forever · No credit card · First appraisal in 5 minutes
               </div>
             </div>
+
 
             {/* Product screenshot */}
             <div className="fu" style={{animationDelay:".3s"}}>
@@ -582,6 +629,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* ══════════════════════════════════════
           SECTION 2 — TRUST BAR
@@ -602,6 +650,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </div>
+
 
       {/* ══════════════════════════════════════
           SECTION 3 — THE 5 PROBLEMS
@@ -636,6 +685,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* ══════════════════════════════════════
           SECTION 4 — PRODUCT SCREENSHOT
       ══════════════════════════════════════ */}
@@ -660,6 +710,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* ══════════════════════════════════════
           SECTION 5 — WHO IT'S FOR
@@ -689,6 +740,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* ══════════════════════════════════════
           SECTION 6 — KEY FEATURES
       ══════════════════════════════════════ */}
@@ -708,7 +760,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
               {icon:"◈",tag:"Risk",title:"45-Scenario Sensitivity Matrix",body:"Exit yield vs rent — 45 scenarios, colour-coded RAG, recalculated live using the full finance model. Know your downside before you commit.",kw:"development appraisal sensitivity analysis"},
               {icon:"◈",tag:"Valuation",title:"Residual Land Value Calculator",body:"Live RLV that updates as you type. Shows exactly what you can afford to pay for the site — and what moves the needle most.",kw:"residual land value calculator"},
               {icon:"◈",tag:"AI",title:"AI Sense Check",body:"Automatically benchmarks your assumptions against market data. Flags aggressive exit yields, LTC breaches and build cost issues before credit committee.",kw:"AI property development analysis"},
-              {icon:"◈",tag:"AI",title:"AI Investor Brochures",body:"Upload photos, generate a professional investment memorandum. Branded PDF with a live link — investors always see the latest version.",kw:"real estate investment memorandum software"},
+              {icon:"◈",tag:"Core",title:"Cashflow Visualiser",body:"Bar chart of monthly inflows, outflows and exit — payback month highlighted. Live on every model, every asset type.",kw:"development cashflow chart software"},
               {icon:"◈",tag:"Team",title:"Team Workspace & Pipeline",body:"Invite your analysts, asset managers and JV partners. Shared appraisals, tasks, notes, activity feed and role permissions — everyone on the same live deal.",kw:"real estate team collaboration software"},
               {icon:"◈",tag:"Finance",title:"10 Live Benchmark Rates",body:"SONIA, SOFR, EURIBOR, EIBOR, SORA, AONIA, TONA, SARON, CORRA, HONIA. Finance costs calculated against the actual forward curve.",kw:"development finance benchmark rates"},
             ].map((f,i)=>(
@@ -724,6 +776,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* ══════════════════════════════════════
           SECTION 7 — TESTIMONIALS
@@ -753,6 +806,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
           </div>
         </div>
       </section>
+
 
       {/* ══════════════════════════════════════
           SECTION 8 — PRICING
@@ -792,6 +846,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* ══════════════════════════════════════
           SECTION 9 — FAQ (FAQPage schema)
       ══════════════════════════════════════ */}
@@ -821,6 +876,7 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       {/* ══════════════════════════════════════
           SECTION 10 — FINAL CTA
       ══════════════════════════════════════ */}
@@ -848,7 +904,9 @@ function Landing({onLogin,onPage,scrolled}:any) {
         </div>
       </section>
 
+
       <Footer onPage={onPage}/>
+
 
       {/* STICKY CTA */}
       <div className={`sticky-cta ${stickyVisible?"visible":""}`} role="complementary" aria-label="Quick access CTA">
@@ -866,6 +924,8 @@ function Landing({onLogin,onPage,scrolled}:any) {
 }
 
 
+
+
 function LegalPage({title,lastUpdated,children,onLogin,onPage,scrolled}:any) {
   return (<div><Nav onLogin={onLogin} onPage={onPage} scrolled={scrolled} currentPage="legal"/><div className="legal-content"><h1>{title}</h1><div className="meta">Last updated: {lastUpdated} · Valora Technologies Ltd · Registered in England & Wales</div>{children}</div><Footer onPage={onPage}/></div>);
 }
@@ -873,6 +933,8 @@ function PrivacyContent(){return(<><p>Valora Technologies Ltd is committed to pr
 function TermsContent(){return(<><p>These Terms govern your use of the Valora platform. Subscriptions are billed monthly or annually. 14-day free trial on all plans. Cancel anytime. Prices exclude applicable taxes. The platform and AI features provide information only — not financial advice. Governed by the laws of England and Wales.</p><p>Contact: <a href="mailto:legal@valoraplatform.io">legal@valoraplatform.io</a></p></>);}
 function CookiesContent(){return(<><p>We use essential cookies to keep you logged in and protect against CSRF. Analytics cookies are anonymised. Stripe sets cookies for payment security. Contact <a href="mailto:privacy@valoraplatform.io">privacy@valoraplatform.io</a> with questions.</p></>);}
 function AccessibilityContent(){return(<><p>We aim to meet WCAG 2.1 Level AA. Keyboard navigation, screen reader labels, sufficient contrast, and ARIA roles are implemented throughout. Contact <a href="mailto:accessibility@valoraplatform.io">accessibility@valoraplatform.io</a> to report issues.</p></>);}
+
+
 
 
 function SupportPage({onLogin,onPage,scrolled}:any){
@@ -920,6 +982,8 @@ function SupportPage({onLogin,onPage,scrolled}:any){
     </div>
   );
 }
+
+
 
 
 function Login({onBack}:any){
