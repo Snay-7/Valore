@@ -833,6 +833,9 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const refiLoan=salePrice*refiLTV;
     const refiInterestPm=refiLoan*(refiRate/12);
     const refiArrangement=refiLoan*(num(String(data.refiArrangementPct||1.0))/100);
+    // Cash-out refi: if refi loan > peak bridge balance, surplus cash is returned to investor at refi date
+    // If refi loan < peak bridge balance, investor must inject additional equity to repay bridge shortfall
+    const cashOutRefi=refiLoan-peakLoanBalance; // positive = cash back, negative = equity top-up required
     const holdOccupancy=data.holdOccupancy||"vacant";
     const rentPcm=holdOccupancy==="tenanted"?num(String(data.rentPcm||0)):0;
     const voidPct=holdOccupancy==="tenanted"?num(String(data.voidPct||5))/100:0;
@@ -840,10 +843,10 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const monthlyOpex=num(String(data.holdOpexPm||200));
     const netCashflowPm=netRentPm-refiInterestPm-monthlyOpex;
     const totalHoldMonths=flipMode==="hold"?bridgingMonths+refiMonths:bridgingMonths+sellMonths;
-    // DSCR: annual NOI vs annual refi debt service
+    // DSCR: based on refi loan NOI/debt-service only — unaffected by bridge or equity position
     const annualNOI=(netRentPm-monthlyOpex)*12;
     const annualDebtService=refiInterestPm*12;
-    const dscr=annualDebtService>0?annualNOI/annualDebtService:0;
+    const dscr=annualDebtService>0&&annualNOI>0?annualNOI/annualDebtService:0;
 
 
     // ── Total costs & profit ──────────────────────────────────────────────────
@@ -853,22 +856,35 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const totalCost=purchase+sdlt+refurb+profFees+contingency+other+vat+s106+totalFinanceCost;
     const agentFees=salePrice*(num(String(data.agentFeePct||1.5))/100);
     const netProceeds=salePrice-agentFees;
+    // equityIn: gross equity deployed, net of initial bridging loan drawn.
+    // If cash-out refi returns capital, netEquityDeployed is lower — reflects true capital at risk.
     const equityIn=purchase+sdlt+refurb+profFees+contingency+other+vat+s106+bridgingInterest+arrangementFee+(flipMode==="hold"?refiArrangement:0)-loanAmount;
+    // Net equity actually at risk after refi cash-out (can be reduced if refi > bridge balance)
+    const netEquityDeployed=flipMode==="hold"?Math.max(0,equityIn-Math.max(0,cashOutRefi)):equityIn;
     const equity=Math.max(0,equityIn);
     const profit=flipMode==="hold"
+      // profit = exit proceeds (net of refi loan) + hold cashflows - net equity deployed
+      // cash-out at refi is NOT profit (it's return of capital), so we use equityIn not netEquityDeployed here
       ?(netProceeds-refiLoan)+(netCashflowPm*refiMonths)-equityIn
       :netProceeds-totalCost;
     const roi=totalCost>0?profit/totalCost:0;
     const roiEquity=equity>0?profit/equity:0;
-    const moic=equity>0?(equity+profit)/equity:0;
+    // MOIC on net equity deployed: counts cash-out refi as return of capital in the multiple
+    const totalReturn=profit+Math.max(0,cashOutRefi); // cash returned + profit at exit
+    const moic=netEquityDeployed>0?(netEquityDeployed+totalReturn)/netEquityDeployed:equity>0?(equity+profit)/equity:0;
 
 
     // ── IRR cashflows ─────────────────────────────────────────────────────────
     let cfs:number[];
     if(flipMode==="hold"){
-      // Bridge phase: equity out day 0, zero income during refurb; then refi income stream + exit
-      const bridgeZeros=Array(Math.max(0,Math.round(bridgingMonths))).fill(0);
-      cfs=[-equity,...bridgeZeros,...Array(Math.max(0,Math.round(refiMonths)-1)).fill(netCashflowPm),netCashflowPm+(netProceeds-refiLoan)];
+      // Bridge phase: equity out day 0, zeros during refurb
+      // Refi month: cashOut inflow (positive = money back, negative = top-up injection)
+      // Hold phase: monthly net cashflow
+      // Exit month: net proceeds after repaying refi loan
+      const bridgeZeros=Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0);
+      // At refi month: cashOutRefi is cash returned (or injected if negative)
+      const refiMonthCf=cashOutRefi+netCashflowPm; // cash-out + first month of hold income
+      cfs=[-equity,...bridgeZeros,refiMonthCf,...Array(Math.max(0,Math.round(refiMonths)-1)).fill(netCashflowPm),netCashflowPm+(netProceeds-refiLoan)];
     } else {
       // Sell mode: construction phase (zeros), then sell period (zeros), proceeds at end
       const constructZeros=Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0);
@@ -888,7 +904,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       purchase,sdlt,refurb,refurbExisting,refurbNew,
       profFees,contingency,other,vat,s106,totalFinanceCost,
       loanAmount,peakLoanBalance,bridgingInterest,arrangementFee,
-      refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,
+      refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,cashOutRefi,netEquityDeployed,
       totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,moic,irr,equity,
       paybackMonth,financeRate:bridgingRatePm*12,grossYield,netYield,flipMode,
       bridgingMonths,sellMonths,refiMonths,totalHoldMonths,dscr,
@@ -1675,13 +1691,13 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     ["Return on Cost",fmtPct(r.poc||0)],
     ["IRR (Levered)",fmtPct(r.irrLevered||r.irr||0)],
     ["Equity Multiple",fmtX(r.moic||0)],
-    ["DSCR / ICR",fmtX(r.dscr||0)],
+    ["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—"],
   ]:assetType==="BTR"?[
     ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
   ]:assetType==="BTS"?[
     ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
   ]:assetType==="Hotel"?[
-    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],["Return on Cost",fmtPct(r.poc||0)],["DSCR",fmtX(r.dscr||0)],
+    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],["Return on Cost",fmtPct(r.poc||0)],["DSCR",r.dscr>0?fmtX(r.dscr):"—"],
   ]:[
     ["Sale Price",fmt(r.salePrice||0,currencySymbol)],["Profit",fmt(r.profit||0,currencySymbol)],["ROI",fmtPct(r.roi||0)],["Equity Multiple",fmtX(r.moic||0)],
   ];
@@ -1836,7 +1852,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Unlevered)",fmtPct(hotelAdv.irr||0),blue],
       ["IRR (Levered)",fmtPct(hotelAdv.irrLevered||0),blue],
       ["Equity Multiple",fmtX(hotelAdv.moic||0),(hotelAdv.moic||0)>2?green:amber],
-      ["DSCR / ICR",fmtX(hotelAdv.dscr||0),(hotelAdv.dscr||0)>=1.5?green:(hotelAdv.dscr||0)>=1.25?amber:[244,100,95] as [number,number,number]],
+      ["DSCR / ICR",(hotelAdv.dscr||0)>0?fmtX(hotelAdv.dscr||0):"—",(hotelAdv.dscr||0)>=1.5?green:(hotelAdv.dscr||0)>=1.25?amber:[244,100,95] as [number,number,number]],
       ["Payback",hotelAdv.paybackMonth?`Month ${hotelAdv.paybackMonth}`:"Beyond horizon",grey],
     ];
     const rCols=4;const rW=(W-M*2-9)/rCols;
@@ -1996,13 +2012,23 @@ function AppraisalPage(){
   // When in Hotel Advanced mode, r points to hotelAdv so all UI (Returns Summary, sidebar, sensitivity) reads one consistent calc
   const r=(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?hotelAdv:results) as any;
   const sensitivity=useCallback(()=>{
-    if(assetType!=="BTR")return null;
-    const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
-    const rentMults=[-0.10,-0.05,0,0.05,0.10].map(d=>1+d);
-    return yields.map(y=>rentMults.map(rf=>{
-      const modData={...data,exitYield:y,units:(data.units||[]).map((u:any)=>({...u,rentPcm:num(String(u.rentPcm))*rf}))};
-      return calcAll("BTR",modData).poc??0;
-    }));
+    if(assetType==="BTR"){
+      const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
+      const rentMults=[-0.10,-0.05,0,0.05,0.10].map(d=>1+d);
+      return yields.map(y=>rentMults.map(rf=>{
+        const modData={...data,exitYield:y,units:(data.units||[]).map((u:any)=>({...u,rentPcm:num(String(u.rentPcm))*rf}))};
+        return calcAll("BTR",modData).poc??0;
+      }));
+    }
+    if(assetType==="BTS"){
+      const saleMults=[1.10,1.05,1,0.95,0.90];
+      const buildMults=[0.90,0.95,1,1.05,1.10];
+      return saleMults.map(sm=>buildMults.map(bm=>{
+        const modData={...data,buildCostPsf:num(String(data.buildCostPsf||0))*bm,units:(data.units||[]).map((u:any)=>({...u,salePricePsf:num(String(u.salePricePsf||0))*sm}))};
+        return calcAll("BTS",modData).poc??0;
+      }));
+    }
+    return null;
   },[assetType,data]);
   const sensMatrix=sensitivity();
   const suggestBTSPsf=async()=>{
@@ -2197,6 +2223,12 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
       if(data.flipCapStructure==="bridge_refi"&&(data.holdOccupancy||"vacant")==="vacant"&&(r.netCashflowPm||0)<0){
         const totalDrain=Math.abs((r.netCashflowPm||0)*num(String(data.refiTermMonths||24)));
         flags.push({severity:"warning",field:"Vacant hold",message:`Property is vacant during hold — negative cashflow of ${currSym}${Math.round(Math.abs(r.netCashflowPm||0))}/mo. Total equity drain: ${currSym}${Math.round(totalDrain)}.`,benchmark:"Consider letting during hold to offset mortgage payments"});
+      }
+      if(data.flipCapStructure==="bridge_refi"&&(r.cashOutRefi||0)<-500){
+        flags.push({severity:"warning",field:"Under-refinancing",message:`Refi loan is ${currSym}${Math.round(Math.abs(r.cashOutRefi||0))} short of the bridge balance — you will need to inject this as additional equity at refinance.`,benchmark:"Increase refi LTV or reduce purchase price to close the gap"});
+      }
+      if(data.flipCapStructure==="bridge_refi"&&(r.cashOutRefi||0)>1000){
+        flags.push({severity:"info",field:"Cash-out refi",message:`Refi releases ${currSym}${Math.round(r.cashOutRefi||0)} back to you at refinance — bridge fully repaid with surplus. Net equity deployed is ${currSym}${Math.round(r.netEquityDeployed||0)}.`,benchmark:"Equity multiple is calculated on net equity deployed after cash-out"});
       }
       if(sale<purchase)flags.push({severity:"error",field:"Sale Price",message:"Sale price is below purchase price — this deal will make a loss.",benchmark:"Sale price must exceed total cost"});
       const uplift=purchase>0?(sale-purchase)/purchase*100:0;
@@ -3707,6 +3739,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                               const totalDrain=netCf*holdMos;
                               const rows=[
                                 ["Refi loan",fmt(r.refiLoan||0,currencySymbol),"var(--text-m)",false],
+                                ["Bridge balance repaid",`- ${currencySymbol}${Math.round(r.peakLoanBalance||0)}`,"var(--red)",false],
+                                ...((r.cashOutRefi||0)>100?[["Cash released to you",`+ ${currencySymbol}${Math.round(r.cashOutRefi||0)}`,"var(--green)",true]]:[] as any[]),
+                                ...((r.cashOutRefi||0)<-100?[["Equity top-up required",`- ${currencySymbol}${Math.round(Math.abs(r.cashOutRefi||0))}`,"var(--red)",true]]:[] as any[]),
                                 isVacant
                                   ?["Rental income","Vacant — £0/mo","var(--text-d)",false]
                                   :["Gross rent",`+ ${currencySymbol}${Math.round(grossRent)}/mo`,"var(--green)",false],
@@ -3729,6 +3764,19 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                                 </div>
                               ));
                             })()}
+                            {/* Cash-out refi banner */}
+                            {(r.cashOutRefi||0)>100&&(
+                              <div style={{marginTop:8,padding:"8px 10px",background:"rgba(61,220,132,0.06)",border:"1px solid rgba(61,220,132,0.2)",borderRadius:6,fontSize:11,color:"var(--green)"}}>
+                                💰 Refi releases <strong>{currencySymbol}{Math.round(r.cashOutRefi||0)}</strong> cash back to you at refinance — bridge fully repaid + surplus returned. This reduces your net equity at risk and boosts your equity multiple.
+                              </div>
+                            )}
+                            {/* Under-refi warning */}
+                            {(r.cashOutRefi||0)<-100&&(
+                              <div style={{marginTop:8,padding:"8px 10px",background:"rgba(240,164,41,0.06)",border:"1px solid rgba(240,164,41,0.25)",borderRadius:6,fontSize:11,color:"var(--amber)"}}>
+                                ⚠ Refi loan is <strong>{currencySymbol}{Math.round(Math.abs(r.cashOutRefi||0))}</strong> short of the bridge balance — you will need to inject this extra equity at refinance to repay the bridging lender.
+                              </div>
+                            )}
+                            {/* Negative monthly cashflow warning */}
                             {(r.netCashflowPm||0)<0&&(
                               <div style={{marginTop:8,padding:"8px 10px",background:"rgba(244,100,95,0.06)",border:"1px solid rgba(244,100,95,0.2)",borderRadius:6,fontSize:11,color:"var(--red)"}}>
                                 ⚠ Negative monthly cashflow — you will need to fund {currencySymbol}{Math.round(Math.abs((r.netCashflowPm||0)*Math.round(num(String(data.refiTermMonths||24)))))} from equity during the hold period.
@@ -3951,6 +3999,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     )}
                   </div>
                 ))}
+
+                {/* MixedUse sensitivity: GDV shift (rows) × total cost shift (cols) */}
+                {(()=>{
+                  const gdvSteps=[1.10,1.05,1,0.95,0.90];
+                  const costSteps=[0.90,0.95,1,1.05,1.10];
+                  const muSens=gdvSteps.map(gs=>costSteps.map(cs=>{
+                    const modZones=(data.zones||[]).map((z:any)=>({...z,salePricePsf:num(String(z.salePricePsf||0))*gs,rentPcm:num(String(z.rentPcm||0))*gs,buildCostPsf:num(String(z.buildCostPsf||0))*cs}));
+                    const res=calcAll("MixedUse",{...data,zones:modZones});
+                    return res.poc??0;
+                  }));
+                  return(
+                    <div style={{marginTop:24,marginBottom:28}}>
+                      <div className="section-title">Sensitivity — Profit on Cost %</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>GDV shift (rows) × total cost shift (columns)</div>
+                      <div className="sens-wrap">
+                        <div style={{display:"grid",gridTemplateColumns:"72px repeat(5,1fr)",gap:4,fontSize:10,minWidth:380}}>
+                          <div/>
+                          {["-10%","-5%","Base","+5%","+10%"].map(h=>(<div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>))}
+                          {muSens.map((row:number[],si:number)=>(
+                            <React.Fragment key={si}>
+                              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{["+10%","+5%","Base","-5%","-10%"][si]} GDV</div>
+                              {row.map((poc:number,ri:number)=>(
+                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
+                              ))}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{fontSize:10,color:"var(--text-d)",marginTop:8}}>Base case matches Returns Summary above. Finance costs held constant.</div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -4213,7 +4293,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
                     ["Profit on GDV",fmtPct(r.margin||0),"var(--text-m)"],
                     ["Yield on Cost",fmtPct(r.yoc||0),"var(--blue)"],
-                    ["DSCR",isFinite(r.dscr||0)?fmtX(r.dscr||0):"—",(r.dscr||0)>=1.5?"var(--green)":(r.dscr||0)>=1.25?"var(--amber)":"var(--red)"],
+                    ["DSCR",isFinite(r.dscr||0)?r.dscr>0?fmtX(r.dscr):"—":"—",(r.dscr||0)>=1.5?"var(--green)":(r.dscr||0)>=1.25?"var(--amber)":"var(--red)"],
                     ["Residual Land Value",fmt(r.rlv||0,currencySymbol),(r.rlv||0)>0?"var(--gold)":"var(--red)"],
                     ["Break-even Rent",r.totalAreaSqm>0?`${currencySymbol}${Math.round(r.breakEvenRentPsm||0)}/sqm/yr`:"—","var(--text-m)"],
                     ["Break-even Yield",fmtPct(r.breakEvenYield||0),"var(--text-m)"],
@@ -4715,6 +4795,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],
                     [`Total Cost /${r.unitSystem||"sqft"}`,r.propertySqft>0?`${currencySymbol}${Math.round(r.totalCostPsfDisplay||0)}/${r.unitSystem||"sqft"}`:"—","var(--text-d)"],
                     ["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],
+                    ...(r.flipMode==="hold"&&(r.cashOutRefi||0)>100?[[`Cash Released at Refi`,fmt(r.cashOutRefi||0,currencySymbol),"var(--green)"]] as any[]:[] as any[]),
+                    ...(r.flipMode==="hold"&&(r.cashOutRefi||0)<-100?[[`Equity Top-up at Refi`,fmt(Math.abs(r.cashOutRefi||0),currencySymbol),"var(--red)"]] as any[]:[] as any[]),
+                    ...(r.flipMode==="hold"?(r.netEquityDeployed||0)!==(r.equity||0)?[[`Net Equity Deployed`,fmt(r.netEquityDeployed||0,currencySymbol),"var(--gold)"]] as any[]:[] as any[]:[] as any[]),
                     ["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),"var(--gold)"],
                     [`Sale /${r.unitSystem||"sqft"}`,r.propertySqft>0?`${currencySymbol}${Math.round(r.salePricePsfDisplay||0)}/${r.unitSystem||"sqft"}`:"—","var(--text-d)"],
                     ["Gross Yield",r.flipMode==="hold"?fmtPct(r.grossYield||0):"—","var(--blue)"],
@@ -4832,18 +4915,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
-                                {assetType==="BTR"&&sensMatrix&&(
+                                {(assetType==="BTR"||assetType==="BTS")&&sensMatrix&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit yield (rows) × rent shift (columns)</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>
+                      {assetType==="BTS"?"Sale price psf (rows) × build cost psf (columns)":"Exit yield (rows) × rent shift (columns)"}
+                    </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                         <div/>
-                        {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                        {(assetType==="BTS"?["-10%","-5%","Base","+5%","+10%"]:["-10%","-5%","Base","+5%","+10%"]).map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
                         {sensMatrix.map((row:number[],yi:number)=>{
-                          const yieldVal=num(String(data.exitYield))+[-0.5,-0.25,0,0.25,0.5][yi];
+                          const rowLabel=assetType==="BTS"
+                            ?["+10%","+5%","Base","-5%","-10%"][yi]+" sale"
+                            :(num(String(data.exitYield))+[-0.5,-0.25,0,0.25,0.5][yi]).toFixed(2)+"%";
                           return(<React.Fragment key={yi}>
-                            <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{yieldVal.toFixed(2)}%</div>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{rowLabel}</div>
                             {row.map((poc:number,ri:number)=>(
                               <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${yi===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
                             ))}
