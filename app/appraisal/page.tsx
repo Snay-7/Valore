@@ -911,7 +911,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       propertySqft,existingAreaSqft,newAreaSqft,totalArea,
       refurbPsfDisplay:dispRefurbPsf,salePricePsfDisplay:dispSalePricePsf,totalCostPsfDisplay:dispTotalCostPsf,
       unitSystem:unitSys,useAreaModel,
-      monthlyInterestArr,
+      monthlyInterestArr,cfs,
     };
   }
   if(assetType==="MixedUse"){
@@ -1948,6 +1948,7 @@ function AppraisalPage(){
   const[urlImporting,setUrlImporting]=useState(false);
   const[urlImportError,setUrlImportError]=useState<string|null>(null);
   const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
+  const[flipComplexity,setFlipComplexity]=useState<"simple"|"advanced">("simple");
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
   const[subscription,setSubscription]=useState<any>(null);
@@ -1971,7 +1972,7 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);}
         // MixedUse: tab handled by TABS_MU — opens on general by default
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
@@ -2320,6 +2321,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
           dscr:isFinite(r.dscr)&&r.dscr!==Infinity?r.dscr:0,
           paybackMonth:r.paybackMonth||null,
           hotelMode:assetType==="Hotel"?hotelMode:"simple",
+          flipComplexity:assetType==="Flip"?flipComplexity:"simple",
           ...(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?{hotelAdv:{
             totalCost:hotelAdv.totalCost,equity:hotelAdv.equity,profit:hotelAdv.profit,
             poc:hotelAdv.poc,moic:hotelAdv.moic,irr:hotelAdv.irr,irrLevered:hotelAdv.irrLevered,
@@ -2454,7 +2456,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_BTS=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
-  const TABS_FLIP=["general","costs","finance","comps","cashflow","analysis"];
+  const TABS_FLIP=flipComplexity==="advanced"?["general","costs","finance","comps","cashflow","analysis"]:["general","costs","finance","cashflow","analysis"];
   const TABS_MU=["general","zones","costs","finance","cashflow","analysis"];
   const TABS_COM=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:assetType==="Commercial"?TABS_COM:TABS_FLIP;
@@ -2508,6 +2510,18 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
               {(["simple","advanced"] as const).map(m=>(
                 <button key={m} onClick={()=>setHotelMode(m)} style={{padding:"3px 12px",background:hotelMode===m?"var(--gold)":"transparent",color:hotelMode===m?"#06070a":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
+                  {m==="simple"?"Simple":"Advanced"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {assetType==="Flip"&&(
+          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
+              {(["simple","advanced"] as const).map(m=>(
+                <button key={m} onClick={()=>setFlipComplexity(m)} style={{padding:"3px 12px",background:flipComplexity===m?"var(--gold)":"transparent",color:flipComplexity===m?"#06070a":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
                   {m==="simple"?"Simple":"Advanced"}
                 </button>
               ))}
@@ -3135,16 +3149,18 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </div>
 
 
-                {/* Area model toggle */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",marginBottom:16,cursor:"pointer"}} onClick={()=>set("areaModelOn",!data.areaModelOn)}>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>Area Model</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>Separate existing refurb vs new-build / extension areas with individual costs</div>
+                {/* Area model toggle — advanced only */}
+                {flipComplexity==="advanced"&&(
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",marginBottom:16,cursor:"pointer"}} onClick={()=>set("areaModelOn",!data.areaModelOn)}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>Area Model</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>Separate existing refurb vs new-build / extension areas with individual costs</div>
+                    </div>
+                    <div style={{width:36,height:20,borderRadius:10,background:data.areaModelOn?"var(--gold)":"var(--bg5)",position:"relative",transition:"background .2s",flexShrink:0}}>
+                      <div style={{position:"absolute",top:3,left:data.areaModelOn?18:3,width:14,height:14,borderRadius:7,background:"#fff",transition:"left .2s"}}/>
+                    </div>
                   </div>
-                  <div style={{width:36,height:20,borderRadius:10,background:data.areaModelOn?"var(--gold)":"var(--bg5)",position:"relative",transition:"background .2s",flexShrink:0}}>
-                    <div style={{position:"absolute",top:3,left:data.areaModelOn?18:3,width:14,height:14,borderRadius:7,background:"#fff",transition:"left .2s"}}/>
-                  </div>
-                </div>
+                )}
 
 
                 {data.areaModelOn?(
@@ -3195,22 +3211,31 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 )}
 
 
-                {/* Professional & Fit-Out fees */}
+                {/* Professional & Fit-Out fees — advanced only shows detail; simple shows single % */}
                 <div style={{marginBottom:16}}>
-                  <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Professional & Fit-Out Fees</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Fill named lines for a detailed breakdown, or leave blank and use the % fallback below.</div>
-                  <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Architect (% of refurb)</label><input className="inp" type="number" step="0.5" value={data.architectPct||""} onChange={e=>set("architectPct",e.target.value)} placeholder="e.g. 5"/></div>
-                    <div className="inp-group"><label className="inp-label">Structural / Party Wall (%)</label><input className="inp" type="number" step="0.5" value={data.structEngPct||""} onChange={e=>set("structEngPct",e.target.value)} placeholder="e.g. 2"/></div>
-                  </div>
-                  <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Interior Designer (%)</label><input className="inp" type="number" step="0.5" value={data.interiorPct||""} onChange={e=>set("interiorPct",e.target.value)} placeholder="e.g. 3"/></div>
-                    <div className="inp-group"><label className="inp-label">Furniture / FF&E ({currencySymbol})</label><input className="inp" type="number" value={data.ffeCost||""} onChange={e=>set("ffeCost",e.target.value)} placeholder="e.g. 25000"/></div>
-                  </div>
-                  <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Other Prof Fees ({currencySymbol})</label><input className="inp" type="number" value={data.otherProfFees||""} onChange={e=>set("otherProfFees",e.target.value)} placeholder="e.g. 5000"/></div>
-                    <div className="inp-group"><label className="inp-label">Fallback — Prof Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)} placeholder="Used if fields above are blank"/></div>
-                  </div>
+                  <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Professional Fees</div>
+                  {flipComplexity==="advanced"&&<div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Fill named lines for a detailed breakdown, or leave blank and use the % fallback below.</div>}
+                  {flipComplexity==="advanced"&&(
+                    <>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">Architect (% of refurb)</label><input className="inp" type="number" step="0.5" value={data.architectPct||""} onChange={e=>set("architectPct",e.target.value)} placeholder="e.g. 5"/></div>
+                        <div className="inp-group"><label className="inp-label">Structural / Party Wall (%)</label><input className="inp" type="number" step="0.5" value={data.structEngPct||""} onChange={e=>set("structEngPct",e.target.value)} placeholder="e.g. 2"/></div>
+                      </div>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">Interior Designer (%)</label><input className="inp" type="number" step="0.5" value={data.interiorPct||""} onChange={e=>set("interiorPct",e.target.value)} placeholder="e.g. 3"/></div>
+                        <div className="inp-group"><label className="inp-label">Furniture / FF&E ({currencySymbol})</label><input className="inp" type="number" value={data.ffeCost||""} onChange={e=>set("ffeCost",e.target.value)} placeholder="e.g. 25000"/></div>
+                      </div>
+                      <div className="inp-row">
+                        <div className="inp-group"><label className="inp-label">Other Prof Fees ({currencySymbol})</label><input className="inp" type="number" value={data.otherProfFees||""} onChange={e=>set("otherProfFees",e.target.value)} placeholder="e.g. 5000"/></div>
+                        <div className="inp-group"><label className="inp-label">Fallback — Prof Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)} placeholder="Used if fields above are blank"/></div>
+                      </div>
+                    </>
+                  )}
+                  {flipComplexity==="simple"&&(
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Prof Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                    </div>
+                  )}
                   {/* Live prof fees breakdown */}
                   {r.profFees>0&&(
                     <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-d)",background:"var(--bg3)",borderRadius:6,padding:"8px 12px",marginTop:6}}>
@@ -3648,16 +3673,18 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </>
                 )}
                 {assetType==="Flip"&&<>
-                    {/* Capital structure selector */}
-                    <div className="section-title" style={{marginBottom:12}}>Capital Structure</div>
-                    <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-                      {[{key:"equity",label:"All Equity"},{key:"bridge",label:"Bridging Loan"},{key:"bridge_refi",label:"Bridge + Refi"}].map(opt=>(
-                        <button key={opt.key} onClick={()=>{set("flipCapStructure",opt.key);set("flipMode",opt.key==="bridge_refi"?"hold":"sell");}}
-                          style={{padding:"8px 16px",borderRadius:7,border:`1px solid ${(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.flipCapStructure||"bridge")===opt.key?"var(--gold-bg)":"var(--bg3)",color:(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--text-m)",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all .2s",fontFamily:"var(--font-body)"}}>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Capital structure selector — full 3-option in advanced, simple bridging only in simple */}
+                    <div className="section-title" style={{marginBottom:12}}>Finance</div>
+                    {flipComplexity==="advanced"&&(
+                      <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+                        {[{key:"equity",label:"All Equity"},{key:"bridge",label:"Bridging Loan"},{key:"bridge_refi",label:"Bridge + Refi"}].map(opt=>(
+                          <button key={opt.key} onClick={()=>{set("flipCapStructure",opt.key);set("flipMode",opt.key==="bridge_refi"?"hold":"sell");}}
+                            style={{padding:"8px 16px",borderRadius:7,border:`1px solid ${(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.flipCapStructure||"bridge")===opt.key?"var(--gold-bg)":"var(--bg3)",color:(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--text-m)",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all .2s",fontFamily:"var(--font-body)"}}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {(data.flipCapStructure||"bridge")!=="equity"&&(
                       <>
                         <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:12}}>Bridging Finance</div>
@@ -4627,29 +4654,164 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
             {activeTab==="cashflow"&&assetType==="Flip"&&(()=>{
+              // Use the cfs array from the calc engine directly — authoritative, includes cashOutRefi event
+              const cfs:number[]=r.cfs||[];
               const bm=Math.max(1,Math.round(r.bridgingMonths||0));
               const sm=Math.max(0,Math.round(r.sellMonths||0));
               const rm=Math.max(1,Math.round(r.refiMonths||0));
-              const eq=(r.equityIn||r.equity)||0;
-              // Hold mode: bridge zeros + monthly net cashflow (can be negative if vacant) + final exit
-              // Vacant property: netCashflowPm = -refiInterestPm - opex (negative outflow each month)
-              const flipCfs:number[]=r.flipMode==="hold"
-                ?[-eq,...Array(Math.max(0,bm-1)).fill(0),...Array(Math.max(0,rm-1)).fill(r.netCashflowPm||0),(r.netCashflowPm||0)+((r.netProceeds||0)-(r.refiLoan||0))]
-                :[-eq,...Array(Math.max(0,bm-1)).fill(0),...Array(sm).fill(0),(r.netProceeds||0)-(r.peakLoanBalance||0)];
-              const totalMos=r.flipMode==="hold"?(bm+rm):(bm+sm);
-              const phaseLabels=r.flipMode==="hold"
-                ?[`Construction (${bm}m)`,`Hold (${rm}m)`]
-                :[`Construction (${bm}m)`,`Sell (${sm}m)`];
+              const isHold=r.flipMode==="hold";
+              const cashOut=r.cashOutRefi||0;
+              const refiInterestPm=r.refiInterestPm||0;
+              const netCfPm=r.netCashflowPm||0;
+              const isVacant=(r.holdOccupancy||"vacant")==="vacant";
+              const totalMos=isHold?(bm+rm):(bm+sm);
+              const maxAbs=Math.max(...cfs.map(Math.abs),1);
+              // Label each month for the table
+              const monthLabel=(m:number):string=>{
+                if(m===0) return "Equity deployed";
+                if(!isHold){
+                  if(m<bm) return `Refurb M${m+1}`;
+                  if(m<bm+sm) return `Sell period M${m-bm+1}`;
+                  return "Net sale proceeds";
+                }
+                // hold mode
+                if(m<bm) return `Refurb M${m+1}`;
+                if(m===bm) return cashOut>100?"Refi — cash released":cashOut<-100?"Refi — equity top-up":"Refi — bridge repaid";
+                if(m===bm+rm) return "Sale — refi loan repaid";
+                return isVacant?`Hold M${m-bm+1} (vacant — carrying cost)`:`Hold M${m-bm+1} (net rental income)`;
+              };
+              // Colour each bar: red=outflow, green=inflow, gold=refi event or exit
+              const barColour=(m:number,cf:number):string=>{
+                if(isHold&&m===bm) return "var(--gold)"; // refi event
+                if(m===totalMos-1) return "var(--gold)"; // exit
+                return cf>=0?"var(--green)":"var(--red)";
+              };
+              let cum=0;
+              const rows=cfs.map((cf,m)=>{cum+=cf;return{cf,cum,m,label:monthLabel(m),colour:barColour(m,cf)};});
               return(
                 <div>
                   <div className="section-title">Cashflow</div>
-                  <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
-                    {r.flipMode==="hold"
-                      ?`Construction (${bm}m) → bridge repaid → hold (${rm}m) → exit`
+                  <div style={{fontSize:12,color:"var(--text-d)",marginBottom:4}}>
+                    {isHold
+                      ?`Construction (${bm}m) → refinance → hold (${rm}m) → sale`
                       :`Construction (${bm}m) → sell period (${sm}m) → proceeds`
                     }
                   </div>
-                  <CashflowChart uCfs={flipCfs} totalMonths={totalMos} buildMonths={bm} exitLabel={r.flipMode==="hold"?"Sale + refi repaid":"Net sale proceeds"} currencySymbol={currencySymbol} phaseLabels={phaseLabels}/>
+                  {/* Phase summary strip */}
+                  {isHold&&(
+                    <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+                      {[
+                        {label:`Bridge (${bm}m)`,color:"var(--red)",note:`${currencySymbol}${Math.round(r.peakLoanBalance||0)} peak loan`},
+                        {label:"Refi event",color:"var(--gold)",note:cashOut>100?`${currencySymbol}${Math.round(cashOut)} cash back`:cashOut<-100?`${currencySymbol}${Math.round(Math.abs(cashOut))} top-up needed`:`Bridge fully repaid`},
+                        {label:`Hold (${rm}m)`,color:netCfPm>=0?"var(--green)":"var(--red)",note:isVacant?`${currencySymbol}${Math.round(Math.abs(netCfPm))}/mo carrying cost`:`${currencySymbol}${Math.round(netCfPm)}/mo net income`},
+                        {label:"Exit",color:"var(--gold)",note:`${currencySymbol}${Math.round((r.netProceeds||0)-(r.refiLoan||0))} net`},
+                      ].map(p=>(
+                        <div key={p.label} style={{background:"var(--bg3)",border:`1px solid var(--border)`,borderLeft:`3px solid ${p.color}`,borderRadius:6,padding:"6px 10px",minWidth:110}}>
+                          <div style={{fontSize:10,fontWeight:600,color:p.color,marginBottom:2}}>{p.label}</div>
+                          <div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{p.note}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Bar chart */}
+                  <div style={{overflowX:"auto",marginBottom:20}}>
+                    <div style={{display:"flex",alignItems:"flex-end",gap:2,height:140,minWidth:Math.max(400,cfs.length*16)}}>
+                      {cfs.map((cf,m)=>{
+                        const pct=Math.abs(cf)/maxAbs;
+                        const h=Math.max(2,pct*130);
+                        const col=barColour(m,cf);
+                        const isRefi=isHold&&m===bm;
+                        const isExit=m===totalMos-1;
+                        return(
+                          <div key={m} title={`M${m+1}: ${monthLabel(m)}
+${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
+                            style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"default"}}>
+                            {cf>0&&<div style={{width:"100%",height:h,background:col,borderRadius:"2px 2px 0 0",opacity:.9,outline:isRefi||isExit?"2px solid var(--gold)":"none"}}/>}
+                            <div style={{width:"100%",height:2,background:"var(--border)"}}/>
+                            {cf<0&&<div style={{width:"100%",height:h,background:col,borderRadius:"0 0 2px 2px",opacity:.85}}/>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-d)",marginTop:4,fontFamily:"var(--font-mono)"}}>
+                      <span>M1</span>
+                      {isHold&&<span style={{color:"var(--gold)"}}>↑ Refi M{bm+1}</span>}
+                      <span>Exit M{totalMos}</span>
+                    </div>
+                  </div>
+                  {/* Legend */}
+                  <div style={{display:"flex",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+                    {[["var(--red)","Cash out / cost"],["var(--green)","Cash in / income"],["var(--gold)",isHold?"Refi event + Exit":"Sale proceeds"]].map(([c,l])=>(
+                      <div key={l as string} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:c as string}}/>{l}</div>
+                    ))}
+                    <div style={{marginLeft:"auto",fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>
+                      Payback: {rows.find(row=>row.cum>=0)?`Month ${rows.find(row=>row.cum>=0)!.m+1}`:"Beyond horizon"}
+                    </div>
+                  </div>
+                  {/* Monthly table — shows ALL months with descriptive labels */}
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"var(--font-mono)"}}>
+                      <thead>
+                        <tr style={{borderBottom:"1px solid var(--border)"}}>
+                          {["Month","Event","Cashflow","Cumulative"].map(h=>(
+                            <th key={h} style={{padding:"6px 8px",textAlign:"left",fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(({cf,cum,m,label,colour})=>{
+                          const isRefi=isHold&&m===bm;
+                          const isExit=m===totalMos-1;
+                          const isBridgeZero=!isHold?false:(m>0&&m<bm);
+                          if(isBridgeZero&&Math.abs(cf)<1) return(
+                            <tr key={m} style={{borderBottom:"1px solid var(--bg4)",opacity:.45}}>
+                              <td style={{padding:"4px 8px",color:"var(--text-d)"}}>{m+1}</td>
+                              <td style={{padding:"4px 8px",color:"var(--text-d)",fontStyle:"italic"}}>Refurb in progress</td>
+                              <td style={{padding:"4px 8px",color:"var(--text-d)"}}>—</td>
+                              <td style={{padding:"4px 8px",color:cum>=0?"var(--green)":"var(--text-m)"}}>{cum>=0?"+":""}{currencySymbol}{Math.abs(Math.round(cum)).toLocaleString()}</td>
+                            </tr>
+                          );
+                          return(
+                            <tr key={m} style={{borderBottom:"1px solid var(--bg4)",background:isRefi?"rgba(201,168,76,.08)":isExit?"rgba(201,168,76,.04)":"transparent",fontWeight:isRefi||isExit?600:400}}>
+                              <td style={{padding:"5px 8px",color:"var(--text-d)"}}>{m+1}{isExit?" (Exit)":""}{isRefi?" (Refi)":""}</td>
+                              <td style={{padding:"5px 8px",color:isRefi?"var(--gold)":isExit?"var(--gold)":"var(--text-m)"}}>{label}</td>
+                              <td style={{padding:"5px 8px",color:cf>=0?"var(--green)":"var(--red)"}}>{cf>=0?"+":""}{currencySymbol}{Math.abs(Math.round(cf)).toLocaleString()}</td>
+                              <td style={{padding:"5px 8px",color:cum>=0?"var(--green)":"var(--text-m)"}}>{cum>=0?"+":""}{currencySymbol}{Math.abs(Math.round(cum)).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Hold mode income/cost breakdown footnote */}
+                  {isHold&&(
+                    <div style={{marginTop:16,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",fontSize:11}}>
+                      <div style={{fontWeight:600,color:"var(--text-m)",marginBottom:8}}>Hold period breakdown (per month)</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8}}>
+                        {[
+                          {l:"Refi loan",v:`${currencySymbol}${Math.round(r.refiLoan||0).toLocaleString()}`,c:"var(--text-d)"},
+                          {l:"Refi rate",v:`${(((r.refiInterestPm||0)/(r.refiLoan||1))*12*100).toFixed(2)}% pa`,c:"var(--text-d)"},
+                          {l:"Monthly interest",v:`-${currencySymbol}${Math.round(refiInterestPm).toLocaleString()}`,c:"var(--red)"},
+                          ...(isVacant?[
+                            {l:"Rental income",v:"Vacant — £0",c:"var(--text-d)"},
+                          ]:[
+                            {l:"Gross rent",v:`+${currencySymbol}${Math.round((r.netRentPm||0)/(1-(r.voidPct||0)/100)||0).toLocaleString()}/mo`,c:"var(--green)"},
+                            {l:"Net rent (after void)",v:`+${currencySymbol}${Math.round(r.netRentPm||0).toLocaleString()}/mo`,c:"var(--green)"},
+                          ]) as any[],
+                          {l:"Running opex",v:`-${currencySymbol}${Math.round((netCfPm-refiInterestPm-(r.netRentPm||0))*-1||200).toLocaleString()}/mo`,c:"var(--amber)"},
+                          {l:"Net monthly",v:`${netCfPm>=0?"+":""}{currencySymbol}${Math.round(Math.abs(netCfPm)).toLocaleString()}/mo`,c:netCfPm>=0?"var(--green)":"var(--red)"},
+                          ...(cashOut>100?[{l:"Cash released at refi",v:`+${currencySymbol}${Math.round(cashOut).toLocaleString()}`,c:"var(--green)"}]:
+                             cashOut<-100?[{l:"Equity top-up at refi",v:`-${currencySymbol}${Math.round(Math.abs(cashOut)).toLocaleString()}`,c:"var(--red)"}]:[]) as any[],
+                          {l:"DSCR",v:(r.dscr||0)>0?`${(r.dscr||0).toFixed(2)}×`:"N/A (vacant)",c:(r.dscr||0)>=1.25?"var(--green)":(r.dscr||0)>0?"var(--amber)":"var(--text-d)"},
+                        ].map((item:any)=>(
+                          <div key={item.l} style={{background:"var(--bg2)",borderRadius:6,padding:"7px 10px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{item.l}</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:item.c}}>{item.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
