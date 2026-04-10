@@ -2197,10 +2197,33 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
       const uplift=purchase>0?(sale-purchase)/purchase*100:0;
       if(uplift>40)flags.push({severity:"warning",field:"Sale Price",message:`${uplift.toFixed(0)}% price uplift is very high.`,benchmark:"Typical refurb uplift: 15–30%"});
     }
+    if(assetType==="MixedUse"){
+      const zones=(data.zones||[]);
+      if(zones.length===0)flags.push({severity:"error",field:"Zones",message:"No zones configured — add at least one zone to model this deal.",benchmark:"Mixed Use requires at least one zone"});
+      const totalGDV=r.totalGDV||0;
+      const totalCost=r.totalCost||0;
+      if(totalCost>0&&totalGDV/totalCost<1.1)flags.push({severity:"warning",field:"GDV/Cost Ratio",message:`GDV of ${fmtPct(totalGDV/totalCost-1)} above cost is thin for a mixed-use scheme.`,benchmark:"Typical target: GDV 20–35% above total cost"});
+      const irr=r.irr||0;
+      if(irr>0&&irr<0.10)flags.push({severity:"warning",field:"Blended IRR",message:`${fmtPct(irr)} IRR is below typical hurdle for mixed-use development.`,benchmark:"Typical mixed-use IRR hurdle: 12–18% unlevered"});
+      const poc=r.poc||0;
+      if(poc>0&&poc<0.15)flags.push({severity:"warning",field:"Profit on Cost",message:`${fmtPct(poc)} PoC is below typical mixed-use target.`,benchmark:"Typical mixed-use PoC: 20–30%"});
+    }
+    if(assetType==="Commercial"){
+      const units=(data.units||[]);
+      if(units.length===0)flags.push({severity:"error",field:"Units",message:"No units configured — add at least one unit to model this deal.",benchmark:"Commercial requires at least one unit"});
+      const niy=num(String(data.targetNIY||data.niy||0));
+      if(niy>0&&niy<4.0)flags.push({severity:"warning",field:"Exit Yield / NIY",message:`${niy}% NIY is very compressed for commercial.`,benchmark:"UK commercial: office 4.5–6%, retail 5.5–8%, industrial 4–6%"});
+      if(niy>10)flags.push({severity:"info",field:"Exit Yield / NIY",message:`${niy}% NIY implies a distressed or high-risk asset.`,benchmark:"Prime commercial: 4–7%"});
+      const wault=r.wault||0;
+      if(wault>0&&wault<2)flags.push({severity:"warning",field:"WAULT",message:`WAULT of ${wault.toFixed(1)} years is very short — significant re-let risk.`,benchmark:"Institutional buyers prefer WAULT 5+ years"});
+      const poc=r.poc||0;
+      if(poc>0&&poc<0.12)flags.push({severity:"warning",field:"Profit on Cost",message:`${fmtPct(poc)} PoC is tight for a commercial deal.`,benchmark:"Typical commercial development PoC: 15–25%"});
+    }
     const programme=num(String(data.programmMonths));
     if(programme<6&&(assetType==="BTR"||assetType==="BTS"))flags.push({severity:"error",field:"Programme",message:`${programme} month programme is too short.`,benchmark:`Typical ${assetType} programme: 24–48 months`});
+    if(programme<12&&(assetType==="MixedUse"||assetType==="Commercial"))flags.push({severity:"warning",field:"Programme",message:`${programme} month programme is very short for this asset type.`,benchmark:"Typical mixed-use / commercial: 18–36 months"});
     const margin=num(String(data.marginOverBenchmark));
-    if(margin<1.5)flags.push({severity:"info",field:"Finance Margin",message:`${margin}% margin over benchmark is tight.`,benchmark:"Typical development finance margin: 2.0–3.5%"});
+    if(margin<1.5&&assetType!=="Flip")flags.push({severity:"info",field:"Finance Margin",message:`${margin}% margin over benchmark is tight.`,benchmark:"Typical development finance margin: 2.0–3.5%"});
     const overall=flags.filter(f=>f.severity==="error").length>0?"red":flags.filter(f=>f.severity==="warning").length>=2?"amber":flags.length===0?"green":"amber";
     const summary=overall==="green"?"All assumptions look credible — no major issues identified.":overall==="amber"?`${flags.length} assumption${flags.length!==1?"s":""} to review before presenting to a lender.`:`${flags.filter((f:any)=>f.severity==="error").length} critical issue${flags.filter((f:any)=>f.severity==="error").length!==1?"s":""} identified — address before proceeding.`;
     setSenseResult({overall,summary,flags});
@@ -2209,13 +2232,16 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
     setSenseRunning(true);setSenseError(null);setSenseResult(null);
     const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
     const dealSummary=`Asset Type: ${assetType} | Location: ${data.location||"Not specified"} | Currency: ${data.currency}
-Programme: ${data.programmMonths} months ${assetType==="BTS"?`+ ${data.absorptionMonths}m absorption`:""}
+${assetType==="BTR"||assetType==="BTS"||assetType==="Hotel"||assetType==="MixedUse"||assetType==="Commercial"?`Programme: ${data.programmMonths} months`:""}
 ${assetType==="BTR"?`Units: ${(data.units||[]).map((u:any)=>`${u.count}x ${u.type} @ ${currSym}${u.rentPcm}pcm (${u.size}sqft)`).join(", ")}\nExit Yield: ${data.exitYield}% | Void: ${data.voidPct}% | OpEx: ${currSym}${data.opexPsf}psf\nBuild Cost: ${currSym}${data.buildCostPsf}psf`:""}
 ${assetType==="BTS"?`Units: ${(data.units||[]).map((u:any)=>`${u.count}x ${u.type} @ ${currSym}${u.salePricePsf}psf (${u.size}sqft)`).join(", ")}\nBuild Cost: ${currSym}${data.buildCostPsf}psf`:""}
 ${assetType==="Hotel"?`Rooms: ${data.rooms} | Stars: ${data.starRating} | ADR: ${currSym}${data.adr} | Occupancy: ${data.occupancy}%\nEBITDA: ${fmt(r.ebitda,currSym)}pa | DSCR: ${fmtX(r.dscr)}`:""}
-Finance: LTC ${data.ltc||data.bridgingRatePct}% | Benchmark: ${data.benchmark} + ${data.marginOverBenchmark}% | All-in: ${r.financeRate?(r.financeRate*100).toFixed(2):"N/A"}%
-Prof Fees: ${data.professionalFeesPct}% | Contingency: ${data.contingencyPct}%
-Results: GDV ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.totalCost||r.totalInvestment||0,currSym)} | Profit ${fmt(r.profit||0,currSym)} | PoC ${fmtPct(r.poc||r.roi||0)} | IRR ${fmtPct(r.irr||0)} | MOIC ${fmtX(r.moic||0)} | DSCR ${r.dscr?fmtX(r.dscr):"N/A"}`.trim();
+${assetType==="Flip"?`Purchase: ${fmt(r.purchase||0,currSym)} | Refurb: ${fmt(r.refurb||0,currSym)} | Sale Price: ${fmt(r.salePrice||0,currSym)}\nBridging LTV: ${data.flipLTV||75}% | Rate: ${data.bridgingRatePct||0.85}%pm | Term: ${data.bridgingTermMonths||6}m\nMode: ${data.flipMode==="hold"?"Bridge + Hold (BTL)":"Bridge + Sell"}`:""}
+${assetType==="MixedUse"?`Zones: ${(data.zones||[]).map((z:any)=>`${z.label||z.type} (${z.type}) ${currSym}${z.buildCostPsf||0}psf`).join(", ")}\nTotal GDV: ${fmt(r.totalGDV||0,currSym)} | Blended IRR: ${fmtPct(r.irr||0)}`:""}
+${assetType==="Commercial"?`Units: ${(data.units||[]).map((u:any)=>`${u.label||u.type}: ${currSym}${u.erv||0}psf ERV, ${u.area||0}sqm`).join(", ")}\nExit Method: ${data.exitMethod||"NIY"} | NIY: ${data.targetNIY||data.niy||0}%`:""}
+Finance: ${assetType==="Flip"?`Bridging rate ${data.bridgingRatePct||0}%pm | LTV ${data.flipLTV||75}%`:`LTC ${data.ltc||0}% | Benchmark: ${data.benchmark||"SONIA"} + ${data.marginOverBenchmark||0}% | All-in: ${r.financeRate?(r.financeRate*100).toFixed(2):"N/A"}%`}
+Prof Fees: ${data.professionalFeesPct||0}% | Contingency: ${data.contingencyPct||0}%
+Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.totalCost||r.totalInvestment||0,currSym)} | Profit ${fmt(r.profit||0,currSym)} | PoC ${fmtPct(r.poc||r.roi||0)} | IRR ${fmtPct(r.irr||0)} | MOIC ${fmtX(r.moic||0)} | DSCR ${r.dscr&&isFinite(r.dscr)?fmtX(r.dscr):"N/A (no debt)"}`.trim();
     try{
       const response=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary})});
       const parsed=await response.json();
@@ -2506,7 +2532,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>Marketing + conveyancing after completion</div>
                         </div>
                       )}
-                      {(data.flipMode||"sell")==="hold"&&(
+                      {(data.flipCapStructure||"bridge")==="bridge_refi"&&(
                         <div className="inp-group">
                           <label className="inp-label">Hold Period (months)</label>
                           <input className="inp" type="number" min="1" value={data.refiTermMonths} onChange={e=>set("refiTermMonths",e.target.value)}/>
@@ -2525,7 +2551,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <span style={{fontFamily:"var(--font-mono)",color:"var(--text)"}}>{data.sellMonths||3}m</span>
                         </div>
                       )}
-                      {(data.flipMode||"sell")==="hold"&&(
+                      {(data.flipCapStructure||"bridge")==="bridge_refi"&&(
                         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginTop:4}}>
                           <span style={{color:"var(--text-d)"}}>Hold period</span>
                           <span style={{fontFamily:"var(--font-mono)",color:"var(--text)"}}>{data.refiTermMonths||24}m</span>
@@ -3250,7 +3276,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* FINANCE */}
             {activeTab==="finance"&&(
               <div>
-                <div className="section-title">Development Finance</div>
+                {assetType!=="Flip"&&<div className="section-title">Development Finance</div>}
                 {/* Advanced Hotel — Capital Structure Selector */}
                 {assetType==="Hotel"&&hotelMode==="advanced"&&(
                   <>
@@ -3589,7 +3615,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="section-title" style={{marginBottom:12}}>Capital Structure</div>
                     <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
                       {[{key:"equity",label:"All Equity"},{key:"bridge",label:"Bridging Loan"},{key:"bridge_refi",label:"Bridge + Refi"}].map(opt=>(
-                        <button key={opt.key} onClick={()=>set("flipCapStructure",opt.key)}
+                        <button key={opt.key} onClick={()=>{set("flipCapStructure",opt.key);set("flipMode",opt.key==="bridge_refi"?"hold":"sell");}}
                           style={{padding:"8px 16px",borderRadius:7,border:`1px solid ${(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.flipCapStructure||"bridge")===opt.key?"var(--gold-bg)":"var(--bg3)",color:(data.flipCapStructure||"bridge")===opt.key?"var(--gold)":"var(--text-m)",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all .2s",fontFamily:"var(--font-body)"}}>
                           {opt.label}
                         </button>
@@ -3627,7 +3653,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       ))}
                       <div style={{fontSize:10,color:"var(--text-d)",marginTop:6,fontStyle:"italic"}}>Interest rolled monthly on drawn balance — straight-line draw over bridge term.</div>
                     </div>
-                    {(data.flipMode||"sell")==="hold"&&(
+                    {(data.flipCapStructure||"bridge")==="bridge_refi"&&(
                       <>
                         <div style={{height:1,background:"var(--border)",margin:"16px 0"}}/>
                         <div style={{fontSize:11,color:"var(--blue)",fontWeight:600,marginBottom:12}}>Refinance (BTL Mortgage) — after month {data.bridgingTermMonths||6}</div>
@@ -4652,7 +4678,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   const baseSalePrice=r.salePrice||0;
                   const baseRefurb=r.refurb||0;
                   const salePctSteps=[10,5,0,-5,-10];
-                  const refurbPctSteps=[-10,-5,0,5,10];
+                  const refurbPctSteps=[10,5,0,-5,-10];
                   // Build 5×5 matrix: rows = sale price %, cols = refurb cost %
                   const flipSensMatrix=salePctSteps.map(sp=>{
                     const modSalePrice=baseSalePrice*(1+sp/100);
