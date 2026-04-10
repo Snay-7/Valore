@@ -4793,13 +4793,13 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                           {l:"Refi rate",v:`${(((r.refiInterestPm||0)/(r.refiLoan||1))*12*100).toFixed(2)}% pa`,c:"var(--text-d)"},
                           {l:"Monthly interest",v:`-${currencySymbol}${Math.round(refiInterestPm).toLocaleString()}`,c:"var(--red)"},
                           ...(isVacant?[
-                            {l:"Rental income",v:"Vacant — £0",c:"var(--text-d)"},
+                            {l:"Rental income",v:`Vacant — ${currencySymbol}0`,c:"var(--text-d)"},
                           ]:[
                             {l:"Gross rent",v:`+${currencySymbol}${Math.round((r.netRentPm||0)/(1-(r.voidPct||0)/100)||0).toLocaleString()}/mo`,c:"var(--green)"},
                             {l:"Net rent (after void)",v:`+${currencySymbol}${Math.round(r.netRentPm||0).toLocaleString()}/mo`,c:"var(--green)"},
                           ]) as any[],
-                          {l:"Running opex",v:`-${currencySymbol}${Math.round((netCfPm-refiInterestPm-(r.netRentPm||0))*-1||200).toLocaleString()}/mo`,c:"var(--amber)"},
-                          {l:"Net monthly",v:`${netCfPm>=0?"+":""}{currencySymbol}${Math.round(Math.abs(netCfPm)).toLocaleString()}/mo`,c:netCfPm>=0?"var(--green)":"var(--red)"},
+                          {l:"Running opex",v:`-${currencySymbol}${Math.round(Math.abs((r.netRentPm||0)-refiInterestPm-netCfPm)||0).toLocaleString()}/mo`,c:"var(--amber)"},
+                          {l:"Net monthly",v:`${netCfPm>=0?"+":"-"}${currencySymbol}${Math.round(Math.abs(netCfPm)).toLocaleString()}/mo`,c:netCfPm>=0?"var(--green)":"var(--red)"},
                           ...(cashOut>100?[{l:"Cash released at refi",v:`+${currencySymbol}${Math.round(cashOut).toLocaleString()}`,c:"var(--green)"}]:
                              cashOut<-100?[{l:"Equity top-up at refi",v:`-${currencySymbol}${Math.round(Math.abs(cashOut)).toLocaleString()}`,c:"var(--red)"}]:[]) as any[],
                           {l:"DSCR",v:(r.dscr||0)>0?`${(r.dscr||0).toFixed(2)}×`:"N/A (vacant)",c:(r.dscr||0)>=1.25?"var(--green)":(r.dscr||0)>0?"var(--amber)":"var(--text-d)"},
