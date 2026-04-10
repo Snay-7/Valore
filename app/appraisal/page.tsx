@@ -833,8 +833,9 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const refiLoan=salePrice*refiLTV;
     const refiInterestPm=refiLoan*(refiRate/12);
     const refiArrangement=refiLoan*(num(String(data.refiArrangementPct||1.0))/100);
-    const rentPcm=num(String(data.rentPcm||0));
-    const voidPct=num(String(data.voidPct||5))/100;
+    const holdOccupancy=data.holdOccupancy||"vacant";
+    const rentPcm=holdOccupancy==="tenanted"?num(String(data.rentPcm||0)):0;
+    const voidPct=holdOccupancy==="tenanted"?num(String(data.voidPct||5))/100:0;
     const netRentPm=rentPcm*(1-voidPct);
     const monthlyOpex=num(String(data.holdOpexPm||200));
     const netCashflowPm=netRentPm-refiInterestPm-monthlyOpex;
@@ -1203,7 +1204,7 @@ const DEFAULTS={
        units:1,sizeSqft:1200,buildCostPsf:180,salePricePsf:0,rentPcm:3000,exitYield:6.5,vatPct:20,startMonth:0},
     ],
   },
-  Flip:{assetType:"Flip",vatPct:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,sellMonths:3,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,areaModelOn:false,unitSystem:"sqft",existingArea:900,newArea:0,existingCostPsf:95,newCostPsf:180,architectPct:0,structEngPct:0,interiorPct:0,ffeCost:0,otherProfFees:0},
+  Flip:{assetType:"Flip",vatPct:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,sellMonths:3,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",holdOccupancy:"vacant",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,areaModelOn:false,unitSystem:"sqft",existingArea:900,newArea:0,existingCostPsf:95,newCostPsf:180,architectPct:0,structEngPct:0,interiorPct:0,ffeCost:0,otherProfFees:0},
 };
 type AssetType="BTR"|"BTS"|"Hotel"|"Flip"|"MixedUse"|"Commercial";
 type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
@@ -2193,6 +2194,10 @@ Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your
     if(assetType==="Flip"){
       const bridgingRate=num(String(data.bridgingRatePct));const purchase=num(String(data.purchasePrice));const sale=num(String(data.salePrice));
       if(bridgingRate>1.2)flags.push({severity:"warning",field:"Bridging Rate",message:`${bridgingRate}%pm is above typical bridging rates.`,benchmark:"Typical bridging: 0.6–1.0%pm"});
+      if(data.flipCapStructure==="bridge_refi"&&(data.holdOccupancy||"vacant")==="vacant"&&(r.netCashflowPm||0)<0){
+        const totalDrain=Math.abs((r.netCashflowPm||0)*num(String(data.refiTermMonths||24)));
+        flags.push({severity:"warning",field:"Vacant hold",message:`Property is vacant during hold — negative cashflow of ${currSym}${Math.round(Math.abs(r.netCashflowPm||0))}/mo. Total equity drain: ${currSym}${Math.round(totalDrain)}.`,benchmark:"Consider letting during hold to offset mortgage payments"});
+      }
       if(sale<purchase)flags.push({severity:"error",field:"Sale Price",message:"Sale price is below purchase price — this deal will make a loss.",benchmark:"Sale price must exceed total cost"});
       const uplift=purchase>0?(sale-purchase)/purchase*100:0;
       if(uplift>40)flags.push({severity:"warning",field:"Sale Price",message:`${uplift.toFixed(0)}% price uplift is very high.`,benchmark:"Typical refurb uplift: 15–30%"});
@@ -3665,21 +3670,70 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div className="inp-group"><label className="inp-label">Hold Term (months)</label><input className="inp" type="number" value={data.refiTermMonths} onChange={e=>set("refiTermMonths",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.refiArrangementPct} onChange={e=>set("refiArrangementPct",e.target.value)}/></div>
                         </div>
+                        {/* Vacancy toggle */}
+                        <div style={{marginBottom:14}}>
+                          <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Property status during hold</div>
+                          <div style={{display:"flex",gap:8}}>
+                            {[{key:"vacant",label:"Vacant"},{key:"tenanted",label:"Tenanted / let"}].map(opt=>(
+                              <button key={opt.key} onClick={()=>set("holdOccupancy",opt.key)}
+                                style={{padding:"7px 16px",borderRadius:7,border:`1px solid ${(data.holdOccupancy||"vacant")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.holdOccupancy||"vacant")===opt.key?"var(--gold-bg)":"var(--bg3)",color:(data.holdOccupancy||"vacant")===opt.key?"var(--gold)":"var(--text-m)",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all .2s",fontFamily:"var(--font-body)"}}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Rental income inputs — only when tenanted */}
+                        {(data.holdOccupancy||"vacant")==="tenanted"&&(
+                          <div className="inp-row">
+                            <div className="inp-group"><label className="inp-label">Rent (pcm)</label><input className="inp" type="number" step="50" value={data.rentPcm||0} onChange={e=>set("rentPcm",e.target.value)}/></div>
+                            <div className="inp-group"><label className="inp-label">Void / vacancy (%)</label><input className="inp" type="number" step="1" value={data.voidPct||5} onChange={e=>set("voidPct",e.target.value)}/></div>
+                          </div>
+                        )}
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Monthly opex ({currencySymbol})</label><input className="inp" type="number" step="50" value={data.holdOpexPm||200} onChange={e=>set("holdOpexPm",e.target.value)}/></div>
+                        </div>
                         {(r.refiLoan||0)>0&&(
                           <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12}}>
-                            <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Refinance Summary</div>
-                            {[
-                              ["Refi Loan",fmt(r.refiLoan||0,currencySymbol),"var(--text-m)"],
-                              ["Monthly Interest",`${currencySymbol}${Math.round(r.refiInterestPm||0)}/mo`,"var(--amber)"],
-                              ["Net Cashflow pm",`${currencySymbol}${Math.round(r.netCashflowPm||0)}/mo`,(r.netCashflowPm||0)>0?"var(--green)":"var(--red)"],
-                              ["Gross Yield",fmtPct(r.grossYield||0),"var(--blue)"],
-                              ["Net Yield",fmtPct(r.netYield||0),"var(--blue)"],
-                            ].map(([l,v,c]:any)=>(
-                              <div key={l} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:"1px solid var(--bg4)"}}>
-                                <span style={{color:"var(--text-m)"}}>{l}</span>
-                                <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:500}}>{v}</span>
+                            <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Monthly cashflow during hold</div>
+                            {(()=>{
+                              const isVacant=(data.holdOccupancy||"vacant")==="vacant";
+                              const grossRent=isVacant?0:num(String(data.rentPcm||0));
+                              const voidDeduct=isVacant?0:grossRent*(num(String(data.voidPct||5))/100);
+                              const netRent=grossRent-voidDeduct;
+                              const refiInt=r.refiInterestPm||0;
+                              const opex=num(String(data.holdOpexPm||200));
+                              const netCf=r.netCashflowPm||0;
+                              const holdMos=Math.round(num(String(data.refiTermMonths||24)));
+                              const totalDrain=netCf*holdMos;
+                              const rows=[
+                                ["Refi loan",fmt(r.refiLoan||0,currencySymbol),"var(--text-m)",false],
+                                isVacant
+                                  ?["Rental income","Vacant — £0/mo","var(--text-d)",false]
+                                  :["Gross rent",`+ ${currencySymbol}${Math.round(grossRent)}/mo`,"var(--green)",false],
+                                ...(!isVacant&&voidDeduct>0?[["Vacancy deduction",`- ${currencySymbol}${Math.round(voidDeduct)}/mo`,"var(--red)",false]]:[] as any[]),
+                                ...(!isVacant?[["Net rent",`= ${currencySymbol}${Math.round(netRent)}/mo`,"var(--green)",false]]:[] as any[]),
+                                ["Refi interest",`- ${currencySymbol}${Math.round(refiInt)}/mo`,"var(--red)",false],
+                                ["Running opex",`- ${currencySymbol}${Math.round(opex)}/mo`,"var(--amber)",false],
+                                ["Net monthly",`${netCf>=0?"+ ":""}${currencySymbol}${Math.round(Math.abs(netCf))}/mo`,netCf>=0?"var(--green)":"var(--red)",true],
+                                ["Total over hold",`${totalDrain>=0?"+ ":""}${currencySymbol}${Math.round(Math.abs(totalDrain))}`,totalDrain>=0?"var(--green)":"var(--red)",true],
+                                ...(!isVacant?[
+                                  ["Gross yield",fmtPct(r.grossYield||0),"var(--blue)",false],
+                                  ["Net yield",fmtPct(r.netYield||0),"var(--blue)",false],
+                                  ["DSCR / ICR",(r.dscr||0)>0?fmtX(r.dscr):"—",(r.dscr||0)>=1.25?"var(--green)":(r.dscr||0)>0?"var(--amber)":"var(--text-d)",false],
+                                ] as any[]:[] as any[]),
+                              ];
+                              return rows.map(([l,v,c,bold]:any,i:number)=>(
+                                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:"1px solid var(--bg4)",background:bold?"rgba(201,168,76,0.04)":"transparent"}}>
+                                  <span style={{color:bold?"var(--text)":"var(--text-m)",fontWeight:bold?600:400}}>{l}</span>
+                                  <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:bold?600:500}}>{v}</span>
+                                </div>
+                              ));
+                            })()}
+                            {(r.netCashflowPm||0)<0&&(
+                              <div style={{marginTop:8,padding:"8px 10px",background:"rgba(244,100,95,0.06)",border:"1px solid rgba(244,100,95,0.2)",borderRadius:6,fontSize:11,color:"var(--red)"}}>
+                                ⚠ Negative monthly cashflow — you will need to fund {currencySymbol}{Math.round(Math.abs((r.netCashflowPm||0)*Math.round(num(String(data.refiTermMonths||24)))))} from equity during the hold period.
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
                       </>
@@ -4497,6 +4551,8 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
               const sm=Math.max(0,Math.round(r.sellMonths||0));
               const rm=Math.max(1,Math.round(r.refiMonths||0));
               const eq=(r.equityIn||r.equity)||0;
+              // Hold mode: bridge zeros + monthly net cashflow (can be negative if vacant) + final exit
+              // Vacant property: netCashflowPm = -refiInterestPm - opex (negative outflow each month)
               const flipCfs:number[]=r.flipMode==="hold"
                 ?[-eq,...Array(Math.max(0,bm-1)).fill(0),...Array(Math.max(0,rm-1)).fill(r.netCashflowPm||0),(r.netCashflowPm||0)+((r.netProceeds||0)-(r.refiLoan||0))]
                 :[-eq,...Array(Math.max(0,bm-1)).fill(0),...Array(sm).fill(0),(r.netProceeds||0)-(r.peakLoanBalance||0)];
