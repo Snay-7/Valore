@@ -89,8 +89,8 @@ const fmt = (n: number, prefix = "£") => {
   return `${prefix}${n.toFixed(0)}`;
 };
 const fmtPct = (n: number) => (n === null || n === undefined || !isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
-const ASSET_TYPES = ["BTR", "BTS", "Hotel", "Flip", "MixedUse"];
-const ASSET_LABELS: Record<string,string> = {BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use"};
+const ASSET_TYPES = ["BTR", "BTS", "Hotel", "Flip", "MixedUse", "Commercial"];
+const ASSET_LABELS: Record<string,string> = {BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use",Commercial:"Commercial"};
 const CURRENCIES = ["GBP", "USD", "EUR", "AED", "SGD", "AUD"];
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
 const TRASH_DAYS = 3;
@@ -435,7 +435,7 @@ export default function Dashboard() {
                   return (
                     <div key={p.id} className="card trashed" style={{ animationDelay: `${i * 0.04}s`, cursor: "default" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 500 }}>{ASSET_LABELS[p.asset_type]||p.asset_type}</span>
+                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 500 }}>{ASSET_LABELS[p.asset_type] || p.asset_type}</span>
                         <span style={{ fontSize: 10, color: "var(--red)", fontFamily: "var(--font-mono)" }}>Deletes in {p._daysLeft}d</span>
                       </div>
                       <h3 style={{ fontSize: 15, fontWeight: 500, marginBottom: 2, fontFamily: "var(--font-display)" }}>{p.name || "Untitled"}</h3>
@@ -621,7 +621,7 @@ export default function Dashboard() {
 
 
                       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>{ASSET_LABELS[p.asset_type]||p.asset_type}</span>
+                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>{ASSET_LABELS[p.asset_type] || p.asset_type}</span>
                         <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "rgba(125,133,144,.1)", color: "#7d8590" }}>{latest?.status || "draft"}</span>
                         <span style={{ fontSize: 10, color: "var(--text-d)", marginLeft: "auto", fontFamily: "var(--font-mono)" }}>
                           {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}
@@ -789,7 +789,7 @@ export default function Dashboard() {
                 <div className="inp-group">
                   <label className="inp-label">Asset Type</label>
                   <select className="inp" value={newProject.asset_type} onChange={e => setNewProject(p => ({ ...p, asset_type: e.target.value }))}>
-                    {ASSET_TYPES.map(t => <option key={t} value={t}>{ASSET_LABELS[t]||t}</option>)}
+                    {ASSET_TYPES.map(t => <option key={t} value={t}>{ASSET_LABELS[t] || t}</option>)}
                   </select>
                 </div>
                 <div className="inp-group">
