@@ -142,15 +142,41 @@ export default function Dashboard() {
   useEffect(() => {
     const done = localStorage.getItem("valora_onboarding_done");
     const dismissed = localStorage.getItem("valora_video_dismissed");
-    if (done) setOnboardingDone(true);
-    else if (user) setShowOnboarding(true);
     if (dismissed) setVideoDismissed(true);
+    if (user?.id) {
+      // Check Supabase first — if experience_level exists, onboarding is done
+      supabase
+        .from("profiles")
+        .select("experience_level")
+        .eq("id", user.id)
+        .single()
+        .then(({ data: profile }) => {
+          if (profile?.experience_level) {
+            setExperienceLevel(profile.experience_level);
+            setOnboardingDone(true);
+            localStorage.setItem("valora_onboarding_done", "true");
+          } else if (!done) {
+            setShowOnboarding(true);
+          } else {
+            setOnboardingDone(true);
+          }
+        });
+    } else if (done) {
+      setOnboardingDone(true);
+    }
   }, [user]);
 
-  const completeOnboarding = (level: string) => {
+  const completeOnboarding = async (level: string) => {
     setExperienceLevel(level);
     localStorage.setItem("valora_onboarding_done", "true");
     localStorage.setItem("valora_experience_level", level);
+    // Save to Supabase profiles table
+    if (user?.id) {
+      await supabase
+        .from("profiles")
+        .upsert({ id: user.id, experience_level: level, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+    }
     setOnboardingDone(true);
     setShowOnboarding(false);
   };
