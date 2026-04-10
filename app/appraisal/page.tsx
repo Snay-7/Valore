@@ -2056,77 +2056,24 @@ function AppraisalPage(){
   const runFlipCompsAI=async()=>{
     if(!data.location)return;
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
-    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency as string]||"£";
-    const sqft=num(String(data.propertySqft||0));
-    const beds=data.bedrooms||"";
-    const propType=data.propertyType||"residential";
-    const location=data.location||"";
-    const purchasePrice=data.purchasePrice||0;
-    const salePrice=data.salePrice||0;
     try{
-      // Use Anthropic API directly with web_search tool — gives real current market data
-      const systemPrompt=`You are a property market data analyst. The user needs real comparable property data for an investment appraisal.
-Use the web_search tool to find:
-1. Recent sold prices (last 12 months) for similar properties near ${location}
-2. Current rental listings for similar properties near ${location}
-Search Rightmove, Zoopla, Land Registry, or local property portals depending on the currency/region.
-After searching, respond ONLY with a valid JSON object — no markdown fences, no explanation, no text outside the JSON.`;
-
-      const userPrompt=`Find real property comparables for this flip investment:
-Location: ${location}
-Property size: ${sqft>0?sqft+" sqft":"unknown"}
-${beds?"Bedrooms: "+beds:""}
-Purchase price: ${currSym}${purchasePrice.toLocaleString()}
-Target sale price: ${currSym}${salePrice.toLocaleString()}
-Currency: ${data.currency||"GBP"}
-
-Search for recent sold prices and rental listings in ${location}. Return ONLY this JSON structure:
-{
-  "comparables": [
-    {"address": "full address", "price": 450000, "sqft": 850, "pricePsf": 529, "bedrooms": 3, "type": "Terraced", "sold": "2025-Q1", "notes": "Recently refurbished"}
-  ],
-  "marketContext": "2-3 sentence summary of the local market, price trends, demand drivers",
-  "avgPricePsf": 520,
-  "priceRange": {"low": 420000, "high": 580000},
-  "refurbUplift": {"low": 30000, "high": 60000, "notes": "Typical uplift from full refurb in this area"},
-  "rentalComps": [
-    {"address": "full address", "rentPcm": 1800, "bedrooms": 3, "type": "Terraced", "notes": "Newly let"}
-  ],
-  "avgRentPcm": 1750,
-  "grossYieldRange": {"low": 4.5, "high": 6.2},
-  "dataSource": "Rightmove / Zoopla / Land Registry",
-  "dataDate": "April 2025"
-}
-Include 4-5 sold comps and 3-4 rental comps. Use real addresses and realistic current figures.`;
-
-      const response=await fetch("https://api.anthropic.com/v1/messages",{
+      const res=await fetch("/api/comps",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:2000,
-          system:systemPrompt,
-          tools:[{"type":"web_search_20250305","name":"web_search"}],
-          messages:[{role:"user",content:userPrompt}]
+          location:data.location,
+          sqft:num(String(data.propertySqft||0)),
+          bedrooms:data.bedrooms||"",
+          purchasePrice:data.purchasePrice||0,
+          salePrice:data.salePrice||0,
+          currency:data.currency||"GBP",
+          assetType:"Flip",
         })
       });
-      if(!response.ok){
-        const err=await response.json().catch(()=>({}));
-        throw new Error(err.error?.message||`API error ${response.status}`);
-      }
-      const data_=await response.json();
-      // Extract text from all content blocks (web_search tool_use + text blocks)
-      const fullText=data_.content
-        .map((b:any)=>b.type==="text"?b.text:"")
-        .filter(Boolean)
-        .join("\n");
-      // Parse JSON — strip any accidental markdown fences
-      const clean=fullText.replace(/```json|```/g,"").trim();
-      const jsonMatch=clean.match(/\{[\s\S]*\}/);
-      if(!jsonMatch)throw new Error("No property data returned — check your location is specific enough (e.g. 'Hackney, London' not just 'London')");
-      const parsed=JSON.parse(jsonMatch[0]);
-      if(!parsed.comparables&&!parsed.marketContext)throw new Error("Unexpected response format — try again");
-      setFlipComps(parsed);
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||`Error ${res.status}`);
+      if(!d.comparables&&!d.marketContext)throw new Error("No property data returned — try a more specific location");
+      setFlipComps(d);
     }catch(e:any){
       setFlipCompsError(e.message||"Failed to fetch comparables — try again with a more specific location");
     }
