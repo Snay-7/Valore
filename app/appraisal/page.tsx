@@ -2053,72 +2053,83 @@ function AppraisalPage(){
 
 
 
-  const runFlipComps=async()=>{
-    if(!data.location&&!data.purchasePrice)return;
-    setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
-    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
-    try{
-      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`Provide residential property comparables for a house flip. Location: ${data.location||"UK"}. Property size: ${data.propertySqft||"unknown"} sqft. Purchase price: ${currSym}${data.purchasePrice||"unknown"}. Currency: ${data.currency||"GBP"}.\n\nRespond ONLY with a JSON object: {"comparables":[{"address":"...","price":number,"sqft":number,"pricePsf":number,"bedrooms":number,"type":"...","sold":"YYYY-MM","notes":"..."}],"marketContext":"...","avgPricePsf":number,"refurbUplift":{"low":number,"high":number,"notes":"..."},"rentalComps":[{"address":"...","rentPcm":number,"bedrooms":number,"type":"...","notes":"..."}],"avgRentPcm":number}. Include 4-5 sold comps and 3-4 rental comps. Use training knowledge only.`})});
-      const d=await res.json();
-      // Try to parse JSON from the AI sense check response
-      if(d.flags||d.summary){
-        // It returned sense check format — try to extract JSON from summary
-        setFlipCompsError("Use the AI Comps button for comparable data");
-      } else {
-        setFlipComps(d);
-      }
-    }catch(e:any){setFlipCompsError(e.message||"Failed");}
-    setFlipCompsRunning(false);
-  };
   const runFlipCompsAI=async()=>{
     if(!data.location)return;
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
-    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+    const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency as string]||"£";
     const sqft=num(String(data.propertySqft||0));
-    const beds=data.bedrooms||"unknown";
+    const beds=data.bedrooms||"";
+    const propType=data.propertyType||"residential";
+    const location=data.location||"";
+    const purchasePrice=data.purchasePrice||0;
+    const salePrice=data.salePrice||0;
     try{
-      const res=await fetch("/api/sensecheck",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary:`You are a property data assistant. Provide residential property market data for a house flip investment analysis.
+      // Use Anthropic API directly with web_search tool — gives real current market data
+      const systemPrompt=`You are a property market data analyst. The user needs real comparable property data for an investment appraisal.
+Use the web_search tool to find:
+1. Recent sold prices (last 12 months) for similar properties near ${location}
+2. Current rental listings for similar properties near ${location}
+Search Rightmove, Zoopla, Land Registry, or local property portals depending on the currency/region.
+After searching, respond ONLY with a valid JSON object — no markdown fences, no explanation, no text outside the JSON.`;
 
+      const userPrompt=`Find real property comparables for this flip investment:
+Location: ${location}
+Property size: ${sqft>0?sqft+" sqft":"unknown"}
+${beds?"Bedrooms: "+beds:""}
+Purchase price: ${currSym}${purchasePrice.toLocaleString()}
+Target sale price: ${currSym}${salePrice.toLocaleString()}
+Currency: ${data.currency||"GBP"}
 
+Search for recent sold prices and rental listings in ${location}. Return ONLY this JSON structure:
+{
+  "comparables": [
+    {"address": "full address", "price": 450000, "sqft": 850, "pricePsf": 529, "bedrooms": 3, "type": "Terraced", "sold": "2025-Q1", "notes": "Recently refurbished"}
+  ],
+  "marketContext": "2-3 sentence summary of the local market, price trends, demand drivers",
+  "avgPricePsf": 520,
+  "priceRange": {"low": 420000, "high": 580000},
+  "refurbUplift": {"low": 30000, "high": 60000, "notes": "Typical uplift from full refurb in this area"},
+  "rentalComps": [
+    {"address": "full address", "rentPcm": 1800, "bedrooms": 3, "type": "Terraced", "notes": "Newly let"}
+  ],
+  "avgRentPcm": 1750,
+  "grossYieldRange": {"low": 4.5, "high": 6.2},
+  "dataSource": "Rightmove / Zoopla / Land Registry",
+  "dataDate": "April 2025"
+}
+Include 4-5 sold comps and 3-4 rental comps. Use real addresses and realistic current figures.`;
 
-
-
-
-
-
-Property details:
-- Location: ${data.location}
-- Size: ${sqft>0?sqft+"sqft":"unknown"}
-- Purchase price: ${currSym}${data.purchasePrice||"unknown"}
-- Currency: ${data.currency||"GBP"}
-
-
-
-
-
-
-
-
-Respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
-{"comparables":[{"address":"Street, Area","price":350000,"sqft":850,"pricePsf":412,"bedrooms":3,"type":"Terraced","sold":"2024-Q3","notes":"Refurbished"},{"address":"Street, Area","price":380000,"sqft":920,"pricePsf":413,"bedrooms":3,"type":"Semi-detached","sold":"2024-Q2","notes":"Extended kitchen"}],"marketContext":"Brief 2-sentence market summary","avgPricePsf":410,"refurbUplift":{"low":25000,"high":45000,"notes":"Kitchen/bathroom focus"},"rentalComps":[{"address":"Street, Area","rentPcm":1800,"bedrooms":3,"type":"Terraced","notes":"Furnished"},{"address":"Street, Area","rentPcm":1950,"bedrooms":3,"type":"Semi-detached","notes":"Unfurnished"}],"avgRentPcm":1875}
-
-
-
-
-
-
-
-
-Provide 4-5 sold comps and 3-4 rental comps. Use realistic figures based on your knowledge of ${data.location} property market. Do not include any text outside the JSON object.`})});
-      const text=await res.text();
-      // Parse JSON — the sensecheck API may wrap it
-      const jsonMatch=text.match(/\{[\s\S]*\}/);
-      if(!jsonMatch)throw new Error("No JSON in response");
-      const d=JSON.parse(jsonMatch[0]);
-      if(d.comparables||d.marketContext){setFlipComps(d);}
-      else if(d.flags){throw new Error("No comps data returned — try again");}
-      else{setFlipComps(d);}
-    }catch(e:any){setFlipCompsError(e.message||"Failed to fetch comps — try again");}
+      const response=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:2000,
+          system:systemPrompt,
+          tools:[{"type":"web_search_20250305","name":"web_search"}],
+          messages:[{role:"user",content:userPrompt}]
+        })
+      });
+      if(!response.ok){
+        const err=await response.json().catch(()=>({}));
+        throw new Error(err.error?.message||`API error ${response.status}`);
+      }
+      const data_=await response.json();
+      // Extract text from all content blocks (web_search tool_use + text blocks)
+      const fullText=data_.content
+        .map((b:any)=>b.type==="text"?b.text:"")
+        .filter(Boolean)
+        .join("\n");
+      // Parse JSON — strip any accidental markdown fences
+      const clean=fullText.replace(/```json|```/g,"").trim();
+      const jsonMatch=clean.match(/\{[\s\S]*\}/);
+      if(!jsonMatch)throw new Error("No property data returned — check your location is specific enough (e.g. 'Hackney, London' not just 'London')");
+      const parsed=JSON.parse(jsonMatch[0]);
+      if(!parsed.comparables&&!parsed.marketContext)throw new Error("Unexpected response format — try again");
+      setFlipComps(parsed);
+    }catch(e:any){
+      setFlipCompsError(e.message||"Failed to fetch comparables — try again with a more specific location");
+    }
     setFlipCompsRunning(false);
   };
   const handleUrlImport=async()=>{
@@ -4368,19 +4379,55 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {activeTab==="comps"&&assetType==="Flip"&&(
               <div>
                 <div className="section-title">Market Comparables</div>
-                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>AI-sourced sold comparables and rental comps for {data.location||"your location"}. Based on training knowledge — verify with live data.</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:4}}>
+                  Live comparable search for <strong style={{color:"var(--text-m)"}}>{data.location||"your location"}</strong> — powered by web search.
+                </div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16,padding:"8px 12px",background:"var(--bg3)",borderRadius:6,borderLeft:"3px solid var(--gold)"}}>
+                  ◈ Uses real-time web search to pull current sold prices and rental listings from Rightmove, Zoopla and Land Registry. For best results add a specific location (e.g. "Hackney, London" or "Didsbury, Manchester").
+                </div>
+                {!data.location&&(
+                  <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:12}}>
+                    ⚠ Add a location in the General tab first to get accurate comparables.
+                  </div>
+                )}
                 <button
                   onClick={runFlipCompsAI}
                   disabled={flipCompsRunning||!data.location}
                   style={{display:"flex",alignItems:"center",gap:6,background:flipCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:flipCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:flipCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
                 >
-                  {flipCompsRunning?<><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Pulling comparables…</>:<><span style={{fontSize:13}}>◈</span>{flipComps?"Refresh Comparables":"Pull AI Comparables"}{!data.location?" (add location first)":""}</>}
+                  {flipCompsRunning
+                    ?<><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Searching live property data…</>
+                    :<><span style={{fontSize:13}}>⌖</span>{flipComps?"Refresh Comparables":"Search Live Comparables"}{!data.location?" (add location first)":""}</>
+                  }
                 </button>
                 {flipCompsError&&<div style={{fontSize:11,color:"var(--red)",padding:"8px 12px",background:"rgba(244,100,95,.06)",borderRadius:6,marginBottom:12}}>{flipCompsError}</div>}
                 {flipComps&&(
                   <div style={{animation:"fadeIn .3s ease"}}>
+                    {/* Data source badge */}
+                    {(flipComps.dataSource||flipComps.dataDate)&&(
+                      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                        {flipComps.dataSource&&<span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:4,padding:"3px 8px"}}>Source: {flipComps.dataSource}</span>}
+                        {flipComps.dataDate&&<span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:4,padding:"3px 8px"}}>As of: {flipComps.dataDate}</span>}
+                        <span style={{fontSize:10,color:"var(--amber)",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.15)",borderRadius:4,padding:"3px 8px"}}>AI-assisted — verify before transacting</span>
+                      </div>
+                    )}
                     {/* Market context */}
-                    {flipComps.marketContext&&<div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.7,marginBottom:16,padding:"10px 14px",background:"var(--bg3)",borderRadius:8}}>{flipComps.marketContext}</div>}
+                    {flipComps.marketContext&&<div style={{fontSize:12,color:"var(--text-m)",lineHeight:1.7,marginBottom:16,padding:"10px 14px",background:"var(--bg3)",borderRadius:8,borderLeft:"3px solid var(--gold)"}}>{flipComps.marketContext}</div>}
+                    {/* Price range summary */}
+                    {flipComps.priceRange&&(
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+                        {[
+                          {l:"Price range",v:`${currencySymbol}${Math.round(flipComps.priceRange.low/1000)}k–${currencySymbol}${Math.round(flipComps.priceRange.high/1000)}k`,c:"var(--text-m)"},
+                          {l:"Avg £/sqft",v:flipComps.avgPricePsf?`${currencySymbol}${flipComps.avgPricePsf}/sqft`:"—",c:"var(--gold)"},
+                          {l:"Avg rent",v:flipComps.avgRentPcm?`${currencySymbol}${flipComps.avgRentPcm}/mo`:"—",c:"var(--green)"},
+                        ].map(m=>(
+                          <div key={m.l} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 12px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>{m.l}</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:13,fontWeight:600,color:m.c}}>{m.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {/* Sold comps */}
                     {flipComps.comparables?.length>0&&(
                       <div style={{marginBottom:20}}>
@@ -4403,10 +4450,19 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           ))}
                         </div>
                         {flipComps.avgPricePsf&&(
-                          <div style={{marginTop:8,padding:"8px 12px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,fontSize:11}}>
-                            <span style={{color:"var(--text-d)"}}>Market avg: </span>
-                            <span style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontWeight:600}}>{currencySymbol}{flipComps.avgPricePsf}/sqft</span>
-                            {data.propertySqft>0&&<><span style={{color:"var(--text-d)",marginLeft:8}}>→ Your property implied value: </span><span style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmt(flipComps.avgPricePsf*num(String(data.propertySqft)),currencySymbol)}</span></>}
+                          <div style={{marginTop:8,padding:"10px 12px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,fontSize:11}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:data.propertySqft>0?6:0}}>
+                              <span style={{color:"var(--text-d)"}}>Market avg psf: <span style={{color:"var(--gold)",fontFamily:"var(--font-mono)",fontWeight:600}}>{currencySymbol}{flipComps.avgPricePsf}/sqft</span></span>
+                              {data.propertySqft>0&&<span style={{color:"var(--text-d)"}}>Implied value: <span style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{fmt(flipComps.avgPricePsf*num(String(data.propertySqft)),currencySymbol)}</span></span>}
+                            </div>
+                            {data.propertySqft>0&&(
+                              <button
+                                onClick={()=>{const v=Math.round(flipComps.avgPricePsf*num(String(data.propertySqft)));set("salePrice",v);set("salePricePsf",flipComps.avgPricePsf);}}
+                                style={{width:"100%",padding:"6px",background:"transparent",border:"1px dashed var(--gold-border)",borderRadius:5,color:"var(--gold)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",marginTop:4}}
+                              >
+                                ↗ Apply market avg as sale price ({fmt(flipComps.avgPricePsf*num(String(data.propertySqft)),currencySymbol)})
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -4439,6 +4495,23 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                             <span style={{color:"var(--text-d)"}}>Market avg rent</span>
                             <span style={{color:"var(--green)",fontFamily:"var(--font-mono)",fontWeight:600}}>{currencySymbol}{flipComps.avgRentPcm}/mo</span>
                           </div>
+                        )}
+                        {flipComps.grossYieldRange&&(
+                          <div style={{marginTop:6,padding:"8px 12px",background:"rgba(91,156,246,.06)",border:"1px solid rgba(91,156,246,.2)",borderRadius:6,fontSize:11,display:"flex",justifyContent:"space-between"}}>
+                            <span style={{color:"var(--text-d)"}}>Typical gross yield range</span>
+                            <span style={{color:"var(--blue)",fontFamily:"var(--font-mono)",fontWeight:600}}>{flipComps.grossYieldRange.low}% – {flipComps.grossYieldRange.high}%</span>
+                          </div>
+                        )}
+                        {/* Apply avg rent to deal */}
+                        {flipComps.avgRentPcm>0&&(
+                          <button
+                            onClick={()=>set("rentPcm",flipComps.avgRentPcm)}
+                            style={{marginTop:8,width:"100%",padding:"8px",background:"transparent",border:"1px dashed var(--border)",borderRadius:6,color:"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s"}}
+                            onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--gold)",e.currentTarget.style.color="var(--gold)")}
+                            onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)",e.currentTarget.style.color="var(--text-d)")}
+                          >
+                            ↗ Apply avg rent ({currencySymbol}{flipComps.avgRentPcm}/mo) to this deal
+                          </button>
                         )}
                       </div>
                     )}
