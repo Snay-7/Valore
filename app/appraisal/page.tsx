@@ -4337,16 +4337,27 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ⚠ Add a location in the General tab first to get accurate comparables.
                   </div>
                 )}
-                <button
-                  onClick={runFlipCompsAI}
-                  disabled={flipCompsRunning||!data.location}
-                  style={{display:"flex",alignItems:"center",gap:6,background:flipCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:flipCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:flipCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
-                >
-                  {flipCompsRunning
-                    ?<><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Searching live property data…</>
-                    :<><span style={{fontSize:13}}>⌖</span>{flipComps?"Refresh Comparables":"Search Live Comparables"}{!data.location?" (add location first)":""}</>
-                  }
-                </button>
+                {/* Comps gated to Pro + trial — free users see upgrade prompt */}
+                {(isPro||isTrialing)?(
+                  <button
+                    onClick={runFlipCompsAI}
+                    disabled={flipCompsRunning||!data.location}
+                    style={{display:"flex",alignItems:"center",gap:6,background:flipCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:flipCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:flipCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
+                  >
+                    {flipCompsRunning
+                      ?<><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Searching live property data…</>
+                      :<><span style={{fontSize:13}}>⌖</span>{flipComps?"Refresh Comparables":"Search Live Comparables"}{!data.location?" (add location first)":""}</>
+                    }
+                  </button>
+                ):(
+                  <div style={{marginBottom:16,padding:"12px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:6,textAlign:"center"}}>
+                    <div style={{fontSize:12,color:"var(--text-m)",fontWeight:600,marginBottom:4}}>✦ Pro feature</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Live comparable search is available on the Pro plan. Your 14-day trial includes full access.</div>
+                    <button onClick={()=>router.push("/pricing")} style={{padding:"7px 20px",background:"var(--gold)",border:"none",borderRadius:5,color:"#06070a",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)"}}>
+                      Upgrade to Pro
+                    </button>
+                  </div>
+                )}
                 {flipCompsError&&<div style={{fontSize:11,color:"var(--red)",padding:"8px 12px",background:"rgba(244,100,95,.06)",borderRadius:6,marginBottom:12}}>{flipCompsError}</div>}
                 {flipComps&&(
                   <div style={{animation:"fadeIn .3s ease"}}>
