@@ -107,6 +107,9 @@ a{text-decoration:none;color:inherit}
 .inp::placeholder{color:var(--text-d)}
 
 @media(max-width:900px){
+  .login-wrap{grid-template-columns:1fr !important}
+  .login-left{display:none !important}
+  .login-right{padding:24px 20px !important}
   .nav{padding:0 20px;height:56px}
   .nav-links,.nav-btns{display:none}
   .hamburger{display:flex}
@@ -683,9 +686,9 @@ function Login({onBack}:any){
     else if(tab==="reset"){const{error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback`});if(error){setErrors({email:error.message});setLoading(false);return;}setLoading(false);setSuccess(true);}
   };
   return(
-    <div style={{minHeight:"100vh",display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+    <div style={{minHeight:"100vh",display:"grid",gridTemplateColumns:"1fr 1fr"}} className="login-wrap">
       {/* Left — brand panel */}
-      <div style={{background:"var(--navy)",display:"flex",flexDirection:"column",padding:"48px 64px",position:"relative",overflow:"hidden"}}>
+      <div className="login-left" style={{background:"var(--navy)",display:"flex",flexDirection:"column",padding:"48px 64px",position:"relative",overflow:"hidden"}}>
         {/* Subtle bg pattern */}
         <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle at 30% 50%, rgba(82,196,152,.06) 0%, transparent 60%)",pointerEvents:"none"}}/>
         <div style={{position:"relative",zIndex:1}}>
@@ -708,7 +711,7 @@ function Login({onBack}:any){
         </div>
       </div>
       {/* Right — auth form */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"40px",background:"var(--bg)"}}>
+      <div className="login-right" style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"40px",background:"var(--bg)"}}>
         <div style={{width:"100%",maxWidth:420}}>
           <button onClick={onBack} className="btn-ghost" style={{marginBottom:28,padding:"7px 16px",fontSize:12}}>← Back to site</button>
           {success?(
