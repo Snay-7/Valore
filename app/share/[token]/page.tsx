@@ -686,7 +686,6 @@ function SharePage() {
       <div style={{ borderBottom: "1px solid var(--border)", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", background: "var(--bg1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:17,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".12em", fontWeight: 300 }}>VALORA</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div className="theme-toggle">
@@ -771,7 +770,6 @@ function SharePage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:15,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--gold)", letterSpacing: ".12em", fontWeight: 300 }}>VALORA</span>
             </div>
             <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 3, letterSpacing: ".08em", textTransform: "uppercase" }}>Institutional Development Appraisal</div>
           </div>
