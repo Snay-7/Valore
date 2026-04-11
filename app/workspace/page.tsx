@@ -4,18 +4,26 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
+
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --gold:#c9a84c;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
-  --bg:#06070a;--bg1:#0b0d10;--bg2:#0f1116;--bg3:#14171e;--bg4:#1a1e27;
-  --text:#ede9e0;--text-m:#7a8390;--text-d:#363c46;
-  --border:rgba(255,255,255,0.055);--border-m:rgba(255,255,255,0.1);
-  --green:#3ddc84;--red:#f4645f;--amber:#f0a429;--blue:#5b9cf6;
-  --font-display:'Cormorant Garamond',Georgia,serif;
-  --font-body:'Instrument Sans',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
+  --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.22);
+  --bg:#0D1017;--bg1:#252D3F;--bg2:#141920;--bg3:#1A2030;--bg4:#202840;--bg5:#2A3350;
+  --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
+  --border:rgba(255,255,255,0.07);--border-m:rgba(255,255,255,0.13);
+  --green:#52C498;--red:#D45252;--amber:#E0A030;--blue:#4A80C4;--purple:#a78bfa;
+  --font-display:'Inter',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+body.light{
+  --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(82,196,152,0.09);--gold-border:rgba(82,196,152,0.25);
+  --bg:#F8F9FA;--bg1:#252D3F;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
+  --border:#E8EAED;--border-m:#D0D4DC;
+  --green:#2A8A64;--red:#C04040;--amber:#B07820;--blue:#2A5FAA;--purple:#7C3AED;
 }
 html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -23,7 +31,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-w
 .pcard{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px;transition:border-color .2s,transform .15s;animation:fadeUp .3s ease both}
 .pcard:hover{border-color:var(--gold-border);transform:translateY(-1px)}
 .metric-pill{background:var(--bg3);border-radius:8px;padding:10px 14px}
-.btn-gold{background:var(--gold);color:#06070a;border:none;border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.btn-gold{background:var(--gold);color:#0D1017;border:none;border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s}
 .btn-gold:hover{opacity:.88}
 .btn-gold:disabled{opacity:.35;cursor:not-allowed}
 .btn-ghost{background:none;border:1px solid var(--border-m);border-radius:8px;padding:9px 14px;color:var(--text-m);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
@@ -40,6 +48,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-w
 @media(max-width:768px){.cards-grid{grid-template-columns:1fr!important}.page-wrap{padding:24px 16px 80px!important}}
 `;
 
+
 const fmt = (n: number, p = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
   const a = Math.abs(n);
@@ -49,6 +58,7 @@ const fmt = (n: number, p = "£") => {
 };
 const fmtPct = (n: number) => (!n||!isFinite(n)||isNaN(n))?"—":`${(n*100).toFixed(1)}%`;
 const CURR: Record<string,string> = {GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$"};
+
 
 export default function WorkspacePage() {
   const router = useRouter();
@@ -70,20 +80,24 @@ export default function WorkspacePage() {
   const [selectedM,   setSelectedM]   = useState<string[]>([]);
   const [savingShare, setSavingShare] = useState(false);
 
+
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/"); return; }
       setUser(session.user);
 
+
       const { data: mr } = await supabase.from("firm_members")
         .select("*, firms(*)").eq("user_id", session.user.id).maybeSingle();
       if (!mr) { setNoFirm(true); setLoading(false); return; }
+
 
       setFirm(mr.firms);
       setRole(mr.role || "member");
       const admin = mr.role === "admin";
       setIsAdmin(admin);
+
 
       const { data: sub } = await supabase.from("subscriptions")
         .select("tier, trial_ends_at").eq("user_id", session.user.id).maybeSingle();
@@ -91,13 +105,16 @@ export default function WorkspacePage() {
       const trialing = sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date();
       setIsPro(tier === "professional" || tier === "enterprise" || !!trialing || tier === "starter");
 
+
       const { data: tm } = await supabase.from("firm_members")
         .select("*").eq("firm_id", mr.firm_id);
       setFirmMembers((tm||[]).filter((m:any) => m.user_id !== session.user.id));
 
+
       const { data: pm } = await supabase.from("project_members")
         .select("project_id").eq("firm_id", mr.firm_id);
       setSharedIds(new Set((pm||[]).map((x:any) => x.project_id)));
+
 
       if (admin) {
         const { data: fp } = await supabase.from("projects")
@@ -111,6 +128,7 @@ export default function WorkspacePage() {
           .eq("user_id", session.user.id).eq("firm_id", mr.firm_id);
         setMemberCards((assigned||[]).map((a:any) => ({id: a.project_id, ...a.projects})));
 
+
         const { data: ownP } = await supabase.from("projects")
           .select("*, appraisals(id,gdv,profit,profit_on_cost,irr_unlevered,status,created_at)")
           .eq("created_by", session.user.id).is("deleted_at", null)
@@ -118,9 +136,11 @@ export default function WorkspacePage() {
         setMyProjects(ownP || []);
       }
 
+
       setLoading(false);
     })();
   }, [router]);
+
 
   const shareWith = async (projectId: string) => {
     if (!firm || !user || selectedM.length === 0) return;
@@ -134,11 +154,13 @@ export default function WorkspacePage() {
     setSharingId(null); setSelectedM([]); setSavingShare(false);
   };
 
+
   const unshare = async (projectId: string) => {
     if (!firm) return;
     await supabase.from("project_members").delete().eq("project_id", projectId).eq("firm_id", firm.id);
     setSharedIds(prev => { const n = new Set(prev); n.delete(projectId); return n; });
   };
+
 
   const createFirm = async () => {
     if (!newFirmName.trim() || !user) return;
@@ -161,19 +183,23 @@ export default function WorkspacePage() {
     setCreating(false);
   };
 
+
   const displayCards = isAdmin ? myProjects : memberCards;
 
+
   if (loading) return (
-    <div style={{ minHeight:"100vh", background:"#06070a", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ width:30, height:30, border:"2px solid rgba(201,168,76,.15)", borderTopColor:"#c9a84c", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
+    <div style={{ minHeight:"100vh", background:"#0D1017", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ width:30, height:30, border:"2px solid rgba(82,196,152,.15)", borderTopColor:"#52C498", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
+
   if (noFirm) return (
     <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", fontFamily:"var(--font-body)", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <style>{CSS}</style>
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", background:"radial-gradient(ellipse 60% 40% at 50% 40%,rgba(201,168,76,.04) 0%,transparent 60%)" }}/>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", background:"radial-gradient(ellipse 60% 40% at 50% 40%,rgba(82,196,152,.04) 0%,transparent 60%)" }}/>
       <div style={{ maxWidth:480, width:"100%", padding:"0 24px", position:"relative", zIndex:1, textAlign:"center" }}>
         <div style={{ fontFamily:"var(--font-display)", fontSize:56, fontWeight:300, color:"var(--gold)", marginBottom:8, letterSpacing:".05em" }}>◈</div>
         <h1 style={{ fontFamily:"var(--font-display)", fontSize:40, fontWeight:300, letterSpacing:".02em", marginBottom:12 }}>Create your Workspace</h1>
@@ -193,7 +219,7 @@ export default function WorkspacePage() {
           <button
             onClick={createFirm}
             disabled={!newFirmName.trim() || creating}
-            style={{ width:"100%", background:"var(--gold)", color:"#06070a", border:"none", borderRadius:10, padding:"13px 0", fontFamily:"var(--font-body)", fontSize:14, fontWeight:700, cursor:"pointer", opacity:!newFirmName.trim()?0.4:1, letterSpacing:".02em" }}>
+            style={{ width:"100%", background:"var(--gold)", color:"#0D1017", border:"none", borderRadius:10, padding:"13px 0", fontFamily:"var(--font-body)", fontSize:14, fontWeight:700, cursor:"pointer", opacity:!newFirmName.trim()?0.4:1, letterSpacing:".02em" }}>
             {creating ? "Creating…" : "Create Workspace →"}
           </button>
         </div>
@@ -207,6 +233,7 @@ export default function WorkspacePage() {
     </div>
   );
 
+
   const ProjectCard = ({ p, i, showFooter }: { p: any; i: number; showFooter?: boolean }) => {
     const latest = (p.appraisals||[]).sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())[0];
     const sym = CURR[p.currency] || "£";
@@ -219,6 +246,7 @@ export default function WorkspacePage() {
           <span style={{ fontSize:10, padding:"2px 9px", borderRadius:10, background:"rgba(125,133,144,.1)", color:"var(--text-m)" }}>{latest?.status||"draft"}</span>
           {shared && <span style={{ fontSize:10, color:"var(--green)", marginLeft:"auto", background:"rgba(61,220,132,.08)", padding:"1px 8px", borderRadius:10, border:"1px solid rgba(61,220,132,.2)" }}>✓ Shared</span>}
         </div>
+
 
         <div onClick={() => router.push(`/workspace/${p.id}`)} style={{ cursor:"pointer" }}>
           <h3 style={{ fontSize:17, fontWeight:500, fontFamily:"var(--font-display)", marginBottom:3 }}>{p.name||"Untitled"}</h3>
@@ -240,6 +268,7 @@ export default function WorkspacePage() {
             <div style={{ background:"var(--bg3)", borderRadius:7, padding:"8px 12px", fontSize:12, color:"var(--text-d)", marginBottom:14 }}>No appraisal saved yet</div>
           )}
         </div>
+
 
         {/* Action footer */}
         {!showFooter ? (
@@ -309,10 +338,13 @@ export default function WorkspacePage() {
     );
   };
 
+
   return (
     <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", fontFamily:"var(--font-body)" }}>
       <style>{CSS}</style>
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, background:"radial-gradient(ellipse 60% 40% at 10% 50%,rgba(201,168,76,.025) 0%,transparent 55%)" }}/>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, background:"radial-gradient(ellipse 60% 40% at 10% 50%,rgba(82,196,152,.025) 0%,transparent 55%)" }}/>
+
 
       {/* Nav */}
       <nav style={{ position:"sticky", top:0, zIndex:50, background:"rgba(6,7,10,.92)", backdropFilter:"blur(16px)", borderBottom:"1px solid var(--border)", height:54, display:"flex", alignItems:"center", padding:"0 28px", gap:14 }}>
@@ -324,7 +356,9 @@ export default function WorkspacePage() {
         <span style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{role}</span>
       </nav>
 
+
       <div className="page-wrap" style={{ maxWidth:1000, margin:"0 auto", padding:"40px 28px 80px", position:"relative", zIndex:1 }}>
+
 
         {/* Header */}
         <div style={{ marginBottom:32 }}>
@@ -334,6 +368,7 @@ export default function WorkspacePage() {
             {displayCards.length} project{displayCards.length !== 1 ? "s" : ""} · {role}
           </p>
         </div>
+
 
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)", marginBottom:32 }}>
@@ -345,6 +380,7 @@ export default function WorkspacePage() {
             {isPro ? "Share a Project" : "Share a Project ✦ Upgrade"}
           </button>
         </div>
+
 
         {/* ── PROJECTS TAB ── */}
         {tab === "projects" && (
@@ -365,6 +401,7 @@ export default function WorkspacePage() {
             </div>
           )
         )}
+
 
         {/* ── SHARE TAB ── */}
         {tab === "share" && (
