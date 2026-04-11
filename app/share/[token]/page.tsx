@@ -4,16 +4,17 @@ import { useState, useEffect, Suspense } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useParams } from "next/navigation";
 
+
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 .theme-dark{
-  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;--bg5:#2a303b;
-  --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
+  --bg:#0D1017;--bg1:#141920;--bg2:#1A2030;--bg3:#202840;--bg4:#202840;--bg5:#2A3350;
+  --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
   --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
-  --card-bg:#12151a;--card-border:rgba(255,255,255,0.06);
-  --section-bg:#0c0e12;--divider:rgba(255,255,255,0.06);
-  --tog-bg:#191d24;--tog-active:#c9a84c;--tog-text:#7d8590;
+  --card-bg:#1A2030;--card-border:rgba(255,255,255,0.06);
+  --section-bg:#141920;--divider:rgba(255,255,255,0.06);
+  --tog-bg:#202840;--tog-active:#52C498;--tog-text:#8B93A5;
 }
 .theme-light{
   --bg:#f8f7f4;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f3f1ec;--bg4:#e8e4dc;--bg5:#d8d4cb;
@@ -21,14 +22,14 @@ const CSS = `
   --border:rgba(0,0,0,0.08);--border-m:rgba(0,0,0,0.14);
   --card-bg:#ffffff;--card-border:rgba(0,0,0,0.08);
   --section-bg:#f3f1ec;--divider:rgba(0,0,0,0.07);
-  --tog-bg:#e8e4dc;--tog-active:#c9a84c;--tog-text:#6b6560;
+  --tog-bg:#e8e4dc;--tog-active:#52C498;--tog-text:#6b6560;
 }
 :root{
-  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);
+  --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.25);
   --green:#2da870;--red:#d94f4a;--amber:#d4891a;--blue:#4a8ae8;
-  --font-display:'Cormorant Garamond',Georgia,serif;
-  --font-body:'Instrument Sans',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
+  --font-display:'Inter',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'DM Mono',monospace;
 }
 body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
 .page-wrap{background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
@@ -37,7 +38,7 @@ body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;transition:
 .fade-up{animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
 .theme-toggle{display:flex;align-items:center;background:var(--tog-bg);border-radius:20px;padding:3px;gap:2px;border:1px solid var(--border)}
 .theme-toggle button{padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.04em;transition:all .2s;background:transparent;color:var(--tog-text)}
-.theme-toggle button.active{background:var(--tog-active);color:#06070a}
+.theme-toggle button.active{background:var(--tog-active);color:#0D1017}
 .hero{padding:48px 0 40px;border-bottom:1px solid var(--divider);position:relative;overflow:hidden}
 .hero-inner{max-width:1080px;margin:0 auto;padding:0 48px}
 .hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap}
@@ -116,6 +117,7 @@ body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;transition:
 }
 `;
 
+
 const fmt = (n: number, prefix = "£") => {
   if (!isFinite(n) || isNaN(n)) return "—";
   const abs = Math.abs(n);
@@ -128,8 +130,10 @@ const fmtPct = (n: number) => (!isFinite(n) || isNaN(n) ? "—" : `${(n * 100).t
 const fmtX = (n: number) => (!isFinite(n) || isNaN(n) || n === 0 ? "—" : `${n.toFixed(2)}×`);
 const num = (v: string) => parseFloat(String(v).replace(/[£,%\s]/g, "")) || 0;
 
-const TYPE_COLOR: Record<string, string> = { BTR: "#c9a84c", BTS: "#4a8ae8", Hotel: "#d4891a", Flip: "#2da870" };
-const TYPE_BG: Record<string, string> = { BTR: "rgba(201,168,76,.12)", BTS: "rgba(74,138,232,.12)", Hotel: "rgba(212,137,26,.12)", Flip: "rgba(45,168,112,.12)" };
+
+const TYPE_COLOR: Record<string, string> = { BTR: "#52C498", BTS: "#4a8ae8", Hotel: "#d4891a", Flip: "#2da870" };
+const TYPE_BG: Record<string, string> = { BTR: "rgba(82,196,152,.12)", BTS: "rgba(74,138,232,.12)", Hotel: "rgba(212,137,26,.12)", Flip: "rgba(45,168,112,.12)" };
+
 
 function calcCosts(snap: any) {
   const t = snap.assetType || "BTR";
@@ -152,6 +156,7 @@ function calcCosts(snap: any) {
   return { landCost: num(String(snap.purchasePrice || 0)), buildCost: refurb, profFees: refurb * (num(String(snap.professionalFeesPct || 0)) / 100), contingency: refurb * (num(String(snap.contingencyPct || 0)) / 100), otherCosts: num(String(snap.otherCosts || 0)), agentAndMarketing: 0, totalSqft: 0, buildCostPsf: 0 };
 }
 
+
 // ── HOTEL ADVANCED SHARE SECTION ─────────────────────────────────────────────
 function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
   const ha = snap.hotelAdv || {};
@@ -160,6 +165,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
   const yr = ha.yearRevenue || [];
   const capStructure = snap.capStructure || "single";
   const capStructureLabel: Record<string, string> = { equity: "All Equity", single: "Single Facility", dual: "Dual Facility", fullstack: "Full Stack" };
+
 
   return (
     <>
@@ -194,6 +200,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
           ))}
         </div>
       </div>
+
 
       {/* ── INVESTOR CASHFLOW ── */}
       <div className="section-gap fade-up" style={{ animationDelay: ".4s" }}>
@@ -254,6 +261,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
         </div>
       </div>
 
+
       {/* ── RETURNS + DEAL STRUCTURE ── */}
       <div className="two-col section-gap fade-up" style={{ animationDelay: ".44s" }}>
         <div>
@@ -284,6 +292,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
           </div>
         </div>
 
+
         <div>
           <div className="section-hdr">Deal Structure</div>
           <div className="data-card" style={{ marginBottom: 16 }}>
@@ -302,6 +311,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
               </div>
             ))}
           </div>
+
 
           <div className="section-hdr">Cost Breakdown</div>
           <div className="data-card">
@@ -325,11 +335,12 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
         </div>
       </div>
 
+
       {/* ── IM FEES (if applicable) ── */}
       {((ha.imAcqFee || 0) + (ha.imBasePATotal || 0) + (ha.imIncentiveProfit || 0) + (ha.imIncentiveSales || 0) > 0) && (
         <div className="section-gap fade-up" style={{ animationDelay: ".48s" }}>
           <div className="section-hdr">Investment Manager Fees</div>
-          <div className="data-card" style={{ borderColor: "rgba(201,168,76,.2)", background: "rgba(201,168,76,.04)" }}>
+          <div className="data-card" style={{ borderColor: "rgba(82,196,152,.2)", background: "rgba(82,196,152,.04)" }}>
             {[
               ["Acquisition Fee (one-off)", fmt(ha.imAcqFee || 0, sym)],
               ["Base Annual Charge (total hold)", fmt(ha.imBasePATotal || 0, sym)],
@@ -348,6 +359,7 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
     </>
   );
 }
+
 
 // ── SIMPLE HOTEL / OTHER ASSET SHARE SECTION ─────────────────────────────────
 function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appraisal: any }) {
@@ -368,6 +380,7 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
   const totalFinanceCost = arrangementFee + interestEst;
   const snapMoic = snap.moic || 0;
   const snapDscr = snap.dscr || 0;
+
 
   const returnsRows = assetType === "BTR" ? [
     ["GDV (Exit)", fmt(gdv, sym), "var(--gold)", true],
@@ -405,6 +418,7 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
     ["IRR (Annualised)", fmtPct(irr), "var(--blue)", false],
   ];
 
+
   const detailRows = assetType === "BTR" ? [
     ["Asset Type", "Build to Rent"], ["Location", snap.location || "—"], ["Currency", snap.currency || "GBP"],
     ["Programme", `${snap.programmMonths || "—"}m build · ${snap.stabilisationMonths || "—"}m stabilisation`],
@@ -424,6 +438,7 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
     ["Hold Period", `${snap.bridgingTermMonths || snap.programmMonths || "—"}m`],
     ["Sale Price", fmt(num(String(snap.salePrice || 0)), sym)], ["Agent Fee", snap.agentFeePct ? `${snap.agentFeePct}%` : "—"],
   ];
+
 
   const costRows = assetType === "BTR" || assetType === "BTS" ? [
     { label: "Land / Acquisition", value: costs.landCost },
@@ -447,6 +462,7 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
     { label: "Finance Cost", value: totalFinanceCost, amber: true },
     { label: "Total Cost", value: totalCost, bold: true },
   ];
+
 
   return (
     <>
@@ -528,6 +544,7 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
   );
 }
 
+
 // ── MAIN SHARE PAGE ───────────────────────────────────────────────────────────
 function SharePage() {
   const params = useParams();
@@ -536,6 +553,7 @@ function SharePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
 
   useEffect(() => {
     if (!token) return;
@@ -547,26 +565,31 @@ function SharePage() {
     load();
   }, [token]);
 
+
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+    <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
+
   if (notFound) return (
-    <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 24px", textAlign: "center" }}>
+    <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 24px", textAlign: "center" }}>
       <style>{CSS}</style>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 48, color: "#3d4249", fontWeight: 300 }}>◈</div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 300, color: "#eceae4" }}>Appraisal not found</div>
-      <div style={{ fontSize: 14, color: "#3d4249" }}>This link may have expired or been revoked.</div>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 48, color: "#4D5570", fontWeight: 300 }}>◈</div>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 300, color: "#F0EEE8" }}>Appraisal not found</div>
+      <div style={{ fontSize: 14, color: "#4D5570" }}>This link may have expired or been revoked.</div>
     </div>
   );
+
 
   const snap = appraisal?.snapshot || {};
   const assetType = snap.assetType || "BTR";
   const isHotelAdvanced = assetType === "Hotel" && snap.hotelMode === "advanced" && snap.hotelAdv;
   const sym = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" }[snap.currency as string] || "£";
+
 
   // Hero metrics — advanced hotel uses hotelAdv fields
   const ha = snap.hotelAdv || {};
@@ -576,6 +599,7 @@ function SharePage() {
   const irr = appraisal.irr_unlevered || 0;
   const irrLevered = appraisal.irr_levered || 0;
   const pocColor = poc > 0.2 ? "var(--green)" : poc > 0.1 ? "var(--amber)" : "var(--red)";
+
 
   const heroMetrics = isHotelAdvanced ? [
     { label: "Exit Value", value: fmt(ha.exitValue || gdv, sym), color: "var(--gold)" },
@@ -609,6 +633,7 @@ function SharePage() {
     { label: "Equity In", value: fmt(snap.equity||0, sym), color: "var(--gold)" },
   ];
 
+
   const instMetrics = isHotelAdvanced ? [
     { label: "Equity Multiple", value: fmtX(ha.moic || snap.moic || 0) },
     { label: "DSCR / ICR", value: isFinite(ha.dscr) && ha.dscr < 999 ? fmtX(ha.dscr) : "—" },
@@ -638,8 +663,9 @@ function SharePage() {
     { label: "Hold Period", value: snap.bridgingTermMonths ? `${snap.bridgingTermMonths}m` : "—" },
   ];
 
+
   const typeCol = TYPE_COLOR[assetType] || "var(--gold)";
-  const typeBg = TYPE_BG[assetType] || "rgba(201,168,76,.12)";
+  const typeBg = TYPE_BG[assetType] || "rgba(82,196,152,.12)";
   const displayPoc = isHotelAdvanced ? (ha.poc || poc) : poc;
   const displayPocColor = isHotelAdvanced
     ? ((ha.poc || poc) > 0.15 ? "var(--green)" : "var(--amber)")
@@ -651,9 +677,11 @@ function SharePage() {
         : assetType === "Hotel" ? `${snap.programmMonths || "—"}m refurb · ${snap.stabilisationMonths || "—"}m stabilisation`
           : `${snap.bridgingTermMonths || snap.programmMonths || "—"}m hold`;
 
+
   return (
     <div className={`page-wrap theme-${theme}`}>
       <style>{CSS}</style>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
       {/* NAV */}
       <div style={{ borderBottom: "1px solid var(--border)", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", background: "var(--bg1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -729,11 +757,13 @@ function SharePage() {
           </div>
         </div>
 
+
         {/* Asset-specific body */}
         {isHotelAdvanced
           ? <HotelAdvancedShare snap={snap} sym={sym} />
           : <StandardShare snap={snap} sym={sym} appraisal={appraisal} />
         }
+
 
         {/* Footer */}
         <div className="sec-divider" />
@@ -756,11 +786,12 @@ function SharePage() {
   );
 }
 
+
 export default function SharePageWrapper() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+      <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     }>
