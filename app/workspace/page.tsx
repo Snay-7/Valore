@@ -45,7 +45,14 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--font-body);-w
 .mem-pill.sel{border-color:var(--gold);background:var(--gold-bg);color:var(--gold)}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border-m);border-radius:2px}
-@media(max-width:768px){.cards-grid{grid-template-columns:1fr!important}.page-wrap{padding:24px 16px 80px!important}}
+@media(max-width:768px){
+  .cards-grid{grid-template-columns:1fr!important}
+  .page-wrap{padding:24px 16px 80px!important}
+  .workspace-nav{padding:0 14px!important;gap:6px!important;height:auto!important;min-height:48px!important;flex-wrap:wrap!important}
+  .workspace-nav .nbtn{font-size:10px!important;padding:4px 8px!important}
+  .workspace-nav .firm-name{display:none!important}
+  .workspace-nav .role-badge{font-size:8px!important;padding:2px 7px!important}
+}
 `;
 
 
@@ -347,13 +354,13 @@ export default function WorkspacePage() {
 
 
       {/* Nav */}
-      <nav style={{ position:"sticky", top:0, zIndex:50, background:"rgba(6,7,10,.92)", backdropFilter:"blur(16px)", borderBottom:"1px solid var(--border)", height:54, display:"flex", alignItems:"center", padding:"0 28px", gap:14 }}>
+      <nav className="workspace-nav" style={{ position:"sticky", top:0, zIndex:50, background:"var(--navy)", backdropFilter:"blur(16px)", borderBottom:"1px solid var(--border)", height:54, display:"flex", alignItems:"center", padding:"0 28px", gap:14 }}>
         <button className="nbtn" onClick={() => router.push("/dashboard")}>← Portfolio</button>
-        {firm && <><span style={{ color:"var(--text-d)", fontSize:14 }}>/</span><span style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em" }}>{firm.name}</span></>}
+        {firm && <><span style={{ color:"var(--text-d)", fontSize:14 }}>/</span><span className="firm-name" style={{ fontSize:11, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em" }}>{firm.name}</span></>}
         <div style={{ flex:1 }}/>
         <button className="nbtn" onClick={() => router.push("/tasks")}>Tasks</button>
         {isAdmin && <button className="nbtn" onClick={() => router.push("/team")}>+ Team</button>}
-        <span style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{role}</span>
+        <span className="role-badge" style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".14em", padding:"3px 11px", border:"1px solid var(--border)", borderRadius:20, fontWeight:600 }}>{role}</span>
       </nav>
 
 
