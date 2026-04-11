@@ -4,26 +4,35 @@ import { useState, useEffect, Suspense } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 
+
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.07);--gold-border:rgba(201,168,76,0.2);
-  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;
-  --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
-  --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
-  --green:#3ddc84;--red:#f4645f;--blue:#5b9cf6;--purple:#a78bfa;
-  --font-display:'Cormorant Garamond',Georgia,serif;
-  --font-body:'Instrument Sans',system-ui,sans-serif;
+  --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.22);
+  --bg:#0D1017;--bg1:#252D3F;--bg2:#141920;--bg3:#1A2030;--bg4:#202840;--bg5:#2A3350;
+  --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
+  --border:rgba(255,255,255,0.07);--border-m:rgba(255,255,255,0.13);
+  --green:#52C498;--red:#D45252;--amber:#E0A030;--blue:#4A80C4;--purple:#a78bfa;
+  --font-display:'Inter',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+body.light{
+  --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(82,196,152,0.09);--gold-border:rgba(82,196,152,0.25);
+  --bg:#F8F9FA;--bg1:#252D3F;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
+  --border:#E8EAED;--border-m:#D0D4DC;
+  --green:#2A8A64;--red:#C04040;--amber:#B07820;--blue:#2A5FAA;--purple:#7C3AED;
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 .inp{width:100%;padding:13px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s}
-.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.1)}
+.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(82,196,152,.1)}
 .inp::placeholder{color:var(--text-d)}
-.btn-primary{background:var(--gold);color:#06070a;border:none;border-radius:8px;padding:14px 28px;font-family:var(--font-body);font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;width:100%;display:block;text-align:center}
+.btn-primary{background:var(--gold);color:#0D1017;border:none;border-radius:8px;padding:14px 28px;font-family:var(--font-body);font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;width:100%;display:block;text-align:center}
 .btn-primary:hover{background:var(--gold-l)}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:8px;padding:13px 28px;font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all .2s;width:100%;display:block;text-align:center;margin-top:10px}
@@ -33,6 +42,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 .tab.inactive{background:transparent;border:1px solid transparent;color:var(--text-d)}
 `;
 
+
 const ROLE_CONFIG: Record<string, { label: string; color: string; desc: string }> = {
   admin:     { label: "Admin",     color: "var(--gold)",   desc: "Full access — manage members & all projects" },
   editor:    { label: "Editor",    color: "var(--blue)",   desc: "Can create & edit appraisals" },
@@ -41,10 +51,12 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; desc: string }
   member:    { label: "Member",    color: "var(--blue)",   desc: "Access to shared workspace projects" },
 };
 
+
 function InvitePage() {
   const params = useParams();
   const router = useRouter();
   const token = params?.token as string;
+
 
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +71,7 @@ function InvitePage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
 
+
   useEffect(() => {
     const init = async () => {
       const { data: inv } = await supabase
@@ -67,10 +80,13 @@ function InvitePage() {
         .eq("token", token)
         .single();
 
+
       if (!inv) { setInvalid(true); setLoading(false); return; }
       if (inv.accepted_at) { setAlreadyAccepted(true); setInvite(inv); setLoading(false); return; }
 
+
       setInvite(inv);
+
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -84,10 +100,12 @@ function InvitePage() {
     init();
   }, [token]);
 
+
   const acceptInvite = async (userId: string) => {
     if (!invite) return;
     setJoining(true);
     setJoinError(null);
+
 
     try {
       // ── Step 1: Try to find a placeholder row by email ──
@@ -98,12 +116,14 @@ function InvitePage() {
         .eq("email", invite.email)
         .maybeSingle();
 
+
       if (existing) {
         // Update the placeholder with the real user_id
         const { error: updateErr } = await supabase
           .from("firm_members")
           .update({ user_id: userId, joined_at: new Date().toISOString() })
           .eq("id", existing.id);
+
 
         if (updateErr) {
           console.error("firm_members update error:", updateErr);
@@ -120,6 +140,7 @@ function InvitePage() {
         }
       }
 
+
       // ── Step 2: Upsert by (firm_id, user_id) ──
       const { error: upsertErr } = await supabase
         .from("firm_members")
@@ -135,8 +156,10 @@ function InvitePage() {
           { onConflict: "firm_id,user_id", ignoreDuplicates: false }
         );
 
+
       if (upsertErr) {
         console.error("firm_members upsert error:", upsertErr);
+
 
         // ── Step 3: Plain insert as last resort ──
         const { error: insertErr } = await supabase
@@ -150,6 +173,7 @@ function InvitePage() {
             joined_at: new Date().toISOString(),
           });
 
+
         if (insertErr) {
           console.error("firm_members insert error:", insertErr);
           setJoinError(
@@ -161,19 +185,23 @@ function InvitePage() {
         }
       }
 
+
       // ── Mark invite accepted ──
       const { error: inviteErr } = await supabase
         .from("firm_invites")
         .update({ accepted_at: new Date().toISOString() })
         .eq("id", invite.id);
 
+
       if (inviteErr) {
         console.error("firm_invites update error (non-fatal):", inviteErr);
       }
 
+
       setJoined(true);
       setJoining(false);
       setTimeout(() => router.push("/dashboard"), 2000);
+
 
     } catch (err: any) {
       console.error("acceptInvite unexpected error:", err);
@@ -182,9 +210,11 @@ function InvitePage() {
     }
   };
 
+
   const handleAuth = async (e: any) => {
     e.preventDefault();
     setAuthError(null);
+
 
     if (authMode === "signup") {
       const { data, error } = await supabase.auth.signUp({
@@ -210,26 +240,33 @@ function InvitePage() {
     }
   };
 
+
   const roleInfo = ROLE_CONFIG[invite?.role] || ROLE_CONFIG.member;
 
+
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+    <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       <style>{CSS}</style>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+
 
       <div style={{ width: "100%", maxWidth: 440, animation: "fadeIn .4s ease" }}>
+
 
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 300, color: "var(--gold)", letterSpacing: ".1em", marginBottom: 4 }}>VALORA</div>
           <div style={{ fontSize: 11, color: "var(--text-d)", letterSpacing: ".1em", textTransform: "uppercase" }}>Institutional Development Appraisal</div>
         </div>
+
 
         {/* INVALID */}
         {invalid && (
@@ -240,6 +277,7 @@ function InvitePage() {
             <button className="btn-ghost" onClick={() => router.push("/")}>Back to Valora</button>
           </div>
         )}
+
 
         {/* ALREADY ACCEPTED */}
         {alreadyAccepted && (
@@ -252,6 +290,7 @@ function InvitePage() {
             <button className="btn-primary" onClick={() => router.push("/dashboard")}>Go to Dashboard →</button>
           </div>
         )}
+
 
         {/* JOINED SUCCESS */}
         {joined && (
@@ -269,10 +308,12 @@ function InvitePage() {
           </div>
         )}
 
+
         {/* MAIN INVITE CARD */}
         {invite && !joined && !invalid && !alreadyAccepted && (
           <div style={{ background: "var(--bg2)", border: "1px solid var(--border-m)", borderRadius: 16, padding: 36, position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,var(--gold),transparent)" }} />
+
 
             {/* Header */}
             <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -283,6 +324,7 @@ function InvitePage() {
               </p>
             </div>
 
+
             {/* Role badge */}
             <div style={{ background: "var(--bg3)", borderRadius: 10, padding: "14px 16px", marginBottom: 28, display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: roleInfo.color, flexShrink: 0 }} />
@@ -292,6 +334,7 @@ function InvitePage() {
               </div>
             </div>
 
+
             {/* Join error */}
             {joinError && (
               <div style={{ background: "rgba(244,100,95,.08)", border: "1px solid rgba(244,100,95,.25)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--red)", marginBottom: 20, lineHeight: 1.6 }}>
@@ -299,6 +342,7 @@ function InvitePage() {
                 {joinError}
               </div>
             )}
+
 
             {/* Already logged in */}
             {user ? (
@@ -315,7 +359,7 @@ function InvitePage() {
                 <button className="btn-primary" onClick={() => acceptInvite(user.id)} disabled={joining}>
                   {joining ? (
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#0D1017", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
                       Joining workspace…
                     </span>
                   ) : `Accept & Join ${invite.firms?.name} →`}
@@ -335,11 +379,13 @@ function InvitePage() {
                   ))}
                 </div>
 
+
                 <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 16, lineHeight: 1.5 }}>
                   {authMode === "signup"
                     ? "Create a free Valora account to accept this invitation."
                     : "Sign in to your existing Valora account."}
                 </p>
+
 
                 <div style={{ marginBottom: 12 }}>
                   <input className="inp" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" required />
@@ -348,20 +394,23 @@ function InvitePage() {
                   <input className="inp" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={authMode === "signup" ? "Create a password (8+ chars)" : "Your password"} required minLength={authMode === "signup" ? 8 : 1} />
                 </div>
 
+
                 {authError && (
                   <div style={{ background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.2)", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "var(--red)", marginBottom: 16, lineHeight: 1.5 }}>
                     {authError}
                   </div>
                 )}
 
+
                 <button type="submit" className="btn-primary" disabled={joining}>
                   {joining ? (
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#06070a", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(6,7,10,.3)", borderTopColor: "#0D1017", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
                       Joining…
                     </span>
                   ) : authMode === "signup" ? "Create Account & Join →" : "Sign In & Join →"}
                 </button>
+
 
                 <p style={{ fontSize: 11, color: "var(--text-d)", textAlign: "center", marginTop: 16, lineHeight: 1.5 }}>
                   {authMode === "signup"
@@ -373,6 +422,7 @@ function InvitePage() {
           </div>
         )}
 
+
         {!invalid && (
           <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-d)", marginTop: 20, lineHeight: 1.6 }}>
             <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => router.push("/")}>valoraplatform.io</span>
@@ -383,11 +433,12 @@ function InvitePage() {
   );
 }
 
+
 export default function InvitePageWrapper() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#06070a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid rgba(201,168,76,.2)", borderTopColor: "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+      <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     }>
