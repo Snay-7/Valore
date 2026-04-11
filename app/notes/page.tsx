@@ -31,6 +31,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 .sidebar{width:210px;background:#252D3F;border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.main-wrap{margin-left:210px;padding:32px;flex:1}
 .nav-item{width:100%;display:flex;align-items:center;padding:8px 12px;border-radius:7px;font-size:13px;color:#8B93A5;background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:left;margin-bottom:2px}
 .nav-item:hover{color:#F0EEE8;background:rgba(255,255,255,0.07)}
 .nav-item.active{color:#52C498;background:rgba(82,196,152,.12);border-color:rgba(82,196,152,.25);font-weight:600}
@@ -275,7 +276,7 @@ export default function NotesPage() {
 
 
       {/* ── MAIN ── */}
-      <div className="main-wrap" style={{ marginLeft: 210, flex: 1, padding: "32px", minWidth: 0 }}>
+      <div className="main-wrap" style={{ flex: 1, minWidth: 0 }}>
 
 
         {/* Header */}
