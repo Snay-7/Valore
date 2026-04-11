@@ -26,12 +26,12 @@ body.light{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;animation:fadeIn .3s ease both;position:relative}
-.card:hover{border-color:var(--gold-border);transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.4)}
-.card.trashed{opacity:.6;border-style:dashed}
-.metric-pill{background:var(--bg3);border-radius:7px;padding:8px 10px}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
-.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:16px;padding:28px;width:460px;max-width:calc(100vw - 32px)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:18px;cursor:pointer;transition:border-color .15s;animation:fadeIn .3s ease both}
+.card:hover{border-color:var(--border-m)}
+.card.trashed{opacity:.5;border-style:dashed}
+.metric-pill{background:var(--bg3);border-radius:5px;padding:6px 10px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s ease}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px;width:460px;max-width:calc(100vw - 32px)}
 .inp{width:100%;padding:9px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--gold)}
 .inp::placeholder{color:var(--text-d);font-family:var(--font-body)}
@@ -49,12 +49,12 @@ select.inp{cursor:pointer}
 .menu-btn{background:none;border:none;color:var(--text-d);cursor:pointer;padding:4px 8px;border-radius:4px;font-size:16px;line-height:1;transition:all .2s;position:relative;z-index:2}
 .menu-btn:hover{background:var(--bg4);color:var(--text)}
 .card-menu{position:absolute;top:14px;right:14px;z-index:10}
-.dropdown{position:absolute;top:100%;right:0;background:var(--bg3);border:1px solid var(--border-m);border-radius:8px;padding:4px;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:fadeIn .1s ease}
+.dropdown{position:absolute;top:100%;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:160px;box-shadow:0 4px 12px rgba(0,0,0,.12);animation:fadeIn .1s ease}
 .dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:background .15s;width:100%;border:none;background:none;color:var(--text-m);font-family:var(--font-body);text-align:left}
 .dropdown-item:hover{background:var(--bg4);color:var(--text)}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
-.stats-strip{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
+.stats-strip{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:20px}
 .stat-cell{flex:1;padding:12px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
 .stat-cell:last-child{border-right:none}
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -588,6 +588,7 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
 
 
 
@@ -672,7 +673,19 @@ export default function Dashboard() {
           </button>
           <div style={{ padding: "10px 0 14px" }}>
             <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
-            <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <button className="nav-item" onClick={signOut} style={{ fontSize: 12 }}>Sign Out</button>
+              <button
+                onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+                title={theme === "dark" ? "Light mode" : "Dark mode"}
+                style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid var(--border)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "var(--text-d)", fontSize: 10, fontFamily: "var(--font-body)" }}
+              >
+                {theme === "dark"
+                  ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light</>
+                  : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</>
+                }
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -864,9 +877,8 @@ export default function Dashboard() {
 
             {/* ── ONBOARDING MODAL ── */}
             {showOnboarding && (
-              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}>
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}>
                 <div style={{ background:"var(--bg2)", border:"1px solid var(--border-m)", borderRadius:16, padding:36, width:480, maxWidth:"calc(100vw - 32px)", position:"relative" }}>
-                  <div style={{ position:"absolute", top:0, left:"20%", right:"20%", height:1, background:"linear-gradient(90deg,transparent,var(--gold),transparent)" }}/>
                   {onboardingStep === 0 && (
                     <>
                       <div style={{ fontSize:11, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".12em", marginBottom:12 }}>Welcome to Valora</div>
@@ -912,7 +924,7 @@ export default function Dashboard() {
 
             {/* ── VIDEO MODAL ── */}
             {showVideoModal && (
-              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.88)", backdropFilter:"blur(12px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}
                 onClick={e => { if (e.target === e.currentTarget) setShowVideoModal(false); }}>
                 <div style={{ position:"relative", width:"90vw", maxWidth:900, borderRadius:10, overflow:"hidden", border:"1px solid rgba(201,153,60,.12)", boxShadow:"0 40px 80px rgba(0,0,0,.8)" }}>
                   <button onClick={() => setShowVideoModal(false)} style={{ position:"absolute", top:12, right:12, zIndex:10, background:"rgba(6,7,10,.8)", border:"1px solid rgba(255,255,255,.1)", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"var(--text-m)", fontSize:16, transition:"all .2s" }}>×</button>
@@ -930,8 +942,7 @@ export default function Dashboard() {
 
             {/* ── GETTING STARTED BANNER — shown when 0 appraisals ── */}
             {projects.length === 0 && !videoDismissed && (
-              <div style={{ background:"var(--bg2)", border:"1px solid var(--gold-border)", borderRadius:12, padding:"20px 24px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap", position:"relative" }}>
-                <div style={{ position:"absolute", top:0, left:"10%", right:"10%", height:1, background:"linear-gradient(90deg,transparent,var(--gold),transparent)" }}/>
+              <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:8, padding:"16px 20px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:600, color:"var(--gold)", marginBottom:4 }}>✦ Create your first appraisal</div>
                   <div style={{ fontSize:12, color:"var(--text-m)" }}>Watch the 5-minute walkthrough — then model your first deal. Takes 3 minutes.</div>
