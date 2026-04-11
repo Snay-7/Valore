@@ -668,14 +668,17 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const equity=Math.max(0,totalCost-fin.loanAmount);
     const moic=equity>0?(equity+profit)/equity:0;
     const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
+    // IRR equity: sell costs (agent + marketing) are paid from sale proceeds, not upfront
+    // So equity deployed for IRR = totalCost - loanAmount - sellCosts
+    const irrEquity=Math.max(0,totalCost-fin.loanAmount-sellCosts);
     const equityRatio=totalCost>0?equity/totalCost:1;
     const netSalesPm=(gdv-sellCosts)/absMonths;
     const loanRepayPm=fin.peakLoanBalance/absMonths;
     const uCfs:number[]=Array(totalMonths).fill(0);
     const lCfs:number[]=Array(totalMonths).fill(0);
     uCfs[0]-=landCost+sdlt+fin.arrangementFee;
-    lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);}
+    lCfs[0]-=(landCost+sdlt)*(irrEquity/(irrEquity+fin.loanAmount+sellCosts||1))+fin.arrangementFee;
+    for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*(irrEquity/(irrEquity+fin.loanAmount+sellCosts||1))+(fin.monthlyInterestArr[m]??0);}
     for(let m=0;m<absMonths;m++){const idx=buildMonths+m;const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);uCfs[idx]+=netSalesPm;lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;}
     const rawIrr=calcIRR(uCfs);
     const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
@@ -717,7 +720,10 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const equity=Math.max(0,totalInvestment-fin.loanAmount);
     const moic=equity>0?(equity+profit)/equity:0;
     const annualDebtService=fin.peakLoanBalance*annualRate;
-    const dscr=annualDebtService>0?ebitda/annualDebtService:Infinity;
+    // DSCR: use NOI (EBITDA less FF&E reserve at 3% of revenue) — industry standard for hotel ICR
+    const ffeReserve=hr.totalRev*(num(String(data.ffePct||3))/100);
+    const hotelNOI=Math.max(0,ebitda-ffeReserve);
+    const dscr=annualDebtService>0?hotelNOI/annualDebtService:Infinity;
     const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"straight");
     const equityRatio=totalInvestment>0?equity/totalInvestment:1;
     const capexTotal=capex+profFees+contingency+otherCosts+vat+s106;
@@ -994,26 +1000,33 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // GDV lands at buildMonths (practical completion = sales/refi trigger)
     const totalMonths=buildMonths+1;
     const buildProfile=buildDrawdownProfile(buildMonths,"scurve");
-    const uCfs:number[]=Array(totalMonths).fill(0);
-    uCfs[0]-=landCost+sdlt+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){
-      const draw=totalDevCost*buildProfile[m];
-      const activeIncome=zoneResults.reduce((s:number,z:any)=>s+(m>=z.startMonth?z.activeIncomePm:0),0);
-      uCfs[m]-=draw;
-      uCfs[m]+=activeIncome; // active trading income offsets carry costs
-    }
-    uCfs[totalMonths-1]+=totalGDV; // exit proceeds at completion
-
-
-    // ── Returns ──────────────────────────────────────────────────────────────
+    // ── Returns (pre-computed for cashflow equity ratio) ────────────────────
     const totalCost=landCost+sdlt+totalDevCost+fin.totalFinanceCost;
     const profit=totalGDV-totalCost;
     const poc=totalCost>0?profit/totalCost:0;
     const margin=totalGDV>0?profit/totalGDV:0;
     const equity=Math.max(0,totalCost-fin.loanAmount);
     const moic=equity>0?(equity+profit)/equity:0;
+    const muEquityRatio=totalCost>0?equity/totalCost:1;
+    const uCfs:number[]=Array(totalMonths).fill(0);
+    const lCfs:number[]=Array(totalMonths).fill(0);
+    uCfs[0]-=landCost+sdlt+fin.arrangementFee;
+    lCfs[0]-=(landCost+sdlt)*muEquityRatio+fin.arrangementFee;
+    for(let m=0;m<buildMonths;m++){
+      const draw=totalDevCost*buildProfile[m];
+      const activeIncome=zoneResults.reduce((s:number,z:any)=>s+(m>=z.startMonth?z.activeIncomePm:0),0);
+      uCfs[m]-=draw;
+      uCfs[m]+=activeIncome; // active trading income offsets carry costs
+      lCfs[m]-=draw*muEquityRatio+(fin.monthlyInterestArr[m]??0);
+      lCfs[m]+=activeIncome;
+    }
+    uCfs[totalMonths-1]+=totalGDV; // exit proceeds at completion
+    lCfs[totalMonths-1]+=totalGDV-fin.peakLoanBalance;
     const rawIrr=calcIRR(uCfs);
     const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
+    const rawIrrL=equity>0?calcIRR(lCfs):0;
+    const irrLevered=equity>0&&isFinite(rawIrrL)&&rawIrrL>-1&&rawIrrL<100?Math.pow(1+rawIrrL,12)-1:0;
+    const paybackMonth=calcPaybackMonth(uCfs);
 
 
     return{
@@ -1021,8 +1034,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       s106:schemeS106,totalFinanceCost:fin.totalFinanceCost,
       arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,
       loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
-      totalCost,profit,poc,margin,irr,equity,moic,
-      buildMonths,totalMonths,uCfs,zoneResults,
+      totalCost,profit,poc,margin,irr,irrLevered,equity,moic,paybackMonth,
+      buildMonths,totalMonths,uCfs,lCfs,zoneResults,
       financeRate:annualRate,
     };
   }
@@ -2000,7 +2013,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     }
   }else if(assetType==="Flip"){
     const salePctSteps=[10,5,0,-5,-10];
-    const refurbPctSteps=[10,5,0,-5,-10];
+    const refurbPctSteps=[-10,-5,0,5,10];
     const flipSens=salePctSteps.map(sp=>refurbPctSteps.map(rp=>{
       const modSale=(r.salePrice||0)*(1+sp/100);
       const modRefurb=(r.refurb||0)*(1+rp/100);
@@ -2502,7 +2515,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     }
   }else if(assetType==="Flip"){
     const salePctSteps=[10,5,0,-5,-10];
-    const refurbPctSteps=[10,5,0,-5,-10];
+    const refurbPctSteps=[-10,-5,0,5,10];
     const fs=salePctSteps.map(sp2=>refurbPctSteps.map(rp=>{
       const mSale=(r.salePrice||0)*(1+sp2/100);const mRefurb=(r.refurb||0)*(1+rp/100);
       const mPF=mRefurb*(num(String(data.professionalFeesPct))/100);const mC=mRefurb*(num(String(data.contingencyPct))/100);
@@ -5648,8 +5661,8 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   const baseSalePrice=r.salePrice||0;
                   const baseRefurb=r.refurb||0;
                   const salePctSteps=[10,5,0,-5,-10];
-                  const refurbPctSteps=[10,5,0,-5,-10];
-                  // Build 5×5 matrix: rows = sale price %, cols = refurb cost %
+                  const refurbPctSteps=[-10,-5,0,5,10];
+                  // Build 5×5 matrix: rows = sale price % (top=best), cols = refurb cost % (left=cheapest)
                   const flipSensMatrix=salePctSteps.map(sp=>{
                     const modSalePrice=baseSalePrice*(1+sp/100);
                     return refurbPctSteps.map(rp=>{
