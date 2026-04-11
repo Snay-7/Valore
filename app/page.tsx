@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -23,11 +24,13 @@ a{text-decoration:none;color:inherit}
 ::selection{background:rgba(82,196,152,0.15);color:var(--sage)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border-m);border-radius:2px}
 
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
 
 .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1)}
 .reveal.visible{opacity:1;transform:translateY(0)}
@@ -35,6 +38,7 @@ a{text-decoration:none;color:inherit}
 .reveal-delay-2{transition-delay:.2s}
 .reveal-delay-3{transition-delay:.3s}
 .reveal-delay-4{transition-delay:.4s}
+
 
 .nav{position:fixed;top:0;left:0;right:0;z-index:200;height:64px;display:flex;align-items:center;padding:0 48px;transition:all .3s;background:rgba(248,249,250,0)}
 .nav.on{background:rgba(248,249,250,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);box-shadow:0 1px 0 var(--border)}
@@ -44,6 +48,7 @@ a{text-decoration:none;color:inherit}
 .nav-links a:hover{color:var(--text)}
 .nav-btns{display:flex;gap:10px;align-items:center}
 
+
 .btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:var(--font);white-space:nowrap}
 .btn-primary:hover{background:var(--navy-l);transform:translateY(-1px)}
 .btn-sage{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:var(--font);white-space:nowrap}
@@ -51,19 +56,25 @@ a{text-decoration:none;color:inherit}
 .btn-ghost{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--text-m);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid var(--border-m);cursor:pointer;transition:all .2s;font-family:var(--font)}
 .btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
 
+
 .container{max-width:1120px;margin:0 auto;padding:0 48px}
+
 
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--sage-bg);border:1px solid var(--sage-border);color:var(--sage);padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.04em}
 
+
 .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;transition:all .2s}
 .stat-card:hover{border-color:var(--sage-border);box-shadow:0 4px 20px rgba(42,138,100,.06)}
+
 
 .feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;transition:all .25s;position:relative;overflow:hidden}
 .feature-card:hover{border-color:var(--sage-border);transform:translateY(-2px);box-shadow:0 8px 32px rgba(42,138,100,.07)}
 .feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--sage-l),transparent);opacity:0;transition:opacity .25s}
 .feature-card:hover::before{opacity:1}
 
+
 .model-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid;font-family:var(--mono)}
+
 
 .price-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:36px;transition:all .25s;position:relative}
 .price-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(30,36,51,.1)}
@@ -75,27 +86,32 @@ a{text-decoration:none;color:inherit}
 .price-feature::before{content:'✓';color:var(--sage);font-weight:700;flex-shrink:0;margin-top:1px}
 .price-feature:last-child{border:none}
 
+
 .faq-item{border-bottom:1px solid var(--border)}
 .faq-q{display:flex;justify-content:space-between;align-items:center;padding:20px 0;cursor:pointer;font-size:15px;font-weight:500;color:var(--text);gap:16px}
 .faq-a{font-size:14px;color:var(--text-m);line-height:1.8;padding-bottom:20px}
 .faq-icon{flex-shrink:0;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-m);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-d);transition:all .2s}
 .faq-item.open .faq-icon{background:var(--sage);border-color:var(--sage);color:#fff}
 
+
 .ticker-wrap{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2);padding:14px 0}
 .ticker-inner{display:inline-flex;gap:64px;animation:ticker 60s linear infinite}
 .ticker-item{display:inline-flex;align-items:center;gap:10px;font-size:11px;color:var(--text-d);letter-spacing:.08em;text-transform:uppercase;font-weight:500;white-space:nowrap}
 .ticker-dot{width:4px;height:4px;border-radius:50%;background:var(--sage-l);flex-shrink:0}
+
 
 .screenshot-frame{background:var(--navy);border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 40px 80px rgba(30,36,51,.25)}
 .screen-bar{background:#1A2030;padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.06)}
 .screen-dot{width:10px;height:10px;border-radius:50%}
 .screen-content{padding:20px;background:#0D1017}
 
+
 .mock-card{background:#141920;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:14px}
 .mock-label{font-size:9px;color:#4D5570;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-family:var(--mono)}
 .mock-value{font-size:20px;font-weight:600;color:#F0EEE8;font-family:var(--mono)}
 .mock-badge{display:inline-block;background:rgba(82,196,152,.12);color:#52C498;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-top:3px;font-family:var(--mono)}
 .mock-badge-red{background:rgba(212,82,82,.12);color:#D45252}
+
 
 .hamburger{display:none;background:none;border:none;cursor:pointer;flex-direction:column;gap:5px;padding:4px}
 .hamburger span{display:block;width:22px;height:1.5px;background:var(--text-m);transition:all .3s}
@@ -105,6 +121,7 @@ a{text-decoration:none;color:inherit}
 .inp{width:100%;padding:13px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:all .2s}
 .inp:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-bg);background:var(--bg2)}
 .inp::placeholder{color:var(--text-d)}
+
 
 @media(max-width:900px){
   .login-wrap{grid-template-columns:1fr !important}
@@ -132,23 +149,25 @@ a{text-decoration:none;color:inherit}
 }
 `;
 
+
 const PLANS = [
   {
-    name:"Free",price:"£0",period:"",desc:"Start modelling immediately. No card needed.",
+    name:"Free",price:"$0",period:"",desc:"Start modelling immediately. No card needed.",
     features:["3 full appraisals","All 7 asset models","Monthly cashflow engine","PDF appraisal export","Core analysis — IRR, DSCR, RLV"],
     featured:false,cta:"Start free →"
   },
   {
-    name:"Pro",price:"£99",period:"/mo",desc:"For active developers and advisors.",
+    name:"Pro",price:"$149",period:"/mo",desc:"For active developers and advisors.",
     features:["Unlimited projects","All 7 asset models","Monthly cashflow engine","DSCR / ICR, MOIC & break-even","AI brochure PDF","AI sense check","Live investor share links","Priority support"],
     featured:true,cta:"Start 14-day trial →"
   },
   {
-    name:"Enterprise",price:"£399",period:"/mo",desc:"For firms and investment teams.",
+    name:"Enterprise",price:"$499",period:"/mo",desc:"For firms and investment teams.",
     features:["Everything in Pro","Full team workspace with roles","Multi-firm support","White label PDF exports","Dedicated onboarding","SLA support"],
     featured:false,cta:"Book a demo →"
   },
 ];
+
 
 const FEATURES = [
   {icon:"▦",label:"True Monthly Cashflow",desc:"Full month-by-month P&L from acquisition to exit. S-curve drawdown with interest rolled on actual drawn balances.",tag:"Core"},
@@ -161,6 +180,7 @@ const FEATURES = [
   {icon:"◫",label:"Deal Pipeline",desc:"Kanban boards from Prospect to Completion. Tasks, notes and activity feed on every deal — everything linked.",tag:"PM"},
 ];
 
+
 const FAQS = [
   {q:"Which real estate models are included?",a:"Build to Rent, Build to Sell, Hotel, House Flip, Mixed Use, Commercial and Industrial. All 7 models are available on every plan including Free."},
   {q:"Can I share appraisals with investors or lenders?",a:"Yes. Pro and Enterprise plans include live share links. Anyone with the link sees your latest numbers in real time — no email attachments, no stale versions."},
@@ -168,6 +188,7 @@ const FAQS = [
   {q:"Is Valora suitable for smaller developers?",a:"Yes. The Free plan is designed for individual developers, investors and deal sourcers. Three full appraisals with all models and all core analysis tools."},
   {q:"How accurate is the cashflow engine?",a:"Valora uses a true monthly cashflow model with S-curve drawdown and interest rolled on actual drawn balances — the same method institutional lenders use internally."},
 ];
+
 
 const MODELS = [
   {key:"BTR",label:"Build to Rent",color:"#2A8A64",bg:"rgba(82,196,152,.1)"},
@@ -179,11 +200,13 @@ const MODELS = [
   {key:"Industrial",label:"Industrial",color:"#5A6478",bg:"rgba(90,100,120,.1)"},
 ];
 
+
 function useScrolled(t=40){
   const [s,setS]=useState(false);
   useEffect(()=>{const fn=()=>setS(window.scrollY>t);window.addEventListener("scroll",fn,{passive:true});return()=>window.removeEventListener("scroll",fn);},[t]);
   return s;
 }
+
 
 function useReveal(){
   useEffect(()=>{
@@ -192,6 +215,7 @@ function useReveal(){
     return()=>obs.disconnect();
   },[]);
 }
+
 
 function Counter({target,suffix="",prefix="",dec=0,dur=2000}:any){
   const [n,setN]=useState(0);
@@ -204,6 +228,7 @@ function Counter({target,suffix="",prefix="",dec=0,dur=2000}:any){
   },[target,dur,dec,started]);
   return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>;
 }
+
 
 function Nav({onLogin,isHome,onPage}:any){
   const scrolled=useScrolled();
@@ -236,6 +261,7 @@ function Nav({onLogin,isHome,onPage}:any){
     </>
   );
 }
+
 
 function Footer({onPage}:any){
   return(
@@ -275,18 +301,22 @@ function Footer({onPage}:any){
   );
 }
 
+
 // ── MAIN LANDING PAGE ────────────────────────────────────────────────────────
 function LandingPage({onLogin,onPage}:any){
   const [openFaq,setOpenFaq]=useState<number|null>(null);
   useReveal();
 
+
   return(
     <div style={{minHeight:"100vh"}}>
+
 
       {/* ── HERO ── */}
       <section style={{padding:"140px 0 100px",background:"var(--bg)"}}>
         <div className="container">
           <div className="hero-cols" style={{display:"grid",gridTemplateColumns:"54% 46%",gap:80,alignItems:"center"}}>
+
 
             <div>
               <div className="chip" style={{marginBottom:24,animation:"fadeUp .5s ease both"}}>
@@ -294,15 +324,18 @@ function LandingPage({onLogin,onPage}:any){
                 Now in beta — free to start
               </div>
 
+
               <h1 style={{fontSize:"clamp(38px,4.5vw,60px)",fontWeight:700,lineHeight:1.1,letterSpacing:"-.03em",color:"var(--navy)",marginBottom:20,animation:"fadeUp .6s .05s ease both",opacity:0}}>
                 Property development<br/>
                 <span style={{color:"var(--sage)"}}>appraisal that moves</span><br/>
                 as fast as you do.
               </h1>
 
+
               <p style={{fontSize:"clamp(15px,1.5vw,18px)",color:"var(--text-m)",lineHeight:1.7,maxWidth:480,marginBottom:36,animation:"fadeUp .6s .12s ease both",opacity:0}}>
                 BTR, BTS, Hotel, Flip, Mixed Use, Commercial. Seven models, one platform. From first numbers to investor-ready PDF in minutes.
               </p>
+
 
               <div className="hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",animation:"fadeUp .6s .18s ease both",opacity:0}}>
                 <button className="btn-sage" onClick={onLogin} style={{padding:"14px 28px",fontSize:14}}>
@@ -314,6 +347,7 @@ function LandingPage({onLogin,onPage}:any){
                 </button>
               </div>
 
+
               <div style={{display:"flex",gap:24,marginTop:32,animation:"fadeUp .6s .24s ease both",opacity:0}}>
                 {[["7","Asset models"],["14-day","Free trial"],["No card","Required"]].map(([n,l])=>(
                   <div key={l} style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -323,6 +357,7 @@ function LandingPage({onLogin,onPage}:any){
                 ))}
               </div>
             </div>
+
 
             {/* ── HERO MOCKUP ── */}
             <div className="hero-right" style={{animation:"fadeUp .7s .15s ease both",opacity:0}}>
@@ -382,9 +417,11 @@ function LandingPage({onLogin,onPage}:any){
               </div>
             </div>
 
+
           </div>
         </div>
       </section>
+
 
       {/* ── TICKER ── */}
       <div className="ticker-wrap">
@@ -401,6 +438,7 @@ function LandingPage({onLogin,onPage}:any){
           ))}
         </div>
       </div>
+
 
       {/* ── STATS ── */}
       <section style={{padding:"80px 0"}}>
@@ -424,6 +462,7 @@ function LandingPage({onLogin,onPage}:any){
         </div>
       </section>
 
+
       {/* ── FEATURES ── */}
       <section id="features" style={{padding:"80px 0",background:"var(--bg3)"}}>
         <div className="container">
@@ -437,6 +476,7 @@ function LandingPage({onLogin,onPage}:any){
             </p>
           </div>
 
+
           <div className="features-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
             {FEATURES.map((f,i)=>(
               <div key={f.label} className={`feature-card reveal reveal-delay-${Math.min(i%4+1,4)}`}>
@@ -449,6 +489,7 @@ function LandingPage({onLogin,onPage}:any){
           </div>
         </div>
       </section>
+
 
       {/* ── MODELS ── */}
       <section style={{padding:"80px 0"}}>
@@ -500,6 +541,7 @@ function LandingPage({onLogin,onPage}:any){
         </div>
       </section>
 
+
       {/* ── PRICING ── */}
       <section id="pricing" style={{padding:"80px 0",background:"var(--bg3)"}}>
         <div className="container">
@@ -510,6 +552,7 @@ function LandingPage({onLogin,onPage}:any){
             </h2>
             <p style={{fontSize:15,color:"var(--text-m)",lineHeight:1.6}}>No credit card. No setup fees. Three full appraisals free, all models included.</p>
           </div>
+
 
           <div className="pricing-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,maxWidth:960,margin:"0 auto"}}>
             {PLANS.map((plan,i)=>(
@@ -538,6 +581,7 @@ function LandingPage({onLogin,onPage}:any){
         </div>
       </section>
 
+
       {/* ── FAQ ── */}
       <section id="faq" style={{padding:"80px 0"}}>
         <div className="container" style={{maxWidth:720,margin:"0 auto"}}>
@@ -561,6 +605,7 @@ function LandingPage({onLogin,onPage}:any){
         </div>
       </section>
 
+
       {/* ── FINAL CTA ── */}
       <section style={{padding:"80px 0",background:"var(--navy)"}}>
         <div className="container" style={{textAlign:"center"}}>
@@ -583,9 +628,12 @@ function LandingPage({onLogin,onPage}:any){
         </div>
       </section>
 
+
     </div>
   );
 }
+
+
 
 
 // ── SUPPORT PAGE ─────────────────────────────────────────────────────────────
@@ -647,6 +695,7 @@ function SupportPage({onLogin,onPage}:any){
   );
 }
 
+
 // ── LEGAL PAGES ───────────────────────────────────────────────────────────────
 function LegalPage({title,lastUpdated,children,onLogin,onPage}:any){
   return(
@@ -665,6 +714,7 @@ function LegalPage({title,lastUpdated,children,onLogin,onPage}:any){
 function PrivacyContent(){return(<><p style={{marginBottom:16}}>Valora Technologies Ltd is committed to protecting your personal data. We collect account data (name, email, firm), appraisal data you create, anonymised usage data, and payment confirmation from Stripe. We do not store card details or use your appraisals to train AI models.</p><h2 style={{fontSize:20,fontWeight:600,color:"var(--navy)",margin:"32px 0 12px",letterSpacing:"-.015em"}}>Your Rights</h2><p>Under UK GDPR you have rights to access, correct, delete, and port your data. Contact <a href="mailto:privacy@valoraplatform.io" style={{color:"var(--sage)"}}>privacy@valoraplatform.io</a>.</p></>);}
 function TermsContent(){return(<><p style={{marginBottom:16}}>These Terms govern your use of the Valora platform. Subscriptions are billed monthly or annually. 14-day free trial on all plans. Cancel anytime. Prices exclude applicable taxes.</p><p>The platform and AI features provide information only — not financial advice. Governed by the laws of England and Wales.</p><p style={{marginTop:16}}>Contact: <a href="mailto:legal@valoraplatform.io" style={{color:"var(--sage)"}}>legal@valoraplatform.io</a></p></>);}
 function CookiesContent(){return(<><p>We use essential cookies to keep you logged in and protect against CSRF. Analytics cookies are anonymised. Stripe sets cookies for payment security. Contact <a href="mailto:privacy@valoraplatform.io" style={{color:"var(--sage)"}}>privacy@valoraplatform.io</a> with questions.</p></>);}
+
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 function Login({onBack}:any){
@@ -765,11 +815,13 @@ function Login({onBack}:any){
   );
 }
 
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function App(){
   const [page,setPage]=useState("landing");
   const [loading,setLoading]=useState(true);
   const router=useRouter();
+
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{
@@ -780,8 +832,10 @@ export default function App(){
     if(params.get("invited")==="true"){setPage("login");setLoading(false);}
   },[router]);
 
+
   const toLogin=useCallback(()=>{setPage("login");window.scrollTo(0,0);},[]);
   const toPage=useCallback((p:string)=>{setPage(p);window.scrollTo(0,0);},[]);
+
 
   if(loading)return(
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -789,6 +843,7 @@ export default function App(){
       <div style={{width:28,height:28,border:"2px solid var(--border-m)",borderTopColor:"var(--sage)",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
     </div>
   );
+
 
   return(
     <>
