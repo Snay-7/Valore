@@ -17,12 +17,12 @@ const CSS = `
   --tog-bg:#202840;--tog-active:#52C498;--tog-text:#8B93A5;
 }
 .theme-light{
-  --bg:#f8f7f4;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f3f1ec;--bg4:#e8e4dc;--bg5:#d8d4cb;
-  --text:#1a1814;--text-m:#6b6560;--text-d:#9c9890;
-  --border:rgba(0,0,0,0.08);--border-m:rgba(0,0,0,0.14);
-  --card-bg:#ffffff;--card-border:rgba(0,0,0,0.08);
-  --section-bg:#f3f1ec;--divider:rgba(0,0,0,0.07);
-  --tog-bg:#e8e4dc;--tog-active:#52C498;--tog-text:#6b6560;
+  --bg:#F8F9FA;--bg1:#F0F2F5;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
+  --border:rgba(0,0,0,0.08);--border-m:rgba(0,0,0,0.13);
+  --card-bg:#FFFFFF;--card-border:rgba(0,0,0,0.08);
+  --section-bg:#F0F2F5;--divider:rgba(0,0,0,0.08);
+  --tog-bg:#E8EAED;--tog-active:#2A8A64;--tog-text:#5A6478;
 }
 :root{
   --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.25);
@@ -552,7 +552,7 @@ function SharePage() {
   const [appraisal, setAppraisal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
 
 
   useEffect(() => {
@@ -685,7 +685,7 @@ function SharePage() {
       {/* NAV */}
       <div style={{ borderBottom: "1px solid var(--border)", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", background: "var(--bg1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <img src="/valora-mark.svg" style={{ height: "20px", width: "auto", filter: "brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(500%) hue-rotate(5deg) brightness(95%)", flexShrink: 0 }} alt="Valora"/>
+          <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:17,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
           <span style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--gold)", letterSpacing: ".12em", fontWeight: 300 }}>VALORA</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -770,7 +770,7 @@ function SharePage() {
         <div className="share-footer fade-up" style={{ animationDelay: ".5s", padding: "0" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <img src="/valora-mark.svg" style={{ height: "18px", width: "auto", filter: "brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(500%) hue-rotate(5deg) brightness(95%)", flexShrink: 0 }} alt="Valora"/>
+              <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:15,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
               <span style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--gold)", letterSpacing: ".12em", fontWeight: 300 }}>VALORA</span>
             </div>
             <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 3, letterSpacing: ".08em", textTransform: "uppercase" }}>Institutional Development Appraisal</div>
