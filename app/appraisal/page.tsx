@@ -16,6 +16,19 @@ const CSS = `
   --font-body:'Instrument Sans',system-ui,sans-serif;
   --font-mono:'JetBrains Mono',monospace;
 }
+body.light{
+  --gold:#a07830;--gold-l:#c9a84c;--gold-bg:rgba(160,120,48,0.08);--gold-border:rgba(160,120,48,0.25);
+  --bg:#f5f4f0;--bg1:#eeede8;--bg2:#ffffff;--bg3:#f0efe9;--bg4:#e8e6df;--bg5:#dddbd2;
+  --text:#1a1a1a;--text-m:#555550;--text-d:#999891;
+  --border:rgba(0,0,0,0.12);--border-m:rgba(0,0,0,0.18);
+  --green:#1a9e5c;--red:#d43f3a;--amber:#c47c00;--blue:#2563b8;
+}
+body.light .cell-r{background:rgba(212,63,58,.09);color:var(--red)}
+body.light .cell-a{background:rgba(196,124,0,.08);color:var(--amber)}
+body.light .cell-g{background:rgba(26,158,92,.08);color:var(--green)}
+body.light .modal-overlay{background:rgba(0,0,0,.45)}
+body.light .btn-primary{color:#ffffff}
+body.light .ai-generating{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%}
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
@@ -1511,7 +1524,8 @@ function drawVMarkPDF(doc:any,x:number,y:number,h:number,color:[number,number,nu
   doc.triangle(x+outer[2][0],y+outer[2][1],x+outer[3][0],y+outer[3][1],x+outer[4][0],y+outer[4][1],"F");
   // Knock out inner V with dark fill
   const bg=doc.internal.pageSize; // use dark background
-  doc.setFillColor(6,7,10);
+  // knock out inner V with page background (light theme = warm cream)
+  doc.setFillColor(245,244,240);
   doc.triangle(x+inner[0][0],y+inner[0][1],x+inner[1][0],y+inner[1][1],x+inner[5][0],y+inner[5][1],"F");
   doc.triangle(x+inner[1][0],y+inner[1][1],x+inner[4][0],y+inner[4][1],x+inner[5][0],y+inner[5][1],"F");
   doc.triangle(x+inner[1][0],y+inner[1][1],x+inner[2][0],y+inner[2][1],x+inner[4][0],y+inner[4][1],"F");
@@ -1537,17 +1551,18 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   const{jsPDF}=(window as any).jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
   const W=210,H=297,M=14;
-  const gold=[201,168,76] as [number,number,number];
-  const dark=[6,7,10] as [number,number,number];
-  const bg2=[18,21,26] as [number,number,number];
-  const bg3=[25,29,36] as [number,number,number];
-  const bg4=[32,36,44] as [number,number,number];
-  const grey=[125,133,144] as [number,number,number];
-  const white=[236,234,228] as [number,number,number];
-  const green=[61,220,132] as [number,number,number];
-  const red=[244,100,95] as [number,number,number];
-  const amber=[240,164,41] as [number,number,number];
-  const blue=[91,156,246] as [number,number,number];
+  // Light theme palette — clean, print-friendly, institutional
+  const gold=[160,120,48] as [number,number,number];
+  const dark=[245,244,240] as [number,number,number];   // page background: warm off-white
+  const bg2=[255,255,255] as [number,number,number];    // card background: white
+  const bg3=[245,244,240] as [number,number,number];    // alternate row: warm grey
+  const bg4=[232,230,223] as [number,number,number];    // deeper alt: slightly darker
+  const grey=[90,88,83] as [number,number,number];      // label text: dark grey
+  const white=[26,26,26] as [number,number,number];     // body text: near-black
+  const green=[22,130,75] as [number,number,number];    // deepened for print
+  const red=[185,40,35] as [number,number,number];      // deepened for print
+  const amber=[170,100,0] as [number,number,number];    // deepened for print
+  const blue=[30,90,190] as [number,number,number];     // deepened for print
   const r=results as any;
   const colW=88;const colL=M;const colR=M+colW+8;
   const today=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
@@ -1614,7 +1629,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
         const col=poc>0.20?green:poc>0.10?amber:red;
         const isBase=ri===2&&ci===2;
         if(isBase){doc.setFillColor(...gold);doc.rect(x+cw*(ci+1),y,cw,rh,"F");}
-        doc.setTextColor(...(isBase?dark:col));doc.setFont("helvetica",isBase?"bold":"normal");
+        doc.setTextColor(...(isBase?[26,26,26] as [number,number,number]:col));doc.setFont("helvetica",isBase?"bold":"normal");
         doc.text(`${(poc*100).toFixed(1)}%`,x+cw*(ci+1)+cw/2,y+4,{align:"center"});
       });
       y+=rh;
@@ -1637,7 +1652,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   const pageFooter=(doc:any,pageNum:number,total:number)=>{
     doc.setFillColor(...gold);doc.rect(0,H-8,W,8,"F");
     doc.setFillColor(...dark);doc.rect(0,H-8,4,8,"F");
-    doc.setTextColor(...dark);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+    doc.setTextColor(26,26,26);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
     doc.text("VALORA  ·  Institutional Development Appraisal Platform",M,H-3);
     doc.text(`Confidential  ·  Page ${pageNum} of ${total}`,W-M,H-3,{align:"right"});
   };
@@ -2126,17 +2141,18 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const{jsPDF}=(window as any).jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
   const W=210,M=18;
-  const gold=[201,168,76] as [number,number,number];
-  const dark=[6,7,10] as [number,number,number];
-  const grey=[125,133,144] as [number,number,number];
-  const white=[255,255,255] as [number,number,number];
-  const bg2=[18,21,26] as [number,number,number];
-  const bg3=[25,29,36] as [number,number,number];
-  const bg4=[32,36,44] as [number,number,number];
-  const green=[61,220,132] as [number,number,number];
-  const red=[244,100,95] as [number,number,number];
-  const amber=[240,164,41] as [number,number,number];
-  const blue=[91,156,246] as [number,number,number];
+  // Light theme palette — clean, print-friendly, institutional
+  const gold=[160,120,48] as [number,number,number];
+  const dark=[245,244,240] as [number,number,number];   // page background
+  const grey=[90,88,83] as [number,number,number];      // label text
+  const white=[26,26,26] as [number,number,number];     // body text: near-black
+  const bg2=[255,255,255] as [number,number,number];    // card: white
+  const bg3=[245,244,240] as [number,number,number];    // alt row: warm cream
+  const bg4=[232,230,223] as [number,number,number];    // deeper alt
+  const green=[22,130,75] as [number,number,number];
+  const red=[185,40,35] as [number,number,number];
+  const amber=[170,100,0] as [number,number,number];
+  const blue=[30,90,190] as [number,number,number];
   const isHotelAdv=assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv;
   const today=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
 
@@ -2152,7 +2168,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
   const pageFooter=(doc:any,pageNum:number)=>{
     doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
-    doc.setTextColor(...dark);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+    doc.setTextColor(26,26,26);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
     doc.text("VALORA  ·  Institutional Development Appraisal",M,295.5);
     doc.text(`Strictly Private & Confidential  ·  Page ${pageNum}  ·  ${today}`,W-M,295.5,{align:"right"});
   };
@@ -2170,7 +2186,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     photos.slice(0,3).forEach((ph,i)=>{
       try{doc.addImage(ph,"JPEG",i*phW,0,phW,phH);}catch(e){}
     });
-    doc.setFillColor(...dark);doc.setGState&&doc.setGState(doc.GState({opacity:0.6}));
+    doc.setFillColor(6,7,10);doc.setGState&&doc.setGState(doc.GState({opacity:0.55}));
     doc.rect(0,0,W,photos.length>0?100:0,"F");
     doc.setGState&&doc.setGState(doc.GState({opacity:1}));
   }
@@ -2490,7 +2506,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         const c=poc>0.20?green:poc>0.10?amber:red;
         const isBase=ri===2&&ci===2;
         if(isBase){doc.setFillColor(...gold);doc.rect(M+cw2*(ci+1),sp,cw2,rh2,"F");}
-        doc.setTextColor(...(isBase?dark:c));doc.setFont("helvetica",isBase?"bold":"normal");
+        doc.setTextColor(...(isBase?[26,26,26] as [number,number,number]:c));doc.setFont("helvetica",isBase?"bold":"normal");
         doc.text(`${(poc*100).toFixed(1)}%`,M+cw2*(ci+1)+cw2/2,sp+4.5,{align:"center"});
       });sp+=rh2;
     });
@@ -2600,6 +2616,14 @@ function AppraisalPage(){
   const[urlImportError,setUrlImportError]=useState<string|null>(null);
   const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
   const[flipComplexity,setFlipComplexity]=useState<"simple"|"advanced">("simple");
+  const[theme,setTheme]=useState<"dark"|"light">(()=>{
+    if(typeof window!=="undefined")return(localStorage.getItem("valora-theme")||"dark") as "dark"|"light";
+    return "dark";
+  });
+  useEffect(()=>{
+    document.body.classList.toggle("light",theme==="light");
+    localStorage.setItem("valora-theme",theme);
+  },[theme]);
   const[senseError,setSenseError]=useState<string|null>(null);
   const[senseOpen,setSenseOpen]=useState(true);
   const[subscription,setSubscription]=useState<any>(null);
@@ -3137,6 +3161,17 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             </div>
           </div>
         )}
+        {/* Theme toggle */}
+        <button
+          onClick={()=>setTheme(t=>t==="dark"?"light":"dark")}
+          title={theme==="dark"?"Switch to light mode":"Switch to dark mode"}
+          style={{flexShrink:0,padding:"4px 8px",borderRadius:6,border:"1px solid var(--border)",background:"var(--bg3)",cursor:"pointer",display:"flex",alignItems:"center",gap:5,transition:"all .2s"}}
+        >
+          {theme==="dark"
+            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          }
+        </button>
         <input className="inp name-inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Name…" style={{padding:"4px 8px",fontSize:12,flexShrink:1,minWidth:0,width:120}}/>
       </div>
       <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
