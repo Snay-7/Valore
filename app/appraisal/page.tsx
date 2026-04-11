@@ -1523,118 +1523,585 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   }
   const{jsPDF}=(window as any).jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-  const W=210,H=297;
+  const W=210,H=297,M=14;
   const gold=[201,168,76] as [number,number,number];
   const dark=[6,7,10] as [number,number,number];
   const bg2=[18,21,26] as [number,number,number];
   const bg3=[25,29,36] as [number,number,number];
+  const bg4=[32,36,44] as [number,number,number];
   const grey=[125,133,144] as [number,number,number];
   const white=[236,234,228] as [number,number,number];
   const green=[61,220,132] as [number,number,number];
   const red=[244,100,95] as [number,number,number];
   const amber=[240,164,41] as [number,number,number];
+  const blue=[91,156,246] as [number,number,number];
   const r=results as any;
-  const programmLabel=assetType==="BTS"?`${data.programmMonths}m build · ${data.absorptionMonths}m absorption`:assetType==="BTR"?`${data.programmMonths}m build · ${data.stabilisationMonths}m stabilisation`:`${data.programmMonths} months`;
-  doc.setFillColor(...dark);doc.rect(0,0,W,H,"F");
-  doc.setFillColor(...gold);doc.rect(0,0,5,H,"F");
-  doc.setFillColor(...bg2);doc.rect(5,0,W-5,42,"F");
-  doc.setFillColor(...gold);doc.rect(5,42,W-5,0.5,"F");
-  drawVMarkPDF(doc,14,7,8,gold);doc.setTextColor(...gold);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.text("VALORA",23,15);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DEVELOPMENT APPRAISAL",14,21);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.text(new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),W-8,12,{align:"right"});doc.text(userEmail||"",W-8,18,{align:"right"});
-  doc.setFillColor(201,168,76,30);doc.roundedRect(W-52,26,44,10,2,2,"F");
-  doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("STRICTLY CONFIDENTIAL",W-30,32.5,{align:"center"});
-  doc.setTextColor(...white);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text(data.name||"Untitled Appraisal",14,58);
-  doc.setFontSize(10);doc.setFont("helvetica","normal");doc.setTextColor(...grey);doc.text(`${data.location||"No location"}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,14,66);
-  const metrics=assetType==="BTR"
-    ?[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :assetType==="BTS"
-    ?[["GDV",fmt(r.gdv,currencySymbol),gold],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :assetType==="Hotel"
-    ?[["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["DSCR",fmtX(r.dscr),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]]
-    :[["Sale Price",fmt(r.salePrice,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),white],["Equity In",fmt(r.equity||0,currencySymbol),gold]];
-  const mCols=metrics.length;const mW=(W-14-8-(mCols-1)*3)/mCols;const mY=72;
-  metrics.forEach(([label,value,color],i)=>{
-    const x=14+i*(mW+3);
-    doc.setFillColor(...bg2);doc.roundedRect(x,mY,mW,22,2,2,"F");
-    doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.roundedRect(x,mY,mW,22,2,2,"S");
-    doc.setTextColor(...grey);doc.setFontSize(mCols>4?5.5:6.5);doc.setFont("helvetica","normal");doc.text(String(label).toUpperCase(),x+3,mY+7);
-    doc.setTextColor(...(color as [number,number,number]));doc.setFontSize(mCols>4?10:12);doc.setFont("helvetica","bold");doc.text(String(value),x+3,mY+18);
-  });
-  const colL=14,colR=114,colW=88,startY=104;let lY=startY,rY=startY;
+  const colW=88;const colL=M;const colR=M+colW+8;
+  const today=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+
+  // ── Helper: draw a full-width section header ─────────────────────────────
+  const sectionHeader=(doc:any,title:string,y:number)=>{
+    doc.setFillColor(...bg2);doc.rect(M,y-5,W-M*2,8,"F");
+    doc.setFillColor(...gold);doc.rect(M,y-5,2,8,"F");
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");
+    doc.text(title.toUpperCase(),M+5,y);
+    return y+8;
+  };
+
+  // ── Helper: two-column row ───────────────────────────────────────────────
   const drawCol=(title:string,rows:[string,string,[number,number,number]?][],x:number,startY:number,w:number)=>{
-    doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),x,startY);
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),x,startY);
     doc.setFillColor(...gold);doc.rect(x,startY+1.5,w,0.3,"F");let ry=startY+8;
     rows.forEach(([label,value,color],idx)=>{
-      if(ry>280){return;}
+      if(ry>H-14)return;
       if(idx%2===0){doc.setFillColor(...bg3);doc.rect(x,ry-4,w,7,"F");}
-      doc.setTextColor(...grey);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(String(label),x+2,ry);
+      doc.setTextColor(...grey);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(String(label),x+2,ry);
       doc.setTextColor(...(color||white) as [number,number,number]);doc.setFont("helvetica","bold");doc.text(String(value),x+w-1,ry,{align:"right"});
       doc.setFont("helvetica","normal");ry+=7;
-    });return ry+6;
+    });return ry+4;
   };
+
+  // ── Helper: horizontal bar chart (cashflow) ───────────────────────────────
+  const drawCashflowBars=(cfs:number[],x:number,y:number,w:number,h:number,sym:string)=>{
+    if(!cfs||cfs.length===0)return y;
+    const maxAbs=Math.max(...cfs.map(Math.abs),1);
+    const barW=Math.min((w-4)/cfs.length,6);
+    const midX=x+w/2;
+    doc.setFontSize(5);doc.setTextColor(...grey);
+    cfs.forEach((cf,i)=>{
+      const pct=Math.abs(cf)/maxAbs;
+      const bh=Math.max(0.5,pct*(h/2-2));
+      const bx=x+2+i*(barW+0.5);
+      const isExit=i===cfs.length-1;
+      if(cf>0){
+        const col=isExit?gold:green;
+        doc.setFillColor(...col);doc.rect(bx,y+h/2-bh,barW,bh,"F");
+      }else if(cf<0){
+        doc.setFillColor(...red);doc.rect(bx,y+h/2,barW,bh,"F");
+      }
+    });
+    doc.setDrawColor(...grey);doc.setLineWidth(0.2);doc.line(x,y+h/2,x+w,y+h/2);
+    return y+h+4;
+  };
+
+  // ── Helper: sensitivity mini-table ────────────────────────────────────────
+  const drawSensTable=(matrix:number[][],rowLabels:string[],colLabels:string[],x:number,y:number,w:number,title:string)=>{
+    if(!matrix||matrix.length===0)return y;
+    doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text(title,x,y);y+=4;
+    const cols=colLabels.length+1;const cw=w/cols;const rh=6;
+    // Header row
+    doc.setFillColor(...bg3);doc.rect(x,y,w,rh,"F");
+    doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","bold");
+    colLabels.forEach((l,i)=>doc.text(l,x+cw*(i+1)+cw/2,y+4,{align:"center"}));
+    y+=rh;
+    matrix.forEach((row,ri)=>{
+      if(ri%2===0){doc.setFillColor(...bg4);doc.rect(x,y,w,rh,"F");}
+      doc.setTextColor(...grey);doc.setFont("helvetica","normal");doc.setFontSize(5.5);doc.text(rowLabels[ri]||"",x+2,y+4);
+      row.forEach((poc,ci)=>{
+        const col=poc>0.20?green:poc>0.10?amber:red;
+        const isBase=ri===2&&ci===2;
+        if(isBase){doc.setFillColor(...gold);doc.rect(x+cw*(ci+1),y,cw,rh,"F");}
+        doc.setTextColor(...(isBase?dark:col));doc.setFont("helvetica",isBase?"bold":"normal");
+        doc.text(`${(poc*100).toFixed(1)}%`,x+cw*(ci+1)+cw/2,y+4,{align:"center"});
+      });
+      y+=rh;
+    });
+    return y+6;
+  };
+
+  // ── Helper: mini page header ──────────────────────────────────────────────
+  const pageHeader=(doc:any,subtitle:string)=>{
+    doc.setFillColor(...dark);doc.rect(0,0,W,H,"F");
+    doc.setFillColor(...gold);doc.rect(0,0,4,H,"F");
+    doc.setFillColor(...bg2);doc.rect(4,0,W-4,18,"F");
+    drawVMarkPDF(doc,M,3,7,gold);
+    doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,10);
+    doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text(subtitle,W-M,10,{align:"right"});
+    doc.text(today,W-M,15,{align:"right"});
+    doc.setFillColor(...gold);doc.rect(4,18,W-4,0.4,"F");
+  };
+
+  const pageFooter=(doc:any,pageNum:number,total:number)=>{
+    doc.setFillColor(...gold);doc.rect(0,H-8,W,8,"F");
+    doc.setFillColor(...dark);doc.rect(0,H-8,4,8,"F");
+    doc.setTextColor(...dark);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+    doc.text("VALORA  ·  Institutional Development Appraisal Platform",M,H-3);
+    doc.text(`Confidential  ·  Page ${pageNum} of ${total}`,W-M,H-3,{align:"right"});
+  };
+
+  const programmLabel=assetType==="BTS"?`${data.programmMonths||30}m build · ${data.absorptionMonths||18}m absorption`:
+    assetType==="BTR"?`${data.programmMonths||36}m build · ${data.stabilisationMonths||12}m stabilisation`:
+    `${data.programmMonths||12} months`;
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 1 — COVER
+  // ════════════════════════════════════════════════════════════
+  doc.setFillColor(...dark);doc.rect(0,0,W,H,"F");
+  doc.setFillColor(...gold);doc.rect(0,0,4,H,"F");
+  // Top header band
+  doc.setFillColor(...bg2);doc.rect(4,0,W-4,50,"F");
+  doc.setFillColor(...gold);doc.rect(4,50,W-4,0.5,"F");
+  drawVMarkPDF(doc,M,8,10,gold);
+  doc.setTextColor(...gold);doc.setFontSize(20);doc.setFont("helvetica","bold");doc.text("VALORA",M+13,20);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DEVELOPMENT APPRAISAL",M+13,27);
+  doc.setTextColor(...grey);doc.setFontSize(6.5);doc.text(today,W-M,12,{align:"right"});
+  doc.text(userEmail||"",W-M,18,{align:"right"});
+  // Confidential badge
+  doc.setFillColor(201,168,76,20);doc.roundedRect(W-58,30,50,12,2,2,"F");
+  doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.roundedRect(W-58,30,50,12,2,2,"S");
+  doc.setTextColor(...gold);doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.text("STRICTLY CONFIDENTIAL",W-33,38,{align:"center"});
+  // Deal title
+  doc.setTextColor(...white);doc.setFontSize(26);doc.setFont("helvetica","bold");
+  const titleLines=doc.splitTextToSize(data.name||"Untitled Appraisal",W-M*2-10);
+  doc.text(titleLines,M,70);
+  doc.setFontSize(11);doc.setFont("helvetica","normal");doc.setTextColor(...gold);
+  doc.text(`${data.location||"No location"}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,M,70+titleLines.length*11+4);
+
+  // KPI metric strip
+  const kpiY=70+titleLines.length*11+18;
+  const kpiAll=assetType==="BTR"||assetType==="BTS"?[
+    {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
+    {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+    {l:"IRR (Unlevered)",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:(r.irr||0)>=0.08?amber:red},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ]:assetType==="Hotel"?[
+    {l:"Exit Value",v:fmt(r.exitValue||r.gdv||0,currencySymbol),c:gold},
+    {l:"EBITDA pa",v:fmt(r.ebitda||0,currencySymbol),c:green},
+    {l:"Return on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.15?green:amber},
+    {l:"IRR (Levered)",v:fmtPct(r.irrLevered||r.irr||0),c:(r.irrLevered||0)>=0.15?green:amber},
+    {l:"DSCR / ICR",v:r.dscr>0?fmtX(r.dscr):"—",c:r.dscr>=1.25?green:amber},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ]:assetType==="Commercial"||assetType==="MixedUse"?[
+    {l:"GDV / Exit",v:fmt(r.totalGDV||r.gdv||0,currencySymbol),c:gold},
+    {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+    {l:"IRR",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ]:[
+    {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
+    {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
+    {l:"IRR",v:fmtPct(r.irr||0),c:white},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ];
+  const kCols=6;const kW=(W-M*2-M)/kCols;
+  kpiAll.forEach(({l,v,c},i)=>{
+    const x=M+i*(kW+2);
+    doc.setFillColor(...bg2);doc.roundedRect(x,kpiY,kW,22,2,2,"F");
+    doc.setDrawColor(...c);doc.setLineWidth(0.4);doc.roundedRect(x,kpiY,kW,22,2,2,"S");
+    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");doc.text(l.toUpperCase(),x+3,kpiY+7);
+    doc.setTextColor(...c);doc.setFontSize(9.5);doc.setFont("helvetica","bold");doc.text(String(v),x+3,kpiY+17);
+  });
+
+  // Divider and quick facts strip
+  const factsY=kpiY+32;
+  doc.setFillColor(...bg3);doc.rect(M,factsY,W-M*2,22,"F");
+  doc.setDrawColor(...bg4);doc.setLineWidth(0.2);doc.rect(M,factsY,W-M*2,22,"S");
+  const facts=assetType==="BTR"||assetType==="BTS"?[
+    ["Units",String(r.totalUnits||"—")],["GIA",r.totalSqft?`${r.totalSqft.toLocaleString()} sqft`:"—"],
+    ["Programme",programmLabel],["LTC",`${data.ltc||0}%`],["Finance Rate",`${((num(String(data.benchmarkRate||0))+num(String(data.marginOverBenchmark||0))).toFixed(2))}%`],
+  ]:assetType==="Hotel"?[
+    ["Rooms",String(data.rooms||"—")],["ADR",`${currencySymbol}${data.adr||0}`],["Occupancy",`${data.occupancy||0}%`],
+    ["RevPAR",fmt(r.revpar||0,currencySymbol)],["Programme",programmLabel],
+  ]:assetType==="Commercial"?[
+    ["GIA",r.totalAreaSqft?`${Math.round(r.totalAreaSqft).toLocaleString()} sqft`:"—"],
+    ["Units",String((data.units||[]).length)],["Exit Method",data.exitMethod||"NIY"],
+    ["Programme",`${data.buildMonths||12}m`],["Benchmark Yield",`${data.niy||0}%`],
+  ]:assetType==="MixedUse"?[
+    ["Zones",String((data.zones||[]).length)],["Total GIA",r.totalSqft?`${Math.round(r.totalSqft).toLocaleString()} sqft`:"—"],
+    ["Programme",`${data.programmMonths||24}m`],["Blended IRR",fmtPct(r.irr||0)],["Peak Loan",fmt(r.peakLoanBalance||0,currencySymbol)],
+  ]:[
+    ["Property",data.propertySqft?`${data.propertySqft} sqft`:"—"],["Bridging Rate",`${data.bridgingRatePct||0}%pm`],
+    ["LTV",`${data.flipLTV||75}%`],["Bridge Term",`${data.bridgingTermMonths||6}m`],["Exit",data.flipMode==="hold"?"Hold (BTL)":"Sell"],
+  ];
+  const fW=(W-M*2)/facts.length;
+  facts.forEach(([l,v],i)=>{
+    const x=M+i*fW;
+    if(i>0){doc.setDrawColor(...bg4);doc.setLineWidth(0.2);doc.line(x,factsY+3,x,factsY+19);}
+    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");doc.text(l.toUpperCase(),x+4,factsY+9);
+    doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(String(v),x+4,factsY+17);
+  });
+
+  // Watermark / decorative element
+  doc.setTextColor(201,168,76);doc.setFontSize(120);doc.setFont("helvetica","bold");
+  doc.setGState&&doc.setGState(doc.GState({opacity:0.03}));
+  doc.text("V",W/2,H-40,{align:"center"});
+  doc.setGState&&doc.setGState(doc.GState({opacity:1}));
+
+  pageFooter(doc,1,4);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 2 — FINANCIAL SUMMARY
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Financial Summary`);
+  let lY=26,rY=26;
+
   if(assetType==="BTR"){
-    lY=drawCol("Returns",[["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Gross NOI pa",fmt(r.noi,currencySymbol),white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Yield on Cost",fmtPct(r.yoc),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even Yield",fmtPct(r.breakEvenYield),white],["Residual Land Value",fmt(r.rlv,currencySymbol),gold]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Prof. Fees + Contingency",fmt(r.devCost-r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Location",data.location||"—",white],["Programme",programmLabel,white],["Exit Yield",`${data.exitYield||0}%`,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Void",`${data.voidPct||0}%`,white],["OpEx psf",`${currencySymbol}${data.opexPsf||0}psf`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
+    lY=drawCol("Returns",[
+      ["GDV (Exit)",fmt(r.gdv,currencySymbol),gold],["Gross NOI pa",fmt(r.noi,currencySymbol),white],
+      ["Gross Yield on Cost",fmtPct(r.yoc),white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],
+      ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],
+      ["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],
+      ["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],
+      ["Equity Multiple",fmtX(r.moic),gold],["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—",r.dscr>=1.25?green:amber],
+      ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
+      ["Break-even Yield",fmtPct(r.breakEvenYield),white],["RLV",fmt(r.rlv,currencySymbol),gold],
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Cost Stack",[
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["SDLT / Property Tax",fmt(r.sdlt,currencySymbol),grey],
+      ["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Professional Fees",fmt(r.devCost-r.buildCost-r.arrangementFee-r.interestCost,currencySymbol),grey],
+      ["Contingency",`${data.contingencyPct||5}% — ${fmt((r.buildCost||0)*(data.contingencyPct||5)/100,currencySymbol)}`,grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
+      ["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost,currencySymbol),gold],
+    ],colR,rY,colW)||rY;
+    rY=drawCol("Assumptions",[
+      ["Exit Yield",`${data.exitYield||0}%`,white],["NIY",`${data.niy||0}%`,white],
+      ["Void",`${data.voidPct||0}%`,white],["OpEx psf",`${currencySymbol}${data.opexPsf||0}`,white],
+      ["Programme",programmLabel,white],["LTC",`${data.ltc||0}%`,white],
+      ["All-in Rate",`${(num(String(data.benchmarkRate||0))+num(String(data.marginOverBenchmark||0))).toFixed(2)}%`,white],
+      ["Arrangement Fee",`${data.arrangementFeePct||1}%`,white],
+      ["Prof. Fees",`${data.professionalFeesPct||8}%`,white],["Contingency",`${data.contingencyPct||5}%`,white],
+    ],colR,rY,colW)||rY;
   }else if(assetType==="BTS"){
-    lY=drawCol("Returns",[["GDV",fmt(r.gdv,currencySymbol),gold],["Total Units",r.totalUnits?.toString()||"—",white],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],["Profit on GDV",fmtPct(r.margin),white],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Total Units",r.totalUnits?.toString()||"—",white],["Total Sqft",r.totalSqft?.toLocaleString()||"—",white],["Location",data.location||"—",white],["Programme",programmLabel,white],["Finance",`${data.ltc}% LTC · ${((num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark))).toFixed(2))}% all-in`,white],["Absorption",`${data.absorptionMonths||18}m`,white],["Contingency",`${data.contingencyPct||5}%`,white],["Prof. Fees",`${data.professionalFeesPct||8}%`,white]],colR,rY,colW)||rY;
+    lY=drawCol("Returns",[
+      ["GDV",fmt(r.gdv,currencySymbol),gold],["Total Units",String(r.totalUnits||0),white],
+      ["Total GIA",r.totalSqft?`${r.totalSqft.toLocaleString()} sqft`:"—",white],
+      ["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc),r.poc>0.2?green:r.poc>0.1?amber:red],
+      ["Profit on GDV",fmtPct(r.margin),white],
+      ["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],
+      ["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],
+      ["Equity Multiple",fmtX(r.moic),gold],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}`:"-",white],
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Cost Stack",[
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["SDLT",fmt(r.sdlt,currencySymbol),grey],
+      ["Build Cost",fmt(r.buildCost,currencySymbol),grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost,currencySymbol),gold],
+    ],colR,rY,colW)||rY;
+    rY=drawCol("Assumptions",[
+      ["Programme",programmLabel,white],["Absorption",`${data.absorptionMonths||18}m`,white],
+      ["LTC",`${data.ltc||0}%`,white],["All-in Rate",`${(num(String(data.benchmarkRate||0))+num(String(data.marginOverBenchmark||0))).toFixed(2)}%`,white],
+      ["Agent Fee",`${data.agentFeePct||1.5}%`,white],["Marketing",`${data.marketingPct||1}%`,white],
+      ["Prof. Fees",`${data.professionalFeesPct||8}%`,white],["Contingency",`${data.contingencyPct||5}%`,white],
+    ],colR,rY,colW)||rY;
+  }else if(assetType==="Hotel"){
+    lY=drawCol("Returns",[
+      ["RevPAR",fmt(r.revpar,currencySymbol),gold],["Total Revenue pa",fmt(r.revenuePa||0,currencySymbol),white],
+      ["EBITDA pa",fmt(r.ebitda,currencySymbol),green],["Exit Value",fmt(r.exitValue,currencySymbol),gold],
+      ["Total Investment",fmt(r.totalInvestment,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—",r.dscr>=1.25?green:red],
+      ["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],
+      ["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],
+      ["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Cost Stack",[
+      ["Purchase Price",fmt(r.purchasePrice||data.purchasePrice||0,currencySymbol),grey],
+      ["SDLT",fmt(r.sdlt||0,currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
+      ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Total Investment",fmt(r.totalInvestment,currencySymbol),gold],
+    ],colR,rY,colW)||rY;
+    rY=drawCol("Assumptions",[
+      ["Rooms",String(data.rooms||0),white],["Star Rating",`${data.starRating||4}★`,white],
+      ["ADR",`${currencySymbol}${data.adr||0}`,white],["Occupancy",`${data.occupancy||0}%`,white],
+      ["Exit Cap Rate",`${data.exitCapRate||0}%`,white],["Stabilised Cap Rate",`${data.stabilisedCapRate||0}%`,white],
+      ["Programme",programmLabel,white],["LTC",`${data.ltc||0}%`,white],
+    ],colR,rY,colW)||rY;
+  }else if(assetType==="Flip"){
+    lY=drawCol("Returns",[
+      ["Purchase Price",fmt(r.purchase,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt,currencySymbol),grey],
+      ["Refurb Budget",fmt(r.refurb,currencySymbol),grey],["Professional Fees",fmt(r.profFees,currencySymbol),grey],
+      ["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),grey],
+      ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
+      ...(r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cashOutRefi<-100?[["Equity Top-up at Refi",fmt(Math.abs(r.cashOutRefi),currencySymbol),red] as [string,string,[number,number,number]]]:[] as any),
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],
+      ...(r.flipMode==="hold"?[["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"N/A (vacant)",r.dscr>=1.25?green:r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:[] as any),
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Property & Finance",[
+      ["Location",data.location||"—",white],["Property Size",data.propertySqft?`${data.propertySqft} sqft`:"—",white],
+      ["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],
+      ["Bridge Term",`${data.bridgingTermMonths||6}m`,white],["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber],
+      ["Arrangement Fee",`${data.arrangementFeePct||2}%`,white],["Exit Strategy",r.flipMode==="hold"?"Hold (BTL)":"Sell on Completion",white],
+      ...(r.flipMode==="hold"?[
+        ["Refi LTV",`${data.refiLTV||75}%`,white],["Refi Rate",`${data.refiRatePct||6}% pa`,white],
+        ["Hold Term",`${data.refiTermMonths||24}m`,white],["Occupancy",r.holdOccupancy==="tenanted"?"Tenanted":"Vacant",white],
+        ...(r.holdOccupancy==="tenanted"?[["Gross Yield",fmtPct(r.grossYield||0),white],["Net Yield",fmtPct(r.netYield||0),white]] as any:[] as any),
+      ] as any:[] as any),
+    ],colR,rY,colW)||rY;
+  }else if(assetType==="MixedUse"){
+    lY=drawCol("Blended Returns",[
+      ["Total GDV",fmt(r.totalGDV||0,currencySymbol),gold],["Total Cost",fmt(r.totalCost,currencySymbol),grey],
+      ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc||0),r.poc>0.2?green:r.poc>0.1?amber:red],
+      ["Profit on GDV",fmtPct(r.margin||0),white],["IRR (Blended)",fmtPct(r.irr||0),r.irr>=0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic||0),gold],
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Zone Breakdown",
+      (r.zoneResults||[]).slice(0,8).map((z:any)=>[
+        z.label||z.type,`${fmt(z.gdvZone||0,currencySymbol)} GDV`,
+        (z.gdvZone||0)-(z.totalBuildCost||0)>0?green:red
+      ] as [string,string,[number,number,number]]),
+    colR,rY,colW)||rY;
+    rY=drawCol("Scheme Details",[
+      ["Programme",`${data.programmMonths||24}m`,white],["Zones",String((data.zones||[]).length),white],
+      ["Total GIA",r.totalSqft?`${Math.round(r.totalSqft).toLocaleString()} sqft`:"—",white],
+      ["LTC",`${data.ltc||60}%`,white],["Peak Loan",fmt(r.peakLoanBalance||0,currencySymbol),amber],
+    ],colR,rY,colW)||rY;
+  }else if(assetType==="Commercial"){
+    lY=drawCol("Returns",[
+      ["GDV / Exit Value",fmt(r.gdv||0,currencySymbol),gold],["Total ERV pa",fmt(r.totalERV||0,currencySymbol),white],
+      ["Net Passing Rent pa",fmt(r.totalNetPassing||0,currencySymbol),white],["Yield on Cost",fmtPct(r.yoc||0),white],
+      ["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc||0),r.poc>0.2?green:r.poc>0.1?amber:red],
+      ["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—",r.dscr>=1.25?green:amber],
+      ["IRR (Unlevered)",fmtPct(r.irr||0),r.irr>=0.15?green:amber],
+      ["IRR (Levered)",fmtPct(r.irrLevered||0),r.irrLevered>=0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic||0),gold],["Break-even Rent",r.breakEvenRent?`${currencySymbol}${Math.round(r.breakEvenRent)}/sqft/yr`:"—",white],
+      ["RLV",fmt(r.rlv||0,currencySymbol),gold],
+    ],colL,lY,colW)||lY;
+    rY=drawCol("Cost Stack",[
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
+    ],colR,rY,colW)||rY;
+    rY=drawCol("Assumptions",[
+      ["Exit Method",data.exitMethod==="vp"?"Vacant Possession":data.exitMethod==="equivalent"?"Equiv. Yield":"NIY Cap Rate",white],
+      ["NIY",`${data.niy||0}%`,white],["Avg WAULT",r.avgWAULT?`${r.avgWAULT.toFixed(1)} yrs`:"—",white],
+      ["Programme",`${data.buildMonths||12}m build`,white],["LTC",`${data.ltc||60}%`,white],
+    ],colR,rY,colW)||rY;
   }
-  // Unit mix for BTR/BTS
-  if(assetType==="BTR"||assetType==="BTS"){
-    // Unit Mix table
-    const tableY=Math.max(lY,rY)+6;
-    if((data.units||[]).length>0&&tableY<260){
-      doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("UNIT MIX",colL,tableY);
-      doc.setFillColor(...gold);doc.rect(colL,tableY+1.5,W-colL-8,0.3,"F");
-      const headers=assetType==="BTS"?["Type","Units","Size (sqft)","Price psf","Revenue"]:["Type","Units","Size (sqft)","Rent pcm","Gross pa"];
-      const hCols=[50,20,28,28,30];let hx=colL+2;
-      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
-      headers.forEach((h,i)=>{doc.text(h,hx,tableY+8);hx+=hCols[i];});
-      let ty=tableY+14;
-      (data.units||[]).forEach((u:any,i:number)=>{
-        if(ty>278)return;
-        if(i%2===0){doc.setFillColor(...bg3);doc.rect(colL,ty-4,W-colL-8,7,"F");}
+
+  // Unit Mix table — BTR/BTS only
+  if((assetType==="BTR"||assetType==="BTS")&&(data.units||[]).length>0){
+    const tableY=Math.max(lY,rY)+4;
+    if(tableY<H-30){
+      const tW=W-M*2;
+      doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text("UNIT MIX",M,tableY);
+      doc.setFillColor(...gold);doc.rect(M,tableY+1.5,tW,0.3,"F");
+      const hdrs=assetType==="BTS"?["Type","Units","Size (sqft)","Price psf","Revenue"]:["Type","Units","Size (sqft)","Rent pcm","Gross pa"];
+      const hW=[tW*0.35,tW*0.12,tW*0.16,tW*0.18,tW*0.19];let hx=M+2;let ty=tableY+9;
+      doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
+      hdrs.forEach((h,i)=>{doc.text(h,hx,ty);hx+=hW[i];});ty+=6;
+      (data.units||[]).slice(0,8).forEach((u:any,i:number)=>{
+        if(ty>H-20)return;
+        if(i%2===0){doc.setFillColor(...bg3);doc.rect(M,ty-4,tW,7,"F");}
         const gross=assetType==="BTS"?u.count*u.size*u.salePricePsf:u.count*(u.rentPcm||0)*12;
-        const vals=[u.type||"—",String(u.count||0),String(u.size||0),assetType==="BTS"?`${currencySymbol}${u.salePricePsf||0}psf`:`${currencySymbol}${u.rentPcm||0}pcm`,fmt(gross,currencySymbol)];
-        let vx=colL+2;
-        doc.setFontSize(8);doc.setFont("helvetica","normal");
+        const vals=[u.type||"—",String(u.count||0),String(u.size||0),
+          assetType==="BTS"?`${currencySymbol}${u.salePricePsf||0}`:`${currencySymbol}${u.rentPcm||0}`,
+          fmt(gross,currencySymbol)];
+        let vx=M+2;doc.setFontSize(7.5);doc.setFont("helvetica","normal");
         vals.forEach((v,vi)=>{
           doc.setTextColor(...(vi===4?gold:vi===0?white:grey));
-          doc.text(String(v),vx,ty);vx+=hCols[vi];
-        });
-        ty+=7;
+          doc.text(String(v),vx,ty);vx+=hW[vi];
+        });ty+=7;
       });
-      // Totals row
-      if(ty<278){
-        doc.setFillColor(...bg2);doc.rect(colL,ty-4,W-colL-8,7,"F");
+      if(ty<H-20){
         const totalUnits=(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0),0);
         const totalGross=assetType==="BTS"?(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.size||0)*Number(u.salePricePsf||0),0):(data.units||[]).reduce((s:number,u:any)=>s+Number(u.count||0)*Number(u.rentPcm||0)*12,0);
-        doc.setFontSize(8);doc.setFont("helvetica","bold");
-        doc.setTextColor(...white);doc.text("TOTAL",colL+2,ty);
-        doc.setTextColor(...white);doc.text(String(totalUnits),colL+52,ty);
-        doc.setTextColor(...gold);doc.text(fmt(totalGross,currencySymbol),colL+126+4,ty);
+        doc.setFillColor(...bg2);doc.rect(M,ty-4,tW,7,"F");
+        doc.setFontSize(7.5);doc.setFont("helvetica","bold");
+        doc.setTextColor(...white);doc.text("TOTAL",M+2,ty);
+        doc.setTextColor(...white);doc.text(String(totalUnits),M+hW[0]+2,ty);
+        doc.setTextColor(...gold);doc.text(fmt(totalGross,currencySymbol),M+hW[0]+hW[1]+hW[2]+hW[3]+2,ty);
       }
     }
-  }else if(assetType==="Hotel"){
-    lY=drawCol("Returns",[["RevPAR",fmt(r.revpar,currencySymbol),gold],["EBITDA pa",fmt(r.ebitda,currencySymbol),green],["Exit Value",fmt(r.exitValue,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["Return on Cost",fmtPct(r.poc),r.poc>0.15?green:amber],["DSCR / ICR",fmtX(r.dscr),r.dscr>=1.25?green:red],["IRR (Unlevered)",fmtPct(r.irr),r.irr>=0.15?green:r.irr>=0.08?amber:red],["IRR (Levered)",fmtPct(r.irrLevered),r.irrLevered>=0.15?green:r.irrLevered>=0.08?amber:red],["Equity Multiple",fmtX(r.moic),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Purchase + Property Tax",fmt((r.purchasePrice||0)+(r.sdlt||0),currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Total Investment",fmt(r.totalInvestment,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Rooms",data.rooms?.toString()||"—",white],["Star Rating",data.starRating?`${data.starRating}★`:"—",white],["ADR",`${currencySymbol}${data.adr||0}`,white],["Occupancy",`${data.occupancy||0}%`,white],["Programme",programmLabel,white],["Exit Cap Rate",`${data.exitCapRate||0}%`,white],["Stabilised Cap Rate",`${data.stabilisedCapRate||0}%`,white]],colR,rY,colW)||rY;
-    rY=drawCol("Finance",[["LTC Ratio",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],["Loan Amount",fmt(r.loanAmount||0,currencySymbol),amber],["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber]],colR,rY,colW)||rY;
-  }else{
-    lY=drawCol("Returns",[["Purchase Price",fmt(r.purchase,currencySymbol),grey],["Property Tax",fmt(r.sdlt,currencySymbol),grey],["Total Cost",fmt(r.totalCost,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white]],colL,lY,colW)||lY;
-    rY=drawCol("Cost Breakdown",[["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["Property Tax",fmt(r.sdlt||0,currencySymbol),grey],["Refurb Budget",fmt(r.refurb||0,currencySymbol),grey],["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold]],colR,rY,colW)||rY;
-    rY=drawCol("Project Details",[["Location",data.location||"—",white],["Property Size",data.propertySqft>0?`${data.propertySqft} sqft`:"—",white],["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],["Hold Period",`${data.bridgingTermMonths||9} months`,white],["Agent Fee",`${data.agentFeePct||1.5}%`,white],["Exit Strategy",(data.flipMode||"sell")==="hold"?"Hold (BTL)":"Sell on Completion",white]],colR,rY,colW)||rY;
   }
-  doc.setFillColor(...gold);doc.rect(0,H-8,W,8,"F");
-  doc.setFillColor(...dark);doc.rect(0,H-8,5,8,"F");
-  doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
-  doc.text("VALORA  ·  Institutional Development Appraisal Platform",14,H-3);
-  doc.text(`Confidential  ·  ${new Date().toLocaleDateString("en-GB")}`,W-8,H-3,{align:"right"});
+
+  pageFooter(doc,2,4);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 3 — CASHFLOW + SENSITIVITY
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Cashflow & Sensitivity`);
+  let py=26;
+
+  // Cashflow chart
+  py=sectionHeader(doc,"Monthly Cashflow (Unlevered)",py);py+=4;
+  const cfs:number[]=r.uCfs||r.cfs||[];
+  if(cfs.length>0){
+    py=drawCashflowBars(cfs,M,py,W-M*2,36,currencySymbol);
+    // Phase labels
+    doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","normal");
+    doc.text("Month 1",M,py);doc.text(`Exit M${cfs.length}`,W-M,py,{align:"right"});
+    // Payback callout
+    let cumX=0;const paybackM=cfs.findIndex((_,i,a)=>{cumX+=a[i];return cumX>=0;});
+    if(paybackM>=0){
+      const pctX=M+(paybackM/cfs.length)*(W-M*2);
+      doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.line(pctX,py-40,pctX,py+2);
+      doc.setTextColor(...gold);doc.text(`Payback M${paybackM+1}`,pctX,py+5);
+    }
+    py+=10;
+    // Monthly table — key months only
+    py=sectionHeader(doc,"Key Cashflow Months",py);py+=4;
+    const keyRows=cfs.map((cf,m)=>({cf,m,cum:cfs.slice(0,m+1).reduce((a,b)=>a+b,0)}))
+      .filter(({cf,m})=>Math.abs(cf)>0||m===cfs.length-1)
+      .slice(0,12);
+    const tW2=W-M*2;const cols2=["Month","Event","Cashflow","Cumulative"];const cW2=[tW2*0.12,tW2*0.38,tW2*0.25,tW2*0.25];
+    doc.setFillColor(...bg3);doc.rect(M,py-4,tW2,7,"F");
+    doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
+    let cx2=M+2;cols2.forEach((h,i)=>{doc.text(h,cx2,py);cx2+=cW2[i];});py+=5;
+    const eventLabel=(m:number,cf:number)=>{
+      if(m===0)return"Equity deployed";
+      if(m===cfs.length-1)return"Exit / sale proceeds";
+      if(assetType==="Flip"&&r.flipMode==="hold"&&m===Math.round(r.bridgingMonths||6))return"Refinance event";
+      if(cf<0)return"Cost / draw";return"Income";
+    };
+    keyRows.forEach(({cf,m,cum},i)=>{
+      if(py>H-20)return;
+      if(i%2===0){doc.setFillColor(...bg4);doc.rect(M,py-3,tW2,6,"F");}
+      const isExit=m===cfs.length-1;
+      doc.setFontSize(6.5);doc.setFont("helvetica","normal");
+      let cx3=M+2;
+      doc.setTextColor(...grey);doc.text(`M${m+1}${isExit?" (Exit)":""}`,cx3,py);cx3+=cW2[0];
+      doc.setTextColor(...white);doc.text(eventLabel(m,cf),cx3,py);cx3+=cW2[1];
+      doc.setTextColor(...(cf>=0?green:red));doc.text(`${cf>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`,cx3,py);cx3+=cW2[2];
+      doc.setTextColor(...(cum>=0?green:white));doc.text(`${cum>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cum)).toLocaleString()}`,cx3,py);
+      py+=6;
+    });
+  }
+
+  py+=6;
+
+  // Sensitivity matrix
+  if(assetType==="BTR"||assetType==="BTS"){
+    const sm=r.sensMatrix;
+    if(sm&&sm.length>0){
+      py=drawSensTable(sm,
+        (assetType==="BTS"?["+10% sale","+5% sale","Base","-5% sale","-10% sale"]:[`${(num(String(data.exitYield))-0.5).toFixed(2)}%`,`${(num(String(data.exitYield))-0.25).toFixed(2)}%`,`${num(String(data.exitYield)).toFixed(2)}%`,`${(num(String(data.exitYield))+0.25).toFixed(2)}%`,`${(num(String(data.exitYield))+0.5).toFixed(2)}%`]),
+        ["-10%","-5%","Base","+5%","+10%"],
+        M,py,W-M*2,
+        assetType==="BTS"?"Sensitivity: Sale Price × Build Cost — Profit on Cost":"Sensitivity: Exit Yield × Rent Shift — Profit on Cost"
+      );
+    }
+  }else if(assetType==="Flip"){
+    const salePctSteps=[10,5,0,-5,-10];
+    const refurbPctSteps=[10,5,0,-5,-10];
+    const flipSens=salePctSteps.map(sp=>refurbPctSteps.map(rp=>{
+      const modSale=(r.salePrice||0)*(1+sp/100);
+      const modRefurb=(r.refurb||0)*(1+rp/100);
+      const modProfFees=modRefurb*(num(String(data.professionalFeesPct))/100);
+      const modCont=modRefurb*(num(String(data.contingencyPct))/100);
+      const modTotal=(r.purchase||0)+(r.sdlt||0)+modRefurb+modProfFees+modCont+(r.other||0)+(r.totalFinanceCost||0);
+      const agentF=modSale*(num(String(data.agentFeePct||1.5))/100);
+      const modProfit=(modSale-agentF)-modTotal;
+      return modTotal>0?modProfit/modTotal:0;
+    }));
+    py=drawSensTable(flipSens,
+      ["+10% sale","+5% sale","Base","-5% sale","-10% sale"],
+      ["-10% refurb","-5% refurb","Base","+5% refurb","+10% refurb"],
+      M,py,W-M*2,"Sensitivity: Sale Price × Refurb Cost — Profit on Cost"
+    );
+  }else if(assetType==="Commercial"&&r.sensMatrix){
+    const niyBase=num(String(data.niy||6));
+    py=drawSensTable(r.sensMatrix,
+      [`${(niyBase-0.5).toFixed(2)}%`,`${(niyBase-0.25).toFixed(2)}%`,`${niyBase.toFixed(2)}%`,`${(niyBase+0.25).toFixed(2)}%`,`${(niyBase+0.5).toFixed(2)}%`],
+      ["-10%","-5%","Base","+5%","+10%"],
+      M,py,W-M*2,"Sensitivity: NIY × ERV Shift — Profit on Cost"
+    );
+  }
+
+  // Legend
+  if(py<H-20){
+    py+=4;
+    [[green,"> 20% PoC"],[amber,"10-20% PoC"],[red,"< 10% PoC"],[gold,"Base case"]].forEach(([c,l],i)=>{
+      doc.setFillColor(...(c as [number,number,number]));doc.roundedRect(M+i*42,py,3,3,0.5,0.5,"F");
+      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text(String(l),M+i*42+5,py+2.5);
+    });
+  }
+
+  pageFooter(doc,3,4);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 4 — ASSUMPTIONS & DISCLAIMER
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Assumptions & Disclaimer`);
+  let ay=26;
+
+  ay=sectionHeader(doc,"Key Assumptions",ay);ay+=6;
+  const assumptionGroups:[string,[string,string][]][]=[
+    ["Project",[
+      ["Name",data.name||"—"],["Location",data.location||"—"],["Asset Type",assetType],
+      ["Currency",data.currency||"GBP"],["Date",today],
+    ]],
+    ["Programme",[
+      ["Build Period",`${data.programmMonths||data.bridgingTermMonths||12} months`],
+      ...(data.absorptionMonths?[["Absorption",`${data.absorptionMonths}m`] as [string,string]]:[] as any),
+      ...(data.stabilisationMonths?[["Stabilisation",`${data.stabilisationMonths}m`] as [string,string]]:[] as any),
+    ]],
+    ["Finance",[
+      ...(data.ltc?[["LTC",`${data.ltc}%`] as [string,string]]:[] as any),
+      ...(data.bridgingRatePct?[["Bridging Rate",`${data.bridgingRatePct}%pm`] as [string,string]]:[] as any),
+      ...(data.benchmarkRate?[["Benchmark Rate",`${data.benchmarkRate}%`] as [string,string]]:[] as any),
+      ...(data.marginOverBenchmark?[["Margin over Benchmark",`${data.marginOverBenchmark}%`] as [string,string]]:[] as any),
+      ...(data.arrangementFeePct?[["Arrangement Fee",`${data.arrangementFeePct}%`] as [string,string]]:[] as any),
+    ]],
+    ["Costs",[
+      ...(data.professionalFeesPct?[["Professional Fees",`${data.professionalFeesPct}%`] as [string,string]]:[] as any),
+      ...(data.contingencyPct?[["Contingency",`${data.contingencyPct}%`] as [string,string]]:[] as any),
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol)] as [string,string]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol)] as [string,string]]:[] as any),
+      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol)] as [string,string]]:[] as any),
+    ]],
+  ];
+  const gCols=2;const gW=(W-M*2-8)/gCols;
+  let gx=M;let gy=ay;let gcol=0;
+  assumptionGroups.forEach(([title,rows])=>{
+    if(rows.length===0)return;
+    if(gy>H-50){gy=ay;gx+=gW+8;gcol++;}
+    doc.setFillColor(...bg3);doc.rect(gx,gy-2,gW,8,"F");
+    doc.setFillColor(...gold);doc.rect(gx,gy-2,2,8,"F");
+    doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),gx+5,gy+3);
+    gy+=10;
+    rows.forEach(([l,v],i)=>{
+      if(i%2===0){doc.setFillColor(...bg4);doc.rect(gx,gy-3,gW,6,"F");}
+      doc.setFontSize(6.5);doc.setFont("helvetica","normal");
+      doc.setTextColor(...grey);doc.text(l,gx+3,gy);
+      doc.setTextColor(...white);doc.setFont("helvetica","bold");doc.text(String(v),gx+gW-2,gy,{align:"right"});
+      gy+=6;
+    });
+    gy+=6;
+  });
+
+  // Disclaimer box
+  const discY=H-60;
+  doc.setFillColor(...bg3);doc.roundedRect(M,discY,W-M*2,48,2,2,"F");
+  doc.setDrawColor(...grey);doc.setLineWidth(0.2);doc.roundedRect(M,discY,W-M*2,48,2,2,"S");
+  doc.setTextColor(...amber);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("IMPORTANT DISCLAIMER",M+5,discY+8);
+  const disclaimer="This appraisal has been prepared using the Valora platform for indicative purposes only. It is based on assumptions and projections that may not reflect actual market conditions, planning outcomes, build costs, or financing terms. This document does not constitute financial, investment, legal, or tax advice. Recipients should conduct their own due diligence and seek appropriate professional advice before making any investment decision. Valuations, IRR figures, and profit projections are forward-looking estimates and are not guaranteed. Past performance of similar investments is not a reliable indicator of future results. Valora and its affiliates accept no liability for decisions made based on this document.";
+  const dLines=doc.splitTextToSize(disclaimer,W-M*2-10);
+  doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");
+  dLines.slice(0,8).forEach((line:string,i:number)=>doc.text(line,M+5,discY+16+i*5.5));
+
+  pageFooter(doc,4,4);
+
   doc.save(`Valora_${(data.name||"Appraisal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
+
 async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[],hotelMode="simple",hotelAdv:any=null){
   if(!(window as any).jspdf){
     await new Promise<void>((resolve,reject)=>{
@@ -1652,252 +2119,423 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const white=[255,255,255] as [number,number,number];
   const bg2=[18,21,26] as [number,number,number];
   const bg3=[25,29,36] as [number,number,number];
+  const bg4=[32,36,44] as [number,number,number];
   const green=[61,220,132] as [number,number,number];
+  const red=[244,100,95] as [number,number,number];
   const amber=[240,164,41] as [number,number,number];
   const blue=[91,156,246] as [number,number,number];
   const isHotelAdv=assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv;
+  const today=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
 
-
-
-
-
-
-
-
-  // ── PAGE 1: COVER ──────────────────────────────────────────────────────────
-  doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");
-  doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
-  if(photos.length>0){
-    const phH=photos.length>=2?80:60;const phW=photos.length>=2?W/photos.length:W*0.6;
-    photos.slice(0,3).forEach((ph,i)=>{try{doc.addImage(ph,"JPEG",i*phW,0,phW,phH);}catch(e){}});
-    doc.setFillColor(6,7,10);doc.setGState(doc.GState({opacity:0.55}));doc.rect(0,0,W,photos.length>0?80:0,"F");doc.setGState(doc.GState({opacity:1}));
-  }
-  const _vY=photos.length>0?13:9;
-  drawVMarkPDF(doc,M,_vY,7,gold);
-  doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,photos.length>0?20:16);
-  doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(...grey);
-  doc.text(isHotelAdv?"INSTITUTIONAL INVESTMENT MEMORANDUM":"INVESTMENT MEMORANDUM",M,photos.length>0?26:22);
-  const titleY=photos.length>0?95:50;
-  doc.setTextColor(...white);doc.setFontSize(28);doc.setFont("helvetica","bold");
-  const titleLines=doc.splitTextToSize(data.name||"Investment Opportunity",W-M*2);doc.text(titleLines,M,titleY);
-  doc.setFontSize(12);doc.setFont("helvetica","normal");doc.setTextColor(...gold);
-  const subtitle=isHotelAdv?`${data.location||""}  ·  Hotel  ·  ${data.holdYears||5}-Year Hold  ·  ${data.rooms} Keys`:`${data.location||""}  ·  ${assetType}`;
-  doc.text(subtitle,M,titleY+titleLines.length*10+4);
-  const metricsY=titleY+titleLines.length*10+20;
-  // Metric cards — Advanced Hotel shows 6, others 4
-  const metrics=isHotelAdv?[
-    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],
-    ["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],
-    ["Return on Cost",fmtPct(r.poc||0)],
-    ["IRR (Levered)",fmtPct(r.irrLevered||r.irr||0)],
-    ["Equity Multiple",fmtX(r.moic||0)],
-    ["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—"],
-  ]:assetType==="BTR"?[
-    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
-  ]:assetType==="BTS"?[
-    ["GDV",fmt(r.gdv,currencySymbol)],["Profit on Cost",fmtPct(r.poc)],["IRR",fmtPct(r.irr)],["Equity Multiple",fmtX(r.moic)],
-  ]:assetType==="Hotel"?[
-    ["Exit Value",fmt(r.exitValue||r.gdv||0,currencySymbol)],["EBITDA pa",fmt(r.ebitda||0,currencySymbol)],["Return on Cost",fmtPct(r.poc||0)],["DSCR",r.dscr>0?fmtX(r.dscr):"—"],
-  ]:[
-    ["Sale Price",fmt(r.salePrice||0,currencySymbol)],["Profit",fmt(r.profit||0,currencySymbol)],["ROI",fmtPct(r.roi||0)],["Equity Multiple",fmtX(r.moic||0)],
-  ];
-  const cols=metrics.length;const mW=(W-M*2-(cols-1)*3)/cols;
-  metrics.forEach(([l,v],i)=>{
-    const x=M+i*(mW+3);
-    doc.setFillColor(...bg2);doc.roundedRect(x,metricsY,mW,20,2,2,"F");
-    doc.setDrawColor(...gold);doc.setLineWidth(0.5);doc.roundedRect(x,metricsY,mW,20,2,2,"S");
-    doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text(String(l).toUpperCase(),x+3,metricsY+7);
-    doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text(String(v),x+3,metricsY+16);
-  });
-  doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
-  doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
-  doc.text("STRICTLY PRIVATE & CONFIDENTIAL",M,295.5);doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),W-M,295.5,{align:"right"});
-
-
-
-
-
-
-
-
-  // ── PAGE 2: AI NARRATIVE ───────────────────────────────────────────────────
-  doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
   const wrapText=(doc:any,text:string,x:number,startY:number,maxW:number,lineH:number)=>{
     const lines=doc.splitTextToSize(text,maxW);
+    let sy=startY;
     lines.forEach((line:string,i:number)=>{
-      if(startY+i*lineH>278){doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");startY=20-i*lineH;}
-      doc.text(line,x,startY+i*lineH);
+      if(sy+lineH>278){doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");sy=20;}
+      doc.text(line,x,sy);sy+=lineH;
     });
-    return startY+lines.length*lineH+4;
+    return sy+3;
   };
-  let py=20;
-  drawVMarkPDF(doc,M,py-7,7,gold);
-  doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,py);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(data.name||"",W-M,py,{align:"right"});py+=10;
-  const sections:[string,keyof BrochureContent][]=[["Executive Summary","executiveSummary"],["Deal Strengths","dealStrengths"],["Risk Assessment","riskAssessment"],["Market Comparables","marketComparables"]];
-  sections.forEach(([title,key])=>{
-    if(py>260){doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");py=20;}
-    doc.setTextColor(...gold);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(title,M,py);
-    doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,py+2,W-M,py+2);py+=9;
-    doc.setTextColor(...white);doc.setFontSize(9);doc.setFont("helvetica","normal");
-    py=wrapText(doc,content[key]||"",M,py,W-M*2,5);py+=6;
-  });
-  doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
-  doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
-  doc.text("VALORA · Institutional Development Appraisal",M,295.5);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
 
-
-
-
-
-
-
-
-  // ── PAGE 3: HOTEL ADVANCED INSTITUTIONAL FINANCIALS ────────────────────────
-  if(isHotelAdv){
-    doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
-    let iy=20;
-    drawVMarkPDF(doc,M,iy-7,7,gold);
-    doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,iy);
-    doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("FINANCIAL SUMMARY — INSTITUTIONAL",W-M,iy,{align:"right"});iy+=14;
-
-
-
-
-
-
-
-
-    // Per Key Metrics header
-    doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("PER KEY METRICS",M,iy);
-    doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,iy+1.5,W-M,iy+1.5);iy+=8;
-    const keyMetrics=[
-      ["Purchase / Key",fmt(hotelAdv.pricePerKey||0,currencySymbol)],
-      ["CapEx / Key",fmt(hotelAdv.capexPerKey||0,currencySymbol)],
-      ["Exit Value / Key",fmt(hotelAdv.exitValuePerKey||0,currencySymbol)],
-      ["EBITDA / Key",fmt(hotelAdv.ebitdaPerKey||0,currencySymbol)],
-      ["NOI / Key",fmt(hotelAdv.noiPerKey||0,currencySymbol)],
-      ["NOI Conversion",fmtPct(hotelAdv.noiConversion||0)],
-      ["Entry Yield (NOI)",fmtPct(hotelAdv.entryYieldNOI||0)],
-      ["Entry Yield (EBITDA)",fmtPct(hotelAdv.entryYieldEBITDA||0)],
-    ];
-    const kCols=4;const kW=(W-M*2-9)/kCols;
-    keyMetrics.forEach(([l,v],i)=>{
-      const col=i%kCols;const row=Math.floor(i/kCols);
-      const x=M+col*(kW+3);const y=iy+row*18;
-      doc.setFillColor(...bg3);doc.roundedRect(x,y,kW,14,1.5,1.5,"F");
-      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text(String(l).toUpperCase(),x+3,y+5.5);
-      doc.setTextColor(...white);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(String(v),x+3,y+11);
-    });
-    iy+=Math.ceil(keyMetrics.length/kCols)*18+10;
-
-
-
-
-
-
-
-
-    // Cashflow table
-    doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("INVESTOR CASHFLOW — YEAR BY YEAR",M,iy);
-    doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,iy+1.5,W-M,iy+1.5);iy+=8;
-    const holdYears=hotelAdv.yearRevenue?.length||5;
-    const cfCols=["",`Day 1`,...Array.from({length:holdYears},(_,i)=>`Yr ${i+1}${i===holdYears-1?" (Exit)":" "}`)];
-    const colW2=(W-M*2)/(cfCols.length);
-    // Header row
-    doc.setFontSize(6.5);doc.setFont("helvetica","bold");
-    cfCols.forEach((h,i)=>{
-      doc.setTextColor(...grey);
-      if(i===cfCols.length-1)doc.setTextColor(...gold);
-      doc.text(String(h),M+i*colW2+(i>0?colW2/2:0),iy,{align:i>0?"center":"left"});
-    });
-    iy+=5;doc.setLineWidth(0.2);doc.setDrawColor(40,45,55);doc.line(M,iy-1,W-M,iy-1);
-    const yr=hotelAdv.yearRevenue||[];
-    const cfRows=[
-      {label:"Revenue",vals:[null,...yr.map((y:any)=>y.totalRev)],c:grey},
-      {label:"EBITDA",vals:[null,...yr.map((y:any)=>y.ebitda)],c:white},
-      {label:"FF&E",vals:[null,...yr.map((y:any)=>-y.ffe)],c:amber},
-      {label:"NOI",vals:[null,...yr.map((y:any)=>y.noi)],c:green,bold:true},
-      {label:"Equity Out",vals:[-(hotelAdv.equity||0),...Array(holdYears).fill(null)],c:[244,100,95] as [number,number,number]},
-      {label:"Disposal",vals:[null,...Array(holdYears-1).fill(null),hotelAdv.netExitProceeds||0],c:gold,bold:true},
-    ];
-    cfRows.forEach((row,ri)=>{
-      if(ri%2===0){doc.setFillColor(20,24,30);doc.rect(M,iy-3,W-M*2,6,"F");}
-      doc.setFontSize(6.5);doc.setFont("helvetica",row.bold?"bold":"normal");
-      doc.setTextColor(...row.c);doc.text(row.label,M,iy);
-      row.vals.forEach((v:any,ci:number)=>{
-        const x=M+(ci+1)*colW2+colW2/2;
-        if(v===null){doc.setTextColor(50,55,65);doc.text("—",x,iy,{align:"center"});}
-        else{doc.setTextColor(...(v<0?[244,100,95]:row.c) as [number,number,number]);doc.text(fmt(Math.abs(v),currencySymbol),x,iy,{align:"center"});}
-      });
-      iy+=6;
-    });
-    iy+=6;
-
-
-
-
-
-
-
-
-    // Summary return cards
-    doc.setTextColor(...gold);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("RETURNS SUMMARY",M,iy);
-    doc.setLineWidth(0.2);doc.setDrawColor(...gold);doc.line(M,iy+1.5,W-M,iy+1.5);iy+=8;
-    const retMetrics=[
-      ["Total Investment",fmt(hotelAdv.totalCost||0,currencySymbol),white],
-      ["Equity In",fmt(hotelAdv.equity||0,currencySymbol),gold],
-      ["Profit",fmt(hotelAdv.profit||0,currencySymbol),(hotelAdv.profit||0)>0?green:[244,100,95] as [number,number,number]],
-      ["Return on Cost",fmtPct(hotelAdv.poc||0),(hotelAdv.poc||0)>0.15?green:amber],
-      ["IRR (Unlevered)",fmtPct(hotelAdv.irr||0),blue],
-      ["IRR (Levered)",fmtPct(hotelAdv.irrLevered||0),blue],
-      ["Equity Multiple",fmtX(hotelAdv.moic||0),(hotelAdv.moic||0)>2?green:amber],
-      ["DSCR / ICR",(hotelAdv.dscr||0)>0?fmtX(hotelAdv.dscr||0):"—",(hotelAdv.dscr||0)>=1.5?green:(hotelAdv.dscr||0)>=1.25?amber:[244,100,95] as [number,number,number]],
-      ["Payback",hotelAdv.paybackMonth?`Month ${hotelAdv.paybackMonth}`:"Beyond horizon",grey],
-    ];
-    const rCols=4;const rW=(W-M*2-9)/rCols;
-    retMetrics.forEach(([l,v,c],i)=>{
-      const col=i%rCols;const row=Math.floor(i/rCols);
-      const x=M+col*(rW+3);const y=iy+row*18;
-      doc.setFillColor(...bg3);doc.roundedRect(x,y,rW,14,1.5,1.5,"F");
-      doc.setDrawColor(...(c as [number,number,number]));doc.setLineWidth(0.3);doc.roundedRect(x,y,rW,14,1.5,1.5,"S");
-      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");doc.text(String(l).toUpperCase(),x+3,y+5.5);
-      doc.setTextColor(...(c as [number,number,number]));doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(String(v),x+3,y+11);
-    });
-
-
-
-
-
-
-
-
+  const pageFooter=(doc:any,pageNum:number)=>{
     doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
-    doc.setTextColor(...dark);doc.setFontSize(7);doc.setFont("helvetica","bold");
-    doc.text("VALORA · Institutional Development Appraisal",M,295.5);doc.text(`Confidential · ${new Date().toLocaleDateString("en-GB")}`,W-M,295.5,{align:"right"});
+    doc.setTextColor(...dark);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+    doc.text("VALORA  ·  Institutional Development Appraisal",M,295.5);
+    doc.text(`Strictly Private & Confidential  ·  Page ${pageNum}  ·  ${today}`,W-M,295.5,{align:"right"});
+  };
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 1 — COVER
+  // ════════════════════════════════════════════════════════════
+  doc.setFillColor(...dark);doc.rect(0,0,W,297,"F");
+  doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+
+  // Hero photo(s)
+  if(photos.length>0){
+    const phH=photos.length>=2?100:75;
+    const phW=W/Math.min(photos.length,3);
+    photos.slice(0,3).forEach((ph,i)=>{
+      try{doc.addImage(ph,"JPEG",i*phW,0,phW,phH);}catch(e){}
+    });
+    doc.setFillColor(...dark);doc.setGState&&doc.setGState(doc.GState({opacity:0.6}));
+    doc.rect(0,0,W,photos.length>0?100:0,"F");
+    doc.setGState&&doc.setGState(doc.GState({opacity:1}));
   }
 
+  // Branding overlay
+  const brandY=photos.length>0?8:12;
+  drawVMarkPDF(doc,M,brandY,8,gold);
+  doc.setTextColor(...gold);doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("VALORA",M+11,brandY+9);
+  doc.setTextColor(...grey);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
+  doc.text(isHotelAdv?"INSTITUTIONAL INVESTMENT MEMORANDUM":"INVESTMENT MEMORANDUM",M+11,brandY+15);
 
+  // Deal title
+  const titleY=photos.length>0?112:55;
+  doc.setTextColor(...white);doc.setFontSize(30);doc.setFont("helvetica","bold");
+  const titleLines=doc.splitTextToSize(data.name||"Investment Opportunity",W-M*2);
+  doc.text(titleLines,M,titleY);
 
+  const subtitleY=titleY+titleLines.length*12+5;
+  doc.setFontSize(11);doc.setFont("helvetica","normal");doc.setTextColor(...gold);
+  doc.text(`${data.location||""}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,M,subtitleY);
 
+  // Divider
+  doc.setDrawColor(...gold);doc.setLineWidth(0.5);doc.line(M,subtitleY+6,W-M,subtitleY+6);
 
+  // Executive tagline
+  const tagY=subtitleY+14;
+  if(content.executiveSummary){
+    const tagLines=doc.splitTextToSize(content.executiveSummary.split(".")[0]+".",W-M*2);
+    doc.setTextColor(...white);doc.setFontSize(10);doc.setFont("helvetica","normal");
+    tagLines.slice(0,2).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*6));
+  }
 
+  // KPI cards — 6 metrics in 2 rows of 3
+  const kpiY=tagY+20;
+  const kpiData=isHotelAdv?[
+    {l:"Exit Value",v:fmt(hotelAdv.exitValue||r.exitValue||0,currencySymbol),c:gold},
+    {l:"EBITDA pa",v:fmt(hotelAdv.ebitda||r.ebitda||0,currencySymbol),c:green},
+    {l:"Return on Cost",v:fmtPct(hotelAdv.poc||r.poc||0),c:(hotelAdv.poc||r.poc||0)>0.15?green:amber},
+    {l:"IRR (Levered)",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:blue},
+    {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
+    {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
+  ]:assetType==="BTR"||assetType==="BTS"?[
+    {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+    {l:"IRR (Unlevered)",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
+    {l:"IRR (Levered)",v:fmtPct(r.irrLevered||0),c:(r.irrLevered||0)>=0.15?green:amber},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ]:assetType==="Flip"?[
+    {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
+    {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
+    {l:"IRR",v:fmtPct(r.irr||0),c:white},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+  ]:[
+    {l:"GDV / Exit",v:fmt(r.totalGDV||r.gdv||r.exitValue||0,currencySymbol),c:gold},
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+    {l:"IRR",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
+    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+    {l:"Equity In",v:fmt(r.equity||0,currencySymbol),c:white},
+  ];
+  const kCols2=3;const kW2=(W-M*2-4)/kCols2;const kH=22;
+  kpiData.forEach(({l,v,c},i)=>{
+    const col=i%kCols2;const row=Math.floor(i/kCols2);
+    const x=M+col*(kW2+2);const y=kpiY+row*(kH+3);
+    doc.setFillColor(...bg2);doc.roundedRect(x,y,kW2,kH,2,2,"F");
+    doc.setDrawColor(...c);doc.setLineWidth(0.4);doc.roundedRect(x,y,kW2,kH,2,2,"S");
+    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");doc.text(l.toUpperCase(),x+4,y+8);
+    doc.setTextColor(...c);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(String(v),x+4,y+18);
+  });
 
+  pageFooter(doc,1);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 2 — AI NARRATIVE
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+  let py2=20;
+  drawVMarkPDF(doc,M,py2-7,7,gold);
+  doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,py2);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(data.name||"",W-M,py2,{align:"right"});py2+=12;
+
+  const sections:[string,keyof BrochureContent][]=[
+    ["Executive Summary","executiveSummary"],
+    ["Investment Highlights","dealStrengths"],
+    ["Risk Factors","riskAssessment"],
+    ["Market Context & Comparables","marketComparables"],
+  ];
+  sections.forEach(([title,key])=>{
+    if(!content[key])return;
+    if(py2>255){doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");py2=20;}
+    // Section header with gold left bar
+    doc.setFillColor(...bg3);doc.rect(M,py2-2,W-M*2,10,"F");
+    doc.setFillColor(...gold);doc.rect(M,py2-2,2,10,"F");
+    doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),M+6,py2+5);
+    py2+=14;
+    doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
+    py2=wrapText(doc,content[key]||"",M,py2,W-M*2,5.5);
+    py2+=4;
+  });
+
+  pageFooter(doc,2);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 3 — FINANCIAL DETAIL (ALL MODELS)
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+  const colW3=80;const colL3=M;const colR3=M+colW3+10;
+  let lY3=20;let rY3=20;
+
+  // Header
+  drawVMarkPDF(doc,M,13,7,gold);
+  doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,20);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("FINANCIAL DETAIL",W-M,20,{align:"right"});
+  doc.setFillColor(...gold);doc.rect(M,23,W-M*2,0.3,"F");lY3=28;rY3=28;
+
+  const drawColB=(title:string,rows:[string,string,[number,number,number]?][],x:number,sy:number,w:number)=>{
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),x,sy);
+    doc.setFillColor(...gold);doc.rect(x,sy+1.5,w,0.3,"F");let ry2=sy+8;
+    rows.forEach(([label,value,color],idx)=>{
+      if(ry2>279)return;
+      if(idx%2===0){doc.setFillColor(...bg3);doc.rect(x,ry2-4,w,7,"F");}
+      doc.setTextColor(...grey);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(String(label),x+2,ry2);
+      doc.setTextColor(...(color||white) as [number,number,number]);doc.setFont("helvetica","bold");doc.text(String(value),x+w-1,ry2,{align:"right"});
+      doc.setFont("helvetica","normal");ry2+=7;
+    });return ry2+4;
+  };
+
+  if(assetType==="BTR"||assetType==="BTS"){
+    lY3=drawColB("Returns",[
+      ["GDV",fmt(r.gdv||0,currencySymbol),gold],["Total Units",String(r.totalUnits||0),white],
+      ["Total GIA",r.totalSqft?`${r.totalSqft.toLocaleString()} sqft`:"—",white],
+      ["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red],
+      ...(assetType==="BTR"?[["Yield on Cost",fmtPct(r.yoc||0),white],["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"—",r.dscr>=1.25?green:amber]] as any:[] as any),
+      ["IRR (Unlevered)",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
+      ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic||0),gold],["Payback",r.paybackMonth?`M${r.paybackMonth}`:"—",white],
+    ],colL3,lY3,colW3)||lY3;
+    rY3=drawColB("Cost Stack",[
+      ["Land",fmt(r.landCost||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0?[["S106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
+    ],colR3,rY3,colW3)||rY3;
+    rY3=drawColB("Finance",[
+      ["LTC",`${data.ltc||0}%`,white],["Loan Amount",fmt(r.loanAmount||0,currencySymbol),amber],
+      ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber],
+      ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],
+      ["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
+      ["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],
+    ],colR3,rY3,colW3)||rY3;
+  }else if(assetType==="Hotel"){
+    const hr=isHotelAdv?hotelAdv:r;
+    lY3=drawColB("P&L Summary",[
+      ["Total Revenue pa",fmt(hr.revenuePa||r.revenuePa||0,currencySymbol),white],
+      ["EBITDA pa",fmt(hr.ebitda||r.ebitda||0,currencySymbol),green],
+      ["FF&E Reserve pa",fmt(hr.ffePa||0,currencySymbol),amber],
+      ["NOI pa",fmt(hr.noi||0,currencySymbol),green],
+      ["Exit Value",fmt(hr.exitValue||r.exitValue||0,currencySymbol),gold],
+      ["Total Investment",fmt(hr.totalCost||r.totalInvestment||0,currencySymbol),grey],
+      ["Equity In",fmt(hr.equity||r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(hr.profit||r.profit||0,currencySymbol),(hr.profit||r.profit||0)>0?green:red],
+      ["Return on Cost",fmtPct(hr.poc||r.poc||0),(hr.poc||r.poc||0)>0.15?green:amber],
+      ["DSCR / ICR",(hr.dscr||r.dscr||0)>0?fmtX(hr.dscr||r.dscr||0):"—",(hr.dscr||r.dscr||0)>=1.25?green:amber],
+      ["IRR (Levered)",fmtPct(hr.irrLevered||r.irrLevered||0),(hr.irrLevered||r.irrLevered||0)>=0.15?green:amber],
+      ["Equity Multiple",fmtX(hr.moic||r.moic||0),gold],
+    ],colL3,lY3,colW3)||lY3;
+    if(isHotelAdv){
+      rY3=drawColB("Per Key Metrics",[
+        ["Purchase / Key",fmt(hotelAdv.pricePerKey||0,currencySymbol),white],
+        ["CapEx / Key",fmt(hotelAdv.capexPerKey||0,currencySymbol),white],
+        ["Exit Value / Key",fmt(hotelAdv.exitValuePerKey||0,currencySymbol),gold],
+        ["EBITDA / Key",fmt(hotelAdv.ebitdaPerKey||0,currencySymbol),green],
+        ["NOI / Key",fmt(hotelAdv.noiPerKey||0,currencySymbol),green],
+        ["Entry Yield (NOI)",fmtPct(hotelAdv.entryYieldNOI||0),white],
+        ["Entry Yield (EBITDA)",fmtPct(hotelAdv.entryYieldEBITDA||0),white],
+        ["NOI Conversion",fmtPct(hotelAdv.noiConversion||0),white],
+      ],colR3,rY3,colW3)||rY3;
+      // Year-by-year cashflow table
+      const yr=hotelAdv.yearRevenue||[];
+      if(yr.length>0&&rY3<260){
+        rY3+=4;
+        doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("INVESTOR CASHFLOW",colR3,rY3);
+        doc.setFillColor(...gold);doc.rect(colR3,rY3+1.5,colW3,0.3,"F");rY3+=8;
+        const yrCols=["",`D1`,...yr.map((_:any,i:number)=>`Y${i+1}${i===yr.length-1?"*":""}`)];
+        const ycW=colW3/yrCols.length;
+        doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","bold");
+        yrCols.forEach((h,i)=>doc.text(String(h),colR3+i*ycW+ycW/2,rY3,{align:"center"}));rY3+=5;
+        [{l:"Revenue",vals:[null,...yr.map((y:any)=>y.totalRev)],c:grey},
+          {l:"EBITDA",vals:[null,...yr.map((y:any)=>y.ebitda)],c:white},
+          {l:"NOI",vals:[null,...yr.map((y:any)=>y.noi)],c:green},
+          {l:"Equity",vals:[-(hotelAdv.equity||0),...Array(yr.length).fill(null)],c:red},
+          {l:"Exit",vals:[null,...Array(yr.length-1).fill(null),hotelAdv.netExitProceeds||0],c:gold},
+        ].forEach((row,ri)=>{
+          if(rY3>285)return;
+          if(ri%2===0){doc.setFillColor(...bg4);doc.rect(colR3,rY3-3,colW3,5.5,"F");}
+          doc.setFontSize(5.5);doc.setFont("helvetica",ri===2||ri===4?"bold":"normal");
+          doc.setTextColor(...row.c);doc.text(row.l,colR3+2,rY3);
+          row.vals.forEach((v:any,ci:number)=>{
+            if(v===null){doc.setTextColor(50,55,65);doc.text("—",colR3+(ci+1)*ycW+ycW/2,rY3,{align:"center"});}
+            else{doc.setTextColor(...(v<0?red:row.c) as [number,number,number]);doc.text(fmt(Math.abs(v),currencySymbol),colR3+(ci+1)*ycW+ycW/2,rY3,{align:"center"});}
+          });rY3+=5.5;
+        });
+        doc.setFontSize(5);doc.setTextColor(...grey);doc.text("* Including exit proceeds",colR3,rY3);rY3+=4;
+      }
+    }else{
+      rY3=drawColB("Investment",[
+        ["Purchase",fmt(r.purchasePrice||data.purchasePrice||0,currencySymbol),grey],
+        ["CapEx",fmt(r.capex||0,currencySymbol),grey],
+        ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
+        ["Equity In",fmt(r.equity||0,currencySymbol),gold],
+        ["Total Investment",fmt(r.totalInvestment||0,currencySymbol),gold],
+        ["LTC",`${data.ltc||0}%`,white],
+        ["Peak Loan",fmt(r.peakLoanBalance||0,currencySymbol),amber],
+      ],colR3,rY3,colW3)||rY3;
+    }
+  }else if(assetType==="Flip"){
+    lY3=drawColB("Returns",[
+      ["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Refurb Budget",fmt(r.refurb||0,currencySymbol),grey],
+      ["Prof Fees",fmt(r.profFees||0,currencySymbol),grey],
+      ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
+      ...(r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
+      ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?green:red],
+      ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic||0),gold],["IRR",fmtPct(r.irr||0),white],
+    ],colL3,lY3,colW3)||lY3;
+    rY3=drawColB("Finance & Programme",[
+      ["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],
+      ["Bridge Term",`${data.bridgingTermMonths||6}m`,white],
+      ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),amber],
+      ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],
+      ["Bridging Interest",fmt(r.bridgingInterest||0,currencySymbol),amber],
+      ["Exit Strategy",r.flipMode==="hold"?"Hold — BTL":"Sell on Completion",white],
+      ...(r.flipMode==="hold"?[
+        ["Refi LTV",`${data.refiLTV||75}%`,white],["Refi Rate",`${data.refiRatePct||6}% pa`,white],
+        ["Hold Term",`${data.refiTermMonths||24}m`,white],
+        ["Monthly Cashflow",`${currencySymbol}${Math.round(Math.abs(r.netCashflowPm||0))}/mo`,r.netCashflowPm>=0?green:red],
+        ["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"N/A (vacant)",r.dscr>=1.25?green:r.dscr>0?amber:grey],
+      ] as any:[] as any),
+    ],colR3,rY3,colW3)||rY3;
+  }else{
+    lY3=drawColB("Returns",[
+      ["GDV / Exit",fmt(r.totalGDV||r.gdv||r.exitValue||0,currencySymbol),gold],
+      ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?green:red],
+      ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red],
+      ["IRR",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
+      ["Equity Multiple",fmtX(r.moic||0),gold],
+    ],colL3,lY3,colW3)||lY3;
+    rY3=drawColB("Cost Stack",[
+      ["Land",fmt(r.landCost||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Build / Refurb",fmt(r.buildCost||r.refurb||0,currencySymbol),grey],
+      ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
+      ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
+    ],colR3,rY3,colW3)||rY3;
+  }
+
+  pageFooter(doc,3);
+
+  // ════════════════════════════════════════════════════════════
+  // PAGE 4 — SENSITIVITY + CASHFLOW VISUAL
+  // ════════════════════════════════════════════════════════════
+  doc.addPage();doc.setFillColor(...dark);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+  let sp=20;
+  drawVMarkPDF(doc,M,sp-7,7,gold);
+  doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("VALORA",M+9,sp);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("SENSITIVITY & CASHFLOW",W-M,sp,{align:"right"});
+  doc.setFillColor(...gold);doc.rect(M,sp+3,W-M*2,0.3,"F");sp+=10;
+
+  // Cashflow bar chart
+  const cfs2:number[]=r.uCfs||r.cfs||[];
+  if(cfs2.length>0){
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text("MONTHLY CASHFLOW (UNLEVERED)",M,sp);sp+=6;
+    const maxAbs2=Math.max(...cfs2.map(Math.abs),1);
+    const chartH=35;const bW=Math.min((W-M*2-4)/cfs2.length,5);
+    cfs2.forEach((cf,i)=>{
+      const pct=Math.abs(cf)/maxAbs2;const bh=Math.max(0.5,pct*(chartH/2));
+      const bx=M+2+i*(bW+0.3);const isExit=i===cfs2.length-1;
+      if(cf>0){doc.setFillColor(...(isExit?gold:green));doc.rect(bx,sp+chartH/2-bh,bW,bh,"F");}
+      else if(cf<0){doc.setFillColor(...red);doc.rect(bx,sp+chartH/2,bW,bh,"F");}
+    });
+    doc.setDrawColor(...grey);doc.setLineWidth(0.15);doc.line(M,sp+chartH/2,W-M,sp+chartH/2);
+    sp+=chartH+4;
+    doc.setFontSize(5.5);doc.setTextColor(...grey);
+    doc.text("Month 1",M,sp);doc.text(`Exit M${cfs2.length}`,W-M,sp,{align:"right"});
+    [[green,"Cash in"],[red,"Cash out"],[gold,"Exit"]].forEach(([c,l],i)=>{
+      doc.setFillColor(...(c as [number,number,number]));doc.rect(M+i*35,sp+3,3,3,"F");
+      doc.setTextColor(...grey);doc.text(String(l),M+i*35+5,sp+5.5);
+    });
+    sp+=12;
+  }
+
+  // Sensitivity table
+  const drawSens2=(matrix:number[][],rowLbls:string[],colLbls:string[],title:string)=>{
+    if(!matrix||matrix.length===0)return;
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),M,sp);sp+=5;
+    const cols2b=colLbls.length+1;const cw2=( W-M*2)/cols2b;const rh2=7;
+    doc.setFillColor(...bg3);doc.rect(M,sp,W-M*2,rh2,"F");
+    doc.setFontSize(6);doc.setTextColor(...grey);doc.setFont("helvetica","bold");
+    colLbls.forEach((l,i)=>doc.text(l,M+cw2*(i+1)+cw2/2,sp+4.5,{align:"center"}));sp+=rh2;
+    matrix.forEach((row,ri)=>{
+      if(ri%2===0){doc.setFillColor(...bg4);doc.rect(M,sp,W-M*2,rh2,"F");}
+      doc.setTextColor(...grey);doc.setFont("helvetica","normal");doc.setFontSize(6);doc.text(rowLbls[ri]||"",M+2,sp+4.5);
+      row.forEach((poc,ci)=>{
+        const c=poc>0.20?green:poc>0.10?amber:red;
+        const isBase=ri===2&&ci===2;
+        if(isBase){doc.setFillColor(...gold);doc.rect(M+cw2*(ci+1),sp,cw2,rh2,"F");}
+        doc.setTextColor(...(isBase?dark:c));doc.setFont("helvetica",isBase?"bold":"normal");
+        doc.text(`${(poc*100).toFixed(1)}%`,M+cw2*(ci+1)+cw2/2,sp+4.5,{align:"center"});
+      });sp+=rh2;
+    });
+    // Legend
+    sp+=4;
+    [[green,"> 20%"],[amber,"10–20%"],[red,"< 10%"],[gold,"Base"]].forEach(([c,l],i)=>{
+      doc.setFillColor(...(c as [number,number,number]));doc.roundedRect(M+i*40,sp,3,3,0.5,0.5,"F");
+      doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(String(l),M+i*40+5,sp+2.5);
+    });sp+=9;
+  };
+
+  if(assetType==="BTR"||assetType==="BTS"){
+    const sm=r.sensMatrix;
+    if(sm&&sm.length>0){
+      const niyBase=num(String(data.exitYield||5));
+      drawSens2(sm,
+        assetType==="BTS"?["+10% sale","+5% sale","Base","-5% sale","-10% sale"]:
+          [`${(niyBase-0.5).toFixed(2)}%`,`${(niyBase-0.25).toFixed(2)}%`,`${niyBase.toFixed(2)}%`,`${(niyBase+0.25).toFixed(2)}%`,`${(niyBase+0.5).toFixed(2)}%`],
+        ["-10%","-5%","Base","+5%","+10%"],
+        assetType==="BTS"?"Sensitivity: Sale Price × Build Cost":"Sensitivity: Exit Yield × Rent Shift"
+      );
+    }
+  }else if(assetType==="Flip"){
+    const salePctSteps=[10,5,0,-5,-10];
+    const refurbPctSteps=[10,5,0,-5,-10];
+    const fs=salePctSteps.map(sp2=>refurbPctSteps.map(rp=>{
+      const mSale=(r.salePrice||0)*(1+sp2/100);const mRefurb=(r.refurb||0)*(1+rp/100);
+      const mPF=mRefurb*(num(String(data.professionalFeesPct))/100);const mC=mRefurb*(num(String(data.contingencyPct))/100);
+      const mT=(r.purchase||0)+(r.sdlt||0)+mRefurb+mPF+mC+(r.other||0)+(r.totalFinanceCost||0);
+      const aF=mSale*(num(String(data.agentFeePct||1.5))/100);
+      return mT>0?(mSale-aF-mT)/mT:0;
+    }));
+    drawSens2(fs,["+10% sale","+5% sale","Base","-5% sale","-10% sale"],
+      ["-10% refurb","-5% refurb","Base","+5% refurb","+10% refurb"],"Sensitivity: Sale Price × Refurb Cost");
+  }else if(r.sensMatrix){
+    const niyBase=num(String(data.niy||6));
+    drawSens2(r.sensMatrix,
+      [`${(niyBase-0.5).toFixed(2)}%`,`${(niyBase-0.25).toFixed(2)}%`,`${niyBase.toFixed(2)}%`,`${(niyBase+0.25).toFixed(2)}%`,`${(niyBase+0.5).toFixed(2)}%`],
+      ["-10%","-5%","Base","+5%","+10%"],"Sensitivity: NIY × ERV Shift"
+    );
+  }
+
+  // Disclaimer strip
+  if(sp<260){
+    const dY=Math.max(sp+4,250);
+    doc.setFillColor(...bg3);doc.roundedRect(M,dY,W-M*2,32,2,2,"F");
+    doc.setDrawColor(...grey);doc.setLineWidth(0.15);doc.roundedRect(M,dY,W-M*2,32,2,2,"S");
+    doc.setTextColor(...amber);doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.text("DISCLAIMER",M+5,dY+7);
+    const disc2="For indicative purposes only. Based on assumptions that may not reflect actual market conditions. Does not constitute financial, investment, legal or tax advice. Recipients should conduct independent due diligence. Projections are not guaranteed. Valora accepts no liability for decisions made based on this document.";
+    const dL=doc.splitTextToSize(disc2,W-M*2-10);
+    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+    dL.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M+5,dY+14+i*5));
+  }
+
+  pageFooter(doc,4);
 
   doc.save(`Valora_Brochure_${(data.name||"Deal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
