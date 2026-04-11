@@ -3103,7 +3103,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   if(loading)return(
     <div style={{minHeight:"100vh",background:"#0D1017",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"var(--text)"}}>Valora</span>
+        <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff"}}>Valora</span>
       </div>
       <div style={{width:32,height:32,border:"2px solid rgba(201,168,76,.15)",borderTopColor:"#52C498",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
       <div style={{fontSize:12,color:"#3d4249",letterSpacing:".06em"}}>Loading appraisal…</div>
@@ -3117,7 +3117,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
       {/* Nav */}
       <div style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 16px",height:56,display:"flex",alignItems:"center",gap:12,position:"sticky",top:0,zIndex:100}}>
         <button onClick={()=>router.push("/dashboard")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-          <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"var(--text)"}}>Valora</span>
+          <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff"}}>Valora</span>
         </button>
         <div style={{width:1,height:18,background:"var(--border)",flexShrink:0}}/>
         <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{padding:"5px 10px",fontSize:11,flexShrink:0}}>← Back</button>
