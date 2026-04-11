@@ -1983,9 +1983,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.setTextColor(...grey);doc.setFontSize(6.5);doc.text(today,W-M,12,{align:"right"});
   doc.text(userEmail||"",W-M,18,{align:"right"});
   // Confidential badge
-  doc.setFillColor(201,168,76,20);doc.roundedRect(W-58,30,50,12,2,2,"F");
-  doc.setDrawColor(...gold);doc.setLineWidth(0.3);doc.roundedRect(W-58,30,50,12,2,2,"S");
-  doc.setTextColor(...gold);doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.text("STRICTLY CONFIDENTIAL",W-33,38,{align:"center"});
+
   // Deal title
   doc.setTextColor(...white);doc.setFontSize(26);doc.setFont("helvetica","bold");
   const titleLines=doc.splitTextToSize(data.name||"Untitled Appraisal",W-M*2-10);
