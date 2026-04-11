@@ -430,7 +430,7 @@ function LandingPage({onLogin,onPage}:any){
           <div className="reveal" style={{maxWidth:560,marginBottom:56}}>
             <div className="chip" style={{marginBottom:16}}>What's inside</div>
             <h2 style={{fontSize:"clamp(28px,3vw,40px)",fontWeight:700,letterSpacing:"-.025em",color:"var(--navy)",lineHeight:1.15,marginBottom:16}}>
-              Every tool a serious<br/>developer needs.
+              Built for developers.<br/>Trusted by the whole deal team.
             </h2>
             <p style={{fontSize:16,color:"var(--text-m)",lineHeight:1.7}}>
               Not a simple calculator. A full institutional-grade appraisal engine — the kind that used to cost £50k in consulting fees or proprietary software licences.
