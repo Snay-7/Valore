@@ -990,7 +990,7 @@ export default function Dashboard() {
             Book a Demo
           </button>
           {/* ── GETTING STARTED CHECKLIST ── */}
-          {!checklistDismissed && onboardingDone && (
+          {!checklistDismissed && onboardingDone && !showOnboarding && (
             <div style={{ margin:"0 0 12px", padding:"12px 10px", background:"rgba(82,196,152,.06)", border:"1px solid rgba(82,196,152,.14)", borderRadius:8 }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                 <div style={{ fontSize:9, fontWeight:700, color:"#52C498", textTransform:"uppercase", letterSpacing:".1em" }}>Getting started</div>
@@ -1606,18 +1606,7 @@ export default function Dashboard() {
 
 
 
-            {/* Empty state */}
-            {projects.length === 0 && (
-              <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, color: "var(--text-d)", marginBottom: 12 }}>◈</div>
-                <p style={{ fontSize: 15, color: "var(--text-d)", marginBottom: 6 }}>No projects yet</p>
-                <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24 }}>Create your first appraisal or book a demo to get started.</p>
-                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                  <button className="btn-primary" onClick={() => setShowNewModal(true)} style={{ padding: "12px 28px", fontSize: 13 }}>+ Create First Appraisal</button>
-                  <button className="btn-ghost" onClick={() => window.open(CALENDLY, "_blank")} style={{ padding: "11px 20px", fontSize: 13 }}>Book a Demo</button>
-                </div>
-              </div>
-            )}
+
 
 
 
