@@ -8,6 +8,10 @@ import { Suspense } from "react";
 
 
 
+
+
+
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -52,6 +56,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   .plan-card{padding:24px}
 }
 `;
+
+
+
+
 
 
 
@@ -124,6 +132,10 @@ const PLANS = [
 
 
 
+
+
+
+
 function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -132,6 +144,10 @@ function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const cancelled = searchParams.get("cancelled");
+
+
+
+
 
 
 
@@ -147,6 +163,10 @@ function PricingPage() {
     };
     init();
   }, []);
+
+
+
+
 
 
 
@@ -181,7 +201,15 @@ function PricingPage() {
 
 
 
+
+
+
+
   const currentTier = subscription?.tier || "free";
+
+
+
+
 
 
 
@@ -190,6 +218,10 @@ function PricingPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
       <style>{CSS}</style>
       <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+
+
+
+
 
 
 
@@ -203,7 +235,15 @@ function PricingPage() {
 
 
 
+
+
+
+
       <div style={{ padding: "64px 24px", maxWidth: 1080, margin: "0 auto" }}>
+
+
+
+
 
 
 
@@ -214,6 +254,10 @@ function PricingPage() {
             Checkout cancelled — no charge was made. Choose a plan below to get started.
           </div>
         )}
+
+
+
+
 
 
 
@@ -232,6 +276,10 @@ function PricingPage() {
 
 
 
+
+
+
+
           {/* Billing toggle */}
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div className="toggle">
@@ -246,12 +294,20 @@ function PricingPage() {
 
 
 
+
+
+
+
         {/* Plans */}
         <div className="plans-grid">
           {PLANS.map((plan, i) => {
             const price = billing === "annual" ? plan.annualPrice : plan.monthlyPrice;
             const isCurrent = currentTier === plan.id;
             const isLoading = loading === plan.id;
+
+
+
+
 
 
 
@@ -267,8 +323,16 @@ function PricingPage() {
 
 
 
+
+
+
+
                 <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 300, color: plan.color, marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24, lineHeight: 1.5 }}>{plan.description}</div>
+
+
+
+
 
 
 
@@ -284,6 +348,10 @@ function PricingPage() {
                   )}
                   <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 4 }}>14-day free trial · cancel anytime</div>
                 </div>
+
+
+
+
 
 
 
@@ -305,10 +373,15 @@ function PricingPage() {
                           <span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTopColor: "#0D1017", borderRadius: "50%", display: "inline-block", animation: "spin .7s linear infinite" }} />
                           Redirecting…
                         </span>
-                      ) : `Start free trial →`}
+                      ) : plan.monthlyPrice === 0 ? "Get started free →" : plan.monthlyPrice >= 499 ? "Book a demo →" : user ? `Upgrade to Pro — $${plan.monthlyPrice}/mo` : "Start free trial →"
+      }
                     </button>
                   )}
                 </div>
+
+
+
+
 
 
 
@@ -327,6 +400,10 @@ function PricingPage() {
             );
           })}
         </div>
+
+
+
+
 
 
 
@@ -353,10 +430,18 @@ function PricingPage() {
 
 
 
+
+
+
+
       </div>
     </div>
   );
 }
+
+
+
+
 
 
 
