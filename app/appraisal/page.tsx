@@ -1981,7 +1981,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.setTextColor(...white);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text("Valora",M,20);
   doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DEVELOPMENT APPRAISAL",M+13,27);
   doc.setTextColor(...grey);doc.setFontSize(6.5);doc.text(today,W-M,12,{align:"right"});
-  doc.text(userEmail||"",W-M,18,{align:"right"});
+
   // Confidential badge
 
   // Deal title
