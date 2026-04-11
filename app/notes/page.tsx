@@ -71,6 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit
   .sidebar{display:none!important}
   .bottom-nav{display:flex}
   .mobile-topbar{display:flex}
+  .notes-root{display:block!important}
   .main-wrap{margin-left:0!important;padding:16px 14px 90px!important;max-width:100vw!important;width:100vw!important}
   .notes-layout{grid-template-columns:1fr!important}
   .note-editor-col{display:none}
@@ -236,7 +237,7 @@ export default function NotesPage() {
 
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
+    <div className="notes-root" style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
       <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
 
