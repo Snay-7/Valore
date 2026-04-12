@@ -6282,10 +6282,18 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
     setGeneratingBrochure(false);
   };
   const handleDownloadBrochure=async()=>{
-    if(!brochureContent)return;setDownloadingBrochure(true);
-    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null);tickChecklist("generated_pdf");}
-    catch(e){console.error("Brochure PDF error:",e);}
-    setDownloadingBrochure(false);
+    if(!brochureContent||downloadingBrochure)return;
+    setDownloadingBrochure(true);
+    try{
+      const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"}[data.currency]||"£";
+      await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null);
+      tickChecklist("generated_pdf");
+    }catch(e:any){
+      console.error("Brochure PDF error:",e);
+      setBrochureError("PDF generation failed — "+( e?.message||"unknown error"));
+    }finally{
+      setDownloadingBrochure(false);
+    }
   };
   const[panelOpen,setPanelOpen]=useState(true);
   const TABS_BTR=["general","revenue","costs","finance","cashflow","analysis"];
@@ -11572,7 +11580,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   return(<div key={key} className="ai-section"><span className="ai-section-label">{labels[key]}</span><textarea className="ai-textarea" value={brochureContent[key]} onChange={e=>setBrochureContent(prev=>prev?{...prev,[key]:e.target.value}:prev)}/></div>);
                 })}
                 <div style={{display:"flex",gap:10,marginTop:16}}>
-                  <button className="btn-ghost" onClick={()=>setBrochureContent(null)} style={{flex:1,justifyContent:"center"}}>↺ Regenerate</button>
+                  <button className="btn-ghost" onClick={()=>{setBrochureContent(null);generateBrochure();}} style={{flex:1,justifyContent:"center"}} disabled={generatingBrochure}>↺ Regenerate</button>
                   <button className="btn-primary" onClick={handleDownloadBrochure} disabled={downloadingBrochure} style={{flex:2,justifyContent:"center",padding:"12px"}}>{downloadingBrochure?<><span style={{width:14,height:14,border:"2px solid rgba(82,196,152,0.15)",borderTopColor:"#52C498",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Generating PDF…</>:"⬇ Download Brochure PDF"}</button>
                 </div>
                 <p style={{fontSize:11,color:"var(--text-d)",marginTop:10,textAlign:"center"}}>Edit any section above before downloading.</p>
