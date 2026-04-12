@@ -4029,7 +4029,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Total Investment",fmt(r.totalInvestment,currencySymbol),gold],
     ],colR,rY,colW)||rY;
     rY=drawCol("Assumptions",[
-      ["Rooms",String(data.rooms||0),white],["Star Rating",`${data.starRating||4}★`,white],
+      ["Rooms",String(data.rooms||0),white],["Star Rating",`${data.starRating||4} Star`,white],
       ["ADR",`${currencySymbol}${data.adr||0}`,white],["Occupancy",`${data.occupancy||0}%`,white],
       ["Exit Cap Rate",`${data.exitCapRate||0}%`,white],["Stabilised Cap Rate",`${data.stabilisedCapRate||0}%`,white],
       ["Programme",programmLabel,white],["LTC",`${data.ltc||0}%`,white],
@@ -4557,11 +4557,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   // Executive tagline
   const tagY=subtitleY+14;
   if(content.executiveSummary){
-    const sentences=content.executiveSummary.split(/(?<=[.!])\s+/);
-    const tagText=(sentences.slice(0,2).join(" ")).trim();
-    const tagLines=doc.splitTextToSize(tagText,W-M*2);
-    doc.setTextColor(...white);doc.setFontSize(9.5);doc.setFont("helvetica","normal");
-    tagLines.slice(0,3).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*5.8));
+    const tagLines=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2);
+    doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
+    tagLines.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*5.5));
   }
 
 
@@ -4581,8 +4579,8 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     {l:"IRR (Levered)",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:(hotelAdv.irrLevered||r.irrLevered||0)>=0.10?blue:amber},
     {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
     {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
-    {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:white},
-    {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:white},
+    {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:amber},
+    {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:blue},
   ]:assetType==="BTR"||assetType==="BTS"?[
     {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
     {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
@@ -4670,7 +4668,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     if(content.executiveSummary){
       sp=hSection(sp,"Investment Thesis");
-      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2);
+      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-4);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
       esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
       sp+=5;
@@ -4708,7 +4706,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(content.marketComparables){
       checkPage();
       sp=hSection(sp,"Market Context");
-      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2);
+      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-4);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
       ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
     }
@@ -4719,7 +4717,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     // Key metrics bar
     const kmItems=[
-      {l:"Rooms",v:String(rooms2)},{l:"Star Rating",v:`${data.starRating||4}★`},
+      {l:"Rooms",v:String(rooms2)},{l:"Star Rating",v:`${data.starRating||4} Star`},
       {l:"ADR",v:`${currencySymbol}${Number(data.adr||0).toFixed(0)}`},
       {l:"Occupancy",v:`${data.occupancy||0}%`},
       {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`},
@@ -4810,7 +4808,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         doc.setLineWidth(isCurr?0.8:0.3);doc.roundedRect(bx,sp,bW3,32,2,2,"S");
         doc.setTextColor(isCurr?42:90,isCurr?138:100,isCurr?100:120);
         doc.setFontSize(7.5);doc.setFont("helvetica","bold");
-        doc.text(`${starNum}★${isCurr?" — Your Hotel":""}`,bx+4,sp+9);
+        doc.text(`${starNum} Star${isCurr?" — Yours":""}`,bx+4,sp+9);
         doc.setTextColor(37,45,63);doc.setFontSize(11);doc.setFont("helvetica","bold");
         doc.text(`${currencySymbol}${b.low}–${currencySymbol}${b.high}`,bx+4,sp+19);
         doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");
@@ -4820,7 +4818,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
       // Your ADR vs market
       const myADR=Number(data.adr||0);
-      const b4Star=hotelComps.benchmarks?.["4star"]||hotelComps.benchmarks?.["5star"];
+      const starKey=`${Math.round(Number(data.starRating||4))}star`;
+      const matchingStar=hotelComps.benchmarks?.[starKey]||hotelComps.benchmarks?.["5star"]||hotelComps.benchmarks?.["4star"];
+      const b4Star=matchingStar;
       if(b4Star){
         const mktAvg=Number(b4Star.avg);const diff=mktAvg>0?((myADR-mktAvg)/mktAvg)*100:0;
         const posC=diff>20?red:diff>5?amber:green;
@@ -4838,7 +4838,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
       if(hotelComps.market_context){
         sp=hSection(sp,"Market Context");
-        const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2);
+        const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2-4);
         doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
         ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;});sp+=4;
       }
@@ -4853,7 +4853,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         hotelComps.comparable_hotels.slice(0,10).forEach((h:any,i:number)=>{
           if(i%2===0){doc.setFillColor(248,249,250);doc.rect(M,sp,W-M*2,7,"F");}
           doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(h.name||"",M+3,sp+4.5);
-          doc.setTextColor(...grey);doc.text(h.stars?`${h.stars}★`:"",M+110,sp+4.5);
+          doc.setTextColor(...grey);doc.text(h.stars?`${h.stars} Star`:"",M+110,sp+4.5);
           doc.setTextColor(42,138,100);doc.setFont("helvetica","bold");
           doc.text(h.adr_approx?`${currencySymbol}${h.adr_approx}`:"—",W-M,sp+4.5,{align:"right"});
           sp+=7;
@@ -4875,15 +4875,16 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     lPos=hSection(lPos,"P&L Summary");
     [[`Total Revenue pa`,fmt(hr.revenuePa||r.revenuePa||0,currencySymbol),grey],
      [`EBITDA pa`,fmt(hr.ebitda||0,currencySymbol),green],
-     [`FF&E Reserve pa`,hr.ffePa?fmt(hr.ffePa,currencySymbol):"—",amber],
-     [`NOI pa`,fmt(hr.noi||r.noi||0,currencySymbol),green],
+     [`FF&E Reserve pa`,fmt(hr.ffePa||hr.ffe||r.ffe||0,currencySymbol),amber],
+     [`NOI pa`,fmt(hr.noi||r.noi||0,currencySymbol),(hr.noi||r.noi||0)>0?green:amber],
      [``,``,white],[`Exit Value`,fmt(hr.exitValue||r.exitValue||0,currencySymbol),green],
      [`Total Investment`,fmt(hr.totalInvestment||r.totalCost||0,currencySymbol),white],
      [`Equity In`,fmt(hr.equity||r.equity||0,currencySymbol),amber],
      [`Profit`,fmt(hr.profit||r.profit||0,currencySymbol),(hr.profit||r.profit||0)>0?green:red],
      [`Return on Cost`,fmtPct(hr.poc||r.poc||0),(hr.poc||r.poc||0)>0.15?green:amber],
      [`DSCR / ICR`,(hr.dscr||r.dscr||0)>0?fmtX(hr.dscr||r.dscr||0):"—",(hr.dscr||r.dscr||0)>=1.25?green:amber],
-     [`IRR (Levered)`,fmtPct(hr.irrLevered||r.irrLevered||0),(hr.irrLevered||r.irrLevered||0)>=0.1?green:amber],
+     [`IRR (Unlevered)`,fmtPct(hr.irr||r.irr||0),(hr.irr||r.irr||0)>=0.1?green:amber],
+     [`IRR (Levered)`,fmtPct(hr.irrLevered||r.irrLevered||0),(hr.irrLevered||r.irrLevered||0)>=0.1?green:red],
      [`Equity Multiple`,fmtX(hr.moic||r.moic||0),(hr.moic||r.moic||0)>=1.5?green:amber],
     ].forEach(([l,v,c]:any)=>{
       if(!l){lPos+=4;return;}
@@ -4917,7 +4918,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
      [`SDLT`,fmt(r.sdlt||0,currencySymbol),white],
      [`Arrangement Fee`,fmt(hr.arrangementFee||r.arrangementFee||0,currencySymbol),amber],
      [`Interest (Rolled)`,fmt(hr.interestCost||r.interestCost||0,currencySymbol),amber],
-     [`Total Finance Cost`,fmt(hr.totalFinanceCost||r.totalFinanceCost||0,currencySymbol),amber],
+     [`Total Finance Cost`,fmt(hr.totalFinanceCost||(( hr.arrangementFee||r.arrangementFee||0)+(hr.interestCost||r.interestCost||0)),currencySymbol),amber],
      [`Total Investment`,fmt(hr.totalInvestment||r.totalCost||0,currencySymbol),green],
     ].forEach(([l,v,c]:any,i)=>{
       const isTotal=i===6;
@@ -5050,7 +5051,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     sp=hSection(sp,"Key Assumptions");
     const asmItems=[
       ["Asset","Hotel — "+data.name],["Location",data.location||"—"],["Date",today],
-      ["Rooms",String(rooms2)],["Star Rating",`${data.starRating||4}★`],
+      ["Rooms",String(rooms2)],["Star Rating",`${data.starRating||4} Star`],
       ["ADR",`${currencySymbol}${Number(data.adr||0).toFixed(0)}`],
       ["Occupancy",`${data.occupancy||0}%`],
       ["Exit Cap Rate",`${data.exitCapRate||6}%`],["Hold Period",`${data.holdYears||5} years`],
