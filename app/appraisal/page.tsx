@@ -4661,6 +4661,17 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.text(`Strictly Private & Confidential  ·  Page ${n}  ·  ${today}`,W-M,294.5,{align:"right"});
     };
 
+    // Hard clip — text physically cannot render past right margin
+    const clipText=(fn:()=>void)=>{
+      doc.saveGraphicsState();
+      // Draw clip rect: x=M, y=0, w=W-M*2, h=297 (full page height within margins)
+      doc.lines([[W-M*2,0],[0,297],[ -(W-M*2),0],[0,-297]],M,0);
+      doc.clip();
+      doc.discardPath();
+      fn();
+      doc.restoreGraphicsState();
+    };
+
     // ── PAGE 2: EXECUTIVE SUMMARY ───────────────────────────────
     let sp=newHotelPage("Executive Summary");
     const maxY=278; // leave room for footer
@@ -4670,7 +4681,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       sp=hSection(sp,"Investment Thesis");
       const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-8);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
-      esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
+      clipText(()=>esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;}));
       sp+=5;
     }
     if(content.dealStrengths){
@@ -4683,7 +4694,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");}
         doc.setFillColor(42,138,100);doc.rect(M,sp-2,1.5,Math.max(hl.length*5.2,4),"F");
         doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
-        hl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2));
+        clipText(()=>hl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2)));
         sp+=blockH;
       });
       sp+=3;
@@ -4698,7 +4709,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Key Risk Factors (cont.)");}
         doc.setFillColor(192,64,64);doc.rect(M,sp-2,1.5,Math.max(rl.length*5.2,4),"F");
         doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
-        rl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2));
+        clipText(()=>rl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2)));
         sp+=blockH;
       });
       sp+=3;
@@ -4708,7 +4719,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       sp=hSection(sp,"Market Context");
       const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-8);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
-      ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
+      clipText(()=>ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;}));
     }
     hPageFooter(pageNum++);
 
@@ -4840,7 +4851,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         sp=hSection(sp,"Market Context");
         const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2-8);
         doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
-        ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;});sp+=4;
+        clipText(()=>ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;}));sp+=4;
       }
 
       if(hotelComps.comparable_hotels?.length>0){
