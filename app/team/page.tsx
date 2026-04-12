@@ -153,6 +153,16 @@ function fmtDate(d:string){return new Date(d).toLocaleDateString("en-GB",{day:"n
 
 export default function TeamPage(){
   const router=useRouter();
+  const tickChecklist = (key: string) => {
+    try {
+      const raw = localStorage.getItem("valora_checklist");
+      const current = raw ? JSON.parse(raw) : {};
+      if (!current[key]) {
+        current[key] = true;
+        localStorage.setItem("valora_checklist", JSON.stringify(current));
+      }
+    } catch(e) {}
+  };
   const[user,setUser]=useState<any>(null);
   const[firm,setFirm]=useState<any>(null);
   const[members,setMembers]=useState<any[]>([]);
@@ -482,6 +492,7 @@ export default function TeamPage(){
 
 
 
+    tickChecklist("invited_team");
     setInviteOk(true);
     await load(user.id);
     setTimeout(()=>{setInviteOk(false);setShowInvite(false);setInviteEmail("");setInviteRole("editor");},1600);
