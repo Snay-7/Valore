@@ -263,12 +263,76 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Year by year revenue
   const years=Array.from({length:holdYears},(_,i)=>i);
   const yearData=years.map(i=>({
     occ:num(String((data.yearOcc||[])[i]??data.occupancy??72))/100,
     adr:num(String((data.yearAdr||[])[i]??data.adr??180)),
   }));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -364,10 +428,74 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const stabilisedYear=yearRevenue[yearRevenue.length-1]||yearRevenue[0];
   const stabilisedNOI=stabilisedYear.noi;
   const stabilisedEBITDA=stabilisedYear.ebitda;
   const totalNOI=yearRevenue.reduce((s,y)=>s+y.noi,0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -405,6 +533,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const entryYieldNOI=purchasePrice>0?yearRevenue[0].noi/purchasePrice:0;
   const entryYieldEBITDA=purchasePrice>0?yearRevenue[0].ebitda/purchasePrice:0;
   const pricePerKey=rooms>0?purchasePrice/rooms:0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -477,10 +637,74 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // CapEx
   const capex=num(String(data.capexBudget||5000000));
   const capexPerKey=rooms>0?capex/rooms:0;
   const disposalCostPct=num(String(data.disposalCostPct??3.0))/100;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -548,9 +772,73 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Finance — capital structure
   let loanAmount=0,interestTotal=0,arrangementFee=0,exitFee=0,brokerageFee=0;
   const allInRate=(num(String(data.benchmarkRate??3.97))+num(String(data.marginOverBenchmark??3.0)))/100;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -637,10 +925,74 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // IM fees
   const imEnabled=data.imEnabled||false;
   const imAcqFee=imEnabled?num(String(data.imAcqFee??300000)):0;
   const imBasePATotal=imEnabled?num(String(data.imBasePA??250000))*holdYears:0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -679,6 +1031,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const exitValuePerKey=rooms>0?exitValue/rooms:0;
   const disposalCosts=exitValue*disposalCostPct;
   const netExitProceeds=exitValue-disposalCosts;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -751,10 +1135,74 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // IRR — simple approximation
   // IM incentive fees (on profit)
   const imIncentiveProfit=imEnabled?(num(String(data.imIncentiveProfitPct??10))/100)*Math.max(profit,0):0;
   const imIncentiveSales=imEnabled?(num(String(data.imIncentiveSalesPct??1))/100)*exitValue:0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -820,11 +1268,75 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // IRR cashflow construction
   // One-off fees paid Day 1 (not spread annually)
   const dayOneFinanceFees=arrangementFee+exitFee+brokerageFee;
   // Annual interest only (evenly spread — hotel debt is typically interest-rolled or serviced annually)
   const annualInterest=holdYears>0?interestTotal/holdYears:0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -897,6 +1409,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Levered: equity out day 1, NOI minus annual interest each year, net exit after loan repayment at end
   // equity = totalCost - loanAmount (what investor actually puts in)
   const lCfs=[
@@ -936,7 +1480,71 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const irrUnlevered=calcIRR(uCfs);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1013,6 +1621,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Payback — month when cumulative levered cashflows turn positive
   let cumulative=lCfs[0];
   let paybackMonth:number|null=null;
@@ -1020,6 +1660,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     cumulative+=lCfs[i];
     if(cumulative>=0){paybackMonth=i*12;break;}
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1092,6 +1764,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return{
     yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
     purchasePrice,pricePerKey,capexPerKey,exitValue,exitValuePerKey,disposalCosts,netExitProceeds,
@@ -1111,6 +1815,38 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     revenueStabilised:stabilisedYear.totalRev,
   };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1321,6 +2057,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Area model ──────────────────────────────────────────────────────────
     let refurb=0,totalArea=0,existingAreaSqft=0,newAreaSqft=0;
     let refurbExisting=0,refurbNew=0;
@@ -1356,6 +2100,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Professional & Fit-Out fees ─────────────────────────────────────────
     const architectPct=num(String(data.architectPct||0));
     const structEngPct=num(String(data.structEngPct||0));
@@ -1382,12 +2134,28 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Sale price ───────────────────────────────────────────────────────────
     const salePricePsfRaw=num(String(data.salePricePsf||0));
     const salePricePsfInternal=unitSys==="sqm"&&salePricePsfRaw>0?salePricePsfRaw/SQM_TO_SQFT:salePricePsfRaw;
     const salePriceFlat=num(String(data.salePrice||0));
     const salePrice=propertySqft>0&&salePricePsfInternal>0?propertySqft*salePricePsfInternal:salePriceFlat;
     const salePricePsfDisplay=propertySqft>0&&salePrice>0?salePrice/propertySqft:0;
+
+
+
+
+
+
+
+
 
 
 
@@ -1429,6 +2197,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Refinance (hold mode) ─────────────────────────────────────────────────
     const refiRate=num(String(data.refiRatePct||6.0))/100;
     const refiMonths=Math.max(1,num(String(data.refiTermMonths||24)));
@@ -1450,6 +2226,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const annualNOI=(netRentPm-monthlyOpex)*12;
     const annualDebtService=refiInterestPm*12;
     const dscr=annualDebtService>0&&annualNOI>0?annualNOI/annualDebtService:0;
+
+
+
+
+
+
+
+
 
 
 
@@ -1481,6 +2265,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // MOIC on net equity deployed: counts cash-out refi as return of capital in the multiple
     const totalReturn=profit+Math.max(0,cashOutRefi); // cash returned + profit at exit
     const moic=netEquityDeployed>0?(netEquityDeployed+totalReturn)/netEquityDeployed:equity>0?(equity+profit)/equity:0;
+
+
+
+
+
+
+
+
 
 
 
@@ -1550,6 +2342,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Per-zone calculations ────────────────────────────────────────────────
     const zoneResults=zones.map((z:any)=>{
       const units=num(String(z.units||1));
@@ -1563,6 +2363,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       const contingency=buildCost*contingencyPct;
       const cil=totalSqft*cilPsf*(z.status==="refurb"||z.status==="active"?0:1); // CIL on new build floorspace; refurb/active zones exempt
       const totalBuildCost=buildCost+profFees+contingency+vat+cil;
+
+
+
+
+
+
+
+
 
 
 
@@ -1594,10 +2402,26 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
       // Active income (trading during build)
       const status=z.status||"new_build";
       const activeIncomePm=status==="active"?rentPcm*units:0;
       const startMonth=num(String(z.startMonth||0));
+
+
+
+
+
+
+
+
 
 
 
@@ -1620,6 +2444,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Scheme totals ────────────────────────────────────────────────────────
     const totalBuildCost=zoneResults.reduce((s:number,z:any)=>s+z.totalBuildCost,0);
     const totalGDV=zoneResults.reduce((s:number,z:any)=>s+z.gdvZone,0);
@@ -1634,11 +2466,27 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Finance ──────────────────────────────────────────────────────────────
     const fin=calcFinanceCostMonthly({
       landCost,sdlt,buildCost:totalDevCost,buildMonths,
       annualRate,ltcPct,arrangementFeePct:arrFeePct,costProfile:"scurve"
     });
+
+
+
+
+
+
+
+
 
 
 
@@ -1686,6 +2534,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     return{
       landCost,sdlt,totalBuildCost,totalDevCost,totalGDV,totalSqft,
       s106:schemeS106,totalFinanceCost:fin.totalFinanceCost,
@@ -1722,6 +2578,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Per-unit revenue ────────────────────────────────────────────────────
     const unitResults=units.map((u:any)=>{
       const areaSqm=num(String(u.areaSqm||0));
@@ -1747,6 +2611,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Scheme income ───────────────────────────────────────────────────────
     const totalErv=unitResults.reduce((s:number,u:any)=>s+u.grossErv,0);
     const totalPassing=unitResults.reduce((s:number,u:any)=>s+u.grossPassing,0);
@@ -1763,6 +2635,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Rent review uplift ───────────────────────────────────────────────────
     const rentReviewType=data.rentReviewType||"fixed";
     const rentReviewPct=num(String(data.rentReviewPct||3))/100;
@@ -1770,6 +2650,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // Projected ERV at next review
     const reviewMultiplier=rentReviewType==="fixed"?Math.pow(1+rentReviewPct,rentReviewYears):1+rentReviewPct; // CPI/RPI: single period uplift
     const projectedErv=totalErv*reviewMultiplier;
+
+
+
+
+
+
+
+
 
 
 
@@ -1807,6 +2695,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Finance ──────────────────────────────────────────────────────────────
     const annualRate=(num(String(data.benchmarkRate||3.97))+num(String(data.marginOverBenchmark||2.5)))/100;
     const ltcPct=num(String(data.ltc||60))/100;
@@ -1815,6 +2711,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const totalMonths=buildMonths+stabMonths;
     const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:devCost,buildMonths,annualRate,ltcPct,
       arrangementFeePct:num(String(data.arrangementFeePct||1.0))/100,costProfile:"scurve"});
+
+
+
+
+
+
+
+
 
 
 
@@ -1837,6 +2741,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // Break-even rent & yield
     const breakEvenRentPsm=totalAreaSqm>0?totalCost*(niy>0?niy:0.055)/totalAreaSqm:0;
     const breakEvenYield=gdv>0?totalNetPassing/totalCost:0;
+
+
+
+
+
+
+
+
 
 
 
@@ -1877,6 +2789,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
+
+
+
+
+
+
+
+
     // ── Sensitivity: NIY (rows) × passing rent shift % (cols) ────────────────
     // Base income = totalNetPassing so base case matches returns summary exactly
     const niySteps=[-0.5,-0.25,0,0.25,0.5].map(d=>niy*100+d);
@@ -1886,6 +2806,14 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       const mGdv=(n/100)>0?mNoi/(n/100):0;
       return totalCost>0?(mGdv-totalCost)/totalCost:0;
     }));
+
+
+
+
+
+
+
+
 
 
 
@@ -1948,6 +2876,54 @@ const DEFAULTS={
 };
 type AssetType="BTR"|"BTS"|"Hotel"|"Flip"|"MixedUse"|"Commercial";
 type BrochureContent={executiveSummary:string;dealStrengths:string;riskAssessment:string;marketComparables:string};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2140,6 +3116,38 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       {/* ── Info banner ── */}
       <div style={{background:"rgba(201,168,76,0.07)",border:"1px solid rgba(201,168,76,0.2)",borderRadius:7,padding:"8px 12px",marginBottom:10,display:"flex",alignItems:"flex-start",gap:8}}>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0,marginTop:2}} xmlns="http://www.w3.org/2000/svg">
@@ -2151,6 +3159,38 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
           <strong style={{color:"var(--gold)"}}>Auto mode uses UK SDLT rates.</strong> If you are in another country, use <strong style={{color:"var(--text)"}}>Override</strong> and enter your local property transfer tax — e.g. IMT (Portugal), Transfer Tax (USA), DLD Fee (UAE), Stamp Duty (Australia), Grunderwerbsteuer (Germany).
         </span>
       </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2220,6 +3260,38 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       {/* ── Auto mode ── */}
       {data.sdltMode!=="manual"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -2239,6 +3311,38 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
           </div>
         </div>
       )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2329,6 +3433,38 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ─── REV STREAM ───────────────────────────────────────────────────────────────
 function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{title:string;icon:string;enabled:boolean;onToggle:()=>void;summary:string;open:boolean;onOpen:()=>void;children:React.ReactNode;}){
   return(<div className="rev-stream" style={{borderColor:enabled?"var(--gold-border)":"var(--border)"}}>
@@ -2354,6 +3490,38 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
     </div>)}
   </div>);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2421,6 +3589,39 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ─── PDF GENERATORS ───────────────────────────────────────────────────────────
 async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string){
   if(!(window as any).jspdf){
@@ -2452,6 +3653,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // ── Helper: draw a full-width section header ─────────────────────────────
   const sectionHeader=(doc:any,title:string,y:number)=>{
     doc.setFillColor(...bg2);doc.rect(M,y-5,W-M*2,8,"F");
@@ -2460,6 +3665,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     doc.text(title.toUpperCase(),M+5,y);
     return y+8;
   };
+
+
+
+
 
 
 
@@ -2476,6 +3685,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       doc.setFont("helvetica","normal");ry+=7;
     });return ry+4;
   };
+
+
+
+
 
 
 
@@ -2502,6 +3715,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     doc.setDrawColor(...grey);doc.setLineWidth(0.2);doc.line(x,y+h/2,x+w,y+h/2);
     return y+h+4;
   };
+
+
+
+
 
 
 
@@ -2534,6 +3751,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // ── Helper: mini page header ──────────────────────────────────────────────
   const pageHeader=(doc:any,subtitle:string)=>{
     doc.setFillColor(...dark);doc.rect(0,0,W,H,"F");
@@ -2544,6 +3765,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     doc.text(today,W-M,15,{align:"right"});
     doc.setFillColor(...gold);doc.rect(4,18,W-4,0.4,"F");
   };
+
+
+
+
 
 
 
@@ -2559,9 +3784,17 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   const programmLabel=assetType==="BTS"?`${data.programmMonths||30}m build · ${data.absorptionMonths||18}m absorption`:
     assetType==="BTR"?`${data.programmMonths||36}m build · ${data.stabilisationMonths||12}m stabilisation`:
     `${data.programmMonths||12} months`;
+
+
+
+
 
 
 
@@ -2579,7 +3812,11 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.setTextColor(...grey);doc.setFontSize(6.5);doc.text(today,W-M,12,{align:"right"});
 
 
+
+
   // Confidential badge
+
+
 
 
   // Deal title
@@ -2588,6 +3825,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.text(titleLines,M,70);
   doc.setFontSize(11);doc.setFont("helvetica","normal");doc.setTextColor(...gold);
   doc.text(`${data.location||"No location"}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,M,70+titleLines.length*11+4);
+
+
+
+
 
 
 
@@ -2635,6 +3876,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // Divider and quick facts strip
   const factsY=kpiY+32;
   doc.setFillColor(...bg3);doc.rect(M,factsY,W-M*2,22,"F");
@@ -2667,6 +3912,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // Watermark / decorative element
   doc.setTextColor(201,168,76);doc.setFontSize(120);doc.setFont("helvetica","bold");
   doc.setGState&&doc.setGState(doc.GState({opacity:0.03}));
@@ -2676,7 +3925,15 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   pageFooter(doc,1,4);
+
+
+
+
 
 
 
@@ -2686,6 +3943,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   // ════════════════════════════════════════════════════════════
   doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Financial Summary`);
   let lY=26,rY=26;
+
+
+
+
 
 
 
@@ -2849,6 +4110,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // Unit Mix table — BTR/BTS only
   if((assetType==="BTR"||assetType==="BTS")&&(data.units||[]).length>0){
     const tableY=Math.max(lY,rY)+4;
@@ -2888,7 +4153,15 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   pageFooter(doc,2,4);
+
+
+
+
 
 
 
@@ -2898,6 +4171,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   // ════════════════════════════════════════════════════════════
   doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Cashflow & Sensitivity`);
   let py=26;
+
+
+
+
 
 
 
@@ -2950,7 +4227,15 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   py+=6;
+
+
+
+
 
 
 
@@ -2996,6 +4281,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // Legend
   if(py<H-20){
     py+=4;
@@ -3008,7 +4297,15 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   pageFooter(doc,3,4);
+
+
+
+
 
 
 
@@ -3018,6 +4315,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   // ════════════════════════════════════════════════════════════
   doc.addPage();pageHeader(doc,`${data.name||"Appraisal"}  ·  Assumptions & Disclaimer`);
   let ay=26;
+
+
+
+
 
 
 
@@ -3070,6 +4371,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   // Disclaimer box
   const discY=H-60;
   doc.setFillColor(...bg3);doc.roundedRect(M,discY,W-M*2,48,2,2,"F");
@@ -3083,13 +4388,25 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
+
+
+
+
   pageFooter(doc,4,4);
+
+
+
+
 
 
 
 
   doc.save(`Valora_${(data.name||"Appraisal").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
+
+
+
+
 
 
 
@@ -3123,6 +4440,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   const wrapText=(doc:any,text:string,x:number,startY:number,maxW:number,lineH:number)=>{
     const lines=doc.splitTextToSize(text,maxW);
     let sy=startY;
@@ -3132,6 +4453,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     });
     return sy+3;
   };
+
+
+
+
 
 
 
@@ -3146,11 +4471,19 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // ════════════════════════════════════════════════════════════
   // PAGE 1 — COVER
   // ════════════════════════════════════════════════════════════
   doc.setFillColor(...dark);doc.rect(0,0,W,297,"F");
   doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+
+
+
+
 
 
 
@@ -3170,11 +4503,19 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // Branding overlay
   const brandY=photos.length>0?8:12;
   doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont("helvetica","bold");doc.text("Valora",M,brandY+9);
   doc.setTextColor(...grey);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
   doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("INVESTMENT MEMORANDUM",M,brandY+17);
+
+
+
+
 
 
 
@@ -3188,6 +4529,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   const subtitleY=titleY+titleLines.length*12+5;
   doc.setFontSize(11);doc.setFont("helvetica","normal");doc.setTextColor(...gold);
   doc.text(`${data.location||""}  ·  ${assetType}  ·  ${data.currency||"GBP"}`,M,subtitleY);
@@ -3195,8 +4540,16 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // Divider
   doc.setDrawColor(...gold);doc.setLineWidth(0.5);doc.line(M,subtitleY+6,W-M,subtitleY+6);
+
+
+
+
 
 
 
@@ -3208,6 +4561,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     doc.setTextColor(...white);doc.setFontSize(10);doc.setFont("helvetica","normal");
     tagLines.slice(0,2).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*6));
   }
+
+
+
+
 
 
 
@@ -3256,7 +4613,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   pageFooter(doc,1);
+
+
+
+
 
 
 
@@ -3268,6 +4633,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   let py2=20;
   doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,py2);
   doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(data.name||"",W-M,py2,{align:"right"});py2+=12;
+
+
+
+
 
 
 
@@ -3294,7 +4663,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   pageFooter(doc,2);
+
+
+
+
 
 
 
@@ -3309,10 +4686,18 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // Header
   doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,20);
   doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("FINANCIAL DETAIL",W-M,20,{align:"right"});
   doc.setFillColor(...gold);doc.rect(M,23,W-M*2,0.3,"F");lY3=28;rY3=28;
+
+
+
+
 
 
 
@@ -3328,6 +4713,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setFont("helvetica","normal");ry2+=7;
     });return ry2+4;
   };
+
+
+
+
 
 
 
@@ -3474,7 +4863,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   pageFooter(doc,3);
+
+
+
+
 
 
 
@@ -3487,6 +4884,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,sp);
   doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("SENSITIVITY & CASHFLOW",W-M,sp,{align:"right"});
   doc.setFillColor(...gold);doc.rect(M,sp+3,W-M*2,0.3,"F");sp+=10;
+
+
+
+
 
 
 
@@ -3517,6 +4918,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // Sensitivity table
   const drawSens2=(matrix:number[][],rowLbls:string[],colLbls:string[],title:string)=>{
     if(!matrix||matrix.length===0)return;
@@ -3543,6 +4948,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(String(l),M+i*40+5,sp+2.5);
     });sp+=9;
   };
+
+
+
+
 
 
 
@@ -3581,6 +4990,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   // Disclaimer strip
   if(sp<260){
     const dY=Math.max(sp+4,250);
@@ -3596,7 +5009,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
   pageFooter(doc,4);
+
+
+
+
 
 
 
@@ -3619,9 +5040,26 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 function AppraisalPage(){
   const router=useRouter();
+
 
   // Checklist — writes to localStorage so dashboard can read it
   const tickChecklist = (key: string) => {
@@ -3815,6 +5253,38 @@ function AppraisalPage(){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const runFlipCompsAI=async()=>{
     if(!data.location)return;
     setFlipCompsRunning(true);setFlipCompsError(null);setFlipComps(null);
@@ -3871,6 +5341,38 @@ function AppraisalPage(){
     }catch(e:any){setHotelCompsError(e.message||"Failed to fetch comps");}
     setHotelCompsRunning(false);
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4168,6 +5670,38 @@ ${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:`Programme: ${data.progra
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Key Financials:
 - ${isHotelAdv?"Exit Value":assetType==="Flip"?"Sale Price":"GDV / Exit Value"}: ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)}
 - Total Investment: ${fmt(r.totalCost||r.totalInvestment||0,currSym)}
@@ -4197,6 +5731,38 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 :assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
 :""}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4332,6 +5898,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* GENERAL */}
             {activeTab==="general"&&(
               <div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4595,7 +6193,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="inp-group"><label className="inp-label">Occupancy (%)</label><input className="inp" type="number" value={data.occupancy??""} onChange={e=>set("occupancy",e.target.value)}/></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Rooms GOP Margin (%)</label><input className="inp" type="number" value={data.roomsMarginPct??75} onChange={e=>set("roomsMarginPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Rooms GOP Margin (%)</label><input className="inp" type="number" value={data.roomsMarginPct??""} onChange={e=>set("roomsMarginPct",e.target.value)}/></div>
                     <div className="inp-group"><label className="inp-label">RevPAR Growth (%pa)</label><input className="inp" type="number" step="0.1" value={data.revparGrowthPct} onChange={e=>set("revparGrowthPct",e.target.value)}/></div>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
@@ -4657,6 +6255,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     );
                   })()}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4762,10 +6392,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </RevStream>
                 <RevStream title="Food & Beverage" icon="" enabled={data.fnbEnabled} onToggle={()=>set("fnbEnabled",!data.fnbEnabled)} summary={fmt(hotelRev?.fnbRev||0,currencySymbol)+" pa"} open={streamOpen.fnb} onOpen={()=>setStreamOpen(s=>({...s,fnb:!s.fnb}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Revenue per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.fnbRevenuePerOccRoom??45} onChange={e=>set("fnbRevenuePerOccRoom",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Capture Rate (%)</label><input className="inp" type="number" value={data.fnbUtilisationPct??70} onChange={e=>set("fnbUtilisationPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Revenue per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.fnbRevenuePerOccRoom??""} onChange={e=>set("fnbRevenuePerOccRoom",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Capture Rate (%)</label><input className="inp" type="number" value={data.fnbUtilisationPct??""} onChange={e=>set("fnbUtilisationPct",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">F&B GOP Margin (%)</label><input className="inp" type="number" value={data.fnbMarginPct??30} onChange={e=>set("fnbMarginPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">F&B GOP Margin (%)</label><input className="inp" type="number" value={data.fnbMarginPct??""} onChange={e=>set("fnbMarginPct",e.target.value)}/></div>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
                     <span style={{color:"var(--text-m)"}}>F&B Revenue pa</span>
                     <span style={{fontFamily:"var(--font-mono)",color:data.fnbEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.fnbRev||0,currencySymbol)}</span>
@@ -4773,10 +6403,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </RevStream>
                 <RevStream title="Spa & Wellness" icon="" enabled={data.spaEnabled} onToggle={()=>set("spaEnabled",!data.spaEnabled)} summary={fmt(hotelRev?.spaRev||0,currencySymbol)+" pa"} open={streamOpen.spa} onOpen={()=>setStreamOpen(s=>({...s,spa:!s.spa}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Revenue per Room pa ({currencySymbol})</label><input className="inp" type="number" value={data.spaRevenuePerRoomPa??800} onChange={e=>set("spaRevenuePerRoomPa",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.spaUtilisationPct??40} onChange={e=>set("spaUtilisationPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Revenue per Room pa ({currencySymbol})</label><input className="inp" type="number" value={data.spaRevenuePerRoomPa??""} onChange={e=>set("spaRevenuePerRoomPa",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.spaUtilisationPct??""} onChange={e=>set("spaUtilisationPct",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Spa GOP Margin (%)</label><input className="inp" type="number" value={data.spaMarginPct??35} onChange={e=>set("spaMarginPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Spa GOP Margin (%)</label><input className="inp" type="number" value={data.spaMarginPct??""} onChange={e=>set("spaMarginPct",e.target.value)}/></div>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
                     <span style={{color:"var(--text-m)"}}>Spa Revenue pa</span>
                     <span style={{fontFamily:"var(--font-mono)",color:data.spaEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.spaRev||0,currencySymbol)}</span>
@@ -4784,10 +6414,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </RevStream>
                 <RevStream title="Gym & Leisure" icon="" enabled={data.gymEnabled} onToggle={()=>set("gymEnabled",!data.gymEnabled)} summary={fmt(hotelRev?.gymRev||0,currencySymbol)+" pa"} open={streamOpen.gym} onOpen={()=>setStreamOpen(s=>({...s,gym:!s.gym}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">External Membership Rev pa ({currencySymbol})</label><input className="inp" type="number" value={data.gymMembershipRevPa??50000} onChange={e=>set("gymMembershipRevPa",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Guest Rev per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.gymGuestRevPerOccRoom??8} onChange={e=>set("gymGuestRevPerOccRoom",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">External Membership Rev pa ({currencySymbol})</label><input className="inp" type="number" value={data.gymMembershipRevPa??""} onChange={e=>set("gymMembershipRevPa",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Guest Rev per Occ Room ({currencySymbol})</label><input className="inp" type="number" value={data.gymGuestRevPerOccRoom??""} onChange={e=>set("gymGuestRevPerOccRoom",e.target.value)}/></div>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Gym GOP Margin (%)</label><input className="inp" type="number" value={data.gymMarginPct??60} onChange={e=>set("gymMarginPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Gym GOP Margin (%)</label><input className="inp" type="number" value={data.gymMarginPct??""} onChange={e=>set("gymMarginPct",e.target.value)}/></div>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
                     <span style={{color:"var(--text-m)"}}>Gym Revenue pa</span>
                     <span style={{fontFamily:"var(--font-mono)",color:data.gymEnabled?"var(--gold)":"var(--text-d)"}}>{fmt(hotelRev?.gymRev||0,currencySymbol)}</span>
@@ -4795,12 +6425,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </RevStream>
                 <RevStream title="Meeting Rooms & Events" icon="" enabled={data.meetingEnabled} onToggle={()=>set("meetingEnabled",!data.meetingEnabled)} summary={fmt(hotelRev?.meetingRev||0,currencySymbol)+" pa"} open={streamOpen.meeting} onOpen={()=>setStreamOpen(s=>({...s,meeting:!s.meeting}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Number of Meeting Rooms</label><input className="inp" type="number" value={data.meetingRooms??4} onChange={e=>set("meetingRooms",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Avg Day Rate ({currencySymbol})</label><input className="inp" type="number" value={data.meetingAvgDayRate??1200} onChange={e=>set("meetingAvgDayRate",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Number of Meeting Rooms</label><input className="inp" type="number" value={data.meetingRooms??""} onChange={e=>set("meetingRooms",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Avg Day Rate ({currencySymbol})</label><input className="inp" type="number" value={data.meetingAvgDayRate??""} onChange={e=>set("meetingAvgDayRate",e.target.value)}/></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.meetingUtilisationPct??45} onChange={e=>set("meetingUtilisationPct",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Events GOP Margin (%)</label><input className="inp" type="number" value={data.meetingMarginPct??40} onChange={e=>set("meetingMarginPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Utilisation (%)</label><input className="inp" type="number" value={data.meetingUtilisationPct??""} onChange={e=>set("meetingUtilisationPct",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Events GOP Margin (%)</label><input className="inp" type="number" value={data.meetingMarginPct??""} onChange={e=>set("meetingMarginPct",e.target.value)}/></div>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:12}}>
                     <span style={{color:"var(--text-m)"}}>Meetings Revenue pa</span>
@@ -4885,11 +6515,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <option value="share">Share Deal (0.5%)</option>
                         </select>
                       </div>
-                      <div className="inp-group"><label className="inp-label">Legal Costs ({currencySymbol})</label><input className="inp" type="number" value={data.legalCosts??500000} onChange={e=>set("legalCosts",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Legal Costs ({currencySymbol})</label><input className="inp" type="number" value={data.legalCosts??""} onChange={e=>set("legalCosts",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Financing DD ({currencySymbol})</label><input className="inp" type="number" value={data.financingDD??250000} onChange={e=>set("financingDD",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Disposal Costs (%)</label><input className="inp" type="number" step="0.5" value={data.disposalCostPct??3.0} onChange={e=>set("disposalCostPct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Financing DD ({currencySymbol})</label><input className="inp" type="number" value={data.financingDD??""} onChange={e=>set("financingDD",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Disposal Costs (%)</label><input className="inp" type="number" step="0.5" value={data.disposalCostPct??""} onChange={e=>set("disposalCostPct",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
                       <div className="inp-group">
@@ -4897,21 +6527,21 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <input type="checkbox" checked={data.wiInsuranceEnabled||false} onChange={e=>set("wiInsuranceEnabled",e.target.checked)} style={{width:14,height:14}}/>
                           W&I Insurance ({currencySymbol})
                         </label>
-                        <input className="inp" type="number" value={data.wiInsurance??150000} onChange={e=>set("wiInsurance",e.target.value)} disabled={!data.wiInsuranceEnabled} style={{opacity:data.wiInsuranceEnabled?1:0.4}}/>
+                        <input className="inp" type="number" value={data.wiInsurance??""} onChange={e=>set("wiInsurance",e.target.value)} disabled={!data.wiInsuranceEnabled} style={{opacity:data.wiInsuranceEnabled?1:0.4}}/>
                       </div>
                       <div className="inp-group">
                         <label className="inp-label" style={{display:"flex",alignItems:"center",gap:6}}>
                           <input type="checkbox" checked={data.workingCapitalEnabled||false} onChange={e=>set("workingCapitalEnabled",e.target.checked)} style={{width:14,height:14}}/>
                           Working Capital ({currencySymbol})
                         </label>
-                        <input className="inp" type="number" value={data.workingCapital??0} onChange={e=>set("workingCapital",e.target.value)} disabled={!data.workingCapitalEnabled} style={{opacity:data.workingCapitalEnabled?1:0.4}}/>
+                        <input className="inp" type="number" value={data.workingCapital??""} onChange={e=>set("workingCapital",e.target.value)} disabled={!data.workingCapitalEnabled} style={{opacity:data.workingCapitalEnabled?1:0.4}}/>
                       </div>
                     </div>
                     <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
                     <div className="section-title">Ongoing Costs (pa)</div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Supporting Costs pa ({currencySymbol})</label><input className="inp" type="number" value={data.supportingCostsPA??100000} onChange={e=>set("supportingCostsPA",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Hotel Operator Fees pa ({currencySymbol})</label><input className="inp" type="number" value={data.operatorFeesPA??0} onChange={e=>set("operatorFeesPA",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Supporting Costs pa ({currencySymbol})</label><input className="inp" type="number" value={data.supportingCostsPA??""} onChange={e=>set("supportingCostsPA",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Hotel Operator Fees pa ({currencySymbol})</label><input className="inp" type="number" value={data.operatorFeesPA??""} onChange={e=>set("operatorFeesPA",e.target.value)}/></div>
                     </div>
                   </>
                 )}
@@ -4932,6 +6562,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </div>
                   {urlImportError&&<div style={{fontSize:11,color:"var(--amber)",marginTop:6}}>{urlImportError}</div>}
                 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5008,6 +6670,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Purchase Price ({currencySymbol})</label><input className="inp" type="number" value={data.purchasePrice} onChange={e=>set("purchasePrice",e.target.value)}/></div>
@@ -5019,6 +6713,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </div>
                 )}
                 <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5068,6 +6794,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 {/* Area model toggle — advanced only */}
                 {flipComplexity==="advanced"&&(
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",marginBottom:16,cursor:"pointer"}} onClick={()=>set("areaModelOn",!data.areaModelOn)}>
@@ -5080,6 +6814,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </div>
                   </div>
                 )}
+
+
+
+
+
+
+
+
 
 
 
@@ -5142,6 +6884,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 {/* Professional & Fit-Out fees — advanced only shows detail; simple shows single % */}
                 <div style={{marginBottom:16}}>
                   <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Professional Fees</div>
@@ -5190,11 +6940,51 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct} onChange={e=>set("contingencyPct",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts} onChange={e=>set("otherCosts",e.target.value)}/></div>
                 </div>
                 <VATCILBlock data={data} set={set} r={r} currencySymbol={currencySymbol} showCIL={false}/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5262,6 +7052,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     )}
                   </>
                 )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5375,12 +7197,76 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     {/* All Equity — no debt fields */}
                     {(data.capStructure||"single")==="equity"&&(
                       <div style={{padding:"16px",background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
                         <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
                       </div>
                     )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5430,6 +7316,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </>
                     )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5520,6 +7438,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     {/* Full Stack */}
                     {(data.capStructure||"single")==="fullstack"&&(
                       <>
@@ -5539,6 +7489,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </>
                     )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5613,6 +7595,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     {/* Finance summary */}
                     {hotelAdv&&(data.capStructure||"single")!=="equity"&&(
                       <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginTop:20}}>
@@ -5653,12 +7667,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       </div>
                     </div>
 
+
                     {/* All Equity */}
                     {(data.hotelFinanceType||"full")==="equity"&&(
                       <div style={{padding:16,background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
                         <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
                       </div>
                     )}
+
 
                     {/* Purchase Finance only */}
                     {(data.hotelFinanceType||"full")==="purchase"&&(
@@ -5673,6 +7689,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </>
                     )}
+
 
                     {/* Purchase + Development Finance */}
                     {(data.hotelFinanceType||"full")==="full"&&(
@@ -5691,6 +7708,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         </div>
                       </>
                     )}
+
 
                     {/* Finance Cost Breakdown — show for purchase and full */}
                     {(data.hotelFinanceType||"full")!=="equity"&&(
@@ -6032,6 +8050,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {/* ─── MIXED USE — GENERAL TAB ────────────────────────────────────────── */}
             {activeTab==="general"&&assetType==="MixedUse"&&(
               <div>
@@ -6066,6 +8092,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </div>
               </div>
             )}
+
+
+
+
+
+
+
+
 
 
 
@@ -6152,6 +8186,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {/* ─── MIXED USE — COSTS TAB ──────────────────────────────────────────── */}
             {activeTab==="costs"&&assetType==="MixedUse"&&(
               <div>
@@ -6199,6 +8241,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {/* ─── MIXED USE — ANALYSIS TAB ──────────────────────────────────────── */}
             {activeTab==="analysis"&&assetType==="MixedUse"&&(
               <div>
@@ -6217,6 +8267,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Equity Multiple",fmtX(r.moic||0),(r.moic||0)>1.5?"var(--green)":"var(--text)"],
                   ].map(([l,v,c]:any)=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -6268,6 +8326,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
                 {/* MixedUse sensitivity: GDV shift (rows) × total cost shift (cols) */}
                 {(()=>{
                   const gdvSteps=[1.10,1.05,1,0.95,0.90];
@@ -6301,6 +8363,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 })()}
               </div>
             )}
+
+
+
+
+
+
+
+
 
 
 
@@ -6348,6 +8418,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {/* ══════════════════════════════════════════════════════════════
                 COMMERCIAL — REVENUE TAB
             ══════════════════════════════════════════════════════════════ */}
@@ -6363,12 +8441,28 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 {/* Unit table header */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px 60px 60px 28px",gap:6,padding:"6px 10px",background:"var(--bg3)",borderRadius:"8px 8px 0 0",border:"1px solid var(--border)",borderBottom:"none"}}>
                   {["Label","Area (sqm)","ERV /sqm","Passing /sqm","WAULT (yrs)","Void %","RF (mo)",""].map(h=>(
                     <div key={h} style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>
                   ))}
                 </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -6414,11 +8508,27 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 <button className="btn-ghost" style={{width:"100%",marginTop:8,justifyContent:"center"}} onClick={()=>{
                   const units=[...(data.units||[])];
                   units.push({id:"u"+Date.now(),label:"New Unit",use:"office",areaSqm:500,erv:400,passingRent:400,wault:5,voidPct:5,rentFreeMonths:3});
                   set("units",units);
                 }}>+ Add unit</button>
+
+
+
+
+
+
+
+
 
 
 
@@ -6455,6 +8565,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
                 {/* Rent review */}
                 <div className="section-title" style={{marginTop:24}}>Rent Review</div>
                 <div className="inp-row-3">
@@ -6476,6 +8594,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <span style={{marginLeft:12}}>Uplift: <span style={{color:"var(--green)"}}>{(((r.reviewMultiplier||1)-1)*100).toFixed(1)}%</span></span>
                   </div>
                 )}
+
+
+
+
+
+
+
+
 
 
 
@@ -6518,6 +8644,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 )}
               </div>
             )}
+
+
+
+
+
+
+
+
 
 
 
@@ -6583,6 +8717,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {/* ══════════════════════════════════════════════════════════════
                 COMMERCIAL — CASHFLOW TAB
             ══════════════════════════════════════════════════════════════ */}
@@ -6595,6 +8737,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel={r.exitMethod==="vp"?"VP exit":r.exitMethod==="equivalent"?"EY exit":"NIY exit"} currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Letting-up (${r.stabMonths}m)`]}/>
               </div>
             )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6644,6 +8802,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Reversion to ERV",(r.totalErv||0)>0?fmtPct(((r.totalErv||0)-(r.totalPassing||0))/(r.totalErv||1)):"—","var(--text-d)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                 </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -6858,22 +9024,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
                       <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>One-Off Fees</div>
                       <div className="inp-row">
-                        <div className="inp-group"><label className="inp-label">Acquisition Fee ({currencySymbol})</label><input className="inp" type="number" value={data.imAcqFee??300000} onChange={e=>set("imAcqFee",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">Acquisition Fee ({currencySymbol})</label><input className="inp" type="number" value={data.imAcqFee??""} onChange={e=>set("imAcqFee",e.target.value)}/></div>
                         <div className="inp-group"><label className="inp-label">Fee Type</label><select className="inp" value={data.imAcqFeeType||"fixed"} onChange={e=>set("imAcqFeeType",e.target.value)}><option value="fixed">Fixed £</option><option value="pct">% of Purchase Price</option></select></div>
                       </div>
                     </div>
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
                       <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Recurring Fees (Annual)</div>
                       <div className="inp-row">
-                        <div className="inp-group"><label className="inp-label">Base Annual Charge ({currencySymbol} pa)</label><input className="inp" type="number" value={data.imBasePA??250000} onChange={e=>set("imBasePA",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">Base Annual Charge ({currencySymbol} pa)</label><input className="inp" type="number" value={data.imBasePA??""} onChange={e=>set("imBasePA",e.target.value)}/></div>
                         <div className="inp-group"><label className="inp-label">Charged On</label><select className="inp" value={data.imBaseChargedOn||"minimum"} onChange={e=>set("imBaseChargedOn",e.target.value)}><option value="minimum">Fixed Minimum</option><option value="revenue">% of Revenue</option></select></div>
                       </div>
                     </div>
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:16,marginBottom:16}}>
                       <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Incentive Fees (on Exit)</div>
                       <div className="inp-row">
-                        <div className="inp-group"><label className="inp-label">On Gross Sales (%)</label><input className="inp" type="number" step="0.1" value={data.imIncentiveSalesPct??1.0} onChange={e=>set("imIncentiveSalesPct",e.target.value)}/></div>
-                        <div className="inp-group"><label className="inp-label">On Net Profit (%)</label><input className="inp" type="number" step="0.5" value={data.imIncentiveProfitPct??10.0} onChange={e=>set("imIncentiveProfitPct",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">On Gross Sales (%)</label><input className="inp" type="number" step="0.1" value={data.imIncentiveSalesPct??""} onChange={e=>set("imIncentiveSalesPct",e.target.value)}/></div>
+                        <div className="inp-group"><label className="inp-label">On Net Profit (%)</label><input className="inp" type="number" step="0.5" value={data.imIncentiveProfitPct??""} onChange={e=>set("imIncentiveProfitPct",e.target.value)}/></div>
                       </div>
                     </div>
                     {/* IM fee summary */}
@@ -6928,29 +9094,93 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 {/* Undistributed expenses — Advanced */}
                 <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
                 <div className="section-title">Undistributed Expenses</div>
                 <div style={{fontSize:11,color:"var(--text-d)",marginBottom:14}}>As % of total revenue — used in Advanced P&L model</div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Info & Telecom (%)</label><input className="inp" type="number" step="0.1" value={data.itPct??0.7} onChange={e=>set("itPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Admin & General (%)</label><input className="inp" type="number" step="0.1" value={data.agPct??5.0} onChange={e=>set("agPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Sales & Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.smPct??8.5} onChange={e=>set("smPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Info & Telecom (%)</label><input className="inp" type="number" step="0.1" value={data.itPct??""} onChange={e=>set("itPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Admin & General (%)</label><input className="inp" type="number" step="0.1" value={data.agPct??""} onChange={e=>set("agPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Sales & Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.smPct??""} onChange={e=>set("smPct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">POM (%)</label><input className="inp" type="number" step="0.1" value={data.pomPct??1.8} onChange={e=>set("pomPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Utilities (%)</label><input className="inp" type="number" step="0.1" value={data.utilPct??2.2} onChange={e=>set("utilPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Mgmt Fee (%)</label><input className="inp" type="number" step="0.1" value={data.mgmtFeePct??2.0} onChange={e=>set("mgmtFeePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">POM (%)</label><input className="inp" type="number" step="0.1" value={data.pomPct??""} onChange={e=>set("pomPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Utilities (%)</label><input className="inp" type="number" step="0.1" value={data.utilPct??""} onChange={e=>set("utilPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Mgmt Fee (%)</label><input className="inp" type="number" step="0.1" value={data.mgmtFeePct??""} onChange={e=>set("mgmtFeePct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Real Estate Tax (%)</label><input className="inp" type="number" step="0.1" value={data.realEstateTaxPct??7.5} onChange={e=>set("realEstateTaxPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Insurance (%)</label><input className="inp" type="number" step="0.1" value={data.insurancePct??0.5} onChange={e=>set("insurancePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Real Estate Tax (%)</label><input className="inp" type="number" step="0.1" value={data.realEstateTaxPct??""} onChange={e=>set("realEstateTaxPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Insurance (%)</label><input className="inp" type="number" step="0.1" value={data.insurancePct??""} onChange={e=>set("insurancePct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">FF&E Reserve (% from Yr3)</label><input className="inp" type="number" step="0.5" value={data.ffePct??3.0} onChange={e=>set("ffePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">FF&E Reserve (% from Yr3)</label><input className="inp" type="number" step="0.5" value={data.ffePct??""} onChange={e=>set("ffePct",e.target.value)}/></div>
                 </div>
               </div>
             )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6993,6 +9223,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="Exit value" currencySymbol={currencySymbol} phaseLabels={[`Refurb (${r.buildMonths}m)`,`Stabilisation (${r.stabMonths}m)`]}/>
               </div>
             )}
+
+
+
+
 
 
 
@@ -7086,6 +9320,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {activeTab==="cashflow"&&assetType==="BTR"&&(
               <div>
                 <div className="section-title">Cashflow</div>
@@ -7103,6 +9353,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+
+
+
+
+
+
+
+
             {activeTab==="cashflow"&&assetType==="BTS"&&(
               <div>
                 <div className="section-title">Cashflow</div>
@@ -7112,6 +9370,14 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="Sales proceeds" currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Absorption (${r.absMonths}m)`]}/>
               </div>
             )}
+
+
+
+
+
+
+
+
 
 
 
@@ -7290,6 +9556,14 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
             {activeTab==="cashflow"&&assetType==="MixedUse"&&(
               <div>
                 <div className="section-title">Cashflow</div>
@@ -7299,6 +9573,14 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel="GDV / exit" currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,""]}/>
               </div>
             )}
+
+
+
+
+
+
+
+
 
 
 
@@ -7331,6 +9613,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                           </div>
                         ))}
                       </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7407,6 +9721,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     {/* Year-by-year investor cashflow */}
                     <div style={{marginBottom:24}}>
                       <div className="section-title">Investor Cashflow — Year by Year</div>
@@ -7423,14 +9769,14 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                             {label:"Equity Out",values:[-(r.equity||0),...Array(data.holdYears||5).fill(null)],color:"var(--red)"},
                             {label:"Disposal",values:[null,...Array((data.holdYears||5)-1).fill(null),hotelAdv.netExitProceeds],color:"var(--gold)",bold:true},
                           ].map((row,ri)=>(
-                            <>
-                              <div key={`l${ri}`} style={{fontSize:10,color:row.color,fontWeight:row.bold?600:400,display:"flex",alignItems:"center",padding:"4px 0"}}>{row.label}</div>
+                            <React.Fragment key={ri}>
+                              <div style={{fontSize:10,color:row.color,fontWeight:row.bold?600:400,display:"flex",alignItems:"center",padding:"4px 0"}}>{row.label}</div>
                               {row.values.map((v:any,ci:number)=>(
                                 <div key={ci} style={{padding:"4px 6px",background:ci%2===0?"var(--bg3)":"transparent",borderRadius:4,fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":v<0?"var(--red)":row.color,textAlign:"center"}}>
                                   {v===null?"—":fmt(Math.abs(v),currencySymbol)}
                                 </div>
                               ))}
-                            </>
+                            </React.Fragment>
                           ))}
                         </div>
                       </div>
@@ -7628,6 +9974,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                                 {(assetType==="BTR"||assetType==="BTS")&&sensMatrix&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
@@ -7703,10 +10081,74 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                   // Strategy definitions — same land, same build, different revenue model
                   // Strategy comparison — BTR vs BTS
                   // BTS sale price derived from BTR rents capitalised at selected yield
                   // This gives a genuine apples-to-apples comparison on the same site
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7788,9 +10230,73 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                   // For BTS use actual site area and units, otherwise fall back to defaults
                   const btsSiteArea=sharedSite>0?sharedSite:110000;
                   const btsBuildPsf=sharedBuildPsf>0?sharedBuildPsf:260;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7882,7 +10388,71 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                   const results=strategies.map(s=>({...s, r:calcAll(s.key,s.data)}));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7917,6 +10487,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
                   // Find best strategy by IRR
                   const bestIRR=Math.max(...results.map(s=>s.r.irr||s.r.annualisedIrr||0));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8058,6 +10660,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                                 {[
                                   {label:"GDV / Exit",value:gdv>0?fmt(gdv,currSym2):"—",color:"var(--text)"},
@@ -8082,6 +10716,38 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                     </div>
                   );
                 })()}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8151,13 +10817,13 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
         </div>
         {/* RIGHT PANEL */}
         <div className="output-panel" style={{padding:20,position:"sticky",top:0,height:"calc(100vh - 102px)",overflowY:"auto",background:"var(--bg1)",display:panelOpen?"block":"none"}}>
-          <div style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:300,color:"var(--text)",marginBottom:4}}>{data.name||"New Appraisal"}</div>
+          <div style={{fontFamily:"var(--font-body)",fontSize:18,fontWeight:700,letterSpacing:"-.02em",color:"var(--text)",marginBottom:4}}>{data.name||"New Appraisal"}</div>
           <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>{data.location||"No location"} · {assetType} · {data.currency}</div>
           {/* ── EQUITY IN — always visible ── */}
           <div style={{background:"var(--bg2)",border:"1px solid rgba(201,168,76,.35)",borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{fontSize:9,color:"var(--gold)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:3}}>Equity In</div>
-              <div style={{fontFamily:"var(--font-display)",fontSize:26,fontWeight:300,color:"var(--gold)"}}>{fmt(r.equity||0,currencySymbol)}</div>
+              <div style={{fontFamily:"var(--font-mono)",fontSize:24,fontWeight:600,color:"var(--gold)"}}>{fmt(r.equity||0,currencySymbol)}</div>
             </div>
             <div style={{textAlign:"right"}}>
               <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>of Total Cost</div>
@@ -8165,27 +10831,27 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:20}}>
-            {assetType==="BTR"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},{label:"IRR (Unlevered)",value:fmtPct(r.irr),color:"var(--blue)"},{label:"IRR (Levered)",value:fmtPct(r.irrLevered),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
-            {assetType==="BTS"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Profit on GDV",value:fmtPct(r.margin),color:"var(--text)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
-            {assetType==="Hotel"&&[{label:"Exit Value",value:fmt(r.exitValue,currencySymbol),color:"var(--gold)"},{label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol),color:"var(--green)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Return on Cost",value:fmtPct(r.poc),color:r.poc>0.15?"var(--green)":"var(--amber)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            {assetType==="BTR"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"},{label:"IRR (Unlevered)",value:fmtPct(r.irr),color:"var(--blue)"},{label:"IRR (Levered)",value:fmtPct(r.irrLevered),color:"var(--blue)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
+            {assetType==="BTS"&&[{label:"GDV",value:fmt(r.gdv,currencySymbol),color:"var(--gold)"},{label:"Profit on Cost",value:fmtPct(r.poc),color:r.poc>0.2?"var(--green)":"var(--amber)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Profit on GDV",value:fmtPct(r.margin),color:"var(--text)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
+            {assetType==="Hotel"&&[{label:"Exit Value",value:fmt(r.exitValue,currencySymbol),color:"var(--gold)"},{label:"EBITDA pa",value:fmt(r.ebitda,currencySymbol),color:"var(--green)"},{label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},{label:"Return on Cost",value:fmtPct(r.poc),color:r.poc>0.15?"var(--green)":"var(--amber)"}].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Commercial"&&[
               {label:"GDV",value:fmt(r.gdv||0,currencySymbol),color:"var(--gold)"},
               {label:"Profit",value:fmt(r.profit||0,currencySymbol),color:(r.profit||0)>0?"var(--green)":"var(--red)"},
               {label:"Profit on Cost",value:fmtPct(r.poc||0),color:(r.poc||0)>0.2?"var(--green)":"var(--amber)"},
               {label:"IRR (Unlev.)",value:fmtPct(r.irr||0),color:"var(--blue)"},
-            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="MixedUse"&&[
               {label:"Total GDV",value:currencySymbol+(Math.round(r.totalGDV||0)).toLocaleString(),color:"var(--gold)"},
               {label:"Profit",value:currencySymbol+(Math.round(r.profit||0)).toLocaleString(),color:(r.profit||0)>0?"var(--green)":"var(--red)"},
               {label:"Profit on Cost",value:fmtPct(r.poc||0),color:(r.poc||0)>0.20?"var(--green)":"var(--amber)"},
               {label:"Blended IRR",value:fmtPct(r.irr||0),color:"var(--blue)"},
-            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Flip"&&[
               {label:r.flipMode==="hold"?"GDV / Value":"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},
               {label:"Profit",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},
               {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},
               {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
-            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-display)",fontSize:22,fontWeight:300,color:m.color}}>{m.value}</div></div>))}
+            ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
           </div>
           <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
             <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Institutional Metrics</div>
@@ -8303,7 +10969,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShareModal(false);}}>
           <div className="modal">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{fontFamily:"var(--font-display)",fontSize:26,fontWeight:300}}>Share Appraisal</div>
+              <div style={{fontFamily:"var(--font-body)",fontSize:20,fontWeight:700,letterSpacing:"-.02em"}}>Share Appraisal</div>
               <button onClick={()=>setShareModal(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:20}}>×</button>
             </div>
             <p style={{fontSize:13,color:"var(--text-d)",marginBottom:28}}>{data.name||"Untitled"} · {assetType} · {data.location||"No location"}</p>
@@ -8330,7 +10996,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
       {deleteModal&&(
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setDeleteModal(false);}}>
           <div className="modal modal-sm">
-            <div style={{fontFamily:"var(--font-display)",fontSize:24,fontWeight:300,marginBottom:8,color:"var(--red)"}}>Delete Appraisal</div>
+            <div style={{fontFamily:"var(--font-body)",fontSize:20,fontWeight:700,letterSpacing:"-.02em",marginBottom:8,color:"var(--red)"}}>Delete Appraisal</div>
             <p style={{fontSize:13,color:"var(--text-m)",marginBottom:8}}>This will permanently delete <strong style={{color:"var(--text)"}}>{data.name||"this appraisal"}</strong>.</p>
             <p style={{fontSize:12,color:"var(--text-d)",marginBottom:28}}>This action cannot be undone.</p>
             <div style={{display:"flex",gap:10}}>
@@ -8345,7 +11011,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setBrochureModal(false);}}>
           <div className="modal" style={{width:660}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{fontFamily:"var(--font-display)",fontSize:26,fontWeight:300}}>✨ AI Brochure</div>
+              <div style={{fontFamily:"var(--font-body)",fontSize:20,fontWeight:700,letterSpacing:"-.02em"}}>✨ AI Brochure</div>
               <button onClick={()=>setBrochureModal(false)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:20}}>×</button>
             </div>
             <p style={{fontSize:13,color:"var(--text-d)",marginBottom:24}}>{data.name||"Untitled"} · {assetType} · {data.location||"No location"}</p>
