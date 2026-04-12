@@ -9757,28 +9757,55 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                     <div style={{marginBottom:24}}>
                       <div className="section-title">Investor Cashflow — Year by Year</div>
                       <div style={{overflowX:"auto"}}>
-                        <div style={{display:"grid",gridTemplateColumns:`120px repeat(${(data.holdYears||5)+1},1fr)`,gap:4,minWidth:500,fontSize:10}}>
-                          {["",`Day 1`,...Array.from({length:data.holdYears||5},(_,i)=>`Yr ${i+1} ${i===(data.holdYears||5)-1?"(Exit)":""}`)].map((h,i)=>(
-                            <div key={i} style={{color:i===0?"transparent":i===(data.holdYears||5)+1?"var(--gold)":"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",padding:"4px 6px",textAlign:i>0?"center":"left"}}>{h}</div>
-                          ))}
-                          {[
-                            {label:"Revenue",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.totalRev)],color:"var(--text-m)"},
-                            {label:"EBITDA",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.ebitda)],color:"var(--text)"},
-                            {label:"FF&E",values:[null,...hotelAdv.yearRevenue.map((y:any)=>-y.ffe)],color:"var(--amber)"},
-                            {label:"NOI",values:[null,...hotelAdv.yearRevenue.map((y:any)=>y.noi)],color:"var(--green)",bold:true},
-                            {label:"Equity Out",values:[-(r.equity||0),...Array(data.holdYears||5).fill(null)],color:"var(--red)"},
-                            {label:"Disposal",values:[null,...Array((data.holdYears||5)-1).fill(null),hotelAdv.netExitProceeds],color:"var(--gold)",bold:true},
-                          ].map((row,ri)=>(
-                            <React.Fragment key={ri}>
-                              <div style={{fontSize:10,color:row.color,fontWeight:row.bold?600:400,display:"flex",alignItems:"center",padding:"4px 0"}}>{row.label}</div>
-                              {row.values.map((v:any,ci:number)=>(
-                                <div key={ci} style={{padding:"4px 6px",background:ci%2===0?"var(--bg3)":"transparent",borderRadius:4,fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":v<0?"var(--red)":row.color,textAlign:"center"}}>
-                                  {v===null?"—":fmt(Math.abs(v),currencySymbol)}
-                                </div>
-                              ))}
-                            </React.Fragment>
-                          ))}
-                        </div>
+                        {(()=>{
+                          const yrs=data.holdYears||5;
+                          const cols=yrs+1;
+                          const headers=["Day 1",...Array.from({length:yrs},(_,i)=>`Yr ${i+1}${i===yrs-1?" (Exit)":""}`)];
+                          const rows=[
+                            {label:"Revenue",values:hotelAdv.yearRevenue.map((y:any)=>y.totalRev),color:"var(--text-m)",bold:false},
+                            {label:"EBITDA",values:hotelAdv.yearRevenue.map((y:any)=>y.ebitda),color:"var(--text)",bold:false},
+                            {label:"FF&E",values:hotelAdv.yearRevenue.map((y:any)=>-y.ffe),color:"var(--amber)",bold:false},
+                            {label:"NOI",values:hotelAdv.yearRevenue.map((y:any)=>y.noi),color:"var(--green)",bold:true},
+                          ];
+                          return(
+                            <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:480}}>
+                              <thead>
+                                <tr>
+                                  <th style={{width:90,textAlign:"left",padding:"4px 6px",color:"var(--text-d)",fontWeight:400,fontSize:9,textTransform:"uppercase",letterSpacing:".06em",borderBottom:"1px solid var(--border)"}}></th>
+                                  {headers.map((h,i)=><th key={i} style={{textAlign:"center",padding:"4px 6px",color:i===yrs?"var(--gold)":"var(--text-d)",fontWeight:i===yrs?600:400,fontSize:9,textTransform:"uppercase",letterSpacing:".06em",borderBottom:"1px solid var(--border)",whiteSpace:"nowrap"}}>{h}</th>)}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((row,ri)=>(
+                                  <tr key={ri}>
+                                    <td style={{padding:"5px 6px",color:row.color,fontWeight:row.bold?600:400,fontSize:10,borderBottom:"1px solid var(--border)"}}>{row.label}</td>
+                                    {[null,...row.values].map((v:any,ci:number)=>(
+                                      <td key={ci} style={{padding:"5px 6px",background:ci%2===0?"var(--bg3)":"transparent",fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":v<0?"var(--red)":row.color,textAlign:"center",borderBottom:"1px solid var(--border)"}}>
+                                        {v===null?"—":fmt(Math.abs(v),currencySymbol)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                                <tr style={{borderTop:"2px solid var(--border)"}}>
+                                  <td style={{padding:"5px 6px",color:"var(--red)",fontSize:10,fontWeight:600}}>Equity Out</td>
+                                  {[-(r.equity||0),...Array(yrs).fill(null)].map((v:any,ci:number)=>(
+                                    <td key={ci} style={{padding:"5px 6px",background:ci%2===0?"var(--bg3)":"transparent",fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":"var(--red)",textAlign:"center"}}>
+                                      {v===null?"—":fmt(Math.abs(v),currencySymbol)}
+                                    </td>
+                                  ))}
+                                </tr>
+                                <tr>
+                                  <td style={{padding:"5px 6px",color:"var(--gold)",fontSize:10,fontWeight:600}}>Disposal</td>
+                                  {[null,...Array(yrs-1).fill(null),hotelAdv.netExitProceeds].map((v:any,ci:number)=>(
+                                    <td key={ci} style={{padding:"5px 6px",background:ci%2===0?"var(--bg3)":"transparent",fontFamily:"var(--font-mono)",fontSize:10,color:v===null?"var(--text-d)":"var(--gold)",textAlign:"center",fontWeight:ci===yrs?600:400}}>
+                                      {v===null?"—":fmt(Math.abs(v),currencySymbol)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              </tbody>
+                            </table>
+                          );
+                        })()}
                       </div>
                       {/* Summary returns */}
                       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:14}}>
