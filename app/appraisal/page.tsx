@@ -4665,37 +4665,52 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     // ── PAGE 2: EXECUTIVE SUMMARY ───────────────────────────────
     let sp=newHotelPage("Executive Summary");
+    const maxY=278; // leave room for footer
+    const checkPage=()=>{ if(sp>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");} };
+
     if(content.executiveSummary){
       sp=hSection(sp,"Investment Thesis");
-      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-2);
-      doc.setTextColor(...white);doc.setFontSize(9);doc.setFont("helvetica","normal");
-      esL.slice(0,12).forEach((l:string)=>{doc.text(l,M,sp,{maxWidth:W-M*2});sp+=5.5;});sp+=4;
+      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2);
+      doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
+      esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
+      sp+=5;
     }
     if(content.dealStrengths){
+      checkPage();
       sp=hSection(sp,"Investment Highlights");
-      content.dealStrengths.split(/[.!]/).filter((s:string)=>s.trim().length>20).slice(0,6).forEach((h:string)=>{
-        const hl=doc.splitTextToSize(h.trim(),W-M*2-10);
-        doc.setFillColor(42,138,100);doc.rect(M,sp-3,1.5,hl.length*5.5,"F");
+      const highlights=content.dealStrengths.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,6);
+      highlights.forEach((h:string)=>{
+        const hl=doc.splitTextToSize(h,W-M*2-8);
+        const blockH=hl.length*5.2+4;
+        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");}
+        doc.setFillColor(42,138,100);doc.rect(M,sp-2,1.5,Math.max(hl.length*5.2,4),"F");
         doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
-        hl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.5,{maxWidth:W-M*2-8}));
-        sp+=hl.length*5.5+4;
-      });sp+=2;
+        hl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2));
+        sp+=blockH;
+      });
+      sp+=3;
     }
     if(content.riskAssessment){
+      checkPage();
       sp=hSection(sp,"Key Risk Factors");
-      content.riskAssessment.split(/[.!]/).filter((s:string)=>s.trim().length>20).slice(0,4).forEach((h:string)=>{
-        const rl=doc.splitTextToSize(h.trim(),W-M*2-10);
-        doc.setFillColor(192,64,64);doc.rect(M,sp-3,1.5,rl.length*5.5,"F");
+      const risks=content.riskAssessment.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,4);
+      risks.forEach((h:string)=>{
+        const rl=doc.splitTextToSize(h,W-M*2-8);
+        const blockH=rl.length*5.2+4;
+        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Key Risk Factors (cont.)");}
+        doc.setFillColor(192,64,64);doc.rect(M,sp-2,1.5,Math.max(rl.length*5.2,4),"F");
         doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
-        rl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.5,{maxWidth:W-M*2-8}));
-        sp+=rl.length*5.5+4;
+        rl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.2));
+        sp+=blockH;
       });
+      sp+=3;
     }
     if(content.marketComparables){
+      checkPage();
       sp=hSection(sp,"Market Context");
-      const ml=doc.splitTextToSize(content.marketComparables,W-M*2);
+      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
-      ml.slice(0,5).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;});
+      ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
     }
     hPageFooter(pageNum++);
 
@@ -4816,7 +4831,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         if(hotelComps.assessment_note){
           doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");
           const aLines=doc.splitTextToSize(hotelComps.assessment_note,W-M*2-10);
-          doc.text(aLines[0]||"",M+5,sp+16,{maxWidth:W-M*2-10});
+          doc.text(aLines[0]||"",M+5,sp+16);
         }
         sp+=28;
       }
@@ -4825,7 +4840,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         sp=hSection(sp,"Market Context");
         const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2);
         doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
-        ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp,{maxWidth:W-M*2});sp+=5.5;});sp+=4;
+        ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;});sp+=4;
       }
 
       if(hotelComps.comparable_hotels?.length>0){
