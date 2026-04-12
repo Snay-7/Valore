@@ -1915,7 +1915,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 const DEFAULTS={
   BTR:{assetType:"BTR",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  Hotel:{assetType:"Hotel",vatPct:20,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false},
+  Hotel:{assetType:"Hotel",vatPct:20,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,hotelFinanceType:"full"},
   Commercial:{assetType:"Commercial",name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,
     programmMonths:18,stabilisationMonths:12,
     landCost:5000000,buildCostPsm:1200,
@@ -3709,7 +3709,7 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);}
         // MixedUse: tab handled by TABS_MU — opens on general by default
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
@@ -4093,7 +4093,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
         if(insErr){setSaveError(`Save error: ${insErr.message}`);setSaving(false);return;}
         apprResult=inserted;
       }
-      if(apprResult){setAppraisalId(apprResult.id);setSaved(true);tickChecklist("saved_deal");}
+      if(apprResult){setAppraisalId(apprResult.id);setSaved(true);tickChecklist("created_appraisal");tickChecklist("saved_deal");}
     }catch(err:any){setSaveError(err?.message||"Unknown error");}
     setSaving(false);
   };
@@ -5322,7 +5322,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* FINANCE */}
             {activeTab==="finance"&&(
               <div>
-                {assetType!=="Flip"&&<div className="section-title">Development Finance</div>}
+                <div className="section-title">{assetType==="Hotel"&&hotelMode==="simple"?"Finance":"Development Finance"}</div>
                 {/* Advanced Hotel — Capital Structure Selector */}
                 {assetType==="Hotel"&&hotelMode==="advanced"&&(
                   <>
@@ -5635,34 +5635,81 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 )}
                 {assetType==="Hotel"&&hotelMode==="simple"&&(
                   <>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths||24} onChange={e=>set("programmMonths",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths||6} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                    {/* Finance Structure Selector */}
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Structure</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                        {([
+                          {key:"equity",label:"All Equity",desc:"No debt"},
+                          {key:"purchase",label:"Purchase Finance",desc:"Acquisition loan only"},
+                          {key:"full",label:"Purchase + Dev Finance",desc:"Acquisition & capex facility"},
+                        ] as const).map(opt=>(
+                          <button key={opt.key} onClick={()=>set("hotelFinanceType",opt.key)} style={{padding:"10px 8px",borderRadius:8,border:`1px solid ${(data.hotelFinanceType||"full")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.hotelFinanceType||"full")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"center",transition:"all .2s"}}>
+                            <div style={{fontSize:11,fontWeight:600,color:(data.hotelFinanceType||"full")===opt.key?"var(--gold)":"var(--text)",marginBottom:2}}>{opt.label}</div>
+                            <div style={{fontSize:9,color:"var(--text-d)"}}>{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
-                    </div>
-                    <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.5} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
-                    </div>
-                    <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20}}>
-                      <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Breakdown</div>
-                      {[
-                        ["Loan Amount",fmt(r.loanAmount||0,currencySymbol),"var(--text-m)"],
-                        ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
-                        ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),"var(--text-d)"],
-                        ["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),"var(--amber)"],
-                        ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--gold)"],
-                      ].map(([l,v,c]:any)=>(
-                        <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
-                          <span style={{color:"var(--text-m)"}}>{l}</span>
-                          <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Finance Cost"?600:400}}>{v}</span>
+
+                    {/* All Equity */}
+                    {(data.hotelFinanceType||"full")==="equity"&&(
+                      <div style={{padding:16,background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)",marginBottom:20}}>
+                        <div style={{fontSize:12,color:"var(--text-d)"}}>No debt — returns calculated on full equity investment.</div>
+                      </div>
+                    )}
+
+                    {/* Purchase Finance only */}
+                    {(data.hotelFinanceType||"full")==="purchase"&&(
+                      <>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.ltc||65} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mortgage Rate (% pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||5.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                         </div>
-                      ))}
-                      <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontStyle:"italic"}}>S-curve drawdown on total development cost. Interest rolled monthly on drawn balance.</div>
-                    </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Purchase + Development Finance */}
+                    {(data.hotelFinanceType||"full")==="full"&&(
+                      <>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths||24} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths||6} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                        </div>
+                        <div className="inp-row">
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.5} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Finance Cost Breakdown — show for purchase and full */}
+                    {(data.hotelFinanceType||"full")!=="equity"&&(
+                      <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Finance Cost Breakdown</div>
+                        {[
+                          ["Loan Amount",fmt(r.loanAmount||0,currencySymbol),"var(--text-m)"],
+                          ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
+                          ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),"var(--text-d)"],
+                          ["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),"var(--amber)"],
+                          ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--gold)"],
+                        ].map(([l,v,c]:any)=>(
+                          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}>
+                            <span style={{color:"var(--text-m)"}}>{l}</span>
+                            <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:l==="Total Finance Cost"?600:400}}>{v}</span>
+                          </div>
+                        ))}
+                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:8,fontStyle:"italic"}}>S-curve drawdown on total investment cost. Interest rolled monthly on drawn balance.</div>
+                      </div>
+                    )}
                   </>
                 )}
                 {assetType==="Commercial"&&(
