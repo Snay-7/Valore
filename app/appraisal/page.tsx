@@ -4664,10 +4664,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     // Hard clip — text physically cannot render past right margin
     const clipText=(fn:()=>void)=>{
       doc.saveGraphicsState();
-      // Draw clip rect: x=M, y=0, w=W-M*2, h=297 (full page height within margins)
-      doc.lines([[W-M*2,0],[0,297],[ -(W-M*2),0],[0,-297]],M,0);
+      // Clip to text area: left=0, right=W-M (stops at right margin)
+      doc.rect(0,0,W-M,297,"W");
       doc.clip();
-      doc.discardPath();
       fn();
       doc.restoreGraphicsState();
     };
