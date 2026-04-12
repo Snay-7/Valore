@@ -3709,7 +3709,7 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData(snap);setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData({...DEFAULTS[type],...snap});setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);}
         // MixedUse: tab handled by TABS_MU — opens on general by default
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
@@ -3736,7 +3736,8 @@ function AppraisalPage(){
     loadProject();
   },[projectId,appraisalParam,user]);
   const set=useCallback((field:string,value:any)=>{
-    setData((prev:any)=>({...prev,[field]:value}));
+    // Allow empty string so user can fully clear a field before typing new value
+    setData((prev:any)=>({...prev,[field]:value===""?undefined:value}));
     setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);
   },[]);
   const switchAssetType=(type:AssetType)=>{setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);};
@@ -4371,13 +4372,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <div className="inp-row-3">
                   <div className="inp-group"><label className="inp-label">Currency</label><select className="inp" value={data.currency} onChange={e=>set("currency",e.target.value)}>{currencies.map(c=><option key={c}>{c}</option>)}</select></div>
                   <div className="inp-group"><label className="inp-label">Benchmark Rate</label><select className="inp" value={data.benchmark} onChange={e=>set("benchmark",e.target.value)}>{benchmarks.map(b=><option key={b}>{b}</option>)}</select></div>
-                  <div className="inp-group"><label className="inp-label">{data.benchmark} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate??""} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
                 </div>
                 {assetType!=="Flip"&&(
                   <>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths} onChange={e=>set("programmMonths",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths??""} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
                     </div>
                     <div className="inp-group"><label className="inp-label">Cost Profile</label><select className="inp" value={data.costProfile} onChange={e=>set("costProfile",e.target.value)}><option value="scurve">S-Curve (recommended)</option><option value="straight">Straight-Line</option><option value="frontloaded">Front-Loaded</option></select></div>
                   </>
@@ -4389,20 +4390,20 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="inp-row">
                       <div className="inp-group">
                         <label className="inp-label">Construction Period (months)</label>
-                        <input className="inp" type="number" min="1" value={data.bridgingTermMonths} onChange={e=>set("bridgingTermMonths",e.target.value)}/>
+                        <input className="inp" type="number" min="1" value={data.bridgingTermMonths??""} onChange={e=>set("bridgingTermMonths",e.target.value)}/>
                         <div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>Refurb / fit-out period — drives bridging finance</div>
                       </div>
                       {(data.flipMode||"sell")==="sell"&&(
                         <div className="inp-group">
                           <label className="inp-label">Sell Period (months)</label>
-                          <input className="inp" type="number" min="0" value={data.sellMonths||3} onChange={e=>set("sellMonths",e.target.value)}/>
+                          <input className="inp" type="number" min="0" value={data.sellMonths??""} onChange={e=>set("sellMonths",e.target.value)}/>
                           <div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>Marketing + conveyancing after completion</div>
                         </div>
                       )}
                       {(data.flipCapStructure||"bridge")==="bridge_refi"&&(
                         <div className="inp-group">
                           <label className="inp-label">Hold Period (months)</label>
-                          <input className="inp" type="number" min="1" value={data.refiTermMonths} onChange={e=>set("refiTermMonths",e.target.value)}/>
+                          <input className="inp" type="number" min="1" value={data.refiTermMonths??""} onChange={e=>set("refiTermMonths",e.target.value)}/>
                           <div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>BTL hold period after bridge repaid</div>
                         </div>
                       )}
@@ -4447,23 +4448,23 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div className="inp-group"><label className="inp-label">Tenure</label><select className="inp" value={data.tenure||"freehold"} onChange={e=>set("tenure",e.target.value)}><option value="freehold">Freehold</option><option value="leasehold">Leasehold</option><option value="share">Share of Freehold</option></select></div>
                     </div>
                     <div className="inp-row-3">
-                      <div className="inp-group"><label className="inp-label">GFA (sqm)</label><input className="inp" type="number" value={data.gfaSqm||9603} onChange={e=>set("gfaSqm",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Avg Room Size (sqm)</label><input className="inp" type="number" value={data.avgRoomSqm||25} onChange={e=>set("avgRoomSqm",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">No. of Floors</label><input className="inp" type="number" value={data.floors||7} onChange={e=>set("floors",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">GFA (sqm)</label><input className="inp" type="number" value={data.gfaSqm??""} onChange={e=>set("gfaSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Avg Room Size (sqm)</label><input className="inp" type="number" value={data.avgRoomSqm??""} onChange={e=>set("avgRoomSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">No. of Floors</label><input className="inp" type="number" value={data.floors??""} onChange={e=>set("floors",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Year Built</label><input className="inp" type="number" value={data.yearBuilt||2000} onChange={e=>set("yearBuilt",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Last Renovated</label><input className="inp" type="number" value={data.yearRenovated||2019} onChange={e=>set("yearRenovated",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Year Built</label><input className="inp" type="number" value={data.yearBuilt??""} onChange={e=>set("yearBuilt",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Last Renovated</label><input className="inp" type="number" value={data.yearRenovated??""} onChange={e=>set("yearRenovated",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Hold Period (years)</label><select className="inp" value={data.holdYears||5} onChange={e=>set("holdYears",e.target.value)}>{[3,5,7,10].map(y=><option key={y} value={y}>{y} years</option>)}</select></div>
+                      <div className="inp-group"><label className="inp-label">Hold Period (years)</label><select className="inp" value={data.holdYears??""} onChange={e=>set("holdYears",e.target.value)}>{[3,5,7,10].map(y=><option key={y} value={y}>{y} years</option>)}</select></div>
                       <div className="inp-group"><label className="inp-label">Brand / Franchise</label><input className="inp" value={data.brandFranchise||""} onChange={e=>set("brandFranchise",e.target.value)} placeholder="e.g. Accor / Pullman"/></div>
                     </div>
                     <div style={{height:1,background:"var(--border)",margin:"20px 0"}}/>
                     <div className="section-title">Facilities</div>
                     <div className="inp-row-3">
-                      <div className="inp-group"><label className="inp-label">Meeting Rooms</label><input className="inp" type="number" value={data.meetingRoomCount||6} onChange={e=>set("meetingRoomCount",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Meeting Area (sqm)</label><input className="inp" type="number" value={data.meetingAreaSqm||320} onChange={e=>set("meetingAreaSqm",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Meeting Rooms</label><input className="inp" type="number" value={data.meetingRoomCount??""} onChange={e=>set("meetingRoomCount",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Meeting Area (sqm)</label><input className="inp" type="number" value={data.meetingAreaSqm??""} onChange={e=>set("meetingAreaSqm",e.target.value)}/></div>
                       <div className="inp-group"><label className="inp-label">Fitness Centre</label><select className="inp" value={data.hasFitness?"yes":"no"} onChange={e=>set("hasFitness",e.target.value==="yes")}><option value="yes">Yes</option><option value="no">No</option></select></div>
                     </div>
                   </>
@@ -4493,11 +4494,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <button className="btn-ghost" onClick={addUnit} style={{marginTop:12,fontSize:11}}>+ Add Unit Type</button>
                 <div className="section-title" style={{marginTop:28}}>Exit Assumptions</div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Exit Yield (%)</label><input className="inp" type="number" step="0.05" value={data.exitYield} onChange={e=>set("exitYield",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">NIY (%)</label><input className="inp" type="number" step="0.05" value={data.niy} onChange={e=>set("niy",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Void (%)</label><input className="inp" type="number" step="0.1" value={data.voidPct} onChange={e=>set("voidPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Exit Yield (%)</label><input className="inp" type="number" step="0.05" value={data.exitYield??""} onChange={e=>set("exitYield",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">NIY (%)</label><input className="inp" type="number" step="0.05" value={data.niy??""} onChange={e=>set("niy",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Void (%)</label><input className="inp" type="number" step="0.1" value={data.voidPct??""} onChange={e=>set("voidPct",e.target.value)}/></div>
                 </div>
-                <div className="inp-group"><label className="inp-label">OpEx (psf pa)</label><input className="inp" type="number" value={data.opexPsf} onChange={e=>set("opexPsf",e.target.value)}/></div>
+                <div className="inp-group"><label className="inp-label">OpEx (psf pa)</label><input className="inp" type="number" value={data.opexPsf??""} onChange={e=>set("opexPsf",e.target.value)}/></div>
               </div>
             )}
             {/* REVENUE BTS */}
@@ -4523,10 +4524,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <button className="btn-ghost" onClick={addUnit} style={{marginTop:12,fontSize:11}}>+ Add Unit Type</button>
                 <div className="section-title" style={{marginTop:28}}>Sales Costs</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct} onChange={e=>set("marketingPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct??""} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct??""} onChange={e=>set("marketingPct",e.target.value)}/></div>
                 </div>
-                <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths} onChange={e=>set("absorptionMonths",e.target.value)}/></div>
+                <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths??""} onChange={e=>set("absorptionMonths",e.target.value)}/></div>
               </div>
             )}
             {/* REVENUE HOTEL */}
@@ -4586,12 +4587,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <div className="section-title">Hotel Revenue Streams</div>
                 <RevStream title="Rooms" icon="" enabled={true} onToggle={()=>{}} summary={fmt(hotelRev?.roomsRev||0,currencySymbol)+" pa"} open={streamOpen.rooms} onOpen={()=>setStreamOpen(s=>({...s,rooms:!s.rooms}))}>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Number of Rooms</label><input className="inp" type="number" value={data.rooms} onChange={e=>set("rooms",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Number of Rooms</label><input className="inp" type="number" value={data.rooms??""} onChange={e=>set("rooms",e.target.value)}/></div>
                     <div className="inp-group"><label className="inp-label">Star Rating</label><select className="inp" value={data.starRating} onChange={e=>set("starRating",e.target.value)}>{[3,4,5].map(s=><option key={s}>{s}</option>)}</select></div>
                   </div>
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">ADR ({currencySymbol})</label><input className="inp" type="number" value={data.adr} onChange={e=>set("adr",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Occupancy (%)</label><input className="inp" type="number" value={data.occupancy} onChange={e=>set("occupancy",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">ADR ({currencySymbol})</label><input className="inp" type="number" value={data.adr??""} onChange={e=>set("adr",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Occupancy (%)</label><input className="inp" type="number" value={data.occupancy??""} onChange={e=>set("occupancy",e.target.value)}/></div>
                   </div>
                   <div className="inp-row">
                     <div className="inp-group"><label className="inp-label">Rooms GOP Margin (%)</label><input className="inp" type="number" value={data.roomsMarginPct??75} onChange={e=>set("roomsMarginPct",e.target.value)}/></div>
@@ -5238,7 +5239,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   </div>
                 </div>
                 {(data.flipMode||"sell")==="sell"&&(
-                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct??""} onChange={e=>set("agentFeePct",e.target.value)}/></div>
                 )}
                 {/* Hold mode — rental inputs */}
                 {(data.flipMode||"sell")==="hold"&&(
@@ -5246,11 +5247,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="section-title" style={{marginTop:24}}>Rental Income</div>
                     <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">Rent ({currencySymbol}/month)</label><input className="inp" type="number" value={data.rentPcm||""} onChange={e=>set("rentPcm",e.target.value)} placeholder="e.g. 2200"/></div>
-                      <div className="inp-group"><label className="inp-label">Void / Vacancy (%)</label><input className="inp" type="number" step="0.5" value={data.voidPct} onChange={e=>set("voidPct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Void / Vacancy (%)</label><input className="inp" type="number" step="0.5" value={data.voidPct??""} onChange={e=>set("voidPct",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
                       <div className="inp-group"><label className="inp-label">Monthly OpEx ({currencySymbol})</label><input className="inp" type="number" value={data.holdOpexPm} onChange={e=>set("holdOpexPm",e.target.value)} placeholder="Service charge, insurance etc"/></div>
-                      <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct} onChange={e=>set("agentFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Agent Fee (%)</label><input className="inp" type="number" step="0.1" value={data.agentFeePct??""} onChange={e=>set("agentFeePct",e.target.value)}/></div>
                     </div>
                     {r.netCashflowPm!==undefined&&(
                       <div style={{background:r.netCashflowPm>0?"rgba(61,220,132,.07)":"rgba(244,100,95,.07)",border:`1px solid ${r.netCashflowPm>0?"rgba(61,220,132,.2)":"rgba(244,100,95,.2)"}`,borderRadius:8,padding:"10px 14px",fontSize:12,marginTop:4}}>
@@ -5416,11 +5417,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {(data.capStructure||"single")==="single"&&(
                       <>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e=>set("ltc",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct} onChange={e=>set("exitFeePct",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
@@ -5475,7 +5476,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div className="inp-group"><label className="inp-label">Interest Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.capexRate} onChange={e=>set("capexRate",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Brokerage Fee (%)</label><input className="inp" type="number" step="0.1" value={data.brokerageFeePct} onChange={e=>set("brokerageFeePct",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
@@ -5533,7 +5534,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div className="inp-group"><label className="inp-label">Mezz Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.mezzRate} onChange={e=>set("mezzRate",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct} onChange={e=>set("exitFeePct",e.target.value)}/></div>
                         </div>
                       </>
@@ -5577,7 +5578,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <input type="checkbox" checked={data.hedgingEnabled||false} onChange={e=>set("hedgingEnabled",e.target.checked)} style={{width:14,height:14}}/>
                           Day 1 Hedging / Swap
                         </label>
-                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost||0} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:120}}/>}
+                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost??""} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:120}}/>}
                       </div>
                     )}
 
@@ -5663,11 +5664,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {(data.hotelFinanceType||"full")==="purchase"&&(
                       <>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.ltc||65} onChange={e=>set("ltc",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Mortgage Rate (% pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||5.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mortgage Rate (% pa)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Loan Amount (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{fmt(r.loanAmount||0,currencySymbol)}</div></div>
                         </div>
                       </>
@@ -5677,15 +5678,15 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {(data.hotelFinanceType||"full")==="full"&&(
                       <>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths||24} onChange={e=>set("programmMonths",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths||6} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths??""} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.5} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
                         </div>
                       </>
@@ -5715,11 +5716,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {assetType==="Commercial"&&(
                   <>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                       <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
                     </div>
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20}}>
@@ -5743,12 +5744,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {assetType==="MixedUse"&&(
                   <>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths} onChange={e=>set("programmMonths",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc} onChange={e=>set("ltc",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Build Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
                     </div>
                     <div className="inp-row">
-                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
-                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                      <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                     </div>
                     <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12,marginTop:8}}>
                       {[
@@ -5787,12 +5788,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {(data.capStructure||"single")==="single"&&(
                       <>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc||60} onChange={e=>set("ltc",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark||2.5} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTC Ratio (%)</label><input className="inp" type="number" step="1" value={data.ltc??""} onChange={e=>set("ltc",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Margin over {data.benchmark||"SONIA"} (%)</label><input className="inp" type="number" step="0.1" value={data.marginOverBenchmark??""} onChange={e=>set("marginOverBenchmark",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct??""} onChange={e=>set("exitFeePct",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
                           <div className="inp-group"><label className="inp-label">All-in Rate (auto)</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—"}</div></div>
@@ -5804,17 +5805,17 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <>
                         <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Land / Acquisition Facility</div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.acqLTV||65} onChange={e=>set("acqLTV",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.acqRate||7.5} onChange={e=>set("acqRate",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTV (%)</label><input className="inp" type="number" step="1" value={data.acqLTV??""} onChange={e=>set("acqLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.acqRate??""} onChange={e=>set("acqRate",e.target.value)}/></div>
                         </div>
                         <div style={{fontSize:11,color:"var(--blue)",fontWeight:600,margin:"16px 0 10px"}}>Development / Build Facility</div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">LTC (%)</label><input className="inp" type="number" step="1" value={data.capexLTC||60} onChange={e=>set("capexLTC",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.capexRate||8.0} onChange={e=>set("capexRate",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">LTC (%)</label><input className="inp" type="number" step="1" value={data.capexLTC??""} onChange={e=>set("capexLTC",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.capexRate??""} onChange={e=>set("capexRate",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct??""} onChange={e=>set("exitFeePct",e.target.value)}/></div>
                         </div>
                       </>
                     )}
@@ -5822,17 +5823,17 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <>
                         <div style={{fontSize:11,color:"var(--gold)",fontWeight:600,marginBottom:10}}>Senior Debt</div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Senior LTV (%)</label><input className="inp" type="number" step="1" value={data.seniorLTV||60} onChange={e=>set("seniorLTV",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Senior Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.seniorRate||7.0} onChange={e=>set("seniorRate",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Senior LTV (%)</label><input className="inp" type="number" step="1" value={data.seniorLTV??""} onChange={e=>set("seniorLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Senior Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.seniorRate??""} onChange={e=>set("seniorRate",e.target.value)}/></div>
                         </div>
                         <div style={{fontSize:11,color:"var(--amber)",fontWeight:600,margin:"16px 0 10px"}}>Mezzanine</div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Mezz LTV (%)</label><input className="inp" type="number" step="1" value={data.mezzLTV||75} onChange={e=>set("mezzLTV",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Mezz Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.mezzRate||12.0} onChange={e=>set("mezzRate",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mezz LTV (%)</label><input className="inp" type="number" step="1" value={data.mezzLTV??""} onChange={e=>set("mezzLTV",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Mezz Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.mezzRate??""} onChange={e=>set("mezzRate",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct||1.0} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct||0} onChange={e=>set("exitFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Exit Fee (%)</label><input className="inp" type="number" step="0.1" value={data.exitFeePct??""} onChange={e=>set("exitFeePct",e.target.value)}/></div>
                         </div>
                       </>
                     )}
@@ -5842,7 +5843,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <input type="checkbox" checked={data.hedgingEnabled||false} onChange={e=>set("hedgingEnabled",e.target.checked)} style={{width:14,height:14}}/>
                           Day 1 Hedging / Rate Cap
                         </label>
-                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost||0} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:140}}/>}
+                        {data.hedgingEnabled&&<input className="inp" type="number" value={data.hedgingCost??""} onChange={e=>set("hedgingCost",e.target.value)} placeholder="Cost £" style={{width:140}}/>}
                       </div>
                     )}
                     {(data.capStructure||"single")!=="equity"&&(r.totalFinanceCost||0)>0&&(
@@ -5900,8 +5901,8 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div className="inp-group"><label className="inp-label">Rate (%pm)</label><input className="inp" type="number" step="0.05" value={data.bridgingRatePct} onChange={e=>set("bridgingRatePct",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Term (months)</label><input className="inp" type="number" value={data.bridgingTermMonths} onChange={e=>set("bridgingTermMonths",e.target.value)}/></div>
-                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Term (months)</label><input className="inp" type="number" value={data.bridgingTermMonths??""} onChange={e=>set("bridgingTermMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.arrangementFeePct??""} onChange={e=>set("arrangementFeePct",e.target.value)}/></div>
                         </div>
                       </>
                     )}
@@ -5933,7 +5934,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                           <div className="inp-group"><label className="inp-label">Refi Rate (%pa)</label><input className="inp" type="number" step="0.1" value={data.refiRatePct} onChange={e=>set("refiRatePct",e.target.value)}/></div>
                         </div>
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Hold Term (months)</label><input className="inp" type="number" value={data.refiTermMonths} onChange={e=>set("refiTermMonths",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Hold Term (months)</label><input className="inp" type="number" value={data.refiTermMonths??""} onChange={e=>set("refiTermMonths",e.target.value)}/></div>
                           <div className="inp-group"><label className="inp-label">Arrangement Fee (%)</label><input className="inp" type="number" step="0.1" value={data.refiArrangementPct} onChange={e=>set("refiArrangementPct",e.target.value)}/></div>
                         </div>
                         {/* Vacancy toggle */}
@@ -5951,12 +5952,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         {/* Rental income inputs — only when tenanted */}
                         {(data.holdOccupancy||"vacant")==="tenanted"&&(
                           <div className="inp-row">
-                            <div className="inp-group"><label className="inp-label">Rent (pcm)</label><input className="inp" type="number" step="50" value={data.rentPcm||0} onChange={e=>set("rentPcm",e.target.value)}/></div>
-                            <div className="inp-group"><label className="inp-label">Void / vacancy (%)</label><input className="inp" type="number" step="1" value={data.voidPct||5} onChange={e=>set("voidPct",e.target.value)}/></div>
+                            <div className="inp-group"><label className="inp-label">Rent (pcm)</label><input className="inp" type="number" step="50" value={data.rentPcm??""} onChange={e=>set("rentPcm",e.target.value)}/></div>
+                            <div className="inp-group"><label className="inp-label">Void / vacancy (%)</label><input className="inp" type="number" step="1" value={data.voidPct??""} onChange={e=>set("voidPct",e.target.value)}/></div>
                           </div>
                         )}
                         <div className="inp-row">
-                          <div className="inp-group"><label className="inp-label">Monthly opex ({currencySymbol})</label><input className="inp" type="number" step="50" value={data.holdOpexPm||200} onChange={e=>set("holdOpexPm",e.target.value)}/></div>
+                          <div className="inp-group"><label className="inp-label">Monthly opex ({currencySymbol})</label><input className="inp" type="number" step="50" value={data.holdOpexPm??""} onChange={e=>set("holdOpexPm",e.target.value)}/></div>
                         </div>
                         {(r.refiLoan||0)>0&&(
                           <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12}}>
@@ -6046,7 +6047,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       {["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"].map(c=><option key={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths||24} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
                 </div>
                 <div className="section-title" style={{marginTop:24}}>Benchmark Rate</div>
                 <div className="inp-row">
@@ -6056,7 +6057,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       {["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"].map(b=><option key={b}>{b}</option>)}
                     </select>
                   </div>
-                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate||3.97} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate??""} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
                 </div>
                 <div style={{marginTop:24,padding:"14px 16px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:10}}>
                   <div style={{fontSize:12,fontWeight:600,color:"var(--gold)",marginBottom:4}}>Next: Configure your zones</div>
@@ -6324,7 +6325,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       {["GBP","USD","EUR","AED","SGD","AUD","JPY","CHF","CAD","HKD"].map(c=><option key={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths||18} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
                   <div className="inp-group"><label className="inp-label">Benchmark</label>
@@ -6332,10 +6333,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       {["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA"].map(b=><option key={b}>{b}</option>)}
                     </select>
                   </div>
-                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate||3.97} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">{data.benchmark||"SONIA"} Rate (%)</label><input className="inp" type="number" step="0.01" value={data.benchmarkRate??""} onChange={e=>set("benchmarkRate",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths||12} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths??""} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
                 </div>
               </div>
             )}
@@ -6466,8 +6467,8 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <option value="omo">Open Market (OMO)</option>
                     </select>
                   </div>
-                  <div className="inp-group"><label className="inp-label">{data.rentReviewType==="cpi"?"CPI rate (%)":data.rentReviewType==="rpi"?"RPI rate (%)":"Uplift (%)"}</label><input className="inp" type="number" step="0.5" value={data.rentReviewPct||3} onChange={e=>set("rentReviewPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Review period (yrs)</label><input className="inp" type="number" value={data.rentReviewYears||5} onChange={e=>set("rentReviewYears",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">{data.rentReviewType==="cpi"?"CPI rate (%)":data.rentReviewType==="rpi"?"RPI rate (%)":"Uplift (%)"}</label><input className="inp" type="number" step="0.5" value={data.rentReviewPct??""} onChange={e=>set("rentReviewPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Review period (yrs)</label><input className="inp" type="number" value={data.rentReviewYears??""} onChange={e=>set("rentReviewYears",e.target.value)}/></div>
                 </div>
                 {(r.projectedErv||0)>0&&(
                   <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-d)",marginTop:4}}>
@@ -6499,19 +6500,19 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </div>
                 {(data.exitMethod||"investment")==="investment"&&(
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">NIY / Exit Cap Rate (%)</label><input className="inp" type="number" step="0.25" value={data.niy||5.5} onChange={e=>set("niy",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">NIY / Exit Cap Rate (%)</label><input className="inp" type="number" step="0.25" value={data.niy??""} onChange={e=>set("niy",e.target.value)}/></div>
                     <div className="inp-group"><label className="inp-label">GDV (auto)</label><div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>{fmt(r.gdv||0,currencySymbol)}</div></div>
                   </div>
                 )}
                 {(data.exitMethod||"investment")==="equivalent"&&(
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">Initial Yield / NIY (%)</label><input className="inp" type="number" step="0.25" value={data.niy||5.5} onChange={e=>set("niy",e.target.value)}/></div>
-                    <div className="inp-group"><label className="inp-label">Equivalent Yield (%)</label><input className="inp" type="number" step="0.25" value={data.equivalentYield||5.75} onChange={e=>set("equivalentYield",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Initial Yield / NIY (%)</label><input className="inp" type="number" step="0.25" value={data.niy??""} onChange={e=>set("niy",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">Equivalent Yield (%)</label><input className="inp" type="number" step="0.25" value={data.equivalentYield??""} onChange={e=>set("equivalentYield",e.target.value)}/></div>
                   </div>
                 )}
                 {data.exitMethod==="vp"&&(
                   <div className="inp-row">
-                    <div className="inp-group"><label className="inp-label">VP Value ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.vpValuePsm||0} onChange={e=>set("vpValuePsm",e.target.value)}/></div>
+                    <div className="inp-group"><label className="inp-label">VP Value ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.vpValuePsm??""} onChange={e=>set("vpValuePsm",e.target.value)}/></div>
                     <div className="inp-group"><label className="inp-label">GDV (auto)</label><div className="inp" style={{color:"var(--gold)",cursor:"not-allowed"}}>{fmt(r.gdv||0,currencySymbol)}</div></div>
                   </div>
                 )}
@@ -6532,19 +6533,19 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
               <div>
                 <div className="section-title">Acquisition</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Land Cost ({currencySymbol})</label><input className="inp" type="number" value={data.landCost||0} onChange={e=>set("landCost",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Land Cost ({currencySymbol})</label><input className="inp" type="number" value={data.landCost??""} onChange={e=>set("landCost",e.target.value)}/></div>
                   <SDLTBlock data={data} set={set} r={r} currencySymbol={currencySymbol}/>
                 </div>
                 <div className="section-title" style={{marginTop:24}}>Build Costs</div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Build Cost ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.buildCostPsm||1200} onChange={e=>set("buildCostPsm",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Build Cost ({currencySymbol}/sqm)</label><input className="inp" type="number" value={data.buildCostPsm??""} onChange={e=>set("buildCostPsm",e.target.value)}/></div>
                   <div className="inp-group"><label className="inp-label">Total Area (sqm) — from units</label><div className="inp" style={{color:"var(--blue)",cursor:"not-allowed"}}>{Math.round(r.totalAreaSqm||0)} sqm</div></div>
                 </div>
                 {r.buildCost>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-d)",marginBottom:12}}>Total build cost: <span style={{color:"var(--amber)"}}>{fmt(r.buildCost||0,currencySymbol)}</span></div>}
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct||8} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct||5} onChange={e=>set("contingencyPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts||0} onChange={e=>set("otherCosts",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Professional Fees (%)</label><input className="inp" type="number" step="0.5" value={data.professionalFeesPct??""} onChange={e=>set("professionalFeesPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Contingency (%)</label><input className="inp" type="number" step="0.5" value={data.contingencyPct??""} onChange={e=>set("contingencyPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Other Costs ({currencySymbol})</label><input className="inp" type="number" value={data.otherCosts??""} onChange={e=>set("otherCosts",e.target.value)}/></div>
                 </div>
                 <VATCILBlock data={data} set={set} r={r} currencySymbol={currencySymbol} showCIL={true}/>
                 {/* Cost summary */}
