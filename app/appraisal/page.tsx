@@ -4557,9 +4557,11 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   // Executive tagline
   const tagY=subtitleY+14;
   if(content.executiveSummary){
-    const tagLines=doc.splitTextToSize(content.executiveSummary.split(".")[0]+".",W-M*2);
-    doc.setTextColor(...white);doc.setFontSize(10);doc.setFont("helvetica","normal");
-    tagLines.slice(0,2).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*6));
+    const sentences=content.executiveSummary.split(/(?<=[.!])\s+/);
+    const tagText=(sentences.slice(0,2).join(" ")).trim();
+    const tagLines=doc.splitTextToSize(tagText,W-M*2);
+    doc.setTextColor(...white);doc.setFontSize(9.5);doc.setFont("helvetica","normal");
+    tagLines.slice(0,3).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*5.8));
   }
 
 
@@ -4718,17 +4720,17 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     });
     sp+=24;
 
-    // Revenue by stream
+    // Revenue by stream — always use calcHotelRev for stream breakdown
     sp=hSection(sp,"Revenue by Stream (pa)");
-    const totalRevStream=hr.revenuePa||r.revenuePa||hr.ebitda||0;
-    const revSt=isHotelAdv?[
-      ["Rooms Revenue",hr.roomsRevenue||0,green],
-      data.fnbEnabled&&["F&B Revenue",hr.fnbRevenue||0,white],
-      data.spaEnabled&&["Spa Revenue",hr.spaRevenue||0,white],
-      data.gymEnabled&&["Gym Revenue",hr.gymRevenue||0,white],
-      data.meetingEnabled&&["Events Revenue",hr.meetingRevenue||0,white],
-    ].filter(Boolean):[["Total Revenue",totalRevStream,green]] as any[];
-    const totalStream=revSt.reduce((s:number,rs:any)=>s+(rs?Number(rs[1]):0),0)||1;
+    const hotelRevStreams=calcHotelRev(data);
+    const revSt:any[]=[
+      ["Rooms Revenue",hotelRevStreams.roomsRev||0,green],
+      ...(data.fnbEnabled&&hotelRevStreams.fnbRev>0?[["F&B Revenue",hotelRevStreams.fnbRev,white]]:[]),
+      ...(data.spaEnabled&&hotelRevStreams.spaRev>0?[["Spa Revenue",hotelRevStreams.spaRev,white]]:[]),
+      ...(data.gymEnabled&&hotelRevStreams.gymRev>0?[["Gym Revenue",hotelRevStreams.gymRev,white]]:[]),
+      ...(data.meetingEnabled&&hotelRevStreams.meetingRev>0?[["Events Revenue",hotelRevStreams.meetingRev,white]]:[]),
+    ];
+    const totalStream=hotelRevStreams.totalRev||1;
     revSt.forEach((rs:any)=>{
       if(!rs)return;
       const [l,v,c]=rs;const pct=v/totalStream;
@@ -4754,7 +4756,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.text("",M+3,sp+5);
       yrs.forEach((y:any,i:number)=>{
         doc.setTextColor(i===yrs.length-1?180:255,i===yrs.length-1?220:255,i===yrs.length-1?190:255);
-        doc.text(`Yr ${y.year}`,M+32+i*yrW+yrW/2,sp+5,{align:"center"});
+        doc.text(`Yr ${i+1}`,M+32+i*yrW+yrW/2,sp+5,{align:"center"});
       });
       sp+=8;
       [
