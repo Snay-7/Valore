@@ -4668,7 +4668,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     if(content.executiveSummary){
       sp=hSection(sp,"Investment Thesis");
-      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-4);
+      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-8);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
       esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
       sp+=5;
@@ -4678,7 +4678,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       sp=hSection(sp,"Investment Highlights");
       const highlights=content.dealStrengths.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,6);
       highlights.forEach((h:string)=>{
-        const hl=doc.splitTextToSize(h,W-M*2-8);
+        const hl=doc.splitTextToSize(h,W-M*2-12);
         const blockH=hl.length*5.2+4;
         if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");}
         doc.setFillColor(42,138,100);doc.rect(M,sp-2,1.5,Math.max(hl.length*5.2,4),"F");
@@ -4693,7 +4693,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       sp=hSection(sp,"Key Risk Factors");
       const risks=content.riskAssessment.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,4);
       risks.forEach((h:string)=>{
-        const rl=doc.splitTextToSize(h,W-M*2-8);
+        const rl=doc.splitTextToSize(h,W-M*2-12);
         const blockH=rl.length*5.2+4;
         if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Key Risk Factors (cont.)");}
         doc.setFillColor(192,64,64);doc.rect(M,sp-2,1.5,Math.max(rl.length*5.2,4),"F");
@@ -4706,7 +4706,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(content.marketComparables){
       checkPage();
       sp=hSection(sp,"Market Context");
-      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-4);
+      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-8);
       doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
       ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.2;checkPage();});
     }
@@ -4766,7 +4766,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(isHotelAdv&&hr.yearRevenue?.length>0){
       sp=hSection(sp,"Year-by-Year Operating Performance");
       const yrs=hr.yearRevenue.slice(0,7);
-      const yrW=(W-M*2-32)/yrs.length;
+      const yrW=(W-M*2-30)/yrs.length;
       doc.setFillColor(37,45,63);doc.rect(M,sp,W-M*2,8,"F");
       doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont("helvetica","bold");
       doc.text("",M+3,sp+5);
@@ -4838,7 +4838,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
       if(hotelComps.market_context){
         sp=hSection(sp,"Market Context");
-        const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2-4);
+        const ctxL=doc.splitTextToSize(hotelComps.market_context,W-M*2-8);
         doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
         ctxL.slice(0,7).forEach((l:string)=>{doc.text(l,M,sp);sp+=5.5;});sp+=4;
       }
@@ -4934,7 +4934,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(isHotelAdv&&hr.yearRevenue?.length>0){
       sp=hSection(sp,"Year-by-Year Investor Cashflow");
       const yrs3=hr.yearRevenue.slice(0,7);
-      const yrW3=(W-M*2-32)/yrs3.length;
+      const yrW3=(W-M*2-30)/(yrs3.length+1);  // +1 for Day 1 column
       doc.setFillColor(37,45,63);doc.rect(M,sp,W-M*2,8,"F");
       doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont("helvetica","bold");
       doc.text("",M+3,sp+5);
