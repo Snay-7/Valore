@@ -4761,8 +4761,8 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       const [l,v,c]=rs;const pct=v/totalStream;
       const barMaxW=W-M*2-55;const barW=Math.max(pct*barMaxW,0.5);
       doc.setTextColor(...grey);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(l,M+3,sp);
-      doc.setFillColor(220,240,232);doc.rect(M+52,sp-4,barMaxW,6,"F");
-      doc.setFillColor(42,138,100);doc.rect(M+52,sp-4,barW,6,"F");
+      if(barMaxW>0){doc.setFillColor(220,240,232);doc.rect(M+52,sp-4,barMaxW,6,"F");}
+      if(barW>0){doc.setFillColor(42,138,100);doc.rect(M+52,sp-4,barW,6,"F");}
       doc.setTextColor(...c);doc.setFont("helvetica","bold");doc.setFontSize(7.5);
       doc.text(fmt(v,currencySymbol),W-M,sp,{align:"right"});
       doc.setTextColor(...grey);doc.setFontSize(6);
@@ -4834,7 +4834,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         const mktAvg=Number(b4Star.avg);const diff=mktAvg>0?((myADR-mktAvg)/mktAvg)*100:0;
         const posC=diff>20?red:diff>5?amber:green;
         const bgC=diff>20?[252,235,235]:diff>5?[250,238,218]:[225,242,234];
-        doc.setFillColor(...bgC as any);doc.roundedRect(M,sp,W-M*2,22,2,2,"F");
+        if(bgC&&bgC.length===3){doc.setFillColor(...bgC as any);doc.roundedRect(M,sp,W-M*2,22,2,2,"F");}
         doc.setTextColor(...posC);doc.setFontSize(8);doc.setFont("helvetica","bold");
         doc.text(`Your ADR: ${currencySymbol}${myADR}   Market Avg (${data.starRating||4}★): ${currencySymbol}${mktAvg}   Variance: ${diff>0?"+":""}${diff.toFixed(1)}%`,M+5,sp+9);
         if(hotelComps.assessment_note){
@@ -4918,7 +4918,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setFillColor(220,222,226);doc.rect(rx,rPos+2,halfW,0.12,"F");rPos+=8;
     });
 
-    doc.setFillColor(220,222,226);doc.rect(M+halfW+5,sp,0.3,Math.max(lPos,rPos)-sp,"F");
+    if(Math.max(lPos,rPos)-sp>0){doc.setFillColor(220,222,226);doc.rect(M+halfW+5,sp,0.3,Math.max(Math.max(lPos,rPos)-sp,0.1),"F");}
 
     let cy2=Math.max(lPos,rPos)+6;
     cy2=hSection(cy2,"Cost Stack");
