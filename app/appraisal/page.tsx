@@ -4577,9 +4577,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     {l:"Exit Value",v:fmt(hotelAdv.exitValue||r.exitValue||0,currencySymbol),c:gold},
     {l:"EBITDA pa",v:fmt(hotelAdv.ebitda||r.ebitda||0,currencySymbol),c:green},
     {l:"Return on Cost",v:fmtPct(hotelAdv.poc||r.poc||0),c:(hotelAdv.poc||r.poc||0)>0.15?green:amber},
-    {l:"IRR (Levered)",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:blue},
+    {l:"IRR (Unlevered)",v:fmtPct(hotelAdv.irr||r.irr||0),c:(hotelAdv.irr||r.irr||0)>=0.10?green:amber},
+    {l:"IRR (Levered)",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:(hotelAdv.irrLevered||r.irrLevered||0)>=0.10?blue:amber},
     {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
     {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
+    {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:white},
+    {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:white},
   ]:assetType==="BTR"||assetType==="BTS"?[
     {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
     {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
@@ -5209,7 +5212,8 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Profit",fmt(hr.profit||r.profit||0,currencySymbol),(hr.profit||r.profit||0)>0?green:red],
       ["Return on Cost",fmtPct(hr.poc||r.poc||0),(hr.poc||r.poc||0)>0.15?green:amber],
       ["DSCR / ICR",(hr.dscr||r.dscr||0)>0?fmtX(hr.dscr||r.dscr||0):"—",(hr.dscr||r.dscr||0)>=1.25?green:amber],
-      ["IRR (Levered)",fmtPct(hr.irrLevered||r.irrLevered||0),(hr.irrLevered||r.irrLevered||0)>=0.15?green:amber],
+      ["IRR (Unlevered)",fmtPct(hr.irr||r.irr||0),(hr.irr||r.irr||0)>=0.10?green:amber],
+      ["IRR (Levered)",fmtPct(hr.irrLevered||r.irrLevered||0),(hr.irrLevered||r.irrLevered||0)>=0.10?green:amber],
       ["Equity Multiple",fmtX(hr.moic||r.moic||0),gold],
     ],colL3,lY3,colW3)||lY3;
     if(isHotelAdv){
