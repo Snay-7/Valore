@@ -2,7 +2,10 @@
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from "react";
 import { supabase } from "../../../lib/supabase";
+import * as XLSX from "xlsx";
 import { useParams } from "next/navigation";
+
+
 
 
 const CSS = `
@@ -118,6 +121,8 @@ body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;transition:
 `;
 
 
+
+
 const fmt = (n: number, prefix = "£") => {
   if (!isFinite(n) || isNaN(n)) return "—";
   const abs = Math.abs(n);
@@ -131,8 +136,12 @@ const fmtX = (n: number) => (!isFinite(n) || isNaN(n) || n === 0 ? "—" : `${n.
 const num = (v: string) => parseFloat(String(v).replace(/[£,%\s]/g, "")) || 0;
 
 
+
+
 const TYPE_COLOR: Record<string, string> = { BTR: "#52C498", BTS: "#4a8ae8", Hotel: "#d4891a", Flip: "#2da870" };
 const TYPE_BG: Record<string, string> = { BTR: "rgba(82,196,152,.12)", BTS: "rgba(74,138,232,.12)", Hotel: "rgba(212,137,26,.12)", Flip: "rgba(45,168,112,.12)" };
+
+
 
 
 function calcCosts(snap: any) {
@@ -157,6 +166,8 @@ function calcCosts(snap: any) {
 }
 
 
+
+
 // ── HOTEL ADVANCED SHARE SECTION ─────────────────────────────────────────────
 function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
   const ha = snap.hotelAdv || {};
@@ -165,6 +176,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
   const yr = ha.yearRevenue || [];
   const capStructure = snap.capStructure || "single";
   const capStructureLabel: Record<string, string> = { equity: "All Equity", single: "Single Facility", dual: "Dual Facility", fullstack: "Full Stack" };
+
+
 
 
   return (
@@ -200,6 +213,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
           ))}
         </div>
       </div>
+
+
 
 
       {/* ── INVESTOR CASHFLOW ── */}
@@ -262,6 +277,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
       </div>
 
 
+
+
       {/* ── RETURNS + DEAL STRUCTURE ── */}
       <div className="two-col section-gap fade-up" style={{ animationDelay: ".44s" }}>
         <div>
@@ -293,6 +310,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
         </div>
 
 
+
+
         <div>
           <div className="section-hdr">Deal Structure</div>
           <div className="data-card" style={{ marginBottom: 16 }}>
@@ -311,6 +330,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
               </div>
             ))}
           </div>
+
+
 
 
           <div className="section-hdr">Cost Breakdown</div>
@@ -334,6 +355,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
           </div>
         </div>
       </div>
+
+
 
 
       {/* ── IM FEES (if applicable) ── */}
@@ -361,6 +384,8 @@ function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
 }
 
 
+
+
 // ── SIMPLE HOTEL / OTHER ASSET SHARE SECTION ─────────────────────────────────
 function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appraisal: any }) {
   const assetType = snap.assetType || "BTR";
@@ -380,6 +405,8 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
   const totalFinanceCost = arrangementFee + interestEst;
   const snapMoic = snap.moic || 0;
   const snapDscr = snap.dscr || 0;
+
+
 
 
   const returnsRows = assetType === "BTR" ? [
@@ -419,6 +446,8 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
   ];
 
 
+
+
   const detailRows = assetType === "BTR" ? [
     ["Asset Type", "Build to Rent"], ["Location", snap.location || "—"], ["Currency", snap.currency || "GBP"],
     ["Programme", `${snap.programmMonths || "—"}m build · ${snap.stabilisationMonths || "—"}m stabilisation`],
@@ -438,6 +467,8 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
     ["Hold Period", `${snap.bridgingTermMonths || snap.programmMonths || "—"}m`],
     ["Sale Price", fmt(num(String(snap.salePrice || 0)), sym)], ["Agent Fee", snap.agentFeePct ? `${snap.agentFeePct}%` : "—"],
   ];
+
+
 
 
   const costRows = assetType === "BTR" || assetType === "BTS" ? [
@@ -462,6 +493,8 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
     { label: "Finance Cost", value: totalFinanceCost, amber: true },
     { label: "Total Cost", value: totalCost, bold: true },
   ];
+
+
 
 
   return (
@@ -545,6 +578,8 @@ function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appra
 }
 
 
+
+
 // ── MAIN SHARE PAGE ───────────────────────────────────────────────────────────
 function SharePage() {
   const params = useParams();
@@ -553,6 +588,8 @@ function SharePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("light");
+
+
 
 
   useEffect(() => {
@@ -566,12 +603,16 @@ function SharePage() {
   }, [token]);
 
 
+
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
+
+
 
 
   if (notFound) return (
@@ -585,10 +626,14 @@ function SharePage() {
   );
 
 
+
+
   const snap = appraisal?.snapshot || {};
   const assetType = snap.assetType || "BTR";
   const isHotelAdvanced = assetType === "Hotel" && snap.hotelMode === "advanced" && snap.hotelAdv;
   const sym = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" }[snap.currency as string] || "£";
+
+
 
 
   // Hero metrics — advanced hotel uses hotelAdv fields
@@ -599,6 +644,8 @@ function SharePage() {
   const irr = appraisal.irr_unlevered || 0;
   const irrLevered = appraisal.irr_levered || 0;
   const pocColor = poc > 0.2 ? "var(--green)" : poc > 0.1 ? "var(--amber)" : "var(--red)";
+
+
 
 
   const heroMetrics = isHotelAdvanced ? [
@@ -634,6 +681,8 @@ function SharePage() {
   ];
 
 
+
+
   const instMetrics = isHotelAdvanced ? [
     { label: "Equity Multiple", value: fmtX(ha.moic || snap.moic || 0) },
     { label: "DSCR / ICR", value: isFinite(ha.dscr) && ha.dscr < 999 ? fmtX(ha.dscr) : "—" },
@@ -664,6 +713,93 @@ function SharePage() {
   ];
 
 
+
+
+  // ── EXCEL EXPORT ────────────────────────────────────────────────────────────
+  const exportExcel = () => {
+    const projectName = appraisal.name || "Valora Appraisal";
+    const annualRate = (num(String(snap.benchmarkRate || 3.97)) + num(String(snap.marginOverBenchmark || 2.5))) / 100;
+
+    // Sheet 1: Summary
+    const summaryData = [
+      ["VALORA — APPRAISAL SUMMARY", ""],
+      ["", ""],
+      ["Project", projectName],
+      ["Asset Type", assetType],
+      ["Location", snap.location || "—"],
+      ["Currency", snap.currency || "GBP"],
+      ["Date", new Date().toLocaleDateString("en-GB")],
+      ["", ""],
+      ["RETURNS", ""],
+      [assetType === "Flip" ? "Sale Price" : assetType === "Hotel" ? "Exit Value" : "GDV", gdv],
+      ["Total Cost", appraisal.total_cost || 0],
+      ["Equity In", snap.equity || 0],
+      ["Profit", profit],
+      ["Profit on Cost", `${(poc * 100).toFixed(1)}%`],
+      ["IRR (Unlevered)", `${(irr * 100).toFixed(1)}%`],
+      ["IRR (Levered)", `${(irrLevered * 100).toFixed(1)}%`],
+      ["Equity Multiple", snap.moic ? `${snap.moic.toFixed(2)}x` : "—"],
+      ["DSCR", snap.dscr && snap.dscr < 999 ? `${snap.dscr.toFixed(2)}x` : "N/A (All Equity)"],
+      ["", ""],
+      ["KEY ASSUMPTIONS", ""],
+      ["Programme", `${snap.programmMonths || "—"} months`],
+      ["Finance Rate (all-in)", annualRate > 0 ? `${(annualRate * 100).toFixed(2)}%` : "—"],
+      ["LTC Ratio", snap.ltc ? `${snap.ltc}%` : "—"],
+      ...(assetType === "BTR" ? [["Exit Yield", snap.exitYield ? `${snap.exitYield}%` : "—"], ["Stabilisation", `${snap.stabilisationMonths || "—"} months`]] : []),
+      ...(assetType === "BTS" ? [["Absorption Period", `${snap.absorptionMonths || "—"} months`]] : []),
+      ...(assetType === "Hotel" ? [["Rooms", snap.rooms || "—"], ["Star Rating", snap.starRating ? `${snap.starRating}★` : "—"], ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—"], ["ADR", snap.adr || "—"], ["Occupancy", snap.occupancy ? `${snap.occupancy}%` : "—"]] : []),
+    ];
+
+    // Sheet 2: Cost Breakdown
+    const costs = calcCosts(snap);
+    const loanAmount = (costs.landCost + costs.buildCost) * (num(String(snap.ltc || 65)) / 100);
+    const arrangementFee = loanAmount * (num(String(snap.arrangementFeePct || 1)) / 100);
+    const buildMonths = Math.max(1, Math.round(num(String(snap.programmMonths || 24))));
+    const interestEst = loanAmount * annualRate * (buildMonths / 12) * 0.55;
+
+    const costData = [
+      ["COST BREAKDOWN", ""],
+      ["", ""],
+      [assetType === "Hotel" ? "Purchase Price" : assetType === "Flip" ? "Purchase Price" : "Land / Acquisition", costs.landCost],
+      [assetType === "Hotel" ? "CapEx Budget" : assetType === "Flip" ? "Refurb Budget" : "Build Cost", costs.buildCost],
+      ...(costs.profFees > 0 ? [["Professional Fees", costs.profFees]] : []),
+      ...(costs.contingency > 0 ? [["Contingency", costs.contingency]] : []),
+      ...(costs.otherCosts > 0 ? [["Other Costs", costs.otherCosts]] : []),
+      ...(costs.agentAndMarketing > 0 ? [["Agent & Marketing", costs.agentAndMarketing]] : []),
+      ["Arrangement Fee", arrangementFee],
+      ["Interest (Est.)", interestEst],
+      ["", ""],
+      ["TOTAL COST", appraisal.total_cost || 0],
+    ];
+
+    // Sheet 3: Unit Mix (BTR/BTS only)
+    const unitData = snap.units?.length > 0 ? [
+      ["UNIT MIX", "", "", "", ""],
+      ["Type", "Units", assetType === "BTS" ? "Price psf" : "Rent pcm", "Size (sqft)", assetType === "BTS" ? "Revenue" : "Gross pa"],
+      ...snap.units.map((u: any) => {
+        const gross = assetType === "BTS"
+          ? num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf))
+          : num(String(u.count)) * num(String(u.rentPcm)) * 12;
+        return [u.type, num(String(u.count)), assetType === "BTS" ? num(String(u.salePricePsf)) : num(String(u.rentPcm)), num(String(u.size)), gross];
+      }),
+    ] : null;
+
+    const wb = XLSX.utils.book_new();
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary["!cols"] = [{ wch: 28 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+    const wsCosts = XLSX.utils.aoa_to_sheet(costData);
+    wsCosts["!cols"] = [{ wch: 28 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, wsCosts, "Cost Breakdown");
+    if (unitData) {
+      const wsUnits = XLSX.utils.aoa_to_sheet(unitData);
+      wsUnits["!cols"] = [{ wch: 18 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsUnits, "Unit Mix");
+    }
+    XLSX.writeFile(wb, `${projectName.replace(/[^a-zA-Z0-9]/g, "_")}_Valora.xlsx`);
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   const typeCol = TYPE_COLOR[assetType] || "var(--gold)";
   const typeBg = TYPE_BG[assetType] || "rgba(82,196,152,.12)";
   const displayPoc = isHotelAdvanced ? (ha.poc || poc) : poc;
@@ -676,6 +812,8 @@ function SharePage() {
       : assetType === "BTS" ? `${snap.programmMonths || "—"}m build · ${snap.absorptionMonths || "—"}m absorption`
         : assetType === "Hotel" ? `${snap.programmMonths || "—"}m refurb · ${snap.stabilisationMonths || "—"}m stabilisation`
           : `${snap.bridgingTermMonths || snap.programmMonths || "—"}m hold`;
+
+
 
 
   return (
@@ -757,11 +895,15 @@ function SharePage() {
         </div>
 
 
+
+
         {/* Asset-specific body */}
         {isHotelAdvanced
           ? <HotelAdvancedShare snap={snap} sym={sym} />
           : <StandardShare snap={snap} sym={sym} appraisal={appraisal} />
         }
+
+
 
 
         {/* Footer */}
@@ -774,8 +916,16 @@ function SharePage() {
             <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 3, letterSpacing: ".08em", textTransform: "uppercase" }}>Institutional Development Appraisal</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 6 }}>Strictly Confidential · For Authorised Recipients Only</div>
-            <a href="https://valoraplatform.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--gold)", textDecoration: "none", letterSpacing: ".04em" }}>valoraplatform.io ↗</a>
+            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8 }}>Strictly Confidential · For Authorised Recipients Only</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={exportExcel}
+                style={{ fontSize: 11, color: "var(--text-m)", background: "none", border: "1px solid var(--border-m)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "var(--font-body)", letterSpacing: ".03em", transition: "all .2s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold-border)"; e.currentTarget.style.color = "var(--gold)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-m)"; e.currentTarget.style.color = "var(--text-m)"; }}
+              >↓ Export Excel</button>
+              <a href="https://valoraplatform.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--gold)", textDecoration: "none", letterSpacing: ".04em" }}>valoraplatform.io ↗</a>
+            </div>
           </div>
         </div>
         <div style={{ height: 32 }} />
@@ -783,6 +933,8 @@ function SharePage() {
     </div>
   );
 }
+
+
 
 
 export default function SharePageWrapper() {
