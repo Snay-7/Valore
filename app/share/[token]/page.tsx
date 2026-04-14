@@ -747,32 +747,95 @@ function SharePage() {
       ["LTC Ratio", snap.ltc ? `${snap.ltc}%` : "—"],
       ...(assetType === "BTR" ? [["Exit Yield", snap.exitYield ? `${snap.exitYield}%` : "—"], ["Stabilisation", `${snap.stabilisationMonths || "—"} months`]] : []),
       ...(assetType === "BTS" ? [["Absorption Period", `${snap.absorptionMonths || "—"} months`]] : []),
-      ...(assetType === "Hotel" ? [["Rooms", snap.rooms || "—"], ["Star Rating", snap.starRating ? `${snap.starRating}★` : "—"], ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—"], ["ADR", snap.adr || "—"], ["Occupancy", snap.occupancy ? `${snap.occupancy}%` : "—"]] : []),
+      ...(assetType === "Hotel" ? [["Rooms", snap.rooms || "—"], ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—"], ["ADR", snap.adr || "—"], ["Occupancy", snap.occupancy ? `${snap.occupancy}%` : "—"]] : []),
     ];
 
     // Sheet 2: Cost Breakdown
     const costs = calcCosts(snap);
-    const loanAmount = (costs.landCost + costs.buildCost) * (num(String(snap.ltc || 65)) / 100);
-    const arrangementFee = loanAmount * (num(String(snap.arrangementFeePct || 1)) / 100);
-    const buildMonths = Math.max(1, Math.round(num(String(snap.programmMonths || 24))));
-    const interestEst = loanAmount * annualRate * (buildMonths / 12) * 0.55;
+    const loanAmt = (costs.landCost + costs.buildCost) * (num(String(snap.ltc || 65)) / 100);
+    const arrFee = loanAmt * (num(String(snap.arrangementFeePct || 1)) / 100);
+    const bldMonths = Math.max(1, Math.round(num(String(snap.programmMonths || 24))));
+    const intEst = loanAmt * annualRate * (bldMonths / 12) * 0.55;
 
     const costData = [
       ["COST BREAKDOWN", ""],
       ["", ""],
-      [assetType === "Hotel" ? "Purchase Price" : assetType === "Flip" ? "Purchase Price" : "Land / Acquisition", costs.landCost],
-      [assetType === "Hotel" ? "CapEx Budget" : assetType === "Flip" ? "Refurb Budget" : "Build Cost", costs.buildCost],
+      [assetType === "Hotel" ? "Purchase Price" : "Land / Acquisition", costs.landCost],
+      [assetType === "Hotel" ? "CapEx Budget" : "Build Cost", costs.buildCost],
       ...(costs.profFees > 0 ? [["Professional Fees", costs.profFees]] : []),
       ...(costs.contingency > 0 ? [["Contingency", costs.contingency]] : []),
       ...(costs.otherCosts > 0 ? [["Other Costs", costs.otherCosts]] : []),
       ...(costs.agentAndMarketing > 0 ? [["Agent & Marketing", costs.agentAndMarketing]] : []),
-      ["Arrangement Fee", arrangementFee],
-      ["Interest (Est.)", interestEst],
+      ["Arrangement Fee", arrFee],
+      ["Interest (Est.)", intEst],
       ["", ""],
       ["TOTAL COST", appraisal.total_cost || 0],
     ];
 
-    // Sheet 3: Unit Mix (BTR/BTS only)
+    // Sheet 3: Cashflow — values only, no formulas
+    let cfData: any[][] = [];
+    if (isHotelAdvanced && ha.yearRevenue?.length > 0) {
+      const holdYrs = num(String(snap.holdYears || 5));
+      const yr = ha.yearRevenue || [];
+      const headers = ["", "Day 1", ...Array.from({ length: holdYrs }, (_: any, i: number) => i === holdYrs - 1 ? `Yr ${i+1} (Exit)` : `Yr ${i+1}`)];
+      cfData = [
+        ["INVESTOR CASHFLOW — YEAR BY YEAR", ""],
+        ["Values only — no formulas. For live scenario analysis visit valoraplatform.io", ""],
+        ["", ""],
+        headers,
+        ["Revenue", "—", ...yr.map((y: any) => Math.round(y.totalRev || 0))],
+        ["EBITDA", "—", ...yr.map((y: any) => Math.round(y.ebitda || 0))],
+        ["FF&E Reserve", "—", ...yr.map((y: any) => Math.round(-(y.ffe || 0)))],
+        ["NOI", "—", ...yr.map((y: any) => Math.round(y.noi || 0))],
+        ["Equity Out", `(${Math.round(ha.equity || 0)})`, ...Array(holdYrs).fill("—")],
+        ["Exit Proceeds (Net)", "—", ...Array(holdYrs - 1).fill("—"), Math.round(ha.netExitProceeds || 0)],
+        ["", ""],
+        ["RETURNS SUMMARY", ""],
+        ["Total Investment", Math.round(ha.totalCost || 0)],
+        ["Profit", Math.round(ha.profit || 0)],
+        ["Return on Cost", `${((ha.poc || 0) * 100).toFixed(1)}%`],
+        ["IRR (Unlevered)", `${((ha.irr || 0) * 100).toFixed(1)}%`],
+        ["IRR (Levered)", `${((ha.irrLevered || 0) * 100).toFixed(1)}%`],
+        ["Equity Multiple", `${(ha.moic || 0).toFixed(2)}x`],
+        ["DSCR / ICR", ha.dscr && ha.dscr < 999 ? `${ha.dscr.toFixed(2)}x` : "N/A (All Equity)"],
+        ["Payback", ha.paybackMonth ? `Month ${ha.paybackMonth}` : "Beyond horizon"],
+      ];
+    } else {
+      const totalCost = appraisal.total_cost || 0;
+      const equityIn = snap.equity || 0;
+      const programme = num(String(snap.programmMonths || 24));
+      const absorption = num(String(snap.absorptionMonths || 0));
+      const stabilisation = num(String(snap.stabilisationMonths || 0));
+      const totalMonths = programme + (absorption || stabilisation);
+      cfData = [
+        ["CASHFLOW SUMMARY", ""],
+        ["Values only — no formulas. Full month-by-month cashflow available inside Valora at valoraplatform.io", ""],
+        ["", ""],
+        ["PROGRAMME", ""],
+        ["Total Duration", `${totalMonths} months`],
+        ["Build Period", `${programme} months`],
+        ...(absorption > 0 ? [["Absorption Period", `${absorption} months`]] : []),
+        ...(stabilisation > 0 ? [["Stabilisation Period", `${stabilisation} months`]] : []),
+        ["", ""],
+        ["CAPITAL", ""],
+        ["Total Cost / Investment", totalCost],
+        ["Equity In", equityIn],
+        ["Loan Amount", totalCost - equityIn],
+        ["Arrangement Fee", arrFee],
+        ["Interest (Est.)", intEst],
+        ["", ""],
+        ["EXIT", ""],
+        [assetType === "Flip" ? "Sale Price" : "GDV / Exit Value", gdv],
+        ["Profit", profit],
+        ["Profit on Cost", `${(poc * 100).toFixed(1)}%`],
+        ["IRR (Unlevered)", `${(irr * 100).toFixed(1)}%`],
+        ["IRR (Levered)", `${(irrLevered * 100).toFixed(1)}%`],
+        ["Equity Multiple", snap.moic ? `${snap.moic.toFixed(2)}x` : "—"],
+        ["Payback", snap.paybackMonth ? `Month ${snap.paybackMonth}` : "—"],
+      ];
+    }
+
+    // Sheet 4: Unit Mix (BTR/BTS only)
     const unitData = snap.units?.length > 0 ? [
       ["UNIT MIX", "", "", "", ""],
       ["Type", "Units", assetType === "BTS" ? "Price psf" : "Rent pcm", "Size (sqft)", assetType === "BTS" ? "Revenue" : "Gross pa"],
@@ -784,6 +847,7 @@ function SharePage() {
       }),
     ] : null;
 
+    // Build workbook
     const wb = XLSX.utils.book_new();
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
     wsSummary["!cols"] = [{ wch: 28 }, { wch: 20 }];
@@ -791,6 +855,9 @@ function SharePage() {
     const wsCosts = XLSX.utils.aoa_to_sheet(costData);
     wsCosts["!cols"] = [{ wch: 28 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, wsCosts, "Cost Breakdown");
+    const wsCF = XLSX.utils.aoa_to_sheet(cfData);
+    wsCF["!cols"] = [{ wch: 32 }, ...Array(20).fill({ wch: 16 })];
+    XLSX.utils.book_append_sheet(wb, wsCF, "Cashflow");
     if (unitData) {
       const wsUnits = XLSX.utils.aoa_to_sheet(unitData);
       wsUnits["!cols"] = [{ wch: 18 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
