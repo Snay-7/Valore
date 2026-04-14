@@ -2076,12 +2076,12 @@ export default function Dashboard() {
                       </div>
                       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
                         {[
-                          { key:"developer", label:"Developer / Sponsor", sub:"Ground-up development, acquisitions, value-add", icon:"🏗" },
-                          { key:"lender", label:"Lender / Debt Fund", sub:"Underwriting loans, credit analysis, DSCR", icon:"🏦" },
-                          { key:"advisor", label:"Advisor / Investment Manager", sub:"Advisory, fund management, buy/sell-side", icon:"📊" },
-                          { key:"surveyor", label:"Surveyor / Valuer", sub:"Residual valuations, RICS appraisals", icon:"📐" },
-                          { key:"hotel_investor", label:"Hotel Investor / Operator", sub:"Hotel acquisitions, repositioning, operations", icon:"🏨" },
-                          { key:"hotel_asset_manager", label:"Hotel Asset Manager", sub:"Asset management, performance monitoring, LP reporting", icon:"📈" },
+                          { key:"developer", label:"Developer / Sponsor", sub:"Ground-up development, acquisitions, value-add", icon:"◈" },
+                          { key:"lender", label:"Lender / Debt Fund", sub:"Underwriting loans, credit analysis, DSCR", icon:"◈" },
+                          { key:"advisor", label:"Advisor / Investment Manager", sub:"Advisory, fund management, buy/sell-side", icon:"◈" },
+                          { key:"surveyor", label:"Surveyor / Valuer", sub:"Residual valuations, RICS appraisals", icon:"◈" },
+                          { key:"hotel_investor", label:"Hotel Investor / Operator", sub:"Hotel acquisitions, repositioning, operations", icon:"◈" },
+                          { key:"hotel_asset_manager", label:"Hotel Asset Manager", sub:"Asset management, performance monitoring, LP reporting", icon:"◈" },
                         ].map(opt => (
                           <button key={opt.key} onClick={() => { setUserRole(opt.key); setOnboardingStep(1); }}
                             style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg3)", cursor:"pointer", textAlign:"left", transition:"all .15s", width:"100%" }}
@@ -2111,7 +2111,7 @@ export default function Dashboard() {
                       </div>
                       <input
                         type="text"
-                        placeholder="e.g. Stonweg, CBRE, Self-employed..."
+                        placeholder="e.g. CBRE, Blackstone, Greystar..."
                         value={userCompany}
                         onChange={e => setUserCompany(e.target.value)}
                         style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1px solid var(--border)", background:"var(--bg3)", color:"var(--text)", fontSize:13, fontFamily:"var(--font-body)", outline:"none", boxSizing:"border-box", marginBottom:16 }}
@@ -2226,12 +2226,12 @@ export default function Dashboard() {
                 {/* Demo deal preview */}
                 <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:12, padding:"16px 20px", marginBottom:20, width:"100%", maxWidth:480, textAlign:"left", opacity:.6, pointerEvents:"none" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-                    <span style={{ background:"var(--gold-bg)", color:"var(--gold)", fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:4, border:"1px solid var(--gold-border)" }}>FLIP</span>
-                    <span style={{ fontSize:12, fontWeight:600, color:"var(--text)" }}>Jay Mews SW7</span>
-                    <span style={{ fontSize:11, color:"var(--text-d)" }}>· South Kensington</span>
+                    <span style={{ background:"var(--gold-bg)", color:"var(--gold)", fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:4, border:"1px solid var(--gold-border)" }}>BTR</span>
+                    <span style={{ fontSize:12, fontWeight:600, color:"var(--text)" }}>One South Bank Tower</span>
+                    <span style={{ fontSize:11, color:"var(--text-d)" }}>· London SE1</span>
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
-                    {[["GDV","£6.61m","var(--green)"],["Profit","£892k","var(--green)"],["PoC","18.4%","var(--green)"]].map(([l,v,c])=>(
+                    {[["GDV","£312.4m","var(--green)"],["IRR","18.2%","var(--green)"],["PoC","22.7%","var(--green)"]].map(([l,v,c])=>(
                       <div key={l} style={{ background:"var(--bg3)", borderRadius:6, padding:"8px 10px" }}>
                         <div style={{ fontSize:9, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:3 }}>{l}</div>
                         <div style={{ fontSize:14, fontWeight:700, color:c as string }}>{v}</div>
