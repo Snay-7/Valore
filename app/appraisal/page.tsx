@@ -27608,6 +27608,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
           paybackMonth:r.paybackMonth||null,
           hotelMode:assetType==="Hotel"?hotelMode:"simple",
           flipComplexity:assetType==="Flip"?flipComplexity:"simple",
+          ...(assetType!=="Hotel"&&r.uCfs?.length>0?{uCfs:r.uCfs,lCfs:r.lCfs,buildMonths:r.buildMonths,stabMonths:r.stabMonths||0,absMonths:r.absMonths||0,totalMonths:r.totalMonths}:{}),
           // Cashflow arrays saved for Excel export on share page (values only)
           ...(assetType!=="Hotel"&&r.uCfs?.length>0?{uCfs:r.uCfs,lCfs:r.lCfs,buildMonths:r.buildMonths,stabMonths:r.stabMonths||0,absMonths:r.absMonths||0,totalMonths:r.totalMonths}:{}),
           ...(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?{hotelAdv:{
@@ -51472,6 +51473,8 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             {([
               ["Equity Multiple",fmtX(r.moic),r.moic>2?"var(--green)":r.moic>1.5?"var(--amber)":"var(--red)"],
               ...(assetType==="BTR"||assetType==="Hotel"?[["DSCR / ICR",r.dscr>=999?"N/A (All Equity)":r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"]] as any[]:[]),
+              ...(assetType==="BTR"||assetType==="Hotel"?(
+                (()=>{const ln=r.loanAmount||r.peakLoanBalance||0;const noi=assetType==="Hotel"?(r.noi||0):(r.noi||r.netRent||0);const exitVal=assetType==="Hotel"?(r.exitValue||r.stabilisedValue||0):(r.gdv||0);const dy=ln>0&&noi>0?noi/ln:0;const ltv=exitVal>0&&ln>0?ln/exitVal:0;return[["Debt Yield",dy>0?fmtPct(dy):"—",dy>=0.08?"var(--green)":dy>=0.06?"var(--amber)":dy>0?"var(--red)":"var(--text-d)"],["LTV at Exit",ltv>0?fmtPct(ltv):"—",ltv<=0.60?"var(--green)":ltv<=0.75?"var(--amber)":ltv>0?"var(--red)":"var(--text-d)"]];})()) as any[]:[]),
               ...(assetType==="Hotel"?[[
                 "GOP Margin",
                 hotelMode==="advanced"&&r.revenuePa>0?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—",
