@@ -36,6 +36,7 @@ Search for:
 5. Key demand drivers and seasonality factors affecting annual averages in this market
 
 IMPORTANT: Explicitly state whether data is annual average, trailing 12 months, or a specific year. Flag if you can only find seasonal/peak data.
+CRITICAL: Every comparable hotel MUST have a non-zero adr and adr_approx value. If exact data is unavailable, provide a market-based estimate and note it in the notes field. Never return 0 for adr — use your best estimate based on the hotel category and location.
 
 Return ONLY this JSON:
 {
