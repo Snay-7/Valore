@@ -135,6 +135,38 @@ const TRASH_DAYS = 3;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -151,6 +183,8 @@ export default function Dashboard() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [experienceLevel, setExperienceLevel] = useState<string|null>(null);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const [userRole, setUserRole] = useState<string|null>(null);
+  const [userCompany, setUserCompany] = useState("");
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoDismissed, setVideoDismissed] = useState(false);
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
@@ -184,6 +218,10 @@ export default function Dashboard() {
 
 
 
+
+
+
+
   // Onboarding — show once if user hasn't set experience level
   useEffect(() => {
     const done = localStorage.getItem("valora_onboarding_done");
@@ -197,10 +235,12 @@ export default function Dashboard() {
       // Check Supabase first — if experience_level exists, onboarding is done
       supabase
         .from("profiles")
-        .select("experience_level")
+        .select("experience_level, role, company")
         .eq("id", user.id)
         .single()
         .then(({ data: profile }) => {
+          if (profile?.role) setUserRole(profile.role);
+          if (profile?.company) setUserCompany(profile.company);
           if (profile?.experience_level) {
             setExperienceLevel(profile.experience_level);
             setOnboardingDone(true);
@@ -215,6 +255,10 @@ export default function Dashboard() {
       setOnboardingDone(true);
     }
   }, [user]);
+
+
+
+
 
 
 
@@ -234,20 +278,25 @@ export default function Dashboard() {
     });
   };
 
+
   const completeOnboarding = async (level: string) => {
     setExperienceLevel(level);
     localStorage.setItem("valora_onboarding_done", "true");
     localStorage.setItem("valora_experience_level", level);
-    // Save to Supabase profiles table
+    // Save role + company + experience_level to Supabase
     if (user?.id) {
       await supabase
         .from("profiles")
-        .upsert({ id: user.id, experience_level: level, updated_at: new Date().toISOString() })
+        .upsert({ id: user.id, experience_level: level, role: userRole, company: userCompany||null, onboarding_completed: true, updated_at: new Date().toISOString() })
         .eq("id", user.id);
     }
     setOnboardingDone(true);
     setShowOnboarding(false);
   };
+
+
+
+
 
 
 
@@ -258,6 +307,38 @@ export default function Dashboard() {
   };
   const isStarter = tier === "starter";
   const activeProjectLimit = isPro ? Infinity : isStarter ? 10 : 3;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -335,6 +416,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null);
@@ -342,6 +455,38 @@ export default function Dashboard() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -426,7 +571,71 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -471,6 +680,38 @@ export default function Dashboard() {
     setCreating(false);
     tickChecklist("created_appraisal");
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -591,11 +832,75 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const openProject = (project: any) => {
     const latest = project.appraisals?.[0];
     if (latest) router.push(`/appraisal?project=${project.id}&appraisal=${latest.id}`);
     else router.push(`/appraisal?project=${project.id}`);
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -667,11 +972,75 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const restoreProject = async (projectId: string) => {
     await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
     const project = trashedProjects.find(p => p.id === projectId);
     if (project) { const { _daysLeft, deleted_at, ...restored } = project; setTrashedProjects(prev => prev.filter(p => p.id !== projectId)); setProjects(prev => [{ ...restored, deleted_at: null }, ...prev]); }
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -742,10 +1111,74 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const emptyTrash = async () => {
     for (const p of trashedProjects) { await supabase.from("appraisals").delete().eq("project_id", p.id); await supabase.from("projects").delete().eq("id", p.id); }
     setTrashedProjects([]); setConfirmDelete(null);
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -783,6 +1216,38 @@ export default function Dashboard() {
   const totalProfit = projects.reduce((s, p) => s + (p.appraisals?.[0]?.profit || 0), 0);
   const avgPoC = (() => { const v = projects.filter(p => p.appraisals?.[0]?.profit_on_cost != null); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
   const avgIRR = (() => { const v = projects.filter(p => p.appraisals?.[0]?.irr_unlevered); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].irr_unlevered || 0), 0) / v.length : 0; })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -855,10 +1320,74 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
       <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -897,6 +1426,38 @@ export default function Dashboard() {
           <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff"}}>Valora</span>
           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 2, fontFamily:"var(--font-body)" }}>Development Appraisal</div>
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -985,6 +1546,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         <div style={{ padding: "10px 10px 0", borderTop: "1px solid var(--border)" }}>
           <button className="btn-demo" onClick={() => window.open(CALENDLY, "_blank")}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1020,6 +1613,7 @@ export default function Dashboard() {
             </div>
           )}
 
+
           <div style={{ padding: "10px 0 14px" }}>
             <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -1038,6 +1632,38 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1104,6 +1730,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         {/* Mobile top bar */}
         <div className="mobile-topbar">
           <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:15,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff"}}>Valora</span>
@@ -1124,6 +1782,38 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1241,6 +1931,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         {/* ── PORTFOLIO VIEW ── */}
         {view === "portfolio" && (
           <>
@@ -1306,11 +2028,106 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {/* ── WELCOME MODAL ── */}
             {showOnboarding && (
               <div style={{ position:"fixed", inset:0, background:"rgba(30,36,51,.55)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, backdropFilter:"blur(4px)" }}>
                 <div style={{ background:"var(--bg2)", border:"1px solid var(--border-m)", borderRadius:16, padding:"32px 32px 28px", width:460, maxWidth:"calc(100vw - 32px)", position:"relative", animation:"fadeIn .25s ease" }}>
                   {onboardingStep === 0 && (
+                    <>
+                      <div style={{ width:44, height:44, borderRadius:10, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:18 }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                      </div>
+                      <div style={{ fontSize:11, fontWeight:600, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em", marginBottom:8 }}>Welcome to Valora</div>
+                      <div style={{ fontSize:22, fontWeight:700, color:"var(--text)", letterSpacing:"-.02em", lineHeight:1.2, marginBottom:8 }}>One quick question.</div>
+                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.65, marginBottom:20 }}>
+                        What best describes your role? We'll send you a tailored guide based on your answer.
+                      </div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+                        {[
+                          { key:"developer", label:"Developer / Sponsor", sub:"Ground-up development, acquisitions, value-add", icon:"🏗" },
+                          { key:"lender", label:"Lender / Debt Fund", sub:"Underwriting loans, credit analysis, DSCR", icon:"🏦" },
+                          { key:"advisor", label:"Advisor / Investment Manager", sub:"Advisory, fund management, buy/sell-side", icon:"📊" },
+                          { key:"surveyor", label:"Surveyor / Valuer", sub:"Residual valuations, RICS appraisals", icon:"📐" },
+                          { key:"hotel_investor", label:"Hotel Investor / Operator", sub:"Hotel acquisitions, repositioning, operations", icon:"🏨" },
+                          { key:"hotel_asset_manager", label:"Hotel Asset Manager", sub:"Asset management, performance monitoring, LP reporting", icon:"📈" },
+                        ].map(opt => (
+                          <button key={opt.key} onClick={() => { setUserRole(opt.key); setOnboardingStep(1); }}
+                            style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg3)", cursor:"pointer", textAlign:"left", transition:"all .15s", width:"100%" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--gold)"; (e.currentTarget as HTMLElement).style.background="var(--gold-bg)"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--border)"; (e.currentTarget as HTMLElement).style.background="var(--bg3)"; }}>
+                            <span style={{ fontSize:16, flexShrink:0 }}>{opt.icon}</span>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:600, color:"var(--text)", marginBottom:1 }}>{opt.label}</div>
+                              <div style={{ fontSize:11, color:"var(--text-d)" }}>{opt.sub}</div>
+                            </div>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-d)" strokeWidth="2" strokeLinecap="round" style={{ marginLeft:"auto", flexShrink:0 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize:11, color:"var(--text-d)", textAlign:"center" }}>You can change this anytime</div>
+                    </>
+                  )}
+                  {onboardingStep === 1 && (
+                    <>
+                      <div style={{ width:44, height:44, borderRadius:10, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:18 }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                      </div>
+                      <div style={{ fontSize:11, fontWeight:600, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".1em", marginBottom:8 }}>Almost there</div>
+                      <div style={{ fontSize:22, fontWeight:700, color:"var(--text)", letterSpacing:"-.02em", lineHeight:1.2, marginBottom:8 }}>What's your company name?</div>
+                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.65, marginBottom:20 }}>
+                        We'll include it in your personalised welcome guide.
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. Stonweg, CBRE, Self-employed..."
+                        value={userCompany}
+                        onChange={e => setUserCompany(e.target.value)}
+                        style={{ width:"100%", padding:"12px 14px", borderRadius:8, border:"1px solid var(--border)", background:"var(--bg3)", color:"var(--text)", fontSize:13, fontFamily:"var(--font-body)", outline:"none", boxSizing:"border-box", marginBottom:16 }}
+                        onKeyDown={e => { if(e.key==="Enter") setOnboardingStep(2); }}
+                        autoFocus
+                      />
+                      <button className="btn-primary" style={{ width:"100%", padding:"13px", fontSize:13, justifyContent:"center" }}
+                        onClick={() => setOnboardingStep(2)}>
+                        Continue →
+                      </button>
+                      <button onClick={() => setOnboardingStep(2)} style={{ width:"100%", background:"none", border:"none", fontSize:12, color:"var(--text-d)", cursor:"pointer", padding:"8px", marginTop:4 }}>
+                        Skip
+                      </button>
+                    </>
+                  )}
+                  {onboardingStep === 2 && (
                     <>
                       {/* Icon */}
                       <div style={{ width:44, height:44, borderRadius:10, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:18 }}>
@@ -1327,7 +2144,7 @@ export default function Dashboard() {
                           { key:"intermediate", label:"Experienced investor", sub:"I've run deals before — I need a faster, cleaner model", icon:"◈" },
                           { key:"professional", label:"Professional underwriter", sub:"Development finance, fund management or advisory", icon:"◉" },
                         ].map(opt => (
-                          <button key={opt.key} onClick={() => { setOnboardingStep(1); completeOnboarding(opt.key); }}
+                          <button key={opt.key} onClick={() => { setOnboardingStep(3); completeOnboarding(opt.key); }}
                             style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg3)", cursor:"pointer", textAlign:"left", transition:"all .15s", width:"100%" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--gold)"; (e.currentTarget as HTMLElement).style.background="var(--gold-bg)"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--border)"; (e.currentTarget as HTMLElement).style.background="var(--bg3)"; }}>
@@ -1343,7 +2160,7 @@ export default function Dashboard() {
                       <div style={{ fontSize:11, color:"var(--text-d)", textAlign:"center" }}>You can change this anytime · No credit card required</div>
                     </>
                   )}
-                  {onboardingStep === 1 && (
+                  {onboardingStep === 3 && (
                     <>
                       <div style={{ width:44, height:44, borderRadius:10, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:18 }}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1375,6 +2192,10 @@ export default function Dashboard() {
 
 
 
+
+
+
+
             {/* ── VIDEO MODAL ── */}
             {showVideoModal && (
               <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}
@@ -1391,6 +2212,10 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+
+
+
+
 
 
 
@@ -1437,6 +2262,10 @@ export default function Dashboard() {
 
 
 
+
+
+
+
             {/* Trial banner */}
             {isTrialing && (
               <div style={{ background:"rgba(82,196,152,.08)", border:"1px solid var(--gold-border)", borderRadius:10, padding:"12px 16px", marginBottom:18, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
@@ -1447,6 +2276,38 @@ export default function Dashboard() {
                 <button className="btn-primary" style={{ padding:"6px 14px", fontSize:11, flexShrink:0 }} onClick={() => router.push("/pricing")}>Upgrade Now</button>
               </div>
             )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1521,6 +2382,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {/* Upgrade limit warning */}
             {!isPro && totalProjectCount >= activeProjectLimit && (
               <div style={{ background: "rgba(240,164,41,.06)", border: "1px solid rgba(240,164,41,.2)", borderRadius: 8, padding: "10px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -1528,6 +2421,38 @@ export default function Dashboard() {
                 <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "6px 14px", fontSize: 12 }}>Upgrade →</button>
               </div>
             )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1642,6 +2567,71 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {/* Filter tabs */}
             {projects.length > 0 && (
               <div className="filter-tabs">
@@ -1655,6 +2645,38 @@ export default function Dashboard() {
                 })}
               </div>
             )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1738,6 +2760,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
                         <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "var(--gold-bg)", color: "var(--gold)", fontWeight: 600, letterSpacing: ".04em" }}>{ASSET_LABELS[p.asset_type] || p.asset_type}</span>
                         <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 8, background: "rgba(125,133,144,.1)", color: "#7d8590" }}>{latest?.status || "draft"}</span>
@@ -1777,8 +2831,72 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 3, fontFamily: "var(--font-display)", letterSpacing: ".02em" }}>{p.name || "Untitled"}</h3>
                       <p style={{ fontSize: 12, color: "var(--text-m)", marginBottom: 14 }}>{p.location || "No location set"}</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1859,6 +2977,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--bg4)" }}>
                         <span style={{ fontSize: 11, color: "var(--text-d)" }}>{p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}</span>
                         <span style={{ fontSize: 11, color: "var(--gold)", fontFamily: "var(--font-mono)" }}>{latest?.irr_unlevered ? `IRR ${fmtPct(latest.irr_unlevered)}` : "Open →"}</span>
@@ -1902,6 +3052,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         {/* ── URL IMPORT MODAL ── */}
         {showUrlModal && (
           <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowUrlModal(false); setUrlImportError(null); } }}>
@@ -1913,6 +3095,38 @@ export default function Dashboard() {
               <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 22 }}>
                 Paste a listing URL from Rightmove, Zoopla, Christie & Co, Savills Hotels or similar — Valora will extract the property data and pre-fill your appraisal.
               </p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1997,6 +3211,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               {/* Currency */}
               <div className="inp-group">
                 <label className="inp-label">Currency</label>
@@ -2004,6 +3250,38 @@ export default function Dashboard() {
                   {CURRENCIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2081,10 +3359,74 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               {/* Info note */}
               <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 12px", marginBottom: 16, fontSize: 11, color: "var(--text-d)", lineHeight: 1.6 }}>
                 ◆ Valora uses AI to infer property data from the URL pattern. The more detail in the URL, the better the extraction. You can always edit fields after import.
               </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2154,6 +3496,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn-ghost" onClick={() => { setShowUrlModal(false); setUrlImportError(null); setUrlImport(""); }} style={{ flex: 1 }}>Cancel</button>
                 <button className="btn-primary" onClick={createFromUrl} disabled={!urlImport.trim() || urlImporting} style={{ flex: 2, opacity: !urlImport.trim() ? 0.5 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -2165,6 +3539,38 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2266,6 +3672,38 @@ export default function Dashboard() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         {/* ── CONFIRM DELETE MODAL ── */}
         {confirmDelete && (
           <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
@@ -2288,6 +3726,38 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2350,4 +3820,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
