@@ -175,8 +175,8 @@ function buildDrawdownProfile(months:number,costProfile:string):number[]{
     return t-tP;
   });
 }
-function calcFinanceCostMonthly(p:{landCost:number;sdlt:number;buildCost:number;buildMonths:number;annualRate:number;ltcPct:number;arrangementFeePct:number;exitFeePct?:number;costProfile:string;}):{totalFinanceCost:number;arrangementFee:number;interestCost:number;exitFee:number;monthlyInterestArr:number[];monthlyDrawArr:number[];peakLoanBalance:number;loanAmount:number}{
-  const{landCost,sdlt,buildCost,buildMonths,annualRate,ltcPct,arrangementFeePct,exitFeePct=0,costProfile}=p;
+function calcFinanceCostMonthly(p:{landCost:number;sdlt:number;buildCost:number;buildMonths:number;annualRate:number;ltcPct:number;arrangementFeePct:number;exitFeePct?:number;costProfile:string;presaleDelayMonths?:number;}):{totalFinanceCost:number;arrangementFee:number;interestCost:number;exitFee:number;monthlyInterestArr:number[];monthlyDrawArr:number[];peakLoanBalance:number;loanAmount:number}{
+  const{landCost,sdlt,buildCost,buildMonths,annualRate,ltcPct,arrangementFeePct,exitFeePct=0,costProfile,presaleDelayMonths=0}=p;
   const mRate=annualRate/12;
   const loanAmount=(landCost+sdlt+buildCost)*ltcPct;
   const landDraw=(landCost+sdlt)*ltcPct;
@@ -184,10 +184,16 @@ function calcFinanceCostMonthly(p:{landCost:number;sdlt:number;buildCost:number;
   const profile=buildDrawdownProfile(buildMonths,costProfile);
   const monthlyDrawArr:number[]=[],monthlyInterestArr:number[]=[];
   let bal=0;
+  const delayMonths=Math.min(Math.max(0,Math.round(presaleDelayMonths)),buildMonths);
   for(let m=0;m<buildMonths;m++){
-    const draw=m===0?landDraw+buildLoanTotal*profile[m]:buildLoanTotal*profile[m];
-    bal+=draw;const interest=bal*mRate;bal+=interest;
-    monthlyDrawArr.push(draw);monthlyInterestArr.push(interest);
+    if(m<delayMonths){
+      monthlyDrawArr.push(0);monthlyInterestArr.push(0);
+    } else {
+      const isFirstDraw=(m===delayMonths);
+      const draw=isFirstDraw?landDraw+buildLoanTotal*profile[m]:buildLoanTotal*profile[m];
+      bal+=draw;const interest=bal*mRate;bal+=interest;
+      monthlyDrawArr.push(draw);monthlyInterestArr.push(interest);
+    }
   }
   const peakLoanBalance=bal;
   const interestCost=monthlyInterestArr.reduce((a,b)=>a+b,0);
@@ -6300,8 +6306,26 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 // ─── VAT LABEL HELPER ─────────────────────────────────────────────────────────
 function vatLabel(currency:string):string{
-  const map:Record<string,string>={GBP:"VAT (UK)",USD:"Sales Tax (US)",EUR:"VAT (EU)",AED:"VAT (UAE)",MXN:"IVA (MX)",BRL:"ICMS/ISS (BR)",COP:"IVA (CO)",CLP:"IVA (CL)",PEN:"IGV (PE)",ARS:"IVA (AR)",SGD:"GST (SG)",AUD:"GST (AU)",JPY:"Consumption Tax (JP)",CHF:"VAT (CH)",CAD:"GST/HST (CA)",HKD:"Tax (HK)",INR:"GST (IN)",TRY:"KDV (TR)",ZAR:"VAT (ZA)",THB:"VAT (TH)",IDR:"PPN (ID)",PHP:"VAT (PH)",KWD:"Tax (KW)",QAR:"Tax (QA)",BHD:"Tax (BH)"};
-  return map[currency]||"VAT / Tax";
+  const map:Record<string,string>={GBP:"VAT (UK)",USD:"Sales Tax (US)",EUR:"IVA (EU)",AED:"VAT (UAE)",MXN:"IVA (MX)",BRL:"ICMS/ISS (BR)",COP:"IVA (CO)",CLP:"IVA (CL)",PEN:"IGV (PE)",ARS:"IVA (AR)",SGD:"GST (SG)",AUD:"GST (AU)",JPY:"Consumption Tax (JP)",CHF:"MWST (CH)",CAD:"GST/HST (CA)",HKD:"Tax (HK)",INR:"GST (IN)",TRY:"KDV (TR)",ZAR:"VAT (ZA)",THB:"VAT (TH)",IDR:"PPN (ID)",PHP:"VAT (PH)",KWD:"Tax (KW)",QAR:"Tax (QA)",BHD:"Tax (BH)"};
+  return map[currency]||"Construction Tax";
+}
+// Currencies where hard/soft costs are taxed at different rates (sunk cost jurisdictions)
+function usesSplitVAT(currency:string):boolean{
+  return ["EUR","BRL","COP","CLP","PEN","ARS"].includes(currency);
+}
+// Currencies where VAT is recoverable (exclude from total cost)
+function vatIsRecoverable(currency:string):boolean{
+  return currency==="GBP";
+}
+// Helper text per currency
+function vatHelperText(currency:string,isSplit:boolean):string{
+  if(currency==="GBP") return "UK: 0% resi new build (zero-rated) · 20% commercial · Recoverable via VAT return — excluded from total cost";
+  if(currency==="USD") return "Sales tax on construction varies by state — often 0% on materials. Set 0% if exempt in your jurisdiction.";
+  if(currency==="EUR") return "IVA is a sunk cost — not recoverable. Hard costs (build) and soft costs (fees) are typically taxed at different rates.";
+  if(currency==="AED") return "UAE VAT is 5% flat on all construction costs — sunk cost, not recoverable for most residential developers.";
+  if(currency==="AUD"||currency==="SGD"||currency==="CAD") return "GST is generally recoverable for registered developers — set 0% if claiming input credits.";
+  if(["BRL","COP","CLP","PEN","ARS"].includes(currency)) return "Construction tax is a sunk cost in most LATAM jurisdictions — not recoverable. Hard and soft costs may be taxed differently.";
+  return "Set applicable rate for your jurisdiction. Leave 0% if construction tax does not apply.";
 }
 function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="BTR"){
@@ -6320,8 +6344,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
     const contingency=buildCost*(num(String(data.contingencyPct))/100);
     const otherCosts=num(String(data.otherCosts));
-    const vatPct=num(String(data.vatPct||0))/100;
-    const vat=(buildCost+profFees)*vatPct;
+    const isSplitVat=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVat=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPct=isSplitVat?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const softVatPct=isSplitVat?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const vatRaw=buildCost*hardVatPct+(profFees+contingency)*softVatPct;
+    const vat=isRecoverableVat?0:vatRaw;
     const cil=num(String(data.cilPsf||0))*totalSqft;
     const s106=num(String(data.s106||0));
     const devCost=buildCost+profFees+contingency+otherCosts+vat+cil+s106;
@@ -6330,7 +6358,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths))));
     const stabMonths=Math.max(1,Math.round(num(String(data.stabilisationMonths))));
     const totalMonths=buildMonths+stabMonths;
-    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:devCost,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve"});
+    const presaleDelayMonthsBTR=Math.max(0,num(String(data.presaleDelayMonths||0)));
+    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:devCost,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve",presaleDelayMonths:presaleDelayMonthsBTR});
     const totalCost=landCost+sdlt+devCost+fin.totalFinanceCost;
     const profit=gdv-totalCost;
     const poc=totalCost>0?profit/totalCost:0;
@@ -6355,7 +6384,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const irrLevered=equity>0&&isFinite(rawIrrLBTR)&&rawIrrLBTR>-1&&rawIrrLBTR<100?Math.pow(1+rawIrrLBTR,12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
     const breakEvenYield=findBreakEvenYield(noi,totalCost);
-    return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,vat,cil,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,yoc,irr,irrLevered,rlv,dscr,moic,equity,paybackMonth,breakEvenYield,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
+    return{gdv,noi,grossRentPa,totalSqft,totalUnits,landCost,sdlt,buildCost,profFees,contingency,devCost,vat,cil,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,yoc,irr,irrLevered,rlv,dscr,moic,equity,paybackMonth,breakEvenYield,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
   }
   if(assetType==="BTS"){
     const units=data.units||[];
@@ -6370,8 +6399,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=buildCost*(num(String(data.professionalFeesPct))/100);
     const contingency=buildCost*(num(String(data.contingencyPct))/100);
     const otherCosts=num(String(data.otherCosts));
-    const vatPct=num(String(data.vatPct||0))/100;
-    const vat=(buildCost+profFees)*vatPct;
+    const isSplitVatBTS=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVatBTS=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPctBTS=isSplitVatBTS?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const softVatPctBTS=isSplitVatBTS?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const vatRawBTS=buildCost*hardVatPctBTS+(profFees+contingency)*softVatPctBTS;
+    const vat=isRecoverableVatBTS?0:vatRawBTS;
     const cil=num(String(data.cilPsf||0))*totalSqft;
     const s106=num(String(data.s106||0));
     const buildCosts=buildCost+profFees+contingency+otherCosts+vat+cil+s106;
@@ -6382,7 +6415,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths))));
     const absMonths=Math.max(1,Math.round(num(String(data.absorptionMonths)))); // guard: min 1 prevents division by zero below
     const totalMonths=buildMonths+absMonths;
-    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:buildCosts,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve"});
+    const presaleDelayMonthsBTS=Math.max(0,num(String(data.presaleDelayMonths||0)));
+    const fin=calcFinanceCostMonthly({landCost,sdlt,buildCost:buildCosts,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct))/100,costProfile:data.costProfile??"scurve",presaleDelayMonths:presaleDelayMonthsBTS});
     const totalCost=landCost+sdlt+devCost+fin.totalFinanceCost;
     const profit=gdv-totalCost;
     const poc=totalCost>0?profit/totalCost:0;
@@ -6408,7 +6442,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const irrLevered=equity>0&&isFinite(rawIrrL)&&rawIrrL>-1&&rawIrrL<100?Math.pow(1+rawIrrL,12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
     const breakEvenPsf=findBreakEvenSalePsf(units.map((u:any)=>({count:num(String(u.count)),size:num(String(u.size)),salePricePsf:num(String(u.salePricePsf))})),totalCost);
-    return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,devCost,vat,cil,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,margin,irr,irrLevered,equity,moic,paybackMonth,breakEvenPsf,financeRate:annualRate,buildProfile,buildMonths,absMonths,totalMonths,uCfs,lCfs};
+    return{gdv,totalSqft,totalUnits,landCost,sdlt,buildCost,profFees,contingency,devCost,vat,cil,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalCost,profit,poc,margin,irr,irrLevered,equity,moic,paybackMonth,breakEvenPsf,financeRate:annualRate,buildProfile,buildMonths,absMonths,totalMonths,uCfs,lCfs};
   }
   if(assetType==="Hotel"){
     const hr=calcHotelRev(data);
@@ -6433,8 +6467,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=capex*(num(String(data.professionalFeesPct))/100);
     const contingency=capex*(num(String(data.contingencyPct))/100);
     const otherCosts=num(String(data.otherCosts));
-    const vatPct=num(String(data.vatPct||0))/100;
-    const vat=(capex+profFees)*vatPct;
+    const isSplitVatH=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVatH=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPctH=isSplitVatH?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const softVatPctH=isSplitVatH?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const vatRawH=capex*hardVatPctH+profFees*softVatPctH;
+    const vat=isRecoverableVatH?0:vatRawH;
     const s106=num(String(data.s106||0));
     const hardCost=purchasePrice+sdlt+capex+profFees+contingency+otherCosts+vat+s106;
     const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
@@ -6467,7 +6505,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const irr=Math.pow(1+calcIRR(uCfs),12)-1;
     const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
-    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
+    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,profFees,contingency,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
   }
   if(assetType==="Flip"){
     const purchase=num(String(data.purchasePrice));
@@ -6646,8 +6684,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     }
     const contingency=refurb*(num(String(data.contingencyPct||10))/100);
     const other=num(String(data.otherCosts||0));
-    const vatPct=num(String(data.vatPct||0))/100;
-    const vat=(refurb+profFees)*vatPct;
+    const isSplitVatFlip=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVatFlip=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPctFlip=isSplitVatFlip?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const softVatPctFlip=isSplitVatFlip?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+    const vatRawFlip=refurb*hardVatPctFlip+profFees*softVatPctFlip;
+    const vat=isRecoverableVatFlip?0:vatRawFlip;
     const s106=num(String(data.s106||0));
 
 
@@ -7169,7 +7211,9 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       const buildCostPsf=num(String(z.buildCostPsf||0));
       const buildCost=totalSqft*buildCostPsf;
       const zVatPct=num(String(z.vatPct??vatSchemePct*100))/100;
-      const vat=(buildCost+buildCost*profFeesPct)*zVatPct;
+      const isRecoverableVatMU=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+      const vatRawMU=(buildCost+buildCost*profFeesPct)*zVatPct;
+      const vat=isRecoverableVatMU?0:vatRawMU;
       const profFees=buildCost*profFeesPct;
       const contingency=buildCost*contingencyPct;
       const cil=totalSqft*cilPsf*(z.status==="refurb"||z.status==="active"?0:1); // CIL on new build floorspace; refurb/active zones exempt
@@ -7725,8 +7769,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=buildCost*(num(String(data.professionalFeesPct||8))/100);
     const contingency=buildCost*(num(String(data.contingencyPct||5))/100);
     const otherCosts=num(String(data.otherCosts||0));
-    const vatPct=num(String(data.vatPct||20))/100;
-    const vat=(buildCost+profFees)*vatPct;
+    const isSplitVatCom=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVatCom=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPctCom=isSplitVatCom?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||20))/100;
+    const softVatPctCom=isSplitVatCom?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||20))/100;
+    const vatRawCom=buildCost*hardVatPctCom+(profFees+contingency)*softVatPctCom;
+    const vat=isRecoverableVatCom?0:vatRawCom;
     const cil=num(String(data.cilPsf||0))*totalAreaSqft;
     const s106=num(String(data.s106||0));
     const devCost=buildCost+profFees+contingency+otherCosts+vat+cil+s106;
@@ -8448,8 +8496,12 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profFees=buildCost*(num(String(data.professionalFeesPct||8))/100);
     const contingency=buildCost*(num(String(data.contingencyPct||5))/100);
     const otherCosts=num(String(data.otherCosts||0));
-    const vatPct=num(String(data.vatPct||20))/100;
-    const vat=(buildCost+profFees)*vatPct;
+    const isSplitVatInd=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+    const isRecoverableVatInd=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+    const hardVatPctInd=isSplitVatInd?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||20))/100;
+    const softVatPctInd=isSplitVatInd?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||20))/100;
+    const vatRawInd=buildCost*hardVatPctInd+(profFees+contingency)*softVatPctInd;
+    const vat=isRecoverableVatInd?0:vatRawInd;
     const cil=num(String(data.cilPsf||0))*totalAreaSqft;
     const s106=num(String(data.s106||0));
     const devCost=buildCost+profFees+contingency+otherCosts+vat+cil+s106;
@@ -8544,9 +8596,9 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 }
 // ─── DEFAULTS ─────────────────────────────────────────────────────────────────
 const DEFAULTS={
-  BTR:{assetType:"BTR",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  BTS:{assetType:"BTS",vatPct:0,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  Hotel:{assetType:"Hotel",vatPct:20,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,noiMode:"normalised",actualNoi:0,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,hotelFinanceType:"full"},
+  BTR:{assetType:"BTR",vatPct:0,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:true,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,presaleDelayMonths:0,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
+  BTS:{assetType:"BTS",vatPct:0,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:true,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,presaleDelayMonths:0,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
+  Hotel:{assetType:"Hotel",vatPct:20,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:false,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,noiMode:"normalised",actualNoi:0,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,hotelFinanceType:"full"},
   Commercial:{assetType:"Commercial",name:"",location:"",currency:"GBP",noiMode:"normalised",actualNoi:0,benchmark:"SONIA",benchmarkRate:3.97,
     programmMonths:18,stabilisationMonths:12,areaUnit:"sqft",
     landCost:5000000,buildCostPsm:120,
@@ -9048,37 +9100,88 @@ function CashflowChart({uCfs,totalMonths,buildMonths,exitLabel,currencySymbol,ph
 function VATCILBlock({data,set,r,currencySymbol,showCIL=true}:{data:any;set:(f:string,v:any)=>void;r:any;currencySymbol:string;showCIL?:boolean}){
   const currency=data.currency||"GBP";
   const vLabel=vatLabel(currency);
-  const buildBase=r.totalBuildCost||(r.buildCost||r.capex||r.refurb||0)+(r.profFees||0);
-  const vatAmt=buildBase*(num(String(data.vatPct||0))/100);
+  const isSplit=usesSplitVAT(currency)||!!data.vatSplitMode;
+  const isRecoverable=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(currency);
+  const buildCostBase=r.buildCost||r.capex||r.refurb||0;
+  const softCostBase=(r.profFees||0)+(r.contingency||0);
+  // Calc VAT amounts
+  const hardVatAmt=isSplit?buildCostBase*(num(String(data.hardCostsVatPct||0))/100):buildCostBase*(num(String(data.vatPct||0))/100);
+  const softVatAmt=isSplit?softCostBase*(num(String(data.softCostsVatPct||0))/100):softCostBase*(num(String(data.vatPct||0))/100);
+  const vatAmt=hardVatAmt+softVatAmt;
   const cilAmt=showCIL?(r.totalSqft||r.propertySqft||0)*num(String(data.cilPsf||0)):0;
   const s106Amt=num(String(data.s106||0));
   const hasAny=vatAmt>0||cilAmt>0||s106Amt>0;
   return(
     <div style={{marginTop:20}}>
-      <div className="section-title">Planning & Tax Costs</div>
-      <div className="inp-row-3">
-        <div className="inp-group">
-          <label className="inp-label">{vLabel} on Build + Fees (%)</label>
-          <input className="inp" type="number" step="1" value={data.vatPct??""} onChange={e=>set("vatPct",e.target.value)} placeholder="e.g. 20"/>
-          <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>{currency==="GBP"?"UK: 0% resi new build · 20% commercial":"Applied to build cost + professional fees — set 0% if not applicable in your jurisdiction"}</div>
-        </div>
-        {showCIL&&<div className="inp-group">
-          <label className="inp-label">CIL (£/sqft new floorspace)</label>
-          <input className="inp" type="number" step="1" value={data.cilPsf??""} onChange={e=>set("cilPsf",e.target.value)} placeholder="0"/>
-          <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>Community Infrastructure Levy — check local authority rate</div>
-        </div>}
-        <div className="inp-group">
-          <label className="inp-label">Section 106 ({currencySymbol})</label>
-          <input className="inp" type="number" value={data.s106??""} onChange={e=>set("s106",e.target.value)} placeholder="0"/>
-          <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>Negotiated planning obligation — lump sum</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <div className="section-title" style={{marginBottom:0}}>Planning & Tax Costs</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>set("vatSplitMode",!data.vatSplitMode)}
+            style={{fontSize:10,padding:"3px 10px",borderRadius:20,border:`1px solid ${isSplit?"var(--gold-border)":"var(--border)"}`,background:isSplit?"var(--gold-bg)":"transparent",color:isSplit?"var(--gold)":"var(--text-d)",cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s"}}>
+            {isSplit?"Split rates ✓":"Split rates"}
+          </button>
+          <button onClick={()=>set("vatRecoverable",!isRecoverable)}
+            style={{fontSize:10,padding:"3px 10px",borderRadius:20,border:`1px solid ${isRecoverable?"var(--blue)":"var(--border)"}`,background:isRecoverable?"rgba(74,128,196,.1)":"transparent",color:isRecoverable?"var(--blue)":"var(--text-d)",cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .2s"}}>
+            {isRecoverable?"Recoverable ✓":"Sunk cost"}
+          </button>
         </div>
       </div>
+      {isRecoverable&&<div style={{fontSize:10,color:"var(--blue)",marginBottom:10,padding:"4px 10px",background:"rgba(74,128,196,.08)",borderRadius:6,border:"1px solid rgba(74,128,196,.2)"}}>Tax is recoverable — excluded from total cost and IRR calculation</div>}
+      {!isSplit?(
+        <div className="inp-row-3">
+          <div className="inp-group">
+            <label className="inp-label">{vLabel} on Build + Fees (%)</label>
+            <input className="inp" type="number" step="1" value={data.vatPct??""} onChange={e=>set("vatPct",e.target.value)} placeholder="0"/>
+            <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>{vatHelperText(currency,false)}</div>
+          </div>
+          {showCIL&&<div className="inp-group">
+            <label className="inp-label">CIL ({currencySymbol}/sqft)</label>
+            <input className="inp" type="number" step="1" value={data.cilPsf??""} onChange={e=>set("cilPsf",e.target.value)} placeholder="0"/>
+            <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>Community Infrastructure Levy — UK only, check local authority rate</div>
+          </div>}
+          <div className="inp-group">
+            <label className="inp-label">{currency==="GBP"?"Section 106":"Planning Levy"} ({currencySymbol})</label>
+            <input className="inp" type="number" value={data.s106??""} onChange={e=>set("s106",e.target.value)} placeholder="0"/>
+            <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>{currency==="GBP"?"Negotiated planning obligation — lump sum":"Planning contribution or levy — lump sum if applicable"}</div>
+          </div>
+        </div>
+      ):(
+        <>
+          <div className="inp-row">
+            <div className="inp-group">
+              <label className="inp-label">Hard Costs {vLabel} (%) <span style={{fontWeight:400,color:"var(--text-d)"}}>— Build cost</span></label>
+              <input className="inp" type="number" step="1" value={data.hardCostsVatPct??""} onChange={e=>set("hardCostsVatPct",e.target.value)} placeholder="0"/>
+              <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>Applied to build cost only{currency==="EUR"?" — e.g. Portugal 6% (affordable) / 23% (market rate)":""}</div>
+            </div>
+            <div className="inp-group">
+              <label className="inp-label">Soft Costs {vLabel} (%) <span style={{fontWeight:400,color:"var(--text-d)"}}>— Fees + contingency</span></label>
+              <input className="inp" type="number" step="1" value={data.softCostsVatPct??""} onChange={e=>set("softCostsVatPct",e.target.value)} placeholder="0"/>
+              <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>Applied to professional fees + contingency{currency==="EUR"?" — e.g. Portugal / Spain 23%":""}</div>
+            </div>
+          </div>
+          <div className="inp-row">
+            {showCIL&&<div className="inp-group">
+              <label className="inp-label">CIL ({currencySymbol}/sqft)</label>
+              <input className="inp" type="number" step="1" value={data.cilPsf??""} onChange={e=>set("cilPsf",e.target.value)} placeholder="0"/>
+              <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>UK only — Community Infrastructure Levy</div>
+            </div>}
+            <div className="inp-group">
+              <label className="inp-label">{currency==="GBP"?"Section 106":"Planning Levy"} ({currencySymbol})</label>
+              <input className="inp" type="number" value={data.s106??""} onChange={e=>set("s106",e.target.value)} placeholder="0"/>
+              <div style={{fontSize:9,color:"var(--text-d)",marginTop:3}}>{currency==="GBP"?"Negotiated planning obligation":"Planning contribution — lump sum if applicable"}</div>
+            </div>
+          </div>
+          <div style={{fontSize:10,color:"var(--text-d)",marginTop:4}}>{vatHelperText(currency,true)}</div>
+        </>
+      )}
       {hasAny&&(
         <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",marginTop:8,display:"flex",gap:20,flexWrap:"wrap"}}>
-          {vatAmt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>{vLabel}: </span><span style={{color:"var(--amber)"}}>{currencySymbol}{Math.round(vatAmt).toLocaleString()}</span></div>}
+          {vatAmt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>{vLabel}{isRecoverable?" (recoverable)":""}: </span><span style={{color:isRecoverable?"var(--blue)":"var(--amber)"}}>{currencySymbol}{Math.round(vatAmt).toLocaleString()}</span></div>}
+          {isSplit&&hardVatAmt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>Hard: </span><span style={{color:isRecoverable?"var(--blue)":"var(--amber)"}}>{currencySymbol}{Math.round(hardVatAmt).toLocaleString()}</span></div>}
+          {isSplit&&softVatAmt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>Soft: </span><span style={{color:isRecoverable?"var(--blue)":"var(--amber)"}}>{currencySymbol}{Math.round(softVatAmt).toLocaleString()}</span></div>}
           {cilAmt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>CIL: </span><span style={{color:"var(--amber)"}}>{currencySymbol}{Math.round(cilAmt).toLocaleString()}</span></div>}
           {s106Amt>0&&<div style={{fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>S106: </span><span style={{color:"var(--amber)"}}>{currencySymbol}{Math.round(s106Amt).toLocaleString()}</span></div>}
-          <div style={{marginLeft:"auto",fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>Total: </span><span style={{color:"var(--gold)",fontWeight:600}}>{currencySymbol}{Math.round(vatAmt+cilAmt+s106Amt).toLocaleString()}</span></div>
+          <div style={{marginLeft:"auto",fontSize:11,fontFamily:"var(--font-mono)"}}><span style={{color:"var(--text-d)"}}>Total{isRecoverable?" (excl. from cost)":""}: </span><span style={{color:isRecoverable?"var(--blue)":"var(--gold)",fontWeight:600}}>{currencySymbol}{Math.round((isRecoverable?0:vatAmt)+cilAmt+s106Amt).toLocaleString()}</span></div>
         </div>
       )}
     </div>
@@ -15469,7 +15572,7 @@ ${assetType==="Hotel"?`Deal Type: Hotel Acquisition (NOT a development — progr
 ${assetType==="Flip"?`Purchase: ${fmt(r.purchase||0,currSym)} | Refurb: ${fmt(r.refurb||0,currSym)} | Sale Price: ${fmt(r.salePrice||0,currSym)}\nBridging LTV: ${data.flipLTV||75}% | Rate: ${data.bridgingRatePct||0.85}%pm | Term: ${data.bridgingTermMonths||6}m\nMode: ${data.flipMode==="hold"?"Bridge + Hold (BTL)":"Bridge + Sell"}`:""}
 ${assetType==="MixedUse"?`Zones: ${(data.zones||[]).map((z:any)=>`${z.label||z.type} (${z.type}) ${currSym}${z.buildCostPsf||0}psf`).join(", ")}\nTotal GDV: ${fmt(r.totalGDV||0,currSym)} | Blended IRR: ${fmtPct(r.irr||0)}`:""}
 ${assetType==="Commercial"?`Units: ${(data.units||[]).map((u:any)=>`${u.label||u.type}: ${currSym}${u.erv||0}psf ERV, ${u.area||0}sqm`).join(", ")}\nExit Method: ${data.exitMethod||"NIY"} | NIY: ${data.targetNIY||data.niy||0}%`:""}
-Finance: ${assetType==="Flip"?`Bridging rate ${data.bridgingRatePct||0}%pm | LTV ${data.flipLTV||75}%`:`LTC ${data.ltc||0}% | Benchmark: ${data.benchmark||"SONIA"} + ${data.marginOverBenchmark||0}% | All-in: ${r.financeRate?(r.financeRate*100).toFixed(2):"N/A"}%`}
+Finance: ${assetType==="Flip"?`Bridging rate ${data.bridgingRatePct||0}%pm | LTV ${data.flipLTV||75}%`:`LTC ${data.ltc||0}% | Benchmark: ${data.benchmark||"SONIA"} + ${data.marginOverBenchmark||0}% | All-in: ${r.financeRate?(r.financeRate*100).toFixed(2):"N/A"}%`}${(assetType==="BTR"||assetType==="BTS")&&num(String(data.presaleDelayMonths||0))>0?` | Presale threshold financing active — loan drawdown delayed ${data.presaleDelayMonths} months until presale threshold met. Lower finance cost vs day-one LTC is intentional and correct — do NOT flag as unusually low.`:""}
 Prof Fees: ${data.professionalFeesPct||0}% | Contingency: ${data.contingencyPct||0}%
 Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)} | Cost ${fmt(r.totalCost||r.totalInvestment||0,currSym)} | Profit ${fmt(r.profit||0,currSym)} | PoC ${fmtPct(r.poc||r.roi||0)} | IRR ${fmtPct(r.irr||0)} | MOIC ${fmtX(r.moic||0)} | DSCR ${r.dscr>=999?"N/A (All Equity)":r.dscr&&isFinite(r.dscr)?fmtX(r.dscr):"N/A (no debt)"}`.trim();
     try{
@@ -16125,7 +16228,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 
 
 
-Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt(hotelAdv.interestTotal,currSym)} total hold`:`LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100).toFixed(2)+"%":"N/A"}`}`.trim();
+Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt(hotelAdv.interestTotal,currSym)} total hold`:`LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100).toFixed(2)+"%":"N/A"}`}${(assetType==="BTR"||assetType==="BTS")&&num(String(data.presaleDelayMonths||0))>0?`\nPresale Threshold Financing: Loan drawdown delayed ${data.presaleDelayMonths} months — equity only phase before finance releases. Finance cost is intentionally lower than standard day-one LTC structure.`:""}`.trim();
     try{
       const response=await fetch("/api/brochure",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary,assetType,hotelComps:assetType==="Hotel"?hotelComps:null,btrBtsComps:(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,flipComps:assetType==="Flip"?flipComps:null})});
       const parsed=await response.json();
@@ -16510,6 +16613,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div className="inp-group"><label className="inp-label">Stabilisation (months)</label><input className="inp" type="number" value={data.stabilisationMonths??""} onChange={e=>set("stabilisationMonths",e.target.value)}/></div>
                     </div>
                     <div className="inp-group"><label className="inp-label">Cost Profile</label><select className="inp" value={data.costProfile} onChange={e=>set("costProfile",e.target.value)}><option value="scurve">S-Curve (recommended)</option><option value="straight">Straight-Line</option><option value="frontloaded">Front-Loaded</option></select></div>
+                    <div style={{height:1,background:"var(--border)",margin:"16px 0"}}/>
+                    <div className="section-title">Presale Threshold Financing <span style={{fontSize:10,color:"var(--text-d)",fontWeight:400,marginLeft:6}}>optional</span></div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Delay loan drawdown until presale threshold is met. Leave at 0 for standard day-one financing.</div>
+                    <div className="inp-row">
+                      <div className="inp-group"><label className="inp-label">Presale Period (months)</label><input className="inp" type="number" min="0" max={data.programmMonths||36} value={data.presaleDelayMonths??""} placeholder="0" onChange={e=>set("presaleDelayMonths",e.target.value)}/><div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>Loan releases after this many months. Must be less than build programme.</div></div>
+                    </div>
                   </>
                 )}
                 {assetType==="Flip"&&(
@@ -16657,6 +16766,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct??""} onChange={e=>set("marketingPct",e.target.value)}/></div>
                 </div>
                 <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths??""} onChange={e=>set("absorptionMonths",e.target.value)}/></div>
+                <div style={{height:1,background:"var(--border)",margin:"16px 0"}}/>
+                <div className="section-title">Presale Threshold Financing <span style={{fontSize:10,color:"var(--text-d)",fontWeight:400,marginLeft:6}}>optional</span></div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Delay loan drawdown until presale threshold is met. Leave at 0 for standard day-one financing.</div>
+                <div className="inp-row">
+                  <div className="inp-group"><label className="inp-label">Presale Period (months)</label><input className="inp" type="number" min="0" max={data.programmMonths||30} value={data.presaleDelayMonths??""} placeholder="0" onChange={e=>set("presaleDelayMonths",e.target.value)}/><div style={{fontSize:10,color:"var(--text-d)",marginTop:3}}>Loan releases after this many months. Must be less than build programme.</div></div>
+                </div>
               </div>
             )}
             {/* REVENUE HOTEL */}
