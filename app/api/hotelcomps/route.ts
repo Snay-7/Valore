@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  try {
-    const { location, starRating, currency, currentADR } = await req.json();
+const CURR_SYM: Record<string, string> = {
+  GBP: "£", USD: "$", EUR: "€", AED: "د.إ",
+  SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$",
+  MXN: "$MX", BRL: "R$", COP: "COP$", CLP: "CLP$", PEN: "S/", ARS: "AR$",
+  INR: "₹", TRY: "₺", ZAR: "R", THB: "฿", IDR: "Rp", PHP: "₱",
+  KWD: "KD", QAR: "QR", BHD: "BD",
+};
 
-    if (!location) {
-      return NextResponse.json({ error: "Location is required" }, { status: 400 });
-    }
-
-    const currSym: Record<string, string> = {
-      GBP: "£", USD: "$", EUR: "€", AED: "د.إ",
-      SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$",
-    };
-    const sym = currSym[currency || "GBP"] || "£";
-    const starLabel = starRating >= 5 ? "5-star luxury" : starRating >= 4 ? "4-star upscale" : "3-star midscale";
-
-    const systemPrompt = `You are a hotel investment analyst with deep knowledge of global hospitality markets.
+const SYSTEM_PROMPT = `You are a hotel investment analyst with deep knowledge of global hospitality markets.
 You have access to web search. Use it to find ANNUAL AVERAGE ADR data — not peak season rates, not current booking prices.
 Annual Average ADR = total rooms revenue for the full year divided by total occupied room nights for that year.
 This is the metric used in hotel investment appraisals, STR reports, and institutional underwriting.
@@ -23,7 +16,14 @@ Sources to search: STR Global reports, HVS, JLL Hotels, CBRE Hotels, Cushman & W
 Do NOT use Booking.com or Expedia current prices — those are point-in-time rack rates, not annual averages.
 After searching, respond ONLY with valid JSON. No markdown, no explanation, no text outside the JSON.`;
 
-    const userPrompt = `Find ANNUAL AVERAGE ADR benchmarks for hotels in: ${location}
+const HAIKU_SYSTEM_PROMPT = `You are a hotel investment analyst with deep knowledge of global hospitality markets.
+Provide ANNUAL AVERAGE ADR benchmarks based on your knowledge of institutional hotel market data.
+Annual Average ADR = total rooms revenue for the full year divided by total occupied room nights for that year.
+Respond ONLY with valid JSON. No markdown, no explanation, no text outside the JSON.
+Note in data_quality that this is knowledge-based estimate, not live search data.`;
+
+function buildPrompt(location: string, starLabel: string, starRating: number, sym: string, currentADR: number, currency: string) {
+  return `Find ANNUAL AVERAGE ADR benchmarks for hotels in: ${location}
 Star category being appraised: ${starLabel} (${starRating} star)
 Current ADR being modelled: ${sym}${currentADR}
 Currency: ${currency || "GBP"}
@@ -45,7 +45,7 @@ Return ONLY this JSON:
     "5star": { "low": 0, "high": 0, "avg": 0, "occupancy": 0 }
   },
   "comparable_hotels": [
-    { "name": "Hotel Name", "stars": 4, "adr": 0, "occupancy": 0, "revpar": 0, "notes": "Source and period" }
+    { "name": "Hotel Name", "stars": 4, "adr": 0, "adr_approx": 0, "occupancy": 0, "revpar": 0, "notes": "Source and period" }
   ],
   "data_period": "Annual average 2024 / T12M to Q3 2024 / etc",
   "data_quality": "annual_average | trailing_12m | seasonal_estimate | limited_data",
@@ -56,47 +56,117 @@ Return ONLY this JSON:
   "market_context": "2-3 sentences on the ${location} hotel market — demand drivers, supply pipeline, trading outlook",
   "location_identified": "${location}"
 }`;
+}
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "web-search-2025-03-05",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 3000,
-        system: systemPrompt,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+// Ensure adr_approx is always synced from adr on every comparable hotel
+function normaliseComps(parsed: any) {
+  if (parsed?.comparable_hotels?.length > 0) {
+    parsed.comparable_hotels = parsed.comparable_hotels.map((h: any) => ({
+      ...h,
+      adr_approx: h.adr_approx || h.adr || 0,
+      adr: h.adr || h.adr_approx || 0,
+    }));
+  }
+  return parsed;
+}
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error((err as any).error?.message || `API error ${response.status}`);
+async function callSonnet(prompt: string) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "web-search-2025-03-05",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      system: SYSTEM_PROMPT,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error?.message || `API error ${response.status}`);
+  }
+
+  const result = await response.json();
+  const fullText = (result.content || [])
+    .map((b: any) => (b.type === "text" ? b.text : ""))
+    .filter(Boolean)
+    .join("\n");
+
+  const clean = fullText.replace(/```json|```/g, "").trim();
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON in Sonnet response");
+  return normaliseComps(JSON.parse(jsonMatch[0]));
+}
+
+async function callHaiku(prompt: string) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 3000,
+      system: HAIKU_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any).error?.message || `Haiku API error ${response.status}`);
+  }
+
+  const result = await response.json();
+  const fullText = (result.content || [])
+    .map((b: any) => (b.type === "text" ? b.text : ""))
+    .filter(Boolean)
+    .join("\n");
+
+  const clean = fullText.replace(/```json|```/g, "").trim();
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON in Haiku response");
+  return normaliseComps(JSON.parse(jsonMatch[0]));
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { location, starRating, currency, currentADR } = await req.json();
+
+    if (!location) {
+      return NextResponse.json({ error: "Location is required" }, { status: 400 });
     }
 
-    const result = await response.json();
-    const fullText = (result.content || [])
-      .map((b: any) => (b.type === "text" ? b.text : ""))
-      .filter(Boolean)
-      .join("\n");
+    const sym = CURR_SYM[currency || "GBP"] || "£";
+    const starLabel = starRating >= 5 ? "5-star luxury" : starRating >= 4 ? "4-star upscale" : "3-star midscale";
+    const prompt = buildPrompt(location, starLabel, starRating, sym, currentADR, currency);
 
-    const clean = fullText.replace(/```json|```/g, "").trim();
-    const jsonMatch = clean.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: "Could not find ADR data for this location — try a more specific city name" },
-        { status: 422 }
-      );
+    // Try Sonnet with web search first, fall back to Haiku
+    try {
+      const result = await callSonnet(prompt);
+      return NextResponse.json(result);
+    } catch (sonnetErr) {
+      console.warn("hotelcomps: Sonnet failed, falling back to Haiku:", sonnetErr);
+      try {
+        const result = await callHaiku(prompt);
+        return NextResponse.json(result);
+      } catch (haikuErr) {
+        console.error("hotelcomps: Haiku fallback also failed:", haikuErr);
+        return NextResponse.json(
+          { error: "Could not find ADR data for this location — try a more specific city name" },
+          { status: 422 }
+        );
+      }
     }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    return NextResponse.json(parsed);
 
   } catch (err: any) {
     console.error("Hotel comps API error:", err);
