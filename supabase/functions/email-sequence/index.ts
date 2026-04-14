@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const FROM = "Isnayder at Valora <hello@valoraplatform.io>";
+const FROM = "Snayder at Valora <hello@valoraplatform.io>";
 const BASE_URL = "https://valoraplatform.io";
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 
@@ -64,7 +64,7 @@ function divider() {
   return `<div style="height:1px;background:#E8EAED;margin:24px 0;"></div>`;
 }
 function sig(ps?: string) {
-  return `${divider()}<p style="margin:0 0 4px;font-size:14px;color:#1E2433;">Isnayder</p>
+  return `${divider()}<p style="margin:0 0 4px;font-size:14px;color:#1E2433;">Snayder</p>
   <p style="margin:0;font-size:13px;color:#9AA3AF;">Valora</p>
   ${ps ? `<p style="margin:16px 0 0;font-size:13px;color:#9AA3AF;font-style:italic;">${ps}</p>` : ""}`;
 }
