@@ -5969,7 +5969,11 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   // Exit / disposal
   const exitCapRate=num(String(data.exitCapRate??5.75))/100;
-  const exitValue=exitCapRate>0?stabilisedNOI/exitCapRate:0;
+  // In Actual NOI mode, capitalise user-supplied NOI directly
+  const _advNoiMode=data.noiMode||"normalised";
+  const _advActualNoi=num(String(data.actualNoi||0));
+  const _exitNOI=_advNoiMode==="actual"&&_advActualNoi>0?_advActualNoi:stabilisedNOI;
+  const exitValue=exitCapRate>0?_exitNOI/exitCapRate:0;
   const exitValuePerKey=rooms>0?exitValue/rooms:0;
   const disposalCosts=exitValue*disposalCostPct;
   const netExitProceeds=exitValue-disposalCosts;
@@ -12356,8 +12360,10 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const stabilisedCapRate=num(String(data.stabilisedCapRate))/100;
     const exitCapRate=num(String(data.exitCapRate))/100;
     const revparGrowth=num(String(data.revparGrowthPct))/100;
+    // In Actual NOI mode, capitalise actual NOI directly (not back-calculated EBITDA)
+    const exitNOI=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:Math.max(0,ebitda-(hr.totalRev*(num(String(data.ffePct||3))/100)));
     const stabilisedValue=stabilisedCapRate>0?ebitda/stabilisedCapRate:0;
-    const exitValue=exitCapRate>0?(ebitda*(1+revparGrowth))/exitCapRate:0;
+    const exitValue=exitCapRate>0?(exitNOI*(1+revparGrowth))/exitCapRate:0;
     const purchasePrice=num(String(data.purchasePrice));
     const sdlt=calcSDLT(purchasePrice,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
     const capex=num(String(data.capexBudget));
