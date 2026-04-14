@@ -3366,6 +3366,14 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   // CapEx
   const capex=num(String(data.capexBudget||5000000));
   const capexPerKey=rooms>0?capex/rooms:0;
+  // VAT / IVA on CapEx
+  const _isSplitVatAdv=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+  const _isRecoverableAdv=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+  const _profFeesAdv=capex*(num(String(data.professionalFeesPct||5))/100);
+  const _hardVatPctAdv=_isSplitVatAdv?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+  const _softVatPctAdv=_isSplitVatAdv?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+  const _vatRawAdv=capex*_hardVatPctAdv+_profFeesAdv*_softVatPctAdv;
+  const vatAdv=_isRecoverableAdv?0:_vatRawAdv;
   const disposalCostPct=num(String(data.disposalCostPct??3.0))/100;
 
 
@@ -6478,7 +6486,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
   // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised)
-  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
+  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+vatAdv+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
   const equity=totalCost-loanAmount;
   // Profit: exit proceeds + NOI during hold (net of opex) minus total investment
   const netNOI=totalNOI-(supportingCosts+operatorFees)*holdYears;
@@ -11666,6 +11674,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     loanAmount,interestTotal,arrangementFee,exitFee,brokerageFee,
     imAcqFee,imBasePATotal,imIncentiveProfit,imIncentiveSales,
     totalCost,equity,profit,poc,moic,dscr,
+    vat:vatAdv,
     irr:irrUnlevered,irrLevered,
     // UI-compatible aliases
     totalInvestment,revpar,revenuePa,ebitda,interestCost,capex,yoc,stabilisedValue,
@@ -51494,7 +51503,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Cost Breakdown</div>
             {assetType==="BTR"&&([{label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Dev Costs (total)",value:r.devCost,color:"var(--text-m)"},...(r.vat>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),...(r.cil>0?[{label:"CIL",value:r.cil,color:"var(--amber)"}]:[]),...(r.s106>0?[{label:"Section 106",value:r.s106,color:"var(--amber)"}]:[]),{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Finance Cost",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Cost",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="BTS"&&([{label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Finance Cost",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Cost",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
-            {assetType==="Hotel"&&([{label:"Purchase + Property Tax",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"CapEx",value:r.capex,color:"var(--text-m)"},{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
+            {assetType==="Hotel"&&([{label:"Purchase + Property Tax",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"CapEx",value:r.capex,color:"var(--text-m)"},...((r.vat||0)>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="Flip"&&([
               {label:"Purchase + Property Tax",value:(r.purchase||0)+(r.sdlt||0),color:"var(--text-m)"},
               {label:"Refurb",value:r.refurb||0,color:"var(--text-m)"},
