@@ -24404,7 +24404,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
           doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(h.name||"",M+3,sp+4.5);
           doc.setTextColor(...grey);doc.text(h.stars?`${h.stars} Star`:"",M+110,sp+4.5);
           doc.setTextColor(42,138,100);doc.setFont("helvetica","bold");
-          doc.text(h.adr_approx?`${currencySymbol}${h.adr_approx}`:"—",W-M-3,sp+4.5,{align:"right"});
+          doc.text((h.adr_approx||h.adr)?`${currencySymbol}${h.adr_approx||h.adr}`:"—",W-M-3,sp+4.5,{align:"right"});
           sp+=7;
         });
       }
@@ -30246,7 +30246,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                                     <span style={{fontSize:9,color:"var(--text-d)",marginLeft:6}}>{h.stars}★</span>
                                     {h.notes&&<div style={{fontSize:9,color:"var(--text-d)"}}>{h.notes}</div>}
                                   </div>
-                                  <span style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600}}>{({GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"})[data.currency]||"£"}{h.adr_approx}</span>
+                                  <span style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600}}>{({GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"})[data.currency]||"£"}{h.adr_approx||h.adr||"—"}</span>
                                 </div>
                               ))}
                             </div>
