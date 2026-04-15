@@ -34,26 +34,6 @@ const CSS = `
 
 :root{
 
-  --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.22);
-
-  --bg:#0D1017;--bg1:#252D3F;--bg2:#141920;--bg3:#1A2030;--bg4:#202840;--bg5:#2A3350;
-
-  --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
-
-  --border:rgba(255,255,255,0.07);--border-m:rgba(255,255,255,0.13);
-
-  --green:#52C498;--red:#D45252;--amber:#E0A030;--blue:#4A80C4;--purple:#a78bfa;
-
-  --font-display:'Inter',system-ui,sans-serif;
-
-  --font-body:'Inter',system-ui,sans-serif;
-
-  --font-mono:'DM Mono',monospace;
-
-}
-
-body.light{
-
   --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(82,196,152,0.09);--gold-border:rgba(82,196,152,0.25);
 
   --bg:#F8F9FA;--bg1:#FFFFFF;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
@@ -63,6 +43,12 @@ body.light{
   --border:#E8EAED;--border-m:#D0D4DC;
 
   --green:#2A8A64;--red:#C04040;--amber:#B07820;--blue:#2A5FAA;--purple:#7C3AED;
+
+  --font-display:'Inter',system-ui,sans-serif;
+
+  --font-body:'Inter',system-ui,sans-serif;
+
+  --font-mono:'DM Mono',monospace;
 
 }
 
