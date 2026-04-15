@@ -39300,6 +39300,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   const ur=(r.unitResults||[])[ui]||{};
                   const upd=(f:string,v:any)=>{const units=[...(data.units||[])];units[ui]={...units[ui],[f]:v};set("units",units);};
                   return(
+                    <>
                     <div key={u.id||ui} style={{display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px 60px 60px 28px",gap:6,padding:"8px 10px",background:"var(--bg2)",border:"1px solid var(--border)",borderTop:"none"}}>
                       <input className="inp" value={u.label||""} onChange={e=>upd("label",e.target.value)} style={{fontSize:12,padding:"5px 8px"}} placeholder="Unit name"/>
                       <input className="inp" type="number" value={u.areaSqm||""} onChange={e=>upd("areaSqm",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
@@ -39310,22 +39311,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <input className="inp" type="number" value={u.rentFreeMonths||""} onChange={e=>upd("rentFreeMonths",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
                       <button className="btn-danger" onClick={()=>set("units",(data.units||[]).filter((_:any,i:number)=>i!==ui))} style={{padding:"4px 6px",fontSize:12}}>✕</button>
                     </div>
-                  )}
-                  {/* Per-unit rent review — Advanced mode only */}
-                  {commercialMode==="advanced"&&(
-                    <div key={`adv-${u.id||ui}`} style={{display:"grid",gridTemplateColumns:"1fr 120px 100px 100px 100px",gap:6,padding:"6px 10px 8px",background:"var(--bg3)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 4px 4px"}}>
-                      <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",display:"flex",alignItems:"center"}}>Review settings</div>
-                      <select className="inp" value={u.rentReviewType||"fixed"} onChange={e=>upd("rentReviewType",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}>
-                        <option value="fixed">Fixed %</option>
-                        <option value="cpi">CPI-linked</option>
-                        <option value="rpi">RPI-linked</option>
-                      </select>
-                      <input className="inp" type="number" step="0.5" placeholder="Uplift %" value={u.rentReviewPct||""} onChange={e=>upd("rentReviewPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
-                      <input className="inp" type="number" step="1" placeholder="Review yrs" value={u.rentReviewYears||""} onChange={e=>upd("rentReviewYears",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
-                      <input className="inp" type="number" step="0.5" placeholder="Mgmt %" value={u.mgmtPct||""} onChange={e=>upd("mgmtPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
-                    </div>
-                  )}
-                  </>;
+                    {/* Per-unit rent review — Advanced mode only */}
+                    {commercialMode==="advanced"&&(
+                      <div key={`adv-${u.id||ui}`} style={{display:"grid",gridTemplateColumns:"1fr 120px 100px 100px 100px",gap:6,padding:"6px 10px 8px",background:"var(--bg3)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 4px 4px"}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",display:"flex",alignItems:"center"}}>Review settings</div>
+                        <select className="inp" value={u.rentReviewType||"fixed"} onChange={e=>upd("rentReviewType",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}>
+                          <option value="fixed">Fixed %</option>
+                          <option value="cpi">CPI-linked</option>
+                          <option value="rpi">RPI-linked</option>
+                        </select>
+                        <input className="inp" type="number" step="0.5" placeholder="Uplift %" value={u.rentReviewPct||""} onChange={e=>upd("rentReviewPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                        <input className="inp" type="number" step="1" placeholder="Review yrs" value={u.rentReviewYears||""} onChange={e=>upd("rentReviewYears",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                        <input className="inp" type="number" step="0.5" placeholder="Mgmt %" value={u.mgmtPct||""} onChange={e=>upd("mgmtPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                      </div>
+                    )}
+                    </>
+                  );
                 })}
                 {/* Totals row */}
                 {(data.units||[]).length>0&&(
