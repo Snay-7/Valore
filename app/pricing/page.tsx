@@ -56,7 +56,7 @@ body.light{
 
   --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(82,196,152,0.09);--gold-border:rgba(82,196,152,0.25);
 
-  --bg:#F8F9FA;--bg1:#252D3F;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --bg:#F8F9FA;--bg1:#FFFFFF;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
 
   --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
 
@@ -410,11 +410,11 @@ function PricingPage() {
 
   return (
 
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", transition: "background .2s,color .2s" }}>
 
       <style>{CSS}</style>
 
-      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t!=='dark')document.body.classList.add('light');})()`}}/>
 
 
 
@@ -436,7 +436,7 @@ function PricingPage() {
 
       <nav style={{ background: "var(--bg1)", borderBottom: "1px solid var(--border)", padding: "0 32px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-        <span onClick={()=>router.push("/dashboard")} style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff",cursor:"pointer"}}>Valora</span>
+        <span onClick={()=>router.push("/dashboard")} style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"var(--text)",cursor:"pointer"}}>Valora</span>
 
         {user && <button onClick={() => router.push("/dashboard")} style={{ background: "transparent", color: "var(--text-m)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 14px", fontFamily: "var(--font-body)", fontSize: 12, cursor: "pointer" }}>Dashboard</button>}
 
