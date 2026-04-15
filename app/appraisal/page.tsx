@@ -25525,7 +25525,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(isCommercialAdv&&advR.yearlyNOI?.length>0){
       doc.addPage();
       // Header
-      doc.setFillColor(...bg1);doc.rect(0,0,W,297,"F");
+      doc.setFillColor(...dark);doc.rect(0,0,W,297,"F");
       doc.setFillColor(...bg2);doc.rect(0,0,W,22,"F");
       doc.setTextColor(...gold);doc.setFontSize(9);doc.setFont("helvetica","bold");
       doc.text("VALORA",M,9);
