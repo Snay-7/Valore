@@ -38706,11 +38706,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = GDV scenarios · <span style={{fontWeight:500}}>Columns</span> = Total cost scenarios. Each cell shows Profit on Cost %.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/>
-                          <span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/>
                           <span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/>
-                          <span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/>
                           <span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
@@ -40884,9 +40884,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
                     <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                     </div>
                     <div className="sens-wrap">
@@ -42911,9 +42911,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
                     <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                     </div>
                     <div className="sens-wrap">
@@ -46568,9 +46568,9 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                       <div className="section-title">Sensitivity — Profit on Cost %</div>
                       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Sale price scenarios · <span style={{fontWeight:500}}>Columns</span> = Refurb cost scenarios. Each cell shows ROI on Cost %.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>15%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (5–15%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<5%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;5%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
                       <div className="sens-wrap">
@@ -46617,9 +46617,9 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                       <div className="section-title">Sensitivity — Return on Cost %</div>
                       <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows IRR (Levered) %. Lower cap rate = higher exit value.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>15% IRR)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15% IRR)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (8–15%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<8%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;8%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
                       <div className="sens-wrap">
