@@ -29122,7 +29122,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
         {/* Simple / Advanced toggle — Hotel + Commercial */}
         {(assetType==="Commercial"||assetType==="Industrial")&&(
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>
+              Mode:
+              <span style={{marginLeft:4,fontSize:9,color:"var(--text-d)",fontWeight:400,textTransform:"none",letterSpacing:"normal"}}>
+                {commercialMode==="simple"?"Exit capitalisation of passing rent":"Year-by-year NOI · hold period · rent reviews"}
+              </span>
+            </div>
             <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
               {(["simple","advanced"] as const).map(m=>(
                 <button key={m} onClick={()=>setCommercialMode(m)} style={{padding:"3px 12px",background:commercialMode===m?"var(--gold)":"transparent",color:commercialMode===m?"#0D1017":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
@@ -29135,7 +29140,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
         {/* Simple / Advanced toggle — MixedUse */}
         {assetType==="MixedUse"&&(
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>
+              Mode:
+              <span style={{marginLeft:4,fontSize:9,color:"var(--text-d)",fontWeight:400,textTransform:"none",letterSpacing:"normal"}}>
+                {mixedUseMode==="simple"?"Blended exit capitalisation":"Zone-by-zone year-by-year cashflows"}
+              </span>
+            </div>
             <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
               {(["simple","advanced"] as const).map(m=>(
                 <button key={m} onClick={()=>setMixedUseMode(m)} style={{padding:"3px 12px",background:mixedUseMode===m?"var(--gold)":"transparent",color:mixedUseMode===m?"#0D1017":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
@@ -38682,7 +38692,17 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   return(
                     <div style={{marginTop:24,marginBottom:28}}>
                       <div className="section-title">Sensitivity — Profit on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>GDV shift (rows) × total cost shift (columns)</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = GDV scenarios · <span style={{fontWeight:500}}>Columns</span> = Total cost scenarios. Each cell shows Profit on Cost %.</div>
+                      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/>
+                          <span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
+                      </div>
                       <div className="sens-wrap">
                         <div style={{display:"grid",gridTemplateColumns:"72px repeat(5,1fr)",gap:4,fontSize:10,minWidth:380}}>
                           <div/>
@@ -39806,6 +39826,9 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <div className="inp-group"><label className="inp-label">Mgmt / Non-Rec (%)</label><input className="inp" type="number" step="0.5" value={data.mgmtPct??""} onChange={e=>set("mgmtPct",e.target.value)} placeholder="e.g. 10"/></div>
                     </div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginTop:4}}>Management fee, non-recoverable service charge and insurance as % of gross income</div>
+                    <div style={{marginTop:10,padding:"8px 12px",background:"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:8,fontSize:11,color:"var(--text-m)",lineHeight:1.6}}>
+                      <span style={{color:"var(--gold)",fontWeight:600}}>Advanced mode</span> — Year-by-year NOI is calculated from actual lease cashflows. Income is zero during rent-free periods, passes at current rent until WAULT expires, then re-lets at ERV adjusted for rent reviews. Management costs are deducted annually. IRR is computed on monthly cashflows over the full hold period.
+                    </div>
                   </>
                 )}
 
@@ -40848,7 +40871,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {(r.sensMatrix||[]).length>0&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>NIY / exit cap rate (rows) × net passing rent shift (columns)</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
+                    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
+                    </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,minWidth:380}}>
                         <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",display:"flex",alignItems:"flex-end",paddingBottom:4}}>NIY ↕</div>
@@ -42869,7 +42898,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {(r.sensMatrix||[]).length>0&&(
                   <div style={{marginBottom:28}}>
                     <div className="section-title">Sensitivity — Profit on Cost %</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>NIY / exit cap rate (rows) × net passing rent shift (columns)</div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
+                    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>20% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<10% PoC)</span></div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
+                    </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,minWidth:380}}>
                         <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",display:"flex",alignItems:"flex-end",paddingBottom:4}}>NIY ↕</div>
@@ -46520,7 +46555,13 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   return(
                     <div style={{marginBottom:28}}>
                       <div className="section-title">Sensitivity — Profit on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Sale price shift (rows) × refurb cost shift (columns)</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Sale price scenarios · <span style={{fontWeight:500}}>Columns</span> = Refurb cost scenarios. Each cell shows ROI on Cost %.</div>
+                      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>15%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (5–15%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<5%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
+                      </div>
                       <div className="sens-wrap">
                         <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,fontSize:10,minWidth:380}}>
                           <div style={{display:"flex",alignItems:"flex-end",paddingBottom:4,color:"var(--text-d)",fontSize:9,letterSpacing:".06em",textTransform:"uppercase"}}>Sale ↕</div>
@@ -46563,7 +46604,13 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   return(
                     <div style={{marginBottom:28}}>
                       <div className="section-title">Sensitivity — Return on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>Exit cap rate (rows) × ADR {currencySymbol}/night (columns)</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows IRR (Levered) %. Lower cap rate = higher exit value.</div>
+                      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (>15% IRR)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (8–15%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (<8%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
+                      </div>
                       <div className="sens-wrap">
                         <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                           <div/>
