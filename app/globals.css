@@ -1,26 +1,18 @@
-@import "tailwindcss";
+export const metadata = {
+  title: "Valora — Development Appraisal Platform",
+  description: "Institutional development appraisal software for property developers, valuers, lenders and investment professionals.",
+};
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body style={{ margin: 0, padding: 0, background: "#06070a" }}>
+        {children}
+      </body>
+    </html>
+  );
 }
