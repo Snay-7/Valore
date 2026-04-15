@@ -12354,18 +12354,6 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     niy,exitMethod:"investment",
     breakEvenYield:totalCost>0?stabilisedNOI/totalCost:0,
     rlv:exitValue*(1-0.20)-totalBuildCost-fin.totalFinanceCost-sdlt,
-    financeRate:annualRate,
-    // Sensitivity matrix — NIY × ERV shift (same pattern as simple mode)
-    sensMatrix:(()=>{
-      const niySteps=[niy*0.9,niy*0.95,niy,niy*1.05,niy*1.10];
-      const ervSteps=[0.9,0.95,1,1.05,1.10];
-      return niySteps.map(n=>ervSteps.map(e=>{
-        const adjNOI=exitNOI*e;
-        const adjExit=n>0?adjNOI/n:0;
-        const adjProfit=adjExit-totalCost+totalHoldNOI;
-        return totalCost>0?adjProfit/totalCost:0;
-      }));
-    })(),
   };
 }
 
