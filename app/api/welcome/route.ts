@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ROLE_PDF: Record<string, string> = {
-  developer:           "https://valoraplatform.io/guides/Valora_For_Developers.pdf",
-  lender:              "https://valoraplatform.io/guides/Valora_For_Lenders.pdf",
-  advisor:             "https://valoraplatform.io/guides/Valora_For_Advisors.pdf",
-  surveyor:            "https://valoraplatform.io/guides/Valora_For_Surveyors.pdf",
-  hotel_investor:      "https://valoraplatform.io/guides/Valora_For_HotelInvestors.pdf",
-  hotel_asset_manager: "https://valoraplatform.io/guides/Valora_For_HotelAssetManagers.pdf",
+  developer:           "https://valoraplatform.io/guides/Valora_For_Developers-2.pdf",
+  lender:              "https://valoraplatform.io/guides/Valora_For_Lenders-2.pdf",
+  advisor:             "https://valoraplatform.io/guides/Valora_For_Advisors-2.pdf",
+  surveyor:            "https://valoraplatform.io/guides/Valora_For_Surveyors-2.pdf",
+  hotel_investor:      "https://valoraplatform.io/guides/Valora_For_HotelInvestors-2.pdf",
+  hotel_asset_manager: "https://valoraplatform.io/guides/Valora_For_HotelAssetManagers-2.pdf",
 };
 
 const ROLE_LABEL: Record<string, string> = {
