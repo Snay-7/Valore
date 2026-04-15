@@ -59,13 +59,13 @@ export async function POST(req: NextRequest) {
     }
 
     const roleSection = roleLabel ? `
-      <p style="margin:0 0 12px;font-size:11px;color:#3d4249;text-transform:uppercase;letter-spacing:0.12em;">${roleLabel}${companyDisplay}</p>
-      <p style="margin:0 0 28px;font-size:14px;color:#7d8590;line-height:1.8;">${roleIntro}</p>
+      <p style="margin:0 0 12px;font-size:11px;color:#9AA3AF;text-transform:uppercase;letter-spacing:0.1em;">${roleLabel}${companyDisplay}</p>
+      <p style="margin:0 0 28px;font-size:14px;color:#5A6478;line-height:1.8;">${roleIntro}</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
         <tr>
-          <td style="background:#12151a;border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:20px 24px;">
-            <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#eceae4;">📎 Your guide is attached to this email.</p>
-            <p style="margin:0;font-size:12px;color:#3d4249;">Valora for ${roleLabel} — everything the platform does for you, in one page.</p>
+          <td style="background:#F8F9FA;border:1px solid #E8EAED;border-radius:10px;padding:20px 24px;">
+            <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#1E2433;">📎 Your guide is attached to this email.</p>
+            <p style="margin:0;font-size:12px;color:#5A6478;">Valora for ${roleLabel} — everything the platform does for you, in one page.</p>
           </td>
         </tr>
       </table>` : "";
@@ -73,38 +73,38 @@ export async function POST(req: NextRequest) {
     const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#06070a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#06070a;padding:40px 0;">
+<body style="margin:0;padding:0;background:#F2F3F0;font-family:'Inter',system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F2F3F0;padding:48px 20px;">
     <tr><td align="center">
       <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
 
         <tr><td style="padding:0 0 32px;">
-          <p style="margin:0;font-size:24px;font-weight:300;color:#c9a84c;letter-spacing:0.12em;">VALORA</p>
-          <p style="margin:4px 0 0;font-size:9px;color:#3d4249;letter-spacing:0.18em;text-transform:uppercase;">INSTITUTIONAL APPRAISAL</p>
+          <table cellpadding="0" cellspacing="0"><tr><td style="background:#1E2433;border-radius:8px;padding:9px 16px;"><span style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:-.02em;">Valora</span></td></tr></table>
+          
         </td></tr>
 
         <tr><td style="padding:0 0 32px;">
-          <div style="height:1px;background:linear-gradient(90deg,#c9a84c,transparent);"></div>
+          
         </td></tr>
 
-        <tr><td style="background:#0c0e12;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:40px;">
+        <tr><td style="background:#ffffff;border:1px solid #E8EAED;border-radius:12px;padding:40px;">
 
-          <p style="margin:0 0 8px;font-size:22px;font-weight:300;color:#eceae4;line-height:1.3;">Hi ${name},</p>
-          <p style="margin:0 0 28px;font-size:22px;font-weight:300;color:#eceae4;line-height:1.3;">Welcome to Valora.</p>
+          <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1E2433;line-height:1.3;">Hi ${name},</p>
+          <p style="margin:0 0 28px;font-size:22px;font-weight:700;color:#1E2433;line-height:1.3;">Welcome to Valora.</p>
 
-          <p style="margin:0 0 28px;font-size:14px;color:#7d8590;line-height:1.8;">Your workspace is ready. You're joining developers, lenders and advisors across 5 markets who use Valora to appraise deals in minutes — not days.</p>
+          <p style="margin:0 0 28px;font-size:14px;color:#5A6478;line-height:1.8;">Your workspace is ready. You're joining developers, lenders and advisors across 5 markets who use Valora to appraise deals in minutes — not days.</p>
 
           ${roleSection}
 
           <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
             <tr><td style="background:#12151a;border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:24px;">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#eceae4;">Model your first deal</p>
-              <p style="margin:0 0 16px;font-size:12px;color:#3d4249;">7 asset classes · 25 currencies · AI market comps · Sensitivity matrix</p>
-              <a href="https://valoraplatform.io" style="display:inline-block;background:#c9a84c;color:#06070a;font-size:13px;font-weight:600;padding:12px 24px;border-radius:7px;text-decoration:none;">Open Valora →</a>
+              <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#1E2433;">Model your first deal</p>
+              <p style="margin:0 0 16px;font-size:12px;color:#5A6478;">7 asset classes · 25 currencies · AI market comps · Sensitivity matrix</p>
+              <a href="https://valoraplatform.io" style="display:inline-block;background:#2A8A64;color:#ffffff;font-size:13px;font-weight:600;padding:12px 24px;border-radius:7px;text-decoration:none;">Open Valora →</a>
             </td></tr>
           </table>
 
-          <p style="margin:0 0 16px;font-size:12px;color:#3d4249;text-transform:uppercase;letter-spacing:0.1em;">What you have access to</p>
+          <p style="margin:0 0 16px;font-size:12px;color:#5A6478;text-transform:uppercase;letter-spacing:0.1em;">What you have access to</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
             ${["BTR, BTS, Hotel, Flip, Commercial, Industrial, Mixed Use",
                "IRR (levered + unlevered), DSCR, Debt Yield, LTV at exit",
@@ -113,22 +113,22 @@ export async function POST(req: NextRequest) {
                "Shareable investment memorandums in one click"].map(item => `
             <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <table cellpadding="0" cellspacing="0"><tr>
-                <td style="padding-right:12px;color:#c9a84c;font-size:10px;">◆</td>
-                <td style="font-size:13px;color:#7d8590;line-height:1.6;">${item}</td>
+                <td style="padding-right:12px;color:#2A8A64;font-size:10px;">◆</td>
+                <td style="font-size:13px;color:#5A6478;line-height:1.6;">${item}</td>
               </tr></table>
             </td></tr>`).join("")}
           </table>
 
-          <p style="margin:0;font-size:13px;color:#3d4249;line-height:1.8;">Any questions — reply to this email. I read every one personally.</p>
-          <p style="margin:24px 0 0;font-size:13px;color:#7d8590;">Snayder<br/>Valora</p>
+          <p style="margin:0;font-size:13px;color:#9AA3AF;line-height:1.8;">Any questions — reply to this email. I read every one personally.</p>
+          <p style="margin:24px 0 0;font-size:13px;color:#5A6478;">Snayder<br/>Valora</p>
 
         </td></tr>
 
         <tr><td style="padding:24px 0 0;">
-          <p style="margin:0;font-size:11px;color:#3d4249;line-height:1.8;">
+          <p style="margin:0;font-size:11px;color:#9AA3AF;line-height:1.8;">
             Valora Technologies Ltd · Registered in England &amp; Wales<br/>
-            <a href="https://valoraplatform.io/privacy" style="color:#3d4249;">Privacy Policy</a> &nbsp;·&nbsp;
-            <a href="https://valoraplatform.io/unsubscribe" style="color:#3d4249;">Unsubscribe</a>
+            <a href="https://valoraplatform.io/privacy" style="color:#9AA3AF;">Privacy Policy</a> &nbsp;·&nbsp;
+            <a href="https://valoraplatform.io/unsubscribe" style="color:#9AA3AF;">Unsubscribe</a>
           </p>
         </td></tr>
 
