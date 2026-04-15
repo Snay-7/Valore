@@ -12228,6 +12228,269 @@ function vatHelperText(currency:string,isSplit:boolean):string{
   if(["BRL","COP","CLP","PEN","ARS"].includes(currency)) return "Construction tax is a sunk cost in most LATAM jurisdictions — not recoverable. Hard and soft costs may be taxed differently.";
   return "Set applicable rate for your jurisdiction. Leave 0% if construction tax does not apply.";
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// calcCommercialAdvanced — Year-by-year hold model for Commercial & Industrial
+// ─────────────────────────────────────────────────────────────────────────────
+function calcCommercialAdvanced(data:any):Record<string,any>{
+  const SQM_TO_SQFT=10.7639;
+  const isSqft=(data.areaUnit||"sqft")==="sqft";
+  const units:any[]=data.units||[];
+  const holdYears=Math.max(1,Math.round(num(String(data.holdYears||5))));
+
+  // Per-unit year-by-year NOI
+  const yearlyNOI:number[]=Array(holdYears).fill(0);
+  const unitYearData:any[]=[];
+
+  units.forEach((u:any)=>{
+    const areaNative=num(String(u.areaSqm||0));
+    const erv=num(String(u.erv||0));
+    const passingRent=num(String(u.passingRent||0));
+    const wault=num(String(u.wault||0));
+    const voidPct=num(String(u.voidPct||0))/100;
+    const rentFreeMonths=num(String(u.rentFreeMonths||0));
+    const reviewType=u.rentReviewType||data.rentReviewType||"fixed";
+    const reviewPct=num(String(u.rentReviewPct??data.rentReviewPct??3))/100;
+    const reviewYears=Math.max(1,num(String(u.rentReviewYears??data.rentReviewYears??5)));
+    const mgmtPct=num(String(u.mgmtPct??data.mgmtPct??10))/100;
+    const grossErv=areaNative*erv;
+    const grossPassing=areaNative*passingRent;
+    const unitYears:any[]=[];
+    for(let yr=1;yr<=holdYears;yr++){
+      let income=0;
+      if(yr<=Math.floor(rentFreeMonths/12)){
+        income=0;
+      }else if(yr<=Math.ceil(wault)){
+        income=grossPassing;
+      }else{
+        const reviewsApplied=Math.floor((yr-1)/reviewYears);
+        let reviewedErv=grossErv;
+        if(reviewType==="fixed"){reviewedErv=grossErv*Math.pow(1+reviewPct,reviewsApplied);}
+        else{reviewedErv=grossErv*(1+reviewPct*reviewsApplied);}
+        income=reviewedErv*(1-voidPct);
+      }
+      const netIncome=income*(1-mgmtPct);
+      unitYears.push({yr,grossIncome:income,netIncome,grossErv,grossPassing});
+      yearlyNOI[yr-1]+=netIncome;
+    }
+    unitYearData.push({label:u.label||"Unit",unitYears,grossErv,grossPassing,wault,voidPct});
+  });
+
+  // Costs
+  const landCost=num(String(data.landCost||0));
+  const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"commercial",data.sdltOverride??0,data.sdltSurcharge??false);
+  const totalAreaNative=units.reduce((s:number,u:any)=>s+num(String(u.areaSqm||0)),0);
+  const totalAreaSqm=isSqft?totalAreaNative/SQM_TO_SQFT:totalAreaNative;
+  const buildCost=totalAreaSqm*num(String(data.buildCostPsm||0));
+  const profFees=buildCost*(num(String(data.professionalFeesPct||8))/100);
+  const contingency=buildCost*(num(String(data.contingencyPct||5))/100);
+  const isSplitVatC=usesSplitVAT(data.currency||"GBP")||!!data.vatSplitMode;
+  const isRecoverableC=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
+  const hardVatPctC=isSplitVatC?num(String(data.hardCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+  const softVatPctC=isSplitVatC?num(String(data.softCostsVatPct||0))/100:num(String(data.vatPct||0))/100;
+  const vatRawC=buildCost*hardVatPctC+(profFees+contingency)*softVatPctC;
+  const vat=isRecoverableC?0:vatRawC;
+  const cil=num(String(data.cilPsf||0))*totalAreaSqm;
+  const s106=num(String(data.s106||0));
+  const annualRate=(num(String(data.benchmarkRate))+num(String(data.marginOverBenchmark)))/100;
+  const ltcPct=num(String(data.ltc||60))/100;
+  const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths||18))));
+  const stabMonths=Math.max(0,Math.round(num(String(data.stabilisationMonths||12))));
+  const totalBuildCost=buildCost+profFees+contingency+vat+cil+s106;
+  const fin=calcFinanceCostMonthly({landCost:landCost+sdlt,sdlt:0,buildCost:totalBuildCost,buildMonths,annualRate,ltcPct,arrangementFeePct:num(String(data.arrangementFeePct||1))/100,costProfile:data.costProfile??"straight"});
+  const totalCost=landCost+sdlt+totalBuildCost+fin.totalFinanceCost;
+  const equity=Math.max(0,totalCost-fin.loanAmount);
+
+  // Exit
+  const niy=num(String(data.niy||5.5))/100;
+  const stabilisedNOI=yearlyNOI[holdYears-1]||yearlyNOI[0]||0;
+  const noiMode=data.noiMode||"normalised";
+  const actualNoiInput=num(String(data.actualNoi||0));
+  const exitNOI=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:stabilisedNOI;
+  const exitValue=niy>0?exitNOI/niy:0;
+  const totalHoldNOI=yearlyNOI.reduce((s,n)=>s+n,0);
+
+  // IRR cashflows
+  const totalMonths=buildMonths+stabMonths+holdYears*12;
+  const uCfs:number[]=Array(totalMonths).fill(0);
+  const lCfs:number[]=Array(totalMonths).fill(0);
+  const equityRatio=totalCost>0?equity/totalCost:1;
+  uCfs[0]-=landCost+sdlt+fin.arrangementFee;
+  lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
+  const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"straight");
+  for(let m=0;m<buildMonths;m++){const draw=totalBuildCost*buildProfile[m];uCfs[m]-=draw;lCfs[m]-=draw*equityRatio+(fin.monthlyInterestArr[m]??0);}
+  for(let yr=0;yr<holdYears;yr++){
+    const monthlyNOI=yearlyNOI[yr]/12;
+    for(let m=0;m<12;m++){
+      const idx=buildMonths+stabMonths+yr*12+m;
+      if(idx<totalMonths){uCfs[idx]+=monthlyNOI;lCfs[idx]+=monthlyNOI-(fin.peakLoanBalance*annualRate)/12;}
+    }
+  }
+  uCfs[totalMonths-1]+=exitValue;
+  lCfs[totalMonths-1]+=exitValue-fin.peakLoanBalance;
+
+  const irr=Math.pow(1+calcIRR(uCfs),12)-1;
+  const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
+  const profit=exitValue-totalCost+totalHoldNOI;
+  const poc=totalCost>0?profit/totalCost:0;
+  const moic=equity>0?(equity+profit)/equity:0;
+  const annualDebtService=fin.peakLoanBalance*annualRate;
+  const dscr=annualDebtService>0?stabilisedNOI/annualDebtService:Infinity;
+  const yoc=totalCost>0?stabilisedNOI/totalCost:0;
+  const paybackMonth=calcPaybackMonth(uCfs);
+  const totalErv=units.reduce((s:number,u:any)=>s+num(String(u.areaSqm||0))*num(String(u.erv||0)),0);
+  const totalPassing=units.reduce((s:number,u:any)=>s+num(String(u.areaSqm||0))*num(String(u.passingRent||0)),0);
+
+  return{
+    gdv:exitValue,exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
+    equity,totalCost,landCost,sdlt,buildCost,profFees,contingency,vat,cil,s106,
+    totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
+    interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
+    totalErv,totalPassing,stabilisedNOI,exitNOI,noiMode,totalHoldNOI,
+    yearlyNOI,unitYearData,holdYears,
+    paybackMonth,uCfs,lCfs,buildMonths,stabMonths,totalMonths,
+    totalAreaSqm,totalAreaNative,niy,exitMethod:"investment",
+    breakEvenYield:totalCost>0?stabilisedNOI/totalCost:0,
+    rlv:exitValue*(1-0.20)-totalBuildCost-fin.totalFinanceCost-sdlt,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// calcMixedUseAdvanced — Year-by-year hold for Mixed Use (residential + commercial zones)
+// ─────────────────────────────────────────────────────────────────────────────
+function calcMixedUseAdvanced(data:any):Record<string,any>{
+  const zones:any[]=data.zones||[];
+  const holdYears=Math.max(1,Math.round(num(String(data.holdYears||5))));
+  const annualRate=(num(String(data.benchmarkRate||3.97))+num(String(data.marginOverBenchmark||2.5)))/100;
+  const ltcPct=num(String(data.ltc||60))/100;
+  const buildMonths=Math.max(1,Math.round(num(String(data.programmMonths||24))));
+  const arrangementFeePct=num(String(data.arrangementFeePct||1))/100;
+
+  // Per-zone year-by-year income
+  const yearlyNOI:number[]=Array(holdYears).fill(0);
+  let totalBuildCost=0;
+  let totalGDV=0;
+  const zoneYearData:any[]=[];
+
+  zones.forEach((z:any)=>{
+    const isResidential=z.type==="residential"||!z.type;
+    const units=num(String(z.units||0));
+    const sizeSqft=num(String(z.sizeSqft||0));
+    const buildCostPsf=num(String(z.buildCostPsf||0));
+    const zoneBuildCost=units*sizeSqft*buildCostPsf;
+    totalBuildCost+=zoneBuildCost;
+
+    if(isResidential){
+      // Residential zone — sell or hold
+      const exitStrategy=z.exitStrategy||"sell";
+      if(exitStrategy==="sell"){
+        // Sales revenue in year 1 (absorption)
+        const salePricePsf=num(String(z.salePricePsf||0));
+        const saleRevenue=units*sizeSqft*salePricePsf;
+        const agentFee=saleRevenue*0.015;
+        totalGDV+=saleRevenue-agentFee;
+        yearlyNOI[0]+=(saleRevenue-agentFee);
+      } else {
+        // BTR hold — rental income each year
+        const rentPcm=num(String(z.rentPcm||0));
+        const grossRentPa=units*rentPcm*12;
+        const netRentPa=grossRentPa*0.9; // 10% management
+        for(let yr=0;yr<holdYears;yr++) yearlyNOI[yr]+=netRentPa;
+        const exitYield=num(String(z.exitYield||5))/100;
+        const zoneGDV=exitYield>0?netRentPa/exitYield:0;
+        totalGDV+=zoneGDV;
+      }
+      zoneYearData.push({label:z.label||"Residential",type:"residential",exitStrategy:z.exitStrategy||"sell"});
+    } else {
+      // Commercial zone — year-by-year lease cashflows
+      const erv=num(String(z.erv||z.rentPcm||0)); // £/sqft/yr or monthly
+      const passingRent=erv*0.9; // assume 90% passing if not specified
+      const wault=num(String(z.wault||5));
+      const voidPct=num(String(z.voidPct||5))/100;
+      const rfMonths=num(String(z.rentFreeMonths||0));
+      const reviewPct=num(String(z.rentReviewPct??data.rentReviewPct??3))/100;
+      const reviewYears=Math.max(1,num(String(z.rentReviewYears??data.rentReviewYears??5)));
+      const mgmtPct=num(String(z.mgmtPct??data.mgmtPct??10))/100;
+      const area=units*sizeSqft;
+      const grossErv=area*erv;
+      const grossPassing=area*passingRent;
+      const exitYield=num(String(z.exitYield||5.5))/100;
+      const zoneNOI:number[]=[];
+
+      for(let yr=1;yr<=holdYears;yr++){
+        let income=0;
+        if(yr<=Math.floor(rfMonths/12)) income=0;
+        else if(yr<=Math.ceil(wault)) income=grossPassing;
+        else {
+          const reviewsApplied=Math.floor((yr-1)/reviewYears);
+          const reviewedErv=grossErv*Math.pow(1+reviewPct,reviewsApplied);
+          income=reviewedErv*(1-voidPct);
+        }
+        const net=income*(1-mgmtPct);
+        zoneNOI.push(net);
+        yearlyNOI[yr-1]+=net;
+      }
+      const stabNOI=zoneNOI[holdYears-1]||zoneNOI[0]||0;
+      const zoneGDV=exitYield>0?stabNOI/exitYield:0;
+      totalGDV+=zoneGDV;
+      zoneYearData.push({label:z.label||"Commercial",type:"commercial",zoneNOI});
+    }
+  });
+
+  // Finance
+  const landCost=num(String(data.landCost||0));
+  const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"mixed",data.sdltOverride??0,data.sdltSurcharge??false);
+  const profFees=totalBuildCost*(num(String(data.professionalFeesPct||8))/100);
+  const contingency=totalBuildCost*(num(String(data.contingencyPct||5))/100);
+  const vatRaw=totalBuildCost*(num(String(data.vatPct||0))/100);
+  const vat=vatRaw;
+  const totalBC=totalBuildCost+profFees+contingency+vat;
+  const fin=calcFinanceCostMonthly({landCost:landCost+sdlt,sdlt:0,buildCost:totalBC,buildMonths,annualRate,ltcPct,arrangementFeePct,costProfile:data.costProfile??"straight"});
+  const totalCost=landCost+sdlt+totalBC+fin.totalFinanceCost;
+  const equity=Math.max(0,totalCost-fin.loanAmount);
+  const totalHoldNOI=yearlyNOI.reduce((s,n)=>s+n,0);
+  const stabilisedNOI=yearlyNOI[holdYears-1]||0;
+  const exitValue=totalGDV;
+  const profit=exitValue-totalCost+totalHoldNOI;
+  const poc=totalCost>0?profit/totalCost:0;
+  const moic=equity>0?(equity+profit)/equity:0;
+  const yoc=totalCost>0?stabilisedNOI/totalCost:0;
+  const dscr=(fin.peakLoanBalance*annualRate)>0?stabilisedNOI/(fin.peakLoanBalance*annualRate):Infinity;
+
+  // IRR cashflows
+  const totalMonths=buildMonths+holdYears*12;
+  const uCfs:number[]=Array(totalMonths).fill(0);
+  const lCfs:number[]=Array(totalMonths).fill(0);
+  const eqRatio=totalCost>0?equity/totalCost:1;
+  uCfs[0]-=landCost+sdlt+fin.arrangementFee;
+  lCfs[0]-=(landCost+sdlt)*eqRatio+fin.arrangementFee;
+  const bp=buildDrawdownProfile(buildMonths,data.costProfile??"straight");
+  for(let m=0;m<buildMonths;m++){const d=totalBC*bp[m];uCfs[m]-=d;lCfs[m]-=d*eqRatio+(fin.monthlyInterestArr[m]??0);}
+  for(let yr=0;yr<holdYears;yr++){
+    const mNOI=yearlyNOI[yr]/12;
+    for(let m=0;m<12;m++){
+      const idx=buildMonths+yr*12+m;
+      if(idx<totalMonths){uCfs[idx]+=mNOI;lCfs[idx]+=mNOI-(fin.peakLoanBalance*annualRate)/12;}
+    }
+  }
+  uCfs[totalMonths-1]+=exitValue;
+  lCfs[totalMonths-1]+=exitValue-fin.peakLoanBalance;
+  const irr=Math.pow(1+calcIRR(uCfs),12)-1;
+  const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
+  const paybackMonth=calcPaybackMonth(uCfs);
+
+  return{
+    gdv:exitValue,exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
+    equity,totalCost,landCost,sdlt,buildCost:totalBuildCost,profFees,contingency,vat,
+    totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
+    interestCost:fin.interestCost,loanAmount:fin.loanAmount,
+    stabilisedNOI,totalHoldNOI,yearlyNOI,zoneYearData,holdYears,
+    paybackMonth,uCfs,lCfs,buildMonths,totalMonths,
+    noiMode:data.noiMode||"normalised",
+    niy:num(String(data.niy||5))/100,
+    rlv:exitValue*(1-0.20)-totalBC-fin.totalFinanceCost-sdlt,
+  };
+}
+
 function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="BTR"){
     const units=data.units||[];
@@ -16048,12 +16311,13 @@ const DEFAULTS={
     exitMethod:"investment" as const,
     niy:5.5,equivalentYield:5.75,vpValuePsm:8000,
     rentReviewType:"fixed" as const,rentReviewPct:3,rentReviewYears:5,
+    holdYears:5,mgmtPct:10,commercialMode:"simple",
     units:[
-      {id:"u1",label:"Ground Floor Retail",use:"retail",areaSqm:5000,erv:32,passingRent:28,wault:5,voidPct:5,rentFreeMonths:6},
-      {id:"u2",label:"Office Floor 1",use:"office",areaSqm:8000,erv:42,passingRent:40,wault:3,voidPct:10,rentFreeMonths:3},
+      {id:"u1",label:"Ground Floor Retail",use:"retail",areaSqm:5000,erv:32,passingRent:28,wault:5,voidPct:5,rentFreeMonths:6,rentReviewType:"fixed",rentReviewPct:3,rentReviewYears:5,mgmtPct:10},
+      {id:"u2",label:"Office Floor 1",use:"office",areaSqm:8000,erv:42,passingRent:40,wault:3,voidPct:10,rentFreeMonths:3,rentReviewType:"fixed",rentReviewPct:3,rentReviewYears:5,mgmtPct:10},
     ],
   },
-  MixedUse:{assetType:"MixedUse",name:"",location:"",currency:"GBP",noiMode:"normalised",actualNoi:0,benchmark:"SONIA",benchmarkRate:3.97,benchmark_rate:"SONIA",
+  MixedUse:{assetType:"MixedUse",name:"",location:"",currency:"GBP",noiMode:"normalised",actualNoi:0,benchmark:"SONIA",benchmarkRate:3.97,benchmark_rate:"SONIA",holdYears:5,mixedUseMode:"simple",
     programmMonths:24,landCost:3000000,
     vatPct:0,cilPsf:0,s106:0,
     ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,
@@ -16077,9 +16341,10 @@ const DEFAULTS={
     exitMethod:"investment" as const,
     niy:5.0,equivalentYield:5.25,vpValuePsm:5000,
     rentReviewType:"fixed" as const,rentReviewPct:3,rentReviewYears:5,
+    holdYears:5,mgmtPct:8,commercialMode:"simple",
     units:[
-      {id:"u1",label:"Unit 1 — Warehouse",use:"warehouse",areaSqm:10000,erv:8,passingRent:7.5,wault:5,voidPct:5,rentFreeMonths:3},
-      {id:"u2",label:"Unit 2 — Light Industrial",use:"light_industrial",areaSqm:5000,erv:10,passingRent:9,wault:3,voidPct:10,rentFreeMonths:3},
+      {id:"u1",label:"Unit 1 — Warehouse",use:"warehouse",areaSqm:10000,erv:8,passingRent:7.5,wault:5,voidPct:5,rentFreeMonths:3,rentReviewType:"fixed",rentReviewPct:3,rentReviewYears:5,mgmtPct:8},
+      {id:"u2",label:"Unit 2 — Light Industrial",use:"light_industrial",areaSqm:5000,erv:10,passingRent:9,wault:3,voidPct:10,rentFreeMonths:3,rentReviewType:"fixed",rentReviewPct:3,rentReviewYears:5,mgmtPct:8},
     ],
   }
 };
@@ -26196,6 +26461,9 @@ function AppraisalPage(){
   const[senseResult,setSenseResult]=useState<{overall:string;summary:string;flags:{severity:string;field:string;message:string;benchmark:string}[]}|null>(null);
   const[senseRunning,setSenseRunning]=useState(false);
   const[hotelComps,setHotelComps]=useState<any>(null);
+  const[commercialComps,setCommercialComps]=useState<any>(null);
+  const[commercialCompsRunning,setCommercialCompsRunning]=useState(false);
+  const[commercialCompsError,setCommercialCompsError]=useState<string|null>(null);
   const[strategyYield,setStrategyYield]=useState<number>(5);
   const[strategyPsf,setStrategyPsf]=useState<string>("");
   const[strategyPsfSuggesting,setStrategyPsfSuggesting]=useState(false);
@@ -26212,6 +26480,8 @@ function AppraisalPage(){
   const[urlImporting,setUrlImporting]=useState(false);
   const[urlImportError,setUrlImportError]=useState<string|null>(null);
   const[hotelMode,setHotelMode]=useState<"simple"|"advanced">("simple");
+  const[commercialMode,setCommercialMode]=useState<"simple"|"advanced">("simple");
+  const[mixedUseMode,setMixedUseMode]=useState<"simple"|"advanced">("simple");
   const[flipComplexity,setFlipComplexity]=useState<"simple"|"advanced">("simple");
   const[theme,setTheme]=useState<"dark"|"light">(()=>{
     if(typeof window!=="undefined")return(localStorage.getItem("valora-theme")||"light") as "dark"|"light";
@@ -26244,7 +26514,7 @@ function AppraisalPage(){
       const{data:appr}=await supabase.from("appraisals").select("*").eq("id",appraisalParam).single();
       if(appr){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
-        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData({...DEFAULTS[type],...snap});setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);if(snap.areaUnit)set("areaUnit",snap.areaUnit);if(snap.noiMode)set("noiMode",snap.noiMode);}
+        if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData({...DEFAULTS[type],...snap});setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.commercialMode)setCommercialMode(snap.commercialMode);if(snap.mixedUseMode)setMixedUseMode(snap.mixedUseMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);if(snap.areaUnit)set("areaUnit",snap.areaUnit);if(snap.noiMode)set("noiMode",snap.noiMode);}
         // MixedUse: tab handled by TABS_MU — opens on general by default
         if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
       }
@@ -26283,8 +26553,10 @@ function AppraisalPage(){
   const results=calc();
   const hotelRev=assetType==="Hotel"?calcHotelRev(data):null;
   const hotelAdv=assetType==="Hotel"&&hotelMode==="advanced"?calcHotelAdvanced(data):null;
+  const commercialAdv=(assetType==="Commercial"||assetType==="Industrial")&&commercialMode==="advanced"?calcCommercialAdvanced(data):null;
+  const mixedUseAdv=assetType==="MixedUse"&&mixedUseMode==="advanced"?calcMixedUseAdvanced(data):null;
   // When in Hotel Advanced mode, r points to hotelAdv so all UI (Returns Summary, sidebar, sensitivity) reads one consistent calc
-  const r=(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?hotelAdv:results) as any;
+  const r=(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?hotelAdv:(assetType==="Commercial"||assetType==="Industrial")&&commercialMode==="advanced"&&commercialAdv?commercialAdv:assetType==="MixedUse"&&mixedUseMode==="advanced"&&mixedUseAdv?mixedUseAdv:results) as any;
   const sensitivity=useCallback(()=>{
     if(assetType==="BTR"){
       const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
@@ -26910,6 +27182,17 @@ function AppraisalPage(){
       }
     }catch(e:any){setUrlImportError("Import failed — please enter details manually");}
     setUrlImporting(false);
+  };
+  const runCommercialComps=async()=>{
+    if(!data.location)return;
+    setCommercialCompsRunning(true);setCommercialCompsError(null);setCommercialComps(null);
+    try{
+      const res=await fetch("/api/commercialcomps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,assetType,currency:data.currency||"GBP",areaUnit:data.areaUnit||"sqft"})});
+      const d=await res.json();
+      if(d.error)setCommercialCompsError(d.error);
+      else setCommercialComps(d.comps);
+    }catch(e:any){setCommercialCompsError(e.message||"Failed to fetch comps");}
+    setCommercialCompsRunning(false);
   };
   const runHotelComps=async()=>{
     if(!data.location)return;
@@ -27607,6 +27890,8 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
           dscr:isFinite(r.dscr)&&r.dscr!==Infinity?r.dscr:0,
           paybackMonth:r.paybackMonth||null,
           hotelMode:assetType==="Hotel"?hotelMode:"simple",
+          commercialMode:(assetType==="Commercial"||assetType==="Industrial")?commercialMode:"simple",
+          mixedUseMode:assetType==="MixedUse"?mixedUseMode:"simple",
           flipComplexity:assetType==="Flip"?flipComplexity:"simple",
           ...(assetType!=="Hotel"&&r.uCfs?.length>0?{uCfs:r.uCfs,lCfs:r.lCfs,buildMonths:r.buildMonths,stabMonths:r.stabMonths||0,absMonths:r.absMonths||0,totalMonths:r.totalMonths}:{}),
           // Cashflow arrays saved for Excel export on share page (values only)
@@ -28810,6 +29095,32 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
         ))}
         {appraisalId&&<span style={{fontSize:9,color:"var(--text-d)",flexShrink:0}}>· locked</span>}
         <div style={{flex:1,minWidth:6}}/>
+        {/* Simple / Advanced toggle — Hotel + Commercial */}
+        {(assetType==="Commercial"||assetType==="Industrial")&&(
+          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
+              {(["simple","advanced"] as const).map(m=>(
+                <button key={m} onClick={()=>setCommercialMode(m)} style={{padding:"3px 12px",background:commercialMode===m?"var(--gold)":"transparent",color:commercialMode===m?"#0D1017":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
+                  {m==="simple"?"Simple":"Advanced"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Simple / Advanced toggle — MixedUse */}
+        {assetType==="MixedUse"&&(
+          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>Mode:</span>
+            <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
+              {(["simple","advanced"] as const).map(m=>(
+                <button key={m} onClick={()=>setMixedUseMode(m)} style={{padding:"3px 12px",background:mixedUseMode===m?"var(--gold)":"transparent",color:mixedUseMode===m?"#0D1017":"var(--text-d)",border:"none",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"var(--font-body)",transition:"all .15s",whiteSpace:"nowrap"}}>
+                  {m==="simple"?"Simple":"Advanced"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Simple / Advanced toggle — Hotel only, lives in the header bar */}
         {assetType==="Hotel"&&(
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -37508,6 +37819,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </select>
                   </div>
                   <div className="inp-group"><label className="inp-label">Programme (months)</label><input className="inp" type="number" value={data.programmMonths??""} onChange={e=>set("programmMonths",e.target.value)}/></div>
+                  {mixedUseMode==="advanced"&&(<div className="inp-group"><label className="inp-label">Hold Period (yrs)</label><input className="inp" type="number" step="1" min="1" max="30" value={data.holdYears??""} onChange={e=>set("holdYears",e.target.value)} placeholder="e.g. 5"/></div>)}
                 </div>
                 <div className="section-title" style={{marginTop:24}}>Benchmark Rate</div>
                 <div className="inp-row">
@@ -38296,6 +38608,44 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+                {/* Year-by-year NOI — Advanced mode */}
+                {mixedUseMode==="advanced"&&r.yearlyNOI?.length>0&&(
+                  <div style={{marginBottom:24}}>
+                    <div className="section-title">Year-by-Year NOI — Hold Period</div>
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                        <thead>
+                          <tr style={{borderBottom:"1px solid var(--border)"}}>
+                            <th style={{textAlign:"left",padding:"6px 8px",color:"var(--text-d)",fontWeight:600,fontSize:10,textTransform:"uppercase",letterSpacing:".06em"}}>Year</th>
+                            {r.yearlyNOI.map((_:number,i:number)=>(
+                              <th key={i} style={{textAlign:"right",padding:"6px 8px",color:"var(--text-d)",fontWeight:600,fontSize:10,textTransform:"uppercase",letterSpacing:".06em"}}>Yr {i+1}{i===r.yearlyNOI.length-1?" (Exit)":""}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr style={{borderBottom:"1px solid var(--bg4)"}}>
+                            <td style={{padding:"7px 8px",color:"var(--text-m)",fontWeight:600}}>NOI (Net)</td>
+                            {r.yearlyNOI.map((n:number,i:number)=>(
+                              <td key={i} style={{textAlign:"right",padding:"7px 8px",fontFamily:"var(--font-mono)",color:"var(--green)",fontWeight:i===r.yearlyNOI.length-1?600:400}}>{fmt(n,currencySymbol)}</td>
+                            ))}
+                          </tr>
+                          <tr>
+                            <td style={{padding:"7px 8px",color:"var(--text-d)"}}>Exit Value</td>
+                            {r.yearlyNOI.map((_:number,i:number)=>(
+                              <td key={i} style={{textAlign:"right",padding:"7px 8px",fontFamily:"var(--font-mono)",color:i===r.yearlyNOI.length-1?"var(--gold)":"var(--text-d)",fontWeight:i===r.yearlyNOI.length-1?600:400}}>
+                                {i===r.yearlyNOI.length-1?fmt(r.exitValue||0,currencySymbol):"—"}
+                              </td>
+                            ))}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{display:"flex",gap:16,marginTop:12,fontSize:11,color:"var(--text-d)"}}>
+                      <span>Total Hold NOI: <span style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(r.totalHoldNOI||0,currencySymbol)}</span></span>
+                      <span>Stabilised NOI: <span style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(r.stabilisedNOI||0,currencySymbol)}</span></span>
+                    </div>
+                  </div>
+                )}
                 {/* MixedUse sensitivity: GDV shift (rows) × total cost shift (cols) */}
                 {(()=>{
                   const gdvSteps=[1.10,1.05,1,0.95,0.90];
@@ -38960,7 +39310,22 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                       <input className="inp" type="number" value={u.rentFreeMonths||""} onChange={e=>upd("rentFreeMonths",e.target.value)} style={{fontSize:12,padding:"5px 8px"}}/>
                       <button className="btn-danger" onClick={()=>set("units",(data.units||[]).filter((_:any,i:number)=>i!==ui))} style={{padding:"4px 6px",fontSize:12}}>✕</button>
                     </div>
-                  );
+                  )}
+                  {/* Per-unit rent review — Advanced mode only */}
+                  {commercialMode==="advanced"&&(
+                    <div key={`adv-${u.id||ui}`} style={{display:"grid",gridTemplateColumns:"1fr 120px 100px 100px 100px",gap:6,padding:"6px 10px 8px",background:"var(--bg3)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 4px 4px"}}>
+                      <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",display:"flex",alignItems:"center"}}>Review settings</div>
+                      <select className="inp" value={u.rentReviewType||"fixed"} onChange={e=>upd("rentReviewType",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}>
+                        <option value="fixed">Fixed %</option>
+                        <option value="cpi">CPI-linked</option>
+                        <option value="rpi">RPI-linked</option>
+                      </select>
+                      <input className="inp" type="number" step="0.5" placeholder="Uplift %" value={u.rentReviewPct||""} onChange={e=>upd("rentReviewPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                      <input className="inp" type="number" step="1" placeholder="Review yrs" value={u.rentReviewYears||""} onChange={e=>upd("rentReviewYears",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                      <input className="inp" type="number" step="0.5" placeholder="Mgmt %" value={u.mgmtPct||""} onChange={e=>upd("mgmtPct",e.target.value)} style={{fontSize:11,padding:"4px 6px"}}/>
+                    </div>
+                  )}
+                  </>;
                 })}
                 {/* Totals row */}
                 {(data.units||[]).length>0&&(
@@ -39407,6 +39772,17 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <span style={{marginLeft:12}}>Uplift: <span style={{color:"var(--green)"}}>{(((r.reviewMultiplier||1)-1)*100).toFixed(1)}%</span></span>
                   </div>
                 )}
+                {/* Advanced mode settings */}
+                {commercialMode==="advanced"&&(
+                  <>
+                    <div className="section-title" style={{marginTop:24}}>Hold Period & Running Costs</div>
+                    <div className="inp-row-3">
+                      <div className="inp-group"><label className="inp-label">Hold Period (yrs)</label><input className="inp" type="number" step="1" min="1" max="30" value={data.holdYears??""} onChange={e=>set("holdYears",e.target.value)} placeholder="e.g. 5"/></div>
+                      <div className="inp-group"><label className="inp-label">Mgmt / Non-Rec (%)</label><input className="inp" type="number" step="0.5" value={data.mgmtPct??""} onChange={e=>set("mgmtPct",e.target.value)} placeholder="e.g. 10"/></div>
+                    </div>
+                    <div style={{fontSize:11,color:"var(--text-d)",marginTop:4}}>Management fee, non-recoverable service charge and insurance as % of gross income</div>
+                  </>
+                )}
 
 
 
@@ -39535,6 +39911,107 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
+                {/* ── AI COMMERCIAL COMPS ── */}
+                <div style={{marginTop:20}}>
+                  <button
+                    onClick={runCommercialComps}
+                    disabled={commercialCompsRunning||!data.location}
+                    style={{display:"flex",alignItems:"center",gap:6,background:commercialCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:commercialCompsRunning?"var(--text-d)":"var(--gold)",fontSize:10,padding:"6px 12px",cursor:commercialCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",transition:"all .2s"}}
+                  >
+                    {commercialCompsRunning?(
+                      <><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Pulling market comps…</>
+                    ):(
+                      <><span style={{fontSize:12}}>◈</span> {commercialComps?"Refresh AI Comps":"Pull AI Market Comps"} {!data.location&&"(add location first)"}</>
+                    )}
+                  </button>
+                  {commercialCompsError&&<div style={{fontSize:10,color:"var(--red)",marginTop:6,padding:"6px 10px",background:"rgba(244,100,95,.06)",borderRadius:6}}>{commercialCompsError}</div>}
+                  {commercialComps&&(
+                    <div style={{marginTop:10,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12,animation:"fadeIn .3s ease"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>AI Market Comps — {data.location}</div>
+                        <div style={{fontSize:9,color:"var(--text-d)"}}>{commercialComps.dataDate||""} · {commercialComps.confidence||""} confidence</div>
+                      </div>
+                      {/* Rent + Yield benchmarks */}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime Rent PSF/yr</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--gold)"}}>{currencySymbol}{commercialComps.rentPSF?.prime||"—"}</div>
+                          <div style={{fontSize:9,color:"var(--text-d)",marginTop:2}}>{commercialComps.rentPSF?.trend||""}</div>
+                        </div>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Secondary Rent PSF/yr</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--text)"}}>{currencySymbol}{commercialComps.rentPSF?.secondary||"—"}</div>
+                        </div>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime NIY</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--green)"}}>{commercialComps.yields?.primeNIY?`${(commercialComps.yields.primeNIY*100).toFixed(2)}%`:"—"}</div>
+                          <div style={{fontSize:9,color:"var(--text-d)",marginTop:2}}>{commercialComps.yields?.trend||""}</div>
+                        </div>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Secondary NIY</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--text)"}}>{commercialComps.yields?.secondaryNIY?`${(commercialComps.yields.secondaryNIY*100).toFixed(2)}%`:"—"}</div>
+                        </div>
+                      </div>
+                      {/* WAULT + Void */}
+                      {commercialComps.wault&&(
+                        <div style={{display:"flex",gap:8,marginBottom:8}}>
+                          <div style={{flex:1,background:"var(--bg2)",borderRadius:6,padding:"6px 10px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Typical WAULT</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--blue)"}}>{commercialComps.wault.typical} yrs</div>
+                          </div>
+                          <div style={{flex:1,background:"var(--bg2)",borderRadius:6,padding:"6px 10px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Prime Void Rate</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--amber)"}}>{commercialComps.voidRate?.prime}%</div>
+                          </div>
+                        </div>
+                      )}
+                      {/* AI Flag */}
+                      {commercialComps.aiFlag&&(
+                        <div style={{padding:"6px 10px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:8}}>
+                          <div style={{fontSize:10,color:"var(--amber)",fontWeight:600,marginBottom:2}}>⚠ Market Flag</div>
+                          <div style={{fontSize:10,color:"var(--text-m)"}}>{commercialComps.aiFlag}</div>
+                        </div>
+                      )}
+                      {/* Comparable lettings */}
+                      {commercialComps.comparables?.length>0&&(
+                        <div>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparable Lettings</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                            {commercialComps.comparables.map((c:any,i:number)=>(
+                              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"var(--bg2)",borderRadius:5}}>
+                                <div>
+                                  <span style={{fontSize:10,color:"var(--text)",fontWeight:500}}>{c.address}</span>
+                                  <div style={{fontSize:9,color:"var(--text-d)"}}>{c.type} · {c.size} · {c.tenant} · {c.date}</div>
+                                </div>
+                                <span style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600,whiteSpace:"nowrap",marginLeft:8}}>{currencySymbol}{c.rentPSF}/sf</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Investment sales */}
+                      {commercialComps.investmentSales?.length>0&&(
+                        <div style={{marginTop:8}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Investment Sales</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                            {commercialComps.investmentSales.map((s:any,i:number)=>(
+                              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"var(--bg2)",borderRadius:5}}>
+                                <div>
+                                  <span style={{fontSize:10,color:"var(--text)",fontWeight:500}}>{s.address}</span>
+                                  <div style={{fontSize:9,color:"var(--text-d)"}}>{s.date} · {s.vendor} → {s.purchaser}</div>
+                                </div>
+                                <div style={{textAlign:"right",marginLeft:8}}>
+                                  <div style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600,whiteSpace:"nowrap"}}>{s.price}</div>
+                                  <div style={{fontSize:9,color:"var(--green)"}}>{s.niy?`${(s.niy*100).toFixed(2)}% NIY`:""}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {/* Exit method */}
                 <div className="section-title" style={{marginTop:24}}>Exit Valuation Method</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
@@ -39884,6 +40361,45 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   S-curve build draw · {r.buildMonths}m construction · {r.stabMonths}m letting-up ramp · exit at {r.exitMethod==="vp"?"VP value":r.exitMethod==="equivalent"?"equivalent yield":"NIY"}
                 </div>
                 <CashflowChart uCfs={r.uCfs||[]} totalMonths={r.totalMonths||0} buildMonths={r.buildMonths||0} exitLabel={r.exitMethod==="vp"?"VP exit":r.exitMethod==="equivalent"?"EY exit":"NIY exit"} currencySymbol={currencySymbol} phaseLabels={[`Build (${r.buildMonths}m)`,`Letting-up (${r.stabMonths}m)`]}/>
+                {/* Year-by-year NOI table — Advanced mode */}
+                {commercialMode==="advanced"&&r.yearlyNOI?.length>0&&(
+                  <div style={{marginTop:20}}>
+                    <div className="section-title">Year-by-Year NOI — Hold Period</div>
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                        <thead>
+                          <tr style={{borderBottom:"1px solid var(--border)"}}>
+                            <th style={{textAlign:"left",padding:"6px 8px",color:"var(--text-d)",fontWeight:600,fontSize:10,textTransform:"uppercase",letterSpacing:".06em"}}>Year</th>
+                            {r.yearlyNOI.map((_:number,i:number)=>(
+                              <th key={i} style={{textAlign:"right",padding:"6px 8px",color:"var(--text-d)",fontWeight:600,fontSize:10,textTransform:"uppercase",letterSpacing:".06em"}}>Yr {i+1}{i===r.yearlyNOI.length-1?" (Exit)":""}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr style={{borderBottom:"1px solid var(--bg4)"}}>
+                            <td style={{padding:"7px 8px",color:"var(--text-m)",fontWeight:600}}>NOI (Net)</td>
+                            {r.yearlyNOI.map((n:number,i:number)=>(
+                              <td key={i} style={{textAlign:"right",padding:"7px 8px",fontFamily:"var(--font-mono)",color:"var(--green)",fontWeight:i===r.yearlyNOI.length-1?600:400}}>{fmt(n,currencySymbol)}</td>
+                            ))}
+                          </tr>
+                          <tr>
+                            <td style={{padding:"7px 8px",color:"var(--text-d)"}}>Exit Value</td>
+                            {r.yearlyNOI.map((_:number,i:number)=>(
+                              <td key={i} style={{textAlign:"right",padding:"7px 8px",fontFamily:"var(--font-mono)",color:i===r.yearlyNOI.length-1?"var(--gold)":"var(--text-d)",fontWeight:i===r.yearlyNOI.length-1?600:400}}>
+                                {i===r.yearlyNOI.length-1?fmt(r.exitValue||0,currencySymbol):"—"}
+                              </td>
+                            ))}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{display:"flex",gap:16,marginTop:12,fontSize:11,color:"var(--text-d)"}}>
+                      <span>Total Hold NOI: <span style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(r.totalHoldNOI||0,currencySymbol)}</span></span>
+                      <span>Stabilised NOI: <span style={{color:"var(--green)",fontFamily:"var(--font-mono)"}}>{fmt(r.stabilisedNOI||0,currencySymbol)}</span></span>
+                      <span>Yield on Cost: <span style={{color:"var(--blue)",fontFamily:"var(--font-mono)"}}>{((r.yoc||0)*100).toFixed(2)}%</span></span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -41527,7 +42043,36 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
 
-                {/* Exit method */}
+                {/* ── AI COMMERCIAL COMPS (Industrial) ── */}
+                <div style={{marginTop:20}}>
+                  <button
+                    onClick={runCommercialComps}
+                    disabled={commercialCompsRunning||!data.location}
+                    style={{display:"flex",alignItems:"center",gap:6,background:commercialCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:commercialCompsRunning?"var(--text-d)":"var(--gold)",fontSize:10,padding:"6px 12px",cursor:commercialCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",transition:"all .2s"}}
+                  >
+                    {commercialCompsRunning?(
+                      <><span style={{width:10,height:10,border:"1.5px solid rgba(201,168,76,.2)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin .7s linear infinite"}}/> Pulling market comps…</>
+                    ):(
+                      <><span style={{fontSize:12}}>◈</span> {commercialComps?"Refresh AI Comps":"Pull AI Industrial Comps"} {!data.location&&"(add location first)"}</>
+                    )}
+                  </button>
+                  {commercialCompsError&&<div style={{fontSize:10,color:"var(--red)",marginTop:6,padding:"6px 10px",background:"rgba(244,100,95,.06)",borderRadius:6}}>{commercialCompsError}</div>}
+                  {commercialComps&&(
+                    <div style={{marginTop:10,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:12,animation:"fadeIn .3s ease"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>AI Industrial Comps — {data.location}</div>
+                        <div style={{fontSize:9,color:"var(--text-d)"}}>{commercialComps.dataDate||""}</div>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime Rent PSF/yr</div><div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--gold)"}}>{currencySymbol}{commercialComps.rentPSF?.prime||"—"}</div></div>
+                        <div style={{background:"var(--bg2)",borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime NIY</div><div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--green)"}}>{commercialComps.yields?.primeNIY?`${(commercialComps.yields.primeNIY*100).toFixed(2)}%`:"—"}</div></div>
+                      </div>
+                      {commercialComps.aiFlag&&(<div style={{padding:"6px 10px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:8}}><div style={{fontSize:10,color:"var(--amber)",fontWeight:600,marginBottom:2}}>⚠ Market Flag</div><div style={{fontSize:10,color:"var(--text-m)"}}>{commercialComps.aiFlag}</div></div>)}
+                      {commercialComps.comparables?.length>0&&(<div><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparable Lettings</div><div style={{display:"flex",flexDirection:"column",gap:4}}>{commercialComps.comparables.map((c:any,i:number)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"var(--bg2)",borderRadius:5}}><div><span style={{fontSize:10,color:"var(--text)",fontWeight:500}}>{c.address}</span><div style={{fontSize:9,color:"var(--text-d)"}}>{c.type} · {c.size} · {c.date}</div></div><span style={{fontSize:10,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600,whiteSpace:"nowrap",marginLeft:8}}>{currencySymbol}{c.rentPSF}/sf</span></div>))}</div></div>)}
+                    </div>
+                  )}
+                </div>
+                                {/* Exit method */}
                 <div className="section-title" style={{marginTop:24}}>Exit Valuation Method</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
                   {([
