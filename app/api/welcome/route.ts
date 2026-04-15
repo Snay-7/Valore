@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
-    const name = firstName || "there";
+    const rawFirst = firstName || "there";
+    const name = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
     const roleLabel = role ? ROLE_LABEL[role] : null;
     const roleIntro = role ? ROLE_INTRO[role] : null;
     const pdfUrl = role ? ROLE_PDF[role] : null;
