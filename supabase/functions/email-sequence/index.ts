@@ -22,25 +22,25 @@ async function sendEmail(to: string, subject: string, html: string) {
 function emailHtml(body: string): string {
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#06070a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#06070a;padding:40px 0;">
+<body style="margin:0;padding:0;background:#F2F3F0;font-family:'Inter',system-ui,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F2F3F0;padding:48px 20px;">
 <tr><td align="center">
 <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
   <tr><td style="padding:0 0 32px;">
-    <p style="margin:0;font-size:24px;font-weight:300;color:#c9a84c;letter-spacing:0.12em;">VALORA</p>
-    <p style="margin:4px 0 0;font-size:9px;color:#3d4249;letter-spacing:0.18em;text-transform:uppercase;">INSTITUTIONAL APPRAISAL</p>
+    <table cellpadding="0" cellspacing="0"><tr><td style="background:#1E2433;border-radius:8px;padding:9px 16px;"><span style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:-.02em;">Valora</span></td></tr></table>
+    
   </td></tr>
   <tr><td style="padding:0 0 32px;">
-    <div style="height:1px;background:linear-gradient(90deg,#c9a84c,transparent);"></div>
+    
   </td></tr>
-  <tr><td style="background:#0c0e12;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:40px;">
+  <tr><td style="background:#ffffff;border:1px solid #E8EAED;border-radius:12px;padding:40px;">
     ${body}
   </td></tr>
-  <tr><td style="padding:24px 0 0;">
-    <p style="margin:0;font-size:11px;color:#3d4249;line-height:1.8;">
+  <tr><td style="padding:24px 0 0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#9AA3AF;line-height:1.8;">
       Valora Technologies Ltd · Registered in England &amp; Wales<br/>
-      <a href="${BASE_URL}/privacy" style="color:#3d4249;">Privacy Policy</a> &nbsp;·&nbsp;
-      <a href="${BASE_URL}/unsubscribe" style="color:#3d4249;">Unsubscribe</a>
+      <a href="${BASE_URL}/privacy" style="color:#9AA3AF;">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="${BASE_URL}/unsubscribe" style="color:#9AA3AF;">Unsubscribe</a>
     </p>
   </td></tr>
 </table>
@@ -49,29 +49,29 @@ function emailHtml(body: string): string {
 </body></html>`;
 }
 
-function p(t: string) { return `<p style="margin:0 0 16px;font-size:15px;color:#eceae4;line-height:1.7;">${t}</p>`; }
-function muted(t: string) { return `<p style="margin:0 0 16px;font-size:14px;color:#7d8590;line-height:1.7;">${t}</p>`; }
+function p(t: string) { return `<p style="margin:0 0 16px;font-size:15px;color:#1E2433;line-height:1.7;">${t}</p>`; }
+function muted(t: string) { return `<p style="margin:0 0 16px;font-size:14px;color:#5A6478;line-height:1.7;">${t}</p>`; }
 function cta(t: string, url: string) {
-  return `<table cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:#c9a84c;border-radius:8px;">
-    <a href="${url}" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:600;color:#06070a;text-decoration:none;">${t}</a>
+  return `<table cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:#2A8A64;border-radius:8px;">
+    <a href="${url}" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">${t}</a>
   </td></tr></table>`;
 }
-function divider() { return `<div style="height:1px;background:rgba(255,255,255,0.06);margin:24px 0;"></div>`; }
+function divider() { return `<div style="height:1px;background:#E8EAED;margin:24px 0;"></div>`; }
 function sig(ps?: string) {
-  return `${divider()}<p style="margin:0 0 4px;font-size:14px;color:#eceae4;">Snayder</p>
-  <p style="margin:0;font-size:13px;color:#3d4249;">Valora</p>
-  ${ps ? `<p style="margin:16px 0 0;font-size:13px;color:#3d4249;font-style:italic;">${ps}</p>` : ""}`;
+  return `${divider()}<p style="margin:0 0 4px;font-size:14px;color:#1E2433;">Snayder</p>
+  <p style="margin:0;font-size:13px;color:#9AA3AF;">Valora</p>
+  ${ps ? `<p style="margin:16px 0 0;font-size:13px;color:#9AA3AF;font-style:italic;">${ps}</p>` : ""}`;
 }
 function dealRow(l: string, v: string) {
-  return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-    <span style="font-size:13px;color:#7d8590;">${l}</span>
-    <span style="font-size:13px;font-weight:600;color:#eceae4;">${v}</span>
+  return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F0F2F5;">
+    <span style="font-size:13px;color:#5A6478;">${l}</span>
+    <span style="font-size:13px;font-weight:600;color:#1E2433;">${v}</span>
   </div>`;
 }
 function featureBox(title: string, desc: string) {
-  return `<div style="background:#12151a;border:1px solid rgba(201,168,76,0.15);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
-    <div style="font-size:13px;font-weight:600;color:#eceae4;margin-bottom:4px;">${title}</div>
-    <div style="font-size:13px;color:#7d8590;line-height:1.6;">${desc}</div>
+  return `<div style="background:#F8F9FA;border-radius:8px;border:none;padding:14px 16px;margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:600;color:#1E2433;margin-bottom:4px;">${title}</div>
+    <div style="font-size:13px;color:#5A6478;line-height:1.6;">${desc}</div>
   </div>`;
 }
 
@@ -80,7 +80,7 @@ function getEmail2(firstName: string, role: string | null): { subject: string; h
   if (role === "lender") return {
     subject: "The number most borrower appraisals get wrong",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">Most borrower models get the finance wrong.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">Most borrower models get the finance wrong.</h1>
       ${p("They use a flat interest rate on the total loan — not on the actual drawn balance month by month. On a £20m development loan, that's £200–400k of misrepresented profit. The deal looks better on paper than it is.")}
       ${p("Valora's monthly cashflow engine models actual drawdown. You can see exactly what the borrower's real interest cost is — not what they've assumed.")}
       ${muted("Run a deal from your current pipeline through Valora and see the difference.")}
@@ -91,7 +91,7 @@ function getEmail2(firstName: string, role: string | null): { subject: string; h
   if (role === "hotel_investor" || role === "hotel_asset_manager") return {
     subject: "Normalised vs Actual NOI — why it matters",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">The NOI gap is where hotel deals are won or lost.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">The NOI gap is where hotel deals are won or lost.</h1>
       ${p("Most hotel appraisals either use the seller's actual NOI (which may not be sustainable) or a model-built normalised NOI (which may not reflect current performance). The gap between the two defines the underwriting.")}
       ${p("Valora has an Actual NOI mode — input the real operating figure and the model capitalises it directly at exit cap rate. You see the valuation gap immediately.")}
       ${muted("Try it on a deal you're currently looking at.")}
@@ -102,7 +102,7 @@ function getEmail2(firstName: string, role: string | null): { subject: string; h
   if (role === "surveyor") return {
     subject: "The assumption lenders always challenge",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">Exit yield. Every time.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">Exit yield. Every time.</h1>
       ${p("In residual valuations, the exit yield assumption drives everything. A 25bps move on a £10m GDV scheme changes the land value by £400–600k. It's the number lenders and clients always push back on first.")}
       ${p("Valora's sensitivity matrix shows the full exit yield × rent range in one grid — 45 scenarios, colour-coded. You can see and defend exactly where the residual stands.")}
       ${muted("Run a residual on any deal and see the sensitivity matrix in action.")}
@@ -113,7 +113,7 @@ function getEmail2(firstName: string, role: string | null): { subject: string; h
   if (role === "advisor") return {
     subject: "The one slide clients always ask for",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">Sensitivity. Every client meeting, every deal.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">Sensitivity. Every client meeting, every deal.</h1>
       ${p("The question is always the same — what happens if yields move 25bps? What if rents come in 10% below forecast? Building that manually takes an hour. Presenting it live in a meeting isn't possible with a static spreadsheet.")}
       ${p("Valora generates a 45-scenario sensitivity matrix automatically — exit yield × rent/ADR, colour-coded RAG. It updates in real time as you change assumptions.")}
       ${muted("Try it on a current client mandate.")}
@@ -124,7 +124,7 @@ function getEmail2(firstName: string, role: string | null): { subject: string; h
   return {
     subject: "The one thing most developers get wrong",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">Most property models get the finance wrong.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">Most property models get the finance wrong.</h1>
       ${p("They use a flat interest rate on the total loan — not on the actual drawn balance month by month. The difference on a £5m scheme can be £80–120k in misrepresented profit.")}
       ${p("Valora uses a true monthly cashflow engine with S-curve drawdown. Interest rolls on what's actually drawn. It's the same method institutional lenders use internally.")}
       ${muted("If you haven't modelled a deal yet, now's a good time to see the difference.")}
@@ -139,7 +139,7 @@ function getEmail3(firstName: string, role: string | null): { subject: string; h
   if (role === "lender") return {
     subject: "Run a borrower deal in 3 minutes",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">3 minutes to a full credit view.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">3 minutes to a full credit view.</h1>
       ${p("Open Valora, pick the asset type, enter purchase price, CapEx, exit cap rate and LTC. DSCR, Debt Yield, peak loan, LTV at exit and the full sensitivity matrix — all instant.")}
       ${muted("A complete independent view of any borrower's deal before credit committee.")}
       ${cta("Try it now →", `${BASE_URL}/dashboard`)}
@@ -149,7 +149,7 @@ function getEmail3(firstName: string, role: string | null): { subject: string; h
   if (role === "hotel_investor" || role === "hotel_asset_manager") return {
     subject: "Model a hotel deal in 3 minutes",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">3 minutes to a full hotel appraisal.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">3 minutes to a full hotel appraisal.</h1>
       ${p("Open Valora, click Hotel, enter rooms, ADR, occupancy, purchase price and exit cap rate. RevPAR, EBITDA, NOI, DSCR and IRR — all instant. Pull live ADR comps for your market with one click.")}
       ${muted("Simple mode for acquisitions. Advanced mode for year-by-year holds.")}
       ${cta("Try it now →", `${BASE_URL}/dashboard`)}
@@ -159,7 +159,7 @@ function getEmail3(firstName: string, role: string | null): { subject: string; h
   if (role === "surveyor") return {
     subject: "Run a residual in 60 seconds",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">60 seconds to a residual land value.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">60 seconds to a residual land value.</h1>
       ${p("Open Valora, pick BTR or BTS, enter land cost, build cost PSF, units and sale price PSF. RLV, IRR, profit on cost and the full sensitivity matrix — all live.")}
       ${muted("No formulas. A defensible residual with full assumption set in under a minute.")}
       ${cta("Try it now →", `${BASE_URL}/dashboard`)}
@@ -169,7 +169,7 @@ function getEmail3(firstName: string, role: string | null): { subject: string; h
   return {
     subject: "60 seconds to your first numbers",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">60 seconds to your first numbers.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">60 seconds to your first numbers.</h1>
       ${p("Open Valora, click <strong>+ New Appraisal</strong>, pick <strong>Flip</strong>, enter purchase price, refurb cost and expected sale price.")}
       ${muted("IRR, profit on cost, equity multiple — all calculated live. No spreadsheet. No formulas.")}
       ${cta("Try it now →", `${BASE_URL}/dashboard`)}
@@ -199,7 +199,7 @@ function getEmail4(firstName: string, role: string | null): { subject: string; h
   return {
     subject: `How's your first week going, ${firstName}?`,
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">How's your first week going, ${firstName}?</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">How's your first week going, ${firstName}?</h1>
       ${p("A few things users find most useful that you might not have tried yet:")}
       ${features.map(([t, d]) => featureBox(t, d)).join("")}
       ${muted("All available on the 14-day Pro trial — no card needed to start.")}
@@ -215,7 +215,7 @@ function getEmail5(firstName: string, role: string | null): { subject: string; h
   if (role === "lender") return {
     subject: "A deal we stress-tested through Valora",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">A real credit stress test.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">A real credit stress test.</h1>
       ${p("Here's a hotel acquisition we ran — Grand Plaza Roma, Via del Corso, €250m.")}
       <div style="background:#F8F9FA;border:1px solid #E8EAED;border-radius:10px;padding:20px;margin-bottom:20px;">
         ${[["Purchase Price","€250m"],["DSCR","2.59×"],["Debt Yield","4.4%"],["LTV at Exit","26.3%"],["IRR (Unlevered)","4.9%"],["IRR (Levered)","1.2%"]].map(([l,v]) => dealRow(l,v)).join("")}
@@ -228,7 +228,7 @@ function getEmail5(firstName: string, role: string | null): { subject: string; h
   if (role === "hotel_investor" || role === "hotel_asset_manager") return {
     subject: "A hotel deal we ran through Valora",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">A real hotel appraisal.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">A real hotel appraisal.</h1>
       ${p("Grand Plaza Roma, Via del Corso, €250m asking price.")}
       <div style="background:#F8F9FA;border:1px solid #E8EAED;border-radius:10px;padding:20px;margin-bottom:20px;">
         ${[["203 rooms","5 Star · Via del Corso"],["ADR","€480 (+26% vs market avg)"],["EBITDA pa","€13.13m"],["IRR (Levered)","1.2%"],["DSCR","2.59×"]].map(([l,v]) => dealRow(l,v)).join("")}
@@ -241,7 +241,7 @@ function getEmail5(firstName: string, role: string | null): { subject: string; h
   return {
     subject: "A deal we ran through Valora",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">A real deal, real numbers.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">A real deal, real numbers.</h1>
       ${p("Here's a residential flip we modelled — South Kensington, SW7.")}
       <div style="background:#F8F9FA;border:1px solid #E8EAED;border-radius:10px;padding:20px;margin-bottom:20px;">
         ${[["Purchase","£3.5m"],["Refurb","£800k"],["Target sale","£6.6m"],["Hold period","9 months"]].map(([l,v]) => dealRow(l,v)).join("")}
@@ -266,7 +266,7 @@ function getEmail6(firstName: string, role: string | null): { subject: string; h
   return {
     subject: "Your free appraisals don't expire — but this does",
     html: emailHtml(`
-      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#eceae4;letter-spacing:-.02em;">Your 3 free appraisals don't expire.</h1>
+      <h1 style="margin:0 0 16px;font-size:22px;font-weight:300;color:#1E2433;letter-spacing:-.02em;">Your 3 free appraisals don't expire.</h1>
       ${p("But the 14-day Pro trial window closes today. After this, starting a trial means committing to a billing cycle.")}
       ${muted("Pro gives you:")}
       <ul style="margin:0 0 20px;padding-left:20px;">
