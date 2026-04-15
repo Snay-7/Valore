@@ -1,18 +1,2 @@
-export const metadata = {
-  title: "Valora — Development Appraisal Platform",
-  description: "Institutional development appraisal software for property developers, valuers, lenders and investment professionals.",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body style={{ margin: 0, padding: 0, background: "#06070a" }}>
-        {children}
-      </body>
-    </html>
-  );
-}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; padding: 0; }
