@@ -246,7 +246,7 @@ function PricingPage() {
 
   const [user, setUser] = useState<any>(null);
 
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
 
   const [loading, setLoading] = useState<string | null>(null);
 
