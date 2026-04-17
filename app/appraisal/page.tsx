@@ -12492,6 +12492,29 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
   const paybackMonth=calcPaybackMonth(uCfs);
 
+  // For appraisal PDF compatibility (appraisal PDF reads zoneResults + totalSqft)
+  const totalSqftAdvanced=zones.reduce((s:number,z:any)=>s+num(String(z.units||0))*num(String(z.sizeSqft||0)),0);
+  const zoneResultsForDisplay=zones.map((z:any)=>{
+    const units=num(String(z.units||0));
+    const sizeSqft=num(String(z.sizeSqft||0));
+    const zoneTotalSqft=units*sizeSqft;
+    const buildCostPsf=num(String(z.buildCostPsf||0));
+    const zoneBuildCost=zoneTotalSqft*buildCostPsf;
+    // GDV per zone: sell zones use salePricePsf*area, hold zones capitalise rent
+    const isResidential=z.type==="residential"||!z.type;
+    let gdvZone=0;
+    if(isResidential&&(z.exitStrategy||"sell")==="sell"){
+      const salePricePsf=num(String(z.salePricePsf||0));
+      gdvZone=units*sizeSqft*salePricePsf;
+    } else {
+      const rentPcm=num(String(z.rentPcm||0));
+      const exitYield=num(String(z.exitYield||5))/100;
+      const grossRentPa=units*rentPcm*12;
+      gdvZone=exitYield>0?(grossRentPa*0.9)/exitYield:0;
+    }
+    return{label:z.label||z.type||"Zone",type:z.type||"residential",gdvZone,totalBuildCost:zoneBuildCost,totalSqft:zoneTotalSqft,exitYield:num(String(z.exitYield||0))/100};
+  });
+
   return{
     gdv:exitValue,exitValue,totalGDV:exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
     margin:exitValue>0?profit/exitValue:0,
@@ -12504,6 +12527,7 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
     niy:num(String(data.niy||5))/100,
     financeRate:annualRate,
     rlv:exitValue*(1-0.20)-totalBC-fin.totalFinanceCost-sdlt,
+    totalSqft:totalSqftAdvanced,zoneResults:zoneResultsForDisplay,
   };
 }
 
@@ -28411,7 +28435,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
   const shareWhatsApp=()=>{if(!liveLink)return;const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);window.open(`https://wa.me/?text=${text}`);};
   const handleGeneratePDF=async()=>{
     setGeneratingPDF(true);
-    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,results,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null);tickChecklist("generated_pdf");}
+    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,r,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null);tickChecklist("generated_pdf");}
     catch(e){console.error("PDF error:",e);}
     setGeneratingPDF(false);
   };
