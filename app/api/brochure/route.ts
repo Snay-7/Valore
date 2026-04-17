@@ -9,9 +9,11 @@ export async function POST(req: NextRequest) {
       btrBtsComps,
       flipComps,
       commercialComps,
+      mixedUseResiComps,
+      mixedUseComComps,
     } = await req.json();
 
-    // ── Build comps context block (only the one relevant to this asset) ──
+    // ── Build comps context block (only for this asset type) ──
     let compsBlock = "";
 
     if (assetType === "Hotel" && hotelComps) {
@@ -26,7 +28,10 @@ export async function POST(req: NextRequest) {
         .join("\n");
       const hotelsList = (hotelComps.comparable_hotels || [])
         .slice(0, 8)
-        .map((h: any) => `  - ${h.name || "Hotel"} (${h.stars || "?"}★): ADR ${h.adr || "—"}, ${h.rooms || "?"} rooms`)
+        .map(
+          (h: any) =>
+            `  - ${h.name || "Hotel"} (${h.stars || "?"}★): ADR ${h.adr || "—"}, ${h.rooms || "?"} rooms`
+        )
         .join("\n");
       compsBlock = `
 LIVE MARKET COMPARABLES — USE THESE SPECIFIC FIGURES:
@@ -40,11 +45,17 @@ ${hotelsList ? `Comparable hotels:\n${hotelsList}` : ""}
     } else if ((assetType === "BTR" || assetType === "BTS") && btrBtsComps) {
       const sales = (btrBtsComps.comparables || [])
         .slice(0, 6)
-        .map((c: any) => `  - ${c.address || "Comp"}: ${c.price || "—"} (${c.sqft || "—"} sqft, ${c.pricePsf || "—"} psf)`)
+        .map(
+          (c: any) =>
+            `  - ${c.address || "Comp"}: ${c.price || "—"} (${c.sqft || "—"} sqft, ${c.pricePsf || "—"} psf)`
+        )
         .join("\n");
       const rentals = (btrBtsComps.rentalComps || [])
         .slice(0, 6)
-        .map((c: any) => `  - ${c.address || "Comp"}: ${c.rentPcm || "—"}/mo (${c.bedrooms || "?"} bed)`)
+        .map(
+          (c: any) =>
+            `  - ${c.address || "Comp"}: ${c.rentPcm || "—"}/mo (${c.bedrooms || "?"} bed)`
+        )
         .join("\n");
       compsBlock = `
 LIVE MARKET COMPARABLES — USE THESE SPECIFIC FIGURES:
@@ -59,7 +70,10 @@ ${rentals ? `Rental comparables:\n${rentals}` : ""}
     } else if (assetType === "Flip" && flipComps) {
       const sold = (flipComps.comparables || [])
         .slice(0, 6)
-        .map((c: any) => `  - ${c.address || "Comp"}: ${c.soldPrice || c.price || "—"} (${c.sqft || "—"} sqft)`)
+        .map(
+          (c: any) =>
+            `  - ${c.address || "Comp"}: ${c.soldPrice || c.price || "—"} (${c.sqft || "—"} sqft)`
+        )
         .join("\n");
       compsBlock = `
 LIVE MARKET COMPARABLES — USE THESE SPECIFIC FIGURES:
@@ -69,7 +83,10 @@ Gross Yield Range: ${flipComps.grossYieldRange || "—"}
 ${flipComps.marketContext ? `Market context: ${flipComps.marketContext}` : ""}
 ${sold ? `Sold comparables:\n${sold}` : ""}
 `.trim();
-    } else if ((assetType === "Commercial" || assetType === "Industrial") && commercialComps) {
+    } else if (
+      (assetType === "Commercial" || assetType === "Industrial") &&
+      commercialComps
+    ) {
       const lettings = (commercialComps.comparables || [])
         .slice(0, 6)
         .map(
@@ -97,6 +114,80 @@ ${commercialComps.aiFlag ? `Market flag: ${commercialComps.aiFlag}` : ""}
 ${lettings ? `Comparable lettings:\n${lettings}` : ""}
 ${sales ? `Investment sales:\n${sales}` : ""}
 `.trim();
+    } else if (
+      assetType === "MixedUse" &&
+      (mixedUseResiComps || mixedUseComComps)
+    ) {
+      // ── RESIDENTIAL SIDE (BTR + BTS merged) ──
+      let resiBlock = "";
+      if (mixedUseResiComps) {
+        const rental = mixedUseResiComps.rental || {};
+        const sales = mixedUseResiComps.sales || {};
+        const rentalComps = (rental.rentalComps || [])
+          .slice(0, 5)
+          .map(
+            (c: any) =>
+              `  - ${c.address || "Comp"}: ${c.rentPcm || "—"}/mo (${c.bedrooms || c.beds || "?"} bed, ${c.size || "—"} sqft)`
+          )
+          .join("\n");
+        const salesComps = (sales.comparables || [])
+          .slice(0, 5)
+          .map(
+            (c: any) =>
+              `  - ${c.address || "Comp"}: ${c.price || "—"} (${c.pricePsf || "—"} psf, ${c.size || "—"} sqft)`
+          )
+          .join("\n");
+        resiBlock = `
+── RESIDENTIAL COMPS ──
+RENTAL MARKET (BTR):
+- Avg rent PCM: ${rental.avgRentPcm || "—"}
+- Gross yield range: ${rental.grossYieldRange || "—"}
+${rental.marketContext ? `- Context: ${rental.marketContext}` : ""}
+${rentalComps ? `- Comparables:\n${rentalComps}` : ""}
+
+SALES MARKET (BTS / new-build):
+- Avg price PSF: ${sales.avgPricePsf || "—"}
+- Price range: ${sales.priceRange ? `${sales.priceRange.low}–${sales.priceRange.high}` : "—"}
+${sales.marketContext ? `- Context: ${sales.marketContext}` : ""}
+${salesComps ? `- Comparables:\n${salesComps}` : ""}
+`.trim();
+      }
+      // ── COMMERCIAL SIDE ──
+      let comBlock = "";
+      if (mixedUseComComps) {
+        const lettings = (mixedUseComComps.comparables || [])
+          .slice(0, 5)
+          .map(
+            (c: any) =>
+              `  - ${c.address || "Comp"}: ${c.rentPSF || "—"} psf (${c.type || "—"}, ${c.size || "—"})`
+          )
+          .join("\n");
+        const sales = (mixedUseComComps.investmentSales || [])
+          .slice(0, 5)
+          .map(
+            (s: any) =>
+              `  - ${s.address || "Sale"}: ${s.price || "—"} @ ${s.niy || "—"} NIY`
+          )
+          .join("\n");
+        comBlock = `
+── COMMERCIAL COMPS ──
+Prime rent PSF/yr: ${mixedUseComComps.rentPSF?.prime || "—"} (${mixedUseComComps.rentPSF?.trend || "—"})
+Secondary rent PSF/yr: ${mixedUseComComps.rentPSF?.secondary || "—"}
+Prime NIY: ${mixedUseComComps.yields?.primeNIY ? (mixedUseComComps.yields.primeNIY * 100).toFixed(2) + "%" : "—"}
+Secondary NIY: ${mixedUseComComps.yields?.secondaryNIY ? (mixedUseComComps.yields.secondaryNIY * 100).toFixed(2) + "%" : "—"}
+${mixedUseComComps.wault ? `Typical WAULT: ${mixedUseComComps.wault.typical} yrs` : ""}
+${mixedUseComComps.aiFlag ? `Market flag: ${mixedUseComComps.aiFlag}` : ""}
+${lettings ? `Comparable lettings:\n${lettings}` : ""}
+${sales ? `Investment sales:\n${sales}` : ""}
+`.trim();
+      }
+      compsBlock = `
+LIVE MARKET COMPARABLES (MIXED USE — TWO SEPARATE MARKETS) — USE THESE SPECIFIC FIGURES:
+
+${resiBlock}
+
+${comBlock}
+`.trim();
     }
 
     const prompt = `You are an expert property investment analyst writing a professional investment memorandum. Based on the following deal data, write concise, compelling content for an institutional investor brochure.
@@ -107,6 +198,7 @@ ${dealSummary}
 ${compsBlock ? compsBlock + "\n" : ""}
 IMPORTANT INSTRUCTIONS:
 - If LIVE MARKET COMPARABLES are provided above, you MUST reference these specific figures in the marketComparables section. Cite the actual ADR / rent PSF / NIY / yield / price numbers given. Name specific comparable properties when available.
+- For MIXED USE deals, treat the residential and commercial markets as two DISTINCT benchmarks — discuss both sides separately and compare each component of the scheme against its relevant market (resi vs BTR/BTS, commercial zones vs prime/secondary NIY and rent PSF).
 - Do NOT write generic market commentary that ignores the real data.
 - Compare this deal's metrics directly against the comps (e.g. "Prime Mayfair NIY benchmark of 4.25% vs this deal's exit NIY of 5.50% — a 125bps cushion").
 - If no comps are provided, give general market context appropriate to the asset type and location.
@@ -116,7 +208,7 @@ Respond ONLY with a JSON object (no markdown, no backticks) with these exact key
   "executiveSummary": "2-3 sentences summarising the opportunity, location appeal, and headline returns",
   "dealStrengths": "3-4 specific strengths of this deal based on the numbers and asset type",
   "riskAssessment": "2-3 key risks to consider and how they might be mitigated",
-  "marketComparables": "Brief commentary on market context — reference the LIVE COMPARABLES above with specific numbers if provided, and compare how this deal stacks up"
+  "marketComparables": "Brief commentary on market context — reference the LIVE COMPARABLES above with specific numbers if provided, and compare how this deal stacks up. For Mixed Use, address residential AND commercial markets separately."
 }`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
