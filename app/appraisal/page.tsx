@@ -26508,6 +26508,13 @@ function AppraisalPage(){
   const[btrBtsComps,setBtrBtsComps]=useState<any>(null);
   const[btrBtsCompsRunning,setBtrBtsCompsRunning]=useState(false);
   const[btrBtsCompsError,setBtrBtsCompsError]=useState<string|null>(null);
+  // MixedUse — separate comps for Residential (BTR+BTS merged) and Commercial zones
+  const[muResiComps,setMuResiComps]=useState<any>(null);
+  const[muResiCompsRunning,setMuResiCompsRunning]=useState(false);
+  const[muResiCompsError,setMuResiCompsError]=useState<string|null>(null);
+  const[muComComps,setMuComComps]=useState<any>(null);
+  const[muComCompsRunning,setMuComCompsRunning]=useState(false);
+  const[muComCompsError,setMuComCompsError]=useState<string|null>(null);
   const[urlImport,setUrlImport]=useState("");
   const[urlImporting,setUrlImporting]=useState(false);
   const[urlImportError,setUrlImportError]=useState<string|null>(null);
@@ -27228,6 +27235,56 @@ function AppraisalPage(){
       else setCommercialComps(d.comps);
     }catch(e:any){setCommercialCompsError(e.message||"Failed to fetch comps");}
     setCommercialCompsRunning(false);
+  };
+  // MixedUse — Residential comps: fires BTR + BTS in parallel, merges into one result
+  const runMixedUseResiComps=async()=>{
+    if(!data.location)return;
+    setMuResiCompsRunning(true);setMuResiCompsError(null);setMuResiComps(null);
+    try{
+      const resiZones=(data.zones||[]).filter((z:any)=>z.type==="residential");
+      const avgSize=resiZones.length?Math.round(resiZones.reduce((s:number,z:any)=>s+num(String(z.sizeSqft||0)),0)/resiZones.length):700;
+      const avgRent=resiZones.length?Math.round(resiZones.reduce((s:number,z:any)=>s+num(String(z.rentPcm||0)),0)/Math.max(resiZones.filter((z:any)=>num(String(z.rentPcm||0))>0).length,1)):0;
+      const avgSalePsf=resiZones.length?Math.round(resiZones.reduce((s:number,z:any)=>s+num(String(z.salePricePsf||0)),0)/Math.max(resiZones.filter((z:any)=>num(String(z.salePricePsf||0))>0).length,1)):0;
+      const [btrRes,btsRes]=await Promise.all([
+        fetch("/api/comps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,currency:data.currency||"GBP",assetType:"BTR",avgSize,avgRent:avgRent||undefined})}),
+        fetch("/api/comps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,currency:data.currency||"GBP",assetType:"BTS",avgSize,avgSalePsf:avgSalePsf||undefined})})
+      ]);
+      const [btrD,btsD]=await Promise.all([btrRes.json(),btsRes.json()]);
+      if(btrD.error&&btsD.error)throw new Error(btrD.error||btsD.error||"Both rental and sales comps failed");
+      setMuResiComps({
+        rental:{
+          rentalComps:Array.isArray(btrD.rentalComps)?btrD.rentalComps:[],
+          avgRentPcm:btrD.avgRentPcm||0,
+          grossYieldRange:btrD.grossYieldRange||"—",
+          marketContext:typeof btrD.marketContext==="string"?btrD.marketContext:"",
+          dataSource:btrD.dataSource||"",
+          dataDate:btrD.dataDate||"",
+          error:btrD.error||null,
+        },
+        sales:{
+          comparables:Array.isArray(btsD.comparables)?btsD.comparables:[],
+          avgPricePsf:btsD.avgPricePsf||0,
+          priceRange:btsD.priceRange||null,
+          marketContext:typeof btsD.marketContext==="string"?btsD.marketContext:"",
+          dataSource:btsD.dataSource||"",
+          dataDate:btsD.dataDate||"",
+          error:btsD.error||null,
+        },
+      });
+    }catch(e:any){setMuResiCompsError(e.message||"Failed to fetch residential comps");}
+    setMuResiCompsRunning(false);
+  };
+  // MixedUse — Commercial comps: reuses /api/commercialcomps with assetType:"Commercial"
+  const runMixedUseComComps=async()=>{
+    if(!data.location)return;
+    setMuComCompsRunning(true);setMuComCompsError(null);setMuComComps(null);
+    try{
+      const res=await fetch("/api/commercialcomps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({location:data.location,assetType:"Commercial",currency:data.currency||"GBP",areaUnit:data.areaUnit||"sqft"})});
+      const d=await res.json();
+      if(d.error)setMuComCompsError(d.error);
+      else setMuComComps(d.comps||d);
+    }catch(e:any){setMuComCompsError(e.message||"Failed to fetch commercial comps");}
+    setMuComCompsRunning(false);
   };
   const runHotelComps=async()=>{
     if(!data.location)return;
@@ -28542,6 +28599,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 :assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
 :(assetType==="Commercial"||assetType===("Industrial" as any))?`- Mode: ${commercialMode==="advanced"?"Institutional Advanced":"Simple"}\n- Stabilised NOI pa: ${fmt(r.stabilisedNOI||r.totalNetPassing||r.effectiveNoi||0,currSym)}\n- Exit Method: ${data.exitMethod||"NIY"}\n- Target NIY: ${data.targetNIY||data.niy||0}%\n- NOI Mode: ${data.noiMode||"normalised"}${data.noiMode==="actual"?`\n- Actual NOI Input: ${fmt(num(String(data.actualNoi||0)),currSym)}`:""}\n- Area Unit: ${data.areaUnit||"sqft"}\n- Total Lettable Area: ${(data.units||[]).reduce((s:number,u:any)=>s+num(String(u.area||0)),0).toLocaleString()} ${(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}\n- Units: ${(data.units||[]).length} lettable ${(data.units||[]).length===1?"unit":"units"}${(data.units||[]).length>0?` (${(data.units||[]).slice(0,4).map((u:any)=>`${u.label||u.type||"Unit"}: ${currSym}${u.erv||0} ERV/${(data.areaUnit||"sqft")==="sqft"?"psf":"psm"}`).join(", ")}${(data.units||[]).length>4?"...":""})`:""}\n- WAULT: ${r.wault?`${r.wault.toFixed(1)} yrs`:"—"}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
+:assetType==="MixedUse"?`- Mode: ${mixedUseMode==="advanced"?"Institutional Advanced (year-by-year)":"Simple (blended exit)"}\n- Total GDV: ${fmt(r.totalGDV||0,currSym)}\n- Blended Exit Yield: ${data.exitYield||"—"}%\n- Zones: ${(data.zones||[]).length} total (${(data.zones||[]).filter((z:any)=>z.type==="residential").length} residential, ${(data.zones||[]).filter((z:any)=>z.type==="commercial").length} commercial)\n- Zone Breakdown: ${(data.zones||[]).slice(0,6).map((z:any)=>`${z.label||z.type} (${z.type}, exit: ${z.exitStrategy||"sell"})`).join("; ")}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
 :""}
 
 
@@ -29057,7 +29115,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 
 Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt(hotelAdv.interestTotal,currSym)} total hold`:`LTC ${data.ltc||"N/A"}%, All-in rate ${r.financeRate?(r.financeRate*100).toFixed(2)+"%":"N/A"}`}${(assetType==="BTR"||assetType==="BTS")&&num(String(data.presaleDelayMonths||0))>0?`\nPresale Threshold Financing: Loan drawdown delayed ${data.presaleDelayMonths} months — equity only phase before finance releases. Finance cost is intentionally lower than standard day-one LTC structure.`:""}`.trim();
     try{
-      const response=await fetch("/api/brochure",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary,assetType,hotelComps:assetType==="Hotel"?hotelComps:null,btrBtsComps:(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,flipComps:assetType==="Flip"?flipComps:null,commercialComps:(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null})});
+      const response=await fetch("/api/brochure",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dealSummary,assetType,hotelComps:assetType==="Hotel"?hotelComps:null,btrBtsComps:(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,flipComps:assetType==="Flip"?flipComps:null,commercialComps:(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null,mixedUseResiComps:assetType==="MixedUse"?muResiComps:null,mixedUseComComps:assetType==="MixedUse"?muComComps:null})});
       const parsed=await response.json();
       if(parsed.error)throw new Error(parsed.error);
       setBrochureContent(parsed);
@@ -29083,11 +29141,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_BTS=["general","revenue","costs","finance","cashflow","analysis","comps"];
   const TABS_HOTEL=hotelMode==="advanced"?["general","revenue","costs","finance","im","cashflow","analysis"]:["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_FLIP=flipComplexity==="advanced"?["general","costs","finance","comps","cashflow","analysis"]:["general","costs","finance","cashflow","analysis"];
-  const TABS_MU=["general","zones","costs","finance","cashflow","analysis"];
+  const TABS_MU=["general","zones","costs","finance","cashflow","analysis","comps-resi","comps-com"];
   const TABS_COM=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS_IND=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:assetType==="Commercial"?TABS_COM:assetType==="Industrial"?TABS_IND:TABS_FLIP;
-  const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones",};
+  const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones","comps-resi":"Comps (Resi)","comps-com":"Comps (Commercial)",};
   const ASSET_LABELS:Record<string,string>={BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use",Commercial:"Commercial",Industrial:"Industrial"};
   const currencies=["GBP","USD","EUR","AED","MXN","BRL","COP","CLP","PEN","ARS","SGD","AUD","JPY","CHF","CAD","HKD","INR","TRY","ZAR","THB","IDR","PHP","KWD","QAR","BHD"];
   const benchmarks=["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA","TIIE","CDI","IBR","TNA","MIBOR","Custom"];
@@ -30562,6 +30620,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
                   {/* ── AI HOTEL COMPS ── */}
                   <div style={{marginTop:10}}>
+                    {!data.location&&(
+                      <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:10}}>
+                        ⚠ Add a location in the General tab first to get accurate comparables.
+                      </div>
+                    )}
                     <button
                       onClick={runHotelComps}
                       disabled={hotelCompsRunning||!data.location}
@@ -38864,6 +38927,228 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
 
             {/* ══════════════════════════════════════════════════════════════
+                MIXED USE — COMPS (RESIDENTIAL) TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="comps-resi"&&assetType==="MixedUse"&&(
+              <div>
+                <div className="section-title">Residential Comparables</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:4}}>
+                  Live rental <strong style={{color:"var(--text-m)"}}>and</strong> sales comps for residential zones in <strong style={{color:"var(--text-m)"}}>{data.location||"your location"}</strong>.
+                </div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16,padding:"8px 12px",background:"var(--bg3)",borderRadius:6,borderLeft:"3px solid var(--gold)"}}>
+                  Shows BTR (rental market) and BTS (new-build sales) data side by side — benchmark rent PCM and sale price PSF for your residential zone assumptions.
+                </div>
+                {!data.location&&(
+                  <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:12}}>
+                    ⚠ Add a location in the General tab first to get accurate comparables.
+                  </div>
+                )}
+                <button
+                  onClick={runMixedUseResiComps}
+                  disabled={muResiCompsRunning||!data.location}
+                  style={{display:"flex",alignItems:"center",gap:6,background:muResiCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:muResiCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:muResiCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
+                >
+                  {muResiCompsRunning
+                    ?<><span style={{width:12,height:12,border:"2px solid var(--gold-border)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin 0.8s linear infinite"}}/> Searching rental + sales markets…</>
+                    :<><span style={{fontSize:13}}>⌖</span>{muResiComps?"Refresh Residential Comps":"Search Live Residential Comps"}{!data.location?" (add location first)":""}</>
+                  }
+                </button>
+                {muResiCompsError&&<div style={{fontSize:11,color:"var(--red)",padding:"8px 12px",background:"rgba(244,100,95,.06)",borderRadius:6,marginBottom:12}}>{muResiCompsError}</div>}
+                {muResiComps&&(
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                    {/* ── RENTAL (BTR) COLUMN ── */}
+                    <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:10,borderBottom:"1px solid var(--border)"}}>
+                        <span style={{fontSize:10,background:"var(--gold)",color:"#0D1017",padding:"2px 8px",borderRadius:4,fontWeight:700,letterSpacing:".04em"}}>RENTAL</span>
+                        <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>BTR Market</div>
+                      </div>
+                      {muResiComps.rental?.error
+                        ?<div style={{fontSize:11,color:"var(--amber)",padding:"8px 10px",background:"rgba(240,164,41,.06)",borderRadius:6}}>Rental data unavailable: {muResiComps.rental.error}</div>
+                        :<>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                            <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Avg Rent PCM</div>
+                              <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--gold)"}}>{currencySymbol}{Math.round(muResiComps.rental.avgRentPcm||0).toLocaleString()}</div>
+                            </div>
+                            <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Gross Yield</div>
+                              <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--text)"}}>{typeof muResiComps.rental.grossYieldRange==="object"?`${muResiComps.rental.grossYieldRange.low}%–${muResiComps.rental.grossYieldRange.high}%`:String(muResiComps.rental.grossYieldRange||"—")}</div>
+                            </div>
+                          </div>
+                          {muResiComps.rental.marketContext&&<div style={{fontSize:11,color:"var(--text-m)",lineHeight:1.6,marginBottom:10,padding:"8px 10px",background:"var(--bg3)",borderRadius:6,borderLeft:"2px solid var(--gold)"}}>{(typeof muResiComps.rental.marketContext==="string"?muResiComps.rental.marketContext.replace(/<cite[^>]*>|<cite\s+index="[^"]*"|<\/cite>/g,""):"")}</div>}
+                          {(muResiComps.rental.rentalComps||[]).length>0
+                            ?<div>
+                              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparables</div>
+                              {(muResiComps.rental.rentalComps||[]).slice(0,6).map((c:any,i:number)=>(
+                                <div key={i} style={{padding:"6px 8px",background:i%2===0?"var(--bg3)":"transparent",borderRadius:4,marginBottom:2}}>
+                                  <div style={{fontSize:11,fontWeight:500,color:"var(--text)"}}>{c.address||c.name||"Comparable"}</div>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                                    <span style={{fontSize:10,color:"var(--text-d)"}}>{[c.beds&&`${c.beds} bed`,c.size&&`${c.size} sqft`].filter(Boolean).join(" · ")}</span>
+                                    <span style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,color:"var(--gold)"}}>{currencySymbol}{Math.round(num(String(c.rentPcm||0))).toLocaleString()}/mo</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            :<div style={{fontSize:11,color:"var(--text-d)",fontStyle:"italic"}}>No rental comparables returned.</div>
+                          }
+                        </>
+                      }
+                    </div>
+                    {/* ── SALES (BTS) COLUMN ── */}
+                    <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:10,borderBottom:"1px solid var(--border)"}}>
+                        <span style={{fontSize:10,background:"var(--green)",color:"#0D1017",padding:"2px 8px",borderRadius:4,fontWeight:700,letterSpacing:".04em"}}>SALES</span>
+                        <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>BTS / New-Build Market</div>
+                      </div>
+                      {muResiComps.sales?.error
+                        ?<div style={{fontSize:11,color:"var(--amber)",padding:"8px 10px",background:"rgba(240,164,41,.06)",borderRadius:6}}>Sales data unavailable: {muResiComps.sales.error}</div>
+                        :<>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                            <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Avg Price PSF</div>
+                              <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--green)"}}>{currencySymbol}{Math.round(muResiComps.sales.avgPricePsf||0).toLocaleString()}</div>
+                            </div>
+                            <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                              <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Price Range</div>
+                              <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,color:"var(--text)"}}>{muResiComps.sales.priceRange?`${currencySymbol}${Math.round((muResiComps.sales.priceRange.low||0)/1000)}k–${currencySymbol}${Math.round((muResiComps.sales.priceRange.high||0)/1000)}k`:"—"}</div>
+                            </div>
+                          </div>
+                          {muResiComps.sales.marketContext&&<div style={{fontSize:11,color:"var(--text-m)",lineHeight:1.6,marginBottom:10,padding:"8px 10px",background:"var(--bg3)",borderRadius:6,borderLeft:"2px solid var(--green)"}}>{(typeof muResiComps.sales.marketContext==="string"?muResiComps.sales.marketContext.replace(/<cite[^>]*>|<cite\s+index="[^"]*"|<\/cite>/g,""):"")}</div>}
+                          {(muResiComps.sales.comparables||[]).length>0
+                            ?<div>
+                              <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparables</div>
+                              {(muResiComps.sales.comparables||[]).slice(0,6).map((c:any,i:number)=>(
+                                <div key={i} style={{padding:"6px 8px",background:i%2===0?"var(--bg3)":"transparent",borderRadius:4,marginBottom:2}}>
+                                  <div style={{fontSize:11,fontWeight:500,color:"var(--text)"}}>{c.address||c.name||"Comparable"}</div>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                                    <span style={{fontSize:10,color:"var(--text-d)"}}>{[c.beds&&`${c.beds} bed`,c.size&&`${c.size} sqft`].filter(Boolean).join(" · ")}</span>
+                                    <span style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,color:"var(--green)"}}>{c.pricePsf?`${currencySymbol}${Math.round(num(String(c.pricePsf||0)))}/sqft`:c.price?`${currencySymbol}${Math.round(num(String(c.price||0))/1000)}k`:"—"}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            :<div style={{fontSize:11,color:"var(--text-d)",fontStyle:"italic"}}>No sales comparables returned.</div>
+                          }
+                        </>
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
+                MIXED USE — COMPS (COMMERCIAL) TAB
+            ══════════════════════════════════════════════════════════════ */}
+            {activeTab==="comps-com"&&assetType==="MixedUse"&&(
+              <div>
+                <div className="section-title">Commercial Comparables</div>
+                <div style={{fontSize:12,color:"var(--text-d)",marginBottom:4}}>
+                  Live commercial market data for <strong style={{color:"var(--text-m)"}}>{data.location||"your location"}</strong> — rent PSF, NIY, WAULT.
+                </div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:16,padding:"8px 12px",background:"var(--bg3)",borderRadius:6,borderLeft:"3px solid var(--gold)"}}>
+                  Benchmarks rent and yield assumptions for Retail, Office, Restaurant, Parking and other commercial zones against the local institutional market.
+                </div>
+                {!data.location&&(
+                  <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:12}}>
+                    ⚠ Add a location in the General tab first to get accurate comparables.
+                  </div>
+                )}
+                <button
+                  onClick={runMixedUseComComps}
+                  disabled={muComCompsRunning||!data.location}
+                  style={{display:"flex",alignItems:"center",gap:6,background:muComCompsRunning?"var(--bg3)":"var(--gold-bg)",border:"1px solid var(--gold-border)",borderRadius:6,color:muComCompsRunning?"var(--text-d)":"var(--gold)",fontSize:11,padding:"10px 16px",cursor:muComCompsRunning||!data.location?"not-allowed":"pointer",fontFamily:"var(--font-body)",fontWeight:600,width:"100%",justifyContent:"center",marginBottom:16,transition:"all .2s"}}
+                >
+                  {muComCompsRunning
+                    ?<><span style={{width:12,height:12,border:"2px solid var(--gold-border)",borderTopColor:"var(--gold)",borderRadius:"50%",display:"inline-block",animation:"spin 0.8s linear infinite"}}/> Pulling commercial comps…</>
+                    :<><span style={{fontSize:13}}>◈</span>{muComComps?"Refresh Commercial Comps":"Pull AI Commercial Comps"}{!data.location?" (add location first)":""}</>
+                  }
+                </button>
+                {muComCompsError&&<div style={{fontSize:11,color:"var(--red)",padding:"8px 12px",background:"rgba(244,100,95,.06)",borderRadius:6,marginBottom:12}}>{muComCompsError}</div>}
+                {muComComps&&(
+                  <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                      <div style={{fontSize:11,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em"}}>AI Market Comps — {data.location}</div>
+                      <div style={{fontSize:10,color:"var(--text-d)"}}>{muComComps.dataDate||""}{muComComps.confidence?` · ${muComComps.confidence} confidence`:""}</div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                      <div style={{background:"var(--bg3)",borderRadius:6,padding:"10px 12px"}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime Rent PSF/yr</div>
+                        <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--gold)"}}>{currencySymbol}{muComComps.rentPSF?.prime||"—"}</div>
+                        <div style={{fontSize:9,color:"var(--text-d)",marginTop:2}}>{muComComps.rentPSF?.trend||""}</div>
+                      </div>
+                      <div style={{background:"var(--bg3)",borderRadius:6,padding:"10px 12px"}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Secondary Rent PSF/yr</div>
+                        <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--text)"}}>{currencySymbol}{muComComps.rentPSF?.secondary||"—"}</div>
+                      </div>
+                      <div style={{background:"var(--bg3)",borderRadius:6,padding:"10px 12px"}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime NIY</div>
+                        <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--green)"}}>{muComComps.yields?.primeNIY?`${(muComComps.yields.primeNIY*100).toFixed(2)}%`:"—"}</div>
+                        <div style={{fontSize:9,color:"var(--text-d)",marginTop:2}}>{muComComps.yields?.trend||""}</div>
+                      </div>
+                      <div style={{background:"var(--bg3)",borderRadius:6,padding:"10px 12px"}}>
+                        <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Secondary NIY</div>
+                        <div style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:600,color:"var(--text)"}}>{muComComps.yields?.secondaryNIY?`${(muComComps.yields.secondaryNIY*100).toFixed(2)}%`:"—"}</div>
+                      </div>
+                    </div>
+                    {muComComps.wault&&(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                        <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Typical WAULT</div>
+                          <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--blue)"}}>{muComComps.wault.typical} yrs</div>
+                        </div>
+                        {muComComps.voidRate?.prime&&(
+                          <div style={{background:"var(--bg3)",borderRadius:6,padding:"8px 10px"}}>
+                            <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Prime Void Rate</div>
+                            <div style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:600,color:"var(--amber)"}}>{muComComps.voidRate.prime}%</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {muComComps.aiFlag&&(
+                      <div style={{padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:12}}>
+                        <div style={{fontSize:10,color:"var(--amber)",fontWeight:600,marginBottom:2}}>⚠ Market Flag</div>
+                        <div style={{fontSize:10,color:"var(--text-m)"}}>{muComComps.aiFlag}</div>
+                      </div>
+                    )}
+                    {muComComps.comparables?.length>0&&(
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Comparable Lettings</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                          {muComComps.comparables.map((c:any,i:number)=>(
+                            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg3)",borderRadius:5}}>
+                              <div>
+                                <span style={{fontSize:11,color:"var(--text)",fontWeight:500}}>{c.address}</span>
+                                <div style={{fontSize:10,color:"var(--text-d)"}}>{c.type} · {c.size} · {c.date}</div>
+                              </div>
+                              <span style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--gold)",fontWeight:600,whiteSpace:"nowrap",marginLeft:8}}>{currencySymbol}{c.rentPSF}/sf</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {muComComps.investmentSales?.length>0&&(
+                      <div>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>Investment Sales</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                          {muComComps.investmentSales.map((s:any,i:number)=>(
+                            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg3)",borderRadius:5}}>
+                              <div>
+                                <span style={{fontSize:11,color:"var(--text)",fontWeight:500}}>{s.address}</span>
+                                <div style={{fontSize:10,color:"var(--text-d)"}}>{s.date||""}</div>
+                              </div>
+                              <span style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--green)",fontWeight:600,whiteSpace:"nowrap",marginLeft:8}}>{s.price} @ {s.niy}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════
                 COMMERCIAL — GENERAL TAB
             ══════════════════════════════════════════════════════════════ */}
             {activeTab==="general"&&assetType==="Commercial"&&(
@@ -39973,6 +40258,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
                 {/* ── AI COMMERCIAL COMPS ── */}
                 <div style={{marginTop:20}}>
+                  {!data.location&&(
+                    <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:10}}>
+                      ⚠ Add a location in the General tab first to get accurate comparables.
+                    </div>
+                  )}
                   <button
                     onClick={runCommercialComps}
                     disabled={commercialCompsRunning||!data.location}
@@ -40954,6 +41244,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ?"Searches rental listings and recent lettings to benchmark your rent assumptions against the live market."
                     :"Searches recent sales and new-build prices to benchmark your sale price PSF against comparable schemes."}
                 </div>
+                {!data.location&&(
+                  <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:12}}>
+                    ⚠ Add a location in the General tab first to get accurate comparables.
+                  </div>
+                )}
                 <button
                   onClick={runBtrBtsComps}
                   disabled={btrBtsCompsRunning||!data.location}
@@ -42111,6 +42406,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
 
                 {/* ── AI COMMERCIAL COMPS (Industrial) ── */}
                 <div style={{marginTop:20}}>
+                  {!data.location&&(
+                    <div style={{fontSize:11,color:"var(--amber)",padding:"8px 12px",background:"rgba(240,164,41,.06)",border:"1px solid rgba(240,164,41,.2)",borderRadius:6,marginBottom:10}}>
+                      ⚠ Add a location in the General tab first to get accurate comparables.
+                    </div>
+                  )}
                   <button
                     onClick={runCommercialComps}
                     disabled={commercialCompsRunning||!data.location}
