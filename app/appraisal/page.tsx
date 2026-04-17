@@ -13783,6 +13783,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       refurbPsfDisplay:dispRefurbPsf,salePricePsfDisplay:dispSalePricePsf,totalCostPsfDisplay:dispTotalCostPsf,
       unitSystem:unitSys,useAreaModel,
       monthlyInterestArr,cfs,
+      holdOccupancy,rentPcm,voidPct,
     };
   }
   if(assetType==="MixedUse"){
@@ -21842,7 +21843,9 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   ]:[
     {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
     {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
-    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    ...(assetType==="Flip"&&r.flipMode==="hold"
+      ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
+      :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
     {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
@@ -22307,8 +22310,12 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
       ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cashOutRefi<-100?[["Equity Top-up at Refi",fmt(Math.abs(r.cashOutRefi),currencySymbol),red] as [string,string,[number,number,number]]]:[] as any),
-      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
-      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
+      ...(r.flipMode==="hold"
+        ?[["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]]]
+        :[
+            ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
+            ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
+          ]),
       ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],
       ...(r.flipMode==="hold"?[["DSCR / ICR",!isFinite(r.dscr)?"N/A (vacant)":r.dscr>0?fmtX(r.dscr):"—",isFinite(r.dscr)&&r.dscr>=1.25?green:isFinite(r.dscr)&&r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:r.dscr>0?[["ICR (Bridge)",fmtX(r.dscr),r.dscr>=2?green:r.dscr>=1.5?amber:red] as [string,string,[number,number,number]]]:[] as any),
@@ -22841,8 +22848,8 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       let cx3=M+2;
       doc.setTextColor(...grey);doc.text(`M${m+1}${isExit?" (Exit)":""}`,cx3,py);cx3+=cW2[0];
       doc.setTextColor(...white);doc.text(eventLabel(m,cf),cx3,py);cx3+=cW2[1];
-      doc.setTextColor(...(cf>=0?green:red));doc.text(`${cf>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`,cx3,py);cx3+=cW2[2];
-      doc.setTextColor(...(cum>=0?green:white));doc.text(`${cum>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cum)).toLocaleString()}`,cx3,py);
+      doc.setTextColor(...(cf>=0?green:red));doc.text(`${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`,cx3,py);cx3+=cW2[2];
+      doc.setTextColor(...(cum>=0?green:red));doc.text(`${cum>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cum)).toLocaleString()}`,cx3,py);
       py+=6;
     });
   }
@@ -25580,8 +25587,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
       ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
-      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
-      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
+      ...(r.flipMode==="hold"
+        ?[["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]]]
+        :[
+            ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
+            ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
+          ]),
       ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
       ["IRR",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],
