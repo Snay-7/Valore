@@ -21230,23 +21230,48 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   // ── Helper: horizontal bar chart (cashflow) ───────────────────────────────
   const drawCashflowBars=(cfs:number[],x:number,y:number,w:number,h:number,sym:string)=>{
     if(!cfs||cfs.length===0)return y;
-    const maxAbs=Math.max(...cfs.map(Math.abs),1);
-    const barW=Math.min((w-4)/cfs.length,6);
-    const midX=x+w/2;
-    doc.setFontSize(5);doc.setTextColor(...grey);
+    // Signed-sqrt scaling: compresses extreme values so small monthly drawdowns remain visible
+    // alongside large M1 equity deploy and M-last exit proceeds
+    const ssqrt=(v:number)=>v===0?0:Math.sign(v)*Math.sqrt(Math.abs(v));
+    const scaled=cfs.map(ssqrt);
+    const maxAbs=Math.max(...scaled.map(Math.abs),1);
+    const rawMaxAbs=Math.max(...cfs.map(Math.abs),1);
+    // Leave space at top/bottom for axis labels
+    const labelH=4;
+    const chartH=h-labelH*2;
+    const barW=Math.min((w-8)/cfs.length,8);
+    const spacing=Math.max(0.4,(w-8-cfs.length*barW)/Math.max(cfs.length-1,1));
+    const zeroY=y+labelH+chartH/2;
+    // Y-axis labels (peak positive & peak negative)
+    const maxPos=Math.max(...cfs,0);
+    const maxNeg=Math.min(...cfs,0);
+    doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","normal");
+    if(maxPos>0)doc.text(`${sym}${Math.abs(maxPos)>=1000000?(maxPos/1000000).toFixed(1)+"m":Math.round(maxPos/1000)+"k"}`,x,y+labelH-0.5);
+    if(maxNeg<0)doc.text(`${sym}${Math.abs(maxNeg)>=1000000?(maxNeg/1000000).toFixed(1)+"m":Math.round(Math.abs(maxNeg)/1000)+"k"}`,x,y+h-0.5);
+    // Quarter markers on the zero line
+    doc.setDrawColor(220,220,225);doc.setLineWidth(0.15);
+    for(let q=1;q<=Math.floor(cfs.length/3);q++){
+      const mx=x+4+(q*3-1)*(barW+spacing)+barW/2;
+      doc.line(mx,zeroY-1,mx,zeroY+1);
+    }
+    // Bars
     cfs.forEach((cf,i)=>{
-      const pct=Math.abs(cf)/maxAbs;
-      const bh=Math.max(0.5,pct*(h/2-2));
-      const bx=x+2+i*(barW+0.5);
+      const scaledV=scaled[i];
+      const pct=Math.abs(scaledV)/maxAbs;
+      const bh=Math.max(cf===0?0:0.4,pct*(chartH/2-1));
+      const bx=x+4+i*(barW+spacing);
       const isExit=i===cfs.length-1;
+      const isFirst=i===0;
       if(cf>0){
         const col=isExit?gold:green;
-        doc.setFillColor(...col);doc.rect(bx,y+h/2-bh,barW,bh,"F");
+        doc.setFillColor(...col);doc.rect(bx,zeroY-bh,barW,bh,"F");
       }else if(cf<0){
-        doc.setFillColor(...red);doc.rect(bx,y+h/2,barW,bh,"F");
+        const col=isFirst?[140,50,50]:red;  // darker red for equity deploy
+        doc.setFillColor(...col);doc.rect(bx,zeroY,barW,bh,"F");
       }
     });
-    doc.setDrawColor(...grey);doc.setLineWidth(0.2);doc.line(x,y+h/2,x+w,y+h/2);
+    // Zero line
+    doc.setDrawColor(...grey);doc.setLineWidth(0.3);doc.line(x,zeroY,x+w,zeroY);
     return y+h+4;
   };
 
@@ -22742,7 +22767,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   py=sectionHeader(doc,"Monthly Cashflow (Unlevered)",py);py+=4;
   const cfs:number[]=r.uCfs||r.cfs||[];
   if(cfs.length>0){
-    py=drawCashflowBars(cfs,M,py,W-M*2,36,currencySymbol);
+    py=drawCashflowBars(cfs,M,py,W-M*2,50,currencySymbol);
     // Phase labels
     doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","normal");
     doc.text("Month 1",M,py);doc.text(`Exit M${cfs.length}`,W-M,py,{align:"right"});
@@ -22756,9 +22781,15 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     py+=10;
     // Monthly table — key months only
     py=sectionHeader(doc,"Key Cashflow Months",py);py+=4;
-    const keyRows=cfs.map((cf,m)=>({cf,m,cum:cfs.slice(0,m+1).reduce((a,b)=>a+b,0)}))
-      .filter(({cf,m})=>Math.abs(cf)>0||m===cfs.length-1)
-      .slice(0,12);
+    // Smart selection: always M1 (equity deploy) + exit M, plus the biggest intermediate draws
+    const _all=cfs.map((cf,m)=>({cf,m,cum:cfs.slice(0,m+1).reduce((a,b)=>a+b,0)}));
+    const _first=_all[0];
+    const _last=_all[_all.length-1];
+    const _middle=_all.slice(1,-1).filter(r=>Math.abs(r.cf)>0);
+    // Keep the top 12 intermediate months by absolute cashflow
+    _middle.sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf));
+    const _topMiddle=_middle.slice(0,12).sort((a,b)=>a.m-b.m);
+    const keyRows=[_first,..._topMiddle,_last].filter(Boolean);
     const tW2=W-M*2;const cols2=["Month","Event","Cashflow","Cumulative"];const cW2=[tW2*0.12,tW2*0.38,tW2*0.25,tW2*0.25];
     doc.setFillColor(...bg3);doc.rect(M,py-4,tW2,7,"F");
     doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
@@ -23530,7 +23561,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
-async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[],hotelMode="simple",hotelAdv:any=null,hotelComps:any=null,btrBtsComps:any=null,flipComps:any=null,commercialMode="simple",commercialAdv:any=null,mixedUseMode="simple",mixedUseAdv:any=null,commercialComps:any=null){
+async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[],hotelMode="simple",hotelAdv:any=null,hotelComps:any=null,btrBtsComps:any=null,flipComps:any=null,commercialMode="simple",commercialAdv:any=null,mixedUseMode="simple",mixedUseAdv:any=null,commercialComps:any=null,mixedUseResiComps:any=null,mixedUseComComps:any=null){
   if(!(window as any).jspdf){
     await new Promise<void>((resolve,reject)=>{
       const s=document.createElement("script");
@@ -25523,17 +25554,32 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     }
   }else if(assetType==="MixedUse"){
     const dRmu=isMixedUseAdv?advR:r;
-    lY3=drawColB("Returns",[
-      ["Total GDV / Exit",fmt(dRmu.totalGDV||dRmu.exitValue||dRmu.gdv||0,currencySymbol),gold],["Residential GDV",fmt(r.resiGDV||0,currencySymbol),white],
-      ["Commercial GDV",fmt(r.commGDV||0,currencySymbol),white],["Active Income (build)",fmt(r.activeIncome||0,currencySymbol),white],
+    // Derive resi/commercial splits from zoneResults (fields don't exist at scheme level)
+    const _zr=(r.zoneResults||[]) as any[];
+    const _resiGDV=_zr.filter(z=>z.type==="residential").reduce((s,z)=>s+(z.gdvZone||0),0);
+    const _commGDV=_zr.filter(z=>z.type==="commercial").reduce((s,z)=>s+(z.gdvZone||0),0);
+    const _activeIncomePa=_zr.reduce((s,z)=>s+(z.activeIncomePm||0)*12,0);
+    const _resiZones=_zr.filter(z=>z.type==="residential");
+    const _commZones=_zr.filter(z=>z.type==="commercial");
+    const _resiYield=_resiZones.length>0?(_resiZones.reduce((s,z)=>s+(z.exitYield||0),0)/_resiZones.length):0;
+    const _commYield=_commZones.length>0?(_commZones.reduce((s,z)=>s+(z.exitYield||0),0)/_commZones.length):0;
+    const _returnsRows:any[]=[
+      ["Total GDV / Exit",fmt(dRmu.totalGDV||dRmu.exitValue||dRmu.gdv||0,currencySymbol),gold],
+      ...(_resiGDV>0?[["Residential GDV",fmt(_resiGDV,currencySymbol),white] as any]:[]),
+      ...(_commGDV>0?[["Commercial GDV",fmt(_commGDV,currencySymbol),white] as any]:[]),
+      ...(_activeIncomePa>0?[["Active Income (build, pa)",fmt(_activeIncomePa,currencySymbol),blue] as any]:[]),
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?green:red],
-      ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red],
-      ["IRR (Unlevered)",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
-      ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.15?green:amber],
-      ["Equity Multiple",fmtX(r.moic||0),gold],["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
+      // Mixed-use thresholds: PoC 15%+ strong, 8-15% acceptable, <8% weak
+      ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>=0.15?green:(r.poc||0)>=0.08?amber:red],
+      // Mixed-use IRR: 12%+ strong, 8-12% acceptable, <8% weak
+      ["IRR (Unlevered)",fmtPct(r.irr||0),(r.irr||0)>=0.12?green:(r.irr||0)>=0.08?amber:red],
+      ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.12?green:(r.irrLevered||0)>=0.06?amber:red],
+      ["Equity Multiple",fmtX(r.moic||0),gold],
+      ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
       ...((()=>{const ln=r.loanAmount||r.peakLoanBalance||0;if(ln<=0)return[];const noi=r.stabilisedNOI||0;const exit=r.exitValue||r.totalGDV||r.gdv||0;const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const dscr=r.dscr||0;const o:any[]=[];if(dscr>0&&dscr<999)o.push(["DSCR / ICR",fmtX(dscr),dscr>=1.25?green:amber] as any);if(dy>0)o.push(["Debt Yield",fmtPct(dy),dy>=0.08?green:amber] as any);if(ltv>0)o.push(["LTV at Exit",fmtPct(ltv),ltv<=0.60?green:amber] as any);return o;})()),
-    ],colL3,lY3,colW3)||lY3;
+    ];
+    lY3=drawColB("Returns",_returnsRows,colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
       ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Total Build Cost",fmt(r.totalBuildCost||0,currencySymbol),grey],
@@ -25543,11 +25589,20 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
     ],colR3,rY3,colW3)||rY3;
-    rY3=drawColB("Mix & Assumptions",[
+    // Mix & Assumptions: only show yields if they exist (don't show 0%)
+    const _mixRows:any[]=[
       ["Zones",String((data.zones||[]).length),white],["Programme",programmLabel,white],
       ["LTC",`${data.ltc||0}%`,white],["All-in Rate",r.financeRate?`${(r.financeRate*100).toFixed(2)}%`:"—",white],
-      ["Resi Yield",`${data.resiExitYield||0}%`,white],["Comm Yield",`${data.commExitYield||0}%`,white],
-    ],colR3,rY3,colW3)||rY3;
+    ];
+    if(_resiYield>0)_mixRows.push(["Resi Yield",`${(_resiYield*100).toFixed(2)}%`,white]);
+    if(_commYield>0)_mixRows.push(["Comm Yield",`${(_commYield*100).toFixed(2)}%`,white]);
+    // Add zone breakdown to fill the empty space below
+    _zr.slice(0,4).forEach((z:any)=>{
+      const gdvStr=z.gdvZone>0?fmt(z.gdvZone,currencySymbol):"—";
+      const label=`${z.label||z.type} (${z.type==="residential"?"resi":"comm"})`;
+      _mixRows.push([label,gdvStr,z.type==="residential"?green:gold]);
+    });
+    rY3=drawColB("Mix & Assumptions",_mixRows,colR3,rY3,colW3)||rY3;
   }else{
     // Generic fallback
     lY3=drawColB("Returns",[
@@ -25769,17 +25824,28 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const cfs2:number[]=r.uCfs||r.cfs||[];
   if(cfs2.length>0){
     doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text("MONTHLY CASHFLOW (UNLEVERED)",M,sp);sp+=6;
-    const maxAbs2=Math.max(...cfs2.map(Math.abs),1);
-    const chartH=35;const bW=Math.min((W-M*2-4)/cfs2.length,5);
+    // Signed-sqrt scaling so small monthly drawdowns remain visible alongside M1 equity + exit
+    const ssqrt2=(v:number)=>v===0?0:Math.sign(v)*Math.sqrt(Math.abs(v));
+    const scaled2=cfs2.map(ssqrt2);
+    const maxAbs2=Math.max(...scaled2.map(Math.abs),1);
+    const chartW=W-M*2;const chartH=50;const labelH=4;
+    const innerH=chartH-labelH*2;
+    const bW=Math.min((chartW-8)/cfs2.length,8);
+    const spacing2=Math.max(0.4,(chartW-8-cfs2.length*bW)/Math.max(cfs2.length-1,1));
+    const zeroY2=sp+labelH+innerH/2;
+    const maxPos2=Math.max(...cfs2,0),maxNeg2=Math.min(...cfs2,0);
+    doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","normal");
+    if(maxPos2>0)doc.text(`${currencySymbol}${Math.abs(maxPos2)>=1000000?(maxPos2/1000000).toFixed(1)+"m":Math.round(maxPos2/1000)+"k"}`,M,sp+labelH-0.5);
+    if(maxNeg2<0)doc.text(`${currencySymbol}${Math.abs(maxNeg2)>=1000000?(maxNeg2/1000000).toFixed(1)+"m":Math.round(Math.abs(maxNeg2)/1000)+"k"}`,M,sp+chartH-0.5);
     cfs2.forEach((cf,i)=>{
-      const pct=Math.abs(cf)/maxAbs2;const bh=Math.max(0.5,pct*(chartH/2));
-      const bx=M+2+i*(bW+0.3);const isExit=i===cfs2.length-1;
-      if(cf>0){doc.setFillColor(...(isExit?gold:green));doc.rect(bx,sp+chartH/2-bh,bW,bh,"F");}
-      else if(cf<0){doc.setFillColor(...red);doc.rect(bx,sp+chartH/2,bW,bh,"F");}
+      const pct=Math.abs(scaled2[i])/maxAbs2;const bh=Math.max(cf===0?0:0.4,pct*(innerH/2-1));
+      const bx=M+4+i*(bW+spacing2);const isExit=i===cfs2.length-1;const isFirst=i===0;
+      if(cf>0){doc.setFillColor(...(isExit?gold:green));doc.rect(bx,zeroY2-bh,bW,bh,"F");}
+      else if(cf<0){const col=isFirst?[140,50,50] as [number,number,number]:red;doc.setFillColor(...col);doc.rect(bx,zeroY2,bW,bh,"F");}
     });
-    doc.setDrawColor(...grey);doc.setLineWidth(0.15);doc.line(M,sp+chartH/2,W-M,sp+chartH/2);
+    doc.setDrawColor(...grey);doc.setLineWidth(0.3);doc.line(M,zeroY2,W-M,zeroY2);
     sp+=chartH+4;
-    doc.setFontSize(5.5);doc.setTextColor(...grey);
+    doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","normal");
     doc.text("Month 1",M,sp);doc.text(`Exit M${cfs2.length}`,W-M,sp,{align:"right"});
     [[green,"Cash in"],[red,"Cash out"],[gold,"Exit"]].forEach(([c,l],i)=>{
       doc.setFillColor(...(c as [number,number,number]));doc.rect(M+i*35,sp+3,3,3,"F");
@@ -26111,6 +26177,170 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
   pageFooter(doc,4);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PAGE 5 — MARKET COMPARABLES (MixedUse only, when comps were pulled)
+  // ═══════════════════════════════════════════════════════════════════
+  if(assetType==="MixedUse"&&(mixedUseResiComps||mixedUseComComps)){
+    doc.addPage();doc.setFillColor(...bg2);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+    let cp=20;
+    doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,cp);
+    doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("MARKET COMPARABLES",W-M,cp,{align:"right"});
+    doc.setFillColor(...gold);doc.rect(M,cp+3,W-M*2,0.3,"F");cp+=12;
+
+    // Two-column layout: RESI on left, COMMERCIAL on right
+    const halfW=(W-M*2-6)/2;
+    const cpStart=cp;
+    const rentalDataLocal=mixedUseResiComps?.rental||{};
+    const salesDataLocal=mixedUseResiComps?.sales||{};
+
+    // ── LEFT: RESIDENTIAL COMPS ────────────────────────────────────────
+    if(mixedUseResiComps){
+      doc.setFillColor(...bg3);doc.roundedRect(M,cp,halfW,5,1,1,"F");
+      doc.setTextColor(...green);doc.setFontSize(7);doc.setFont("helvetica","bold");
+      doc.text("RESIDENTIAL COMPS",M+3,cp+3.5);
+      cp+=8;
+
+      // Rental (BTR) block
+      doc.setTextColor(...white);doc.setFontSize(7);doc.setFont("helvetica","bold");
+      doc.text("Rental Market (BTR)",M,cp);cp+=5;
+      const _avgRent=rentalDataLocal.avgRentPcm||0;
+      const _yieldR=rentalDataLocal.grossYieldRange;
+      const _yieldStr=typeof _yieldR==="object"&&_yieldR?`${_yieldR.low}%–${_yieldR.high}%`:String(_yieldR||"—");
+      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");
+      doc.text(`Avg rent: ${currencySymbol}${Math.round(_avgRent).toLocaleString()}/mo`,M,cp);cp+=4;
+      doc.text(`Gross yield: ${_yieldStr}`,M,cp);cp+=5;
+      const _rentComps=(rentalDataLocal.rentalComps||[]).slice(0,5);
+      if(_rentComps.length>0){
+        doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","bold");
+        doc.text("Comparables:",M,cp);cp+=3.5;
+        _rentComps.forEach((c:any,i:number)=>{
+          if(cp>275)return;
+          if(i%2===0){doc.setFillColor(...bg4);doc.rect(M,cp-2.8,halfW,5,"F");}
+          doc.setTextColor(...white);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+          const addr=String(c.address||c.name||"Comp").substring(0,32);
+          doc.text(addr,M+1,cp);
+          const rentStr=`${currencySymbol}${Math.round(Number(c.rentPcm||0)).toLocaleString()}/mo`;
+          doc.setTextColor(...gold);doc.text(rentStr,M+halfW-1,cp,{align:"right"});
+          cp+=5;
+        });
+        cp+=2;
+      }
+
+      // Sales (BTS) block
+      if(cp>240){cp=cpStart;}
+      doc.setTextColor(...white);doc.setFontSize(7);doc.setFont("helvetica","bold");
+      doc.text("Sales Market (BTS)",M,cp);cp+=5;
+      const _avgPsf=salesDataLocal.avgPricePsf||0;
+      const _pRange=salesDataLocal.priceRange;
+      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");
+      doc.text(`Avg price: ${currencySymbol}${Math.round(_avgPsf).toLocaleString()}/sqft`,M,cp);cp+=4;
+      if(_pRange)doc.text(`Range: ${currencySymbol}${Math.round((_pRange.low||0)/1000)}k–${currencySymbol}${Math.round((_pRange.high||0)/1000)}k`,M,cp),cp+=5;
+      const _salesComps=(salesDataLocal.comparables||[]).slice(0,5);
+      if(_salesComps.length>0){
+        doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","bold");
+        doc.text("Comparables:",M,cp);cp+=3.5;
+        _salesComps.forEach((c:any,i:number)=>{
+          if(cp>275)return;
+          if(i%2===0){doc.setFillColor(...bg4);doc.rect(M,cp-2.8,halfW,5,"F");}
+          doc.setTextColor(...white);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+          const addr=String(c.address||c.name||"Comp").substring(0,32);
+          doc.text(addr,M+1,cp);
+          const priceStr=c.pricePsf?`${currencySymbol}${Math.round(Number(c.pricePsf))}/sqft`:(c.price?`${currencySymbol}${Math.round(Number(c.price)/1000)}k`:"—");
+          doc.setTextColor(...green);doc.text(priceStr,M+halfW-1,cp,{align:"right"});
+          cp+=5;
+        });
+      }
+    }
+
+    // ── RIGHT: COMMERCIAL COMPS ─────────────────────────────────────────
+    let cpR=cpStart;
+    const xR=M+halfW+6;
+    if(mixedUseComComps){
+      doc.setFillColor(...bg3);doc.roundedRect(xR,cpR,halfW,5,1,1,"F");
+      doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");
+      doc.text("COMMERCIAL COMPS",xR+3,cpR+3.5);
+      cpR+=8;
+
+      // Headline metrics
+      const mc=mixedUseComComps;
+      const primeR=mc.rentPSF?.prime||"—";
+      const secR=mc.rentPSF?.secondary||"—";
+      const primeNIY=mc.yields?.primeNIY?`${(mc.yields.primeNIY*100).toFixed(2)}%`:"—";
+      const secNIY=mc.yields?.secondaryNIY?`${(mc.yields.secondaryNIY*100).toFixed(2)}%`:"—";
+
+      // 2x2 metric grid
+      const cellW=halfW/2-1;const cellH=12;
+      [["Prime Rent PSF/yr",`${currencySymbol}${primeR}`,gold],
+       ["Secondary Rent PSF/yr",`${currencySymbol}${secR}`,white],
+       ["Prime NIY",primeNIY,green],
+       ["Secondary NIY",secNIY,white]
+      ].forEach((cell:any,i)=>{
+        const cx=xR+(i%2)*(cellW+2);const cy=cpR+Math.floor(i/2)*(cellH+2);
+        doc.setFillColor(...bg4);doc.roundedRect(cx,cy,cellW,cellH,1,1,"F");
+        doc.setTextColor(...grey);doc.setFontSize(5);doc.setFont("helvetica","bold");
+        doc.text(String(cell[0]).toUpperCase(),cx+1.5,cy+3.5);
+        doc.setTextColor(...cell[2]);doc.setFontSize(8);doc.setFont("helvetica","bold");
+        doc.text(String(cell[1]),cx+1.5,cy+9);
+      });
+      cpR+=28;
+
+      if(mc.wault||mc.voidRate?.prime){
+        doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","normal");
+        const extras:string[]=[];
+        if(mc.wault)extras.push(`WAULT: ${mc.wault.typical} yrs`);
+        if(mc.voidRate?.prime)extras.push(`Void: ${mc.voidRate.prime}%`);
+        doc.text(extras.join("  ·  "),xR,cpR);cpR+=5;
+      }
+
+      // Comparable lettings
+      const lettings=(mc.comparables||[]).slice(0,4);
+      if(lettings.length>0){
+        doc.setTextColor(...white);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+        doc.text("Comparable Lettings",xR,cpR);cpR+=4;
+        lettings.forEach((c:any,i:number)=>{
+          if(cpR>275)return;
+          if(i%2===0){doc.setFillColor(...bg4);doc.rect(xR,cpR-2.8,halfW,5,"F");}
+          doc.setTextColor(...white);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+          doc.text(String(c.address||"Comp").substring(0,28),xR+1,cpR);
+          doc.setTextColor(...gold);doc.text(`${currencySymbol}${c.rentPSF||"—"}/sf`,xR+halfW-1,cpR,{align:"right"});
+          cpR+=5;
+        });
+        cpR+=2;
+      }
+
+      // Investment sales
+      const invSales=(mc.investmentSales||[]).slice(0,4);
+      if(invSales.length>0&&cpR<265){
+        doc.setTextColor(...white);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
+        doc.text("Investment Sales",xR,cpR);cpR+=4;
+        invSales.forEach((s:any,i:number)=>{
+          if(cpR>275)return;
+          if(i%2===0){doc.setFillColor(...bg4);doc.rect(xR,cpR-2.8,halfW,5,"F");}
+          doc.setTextColor(...white);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+          doc.text(String(s.address||"Sale").substring(0,24),xR+1,cpR);
+          doc.setTextColor(...green);doc.text(`${s.price||"—"} @ ${s.niy||"—"}`,xR+halfW-1,cpR,{align:"right"});
+          cpR+=5;
+        });
+      }
+
+      if(mc.aiFlag){
+        const fy=Math.min(cpR+2,270);
+        doc.setFillColor(245,235,215);doc.roundedRect(xR,fy,halfW,10,1,1,"F");
+        doc.setTextColor(...amber);doc.setFontSize(5.5);doc.setFont("helvetica","bold");
+        doc.text("⚠ MARKET FLAG",xR+1.5,fy+3.5);
+        const flagLines=doc.splitTextToSize(String(mc.aiFlag),halfW-4);
+        doc.setTextColor(...grey);doc.setFontSize(5);doc.setFont("helvetica","normal");
+        flagLines.slice(0,2).forEach((l:string,i:number)=>doc.text(l,xR+1.5,fy+6.5+i*3));
+      }
+    }
+
+    // Data-source footnote
+    doc.setTextColor(...grey);doc.setFontSize(5);doc.setFont("helvetica","italic");
+    doc.text("AI-assisted comparables — verify before transacting. Data reflects market snapshots at time of pull.",M,285);
+
+    pageFooter(doc,5);
+  }
 
 
 
@@ -29127,7 +29357,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
     setDownloadingBrochure(true);
     try{
       const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";
-      await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null,(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null,commercialMode,commercialAdv,mixedUseMode,mixedUseAdv,(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null);
+      await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null,(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null,commercialMode,commercialAdv,mixedUseMode,mixedUseAdv,(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null,assetType==="MixedUse"?muResiComps:null,assetType==="MixedUse"?muComComps:null);
       tickChecklist("generated_pdf");
     }catch(e:any){
       console.error("Brochure PDF error:",e);
