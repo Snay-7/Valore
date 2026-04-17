@@ -26174,7 +26174,14 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-  // Disclaimer moved to standalone final page (after market comparables)
+  // Disclaimer strip — appears on P4 (cashflow) for all deals; duplicated on comps page for MixedUse
+  const _dY4=274;
+  doc.setFillColor(...bg3);doc.roundedRect(M,_dY4,W-M*2,14,1.5,1.5,"F");
+  doc.setTextColor(...amber);doc.setFontSize(6);doc.setFont("helvetica","bold");doc.text("DISCLAIMER",M+4,_dY4+4.5);
+  doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+  const _d4="Indicative only. Not financial, investment, legal or tax advice. Projections based on user inputs and market data at time of generation — not guaranteed. Recipients must conduct independent due diligence. Strictly confidential. Valora accepts no liability for decisions made based on this document.";
+  const _d4L=doc.splitTextToSize(_d4,W-M*2-8);
+  _d4L.slice(0,3).forEach((l:string,i:number)=>doc.text(l,M+4,_dY4+8+i*3));
 
 
 
@@ -26400,60 +26407,19 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     // Data-source footnote
     doc.setTextColor(...grey);doc.setFontSize(5);doc.setFont("helvetica","italic");
-    doc.text("AI-assisted comparables — verify before transacting. Data reflects market snapshots at time of pull.",M,285);
+    doc.text("AI-assisted comparables — verify before transacting. Data reflects market snapshots at time of pull.",M,269);
+
+    // Disclaimer strip
+    const _dYc=274;
+    doc.setFillColor(...bg3);doc.roundedRect(M,_dYc,W-M*2,14,1.5,1.5,"F");
+    doc.setTextColor(...amber);doc.setFontSize(6);doc.setFont("helvetica","bold");doc.text("DISCLAIMER",M+4,_dYc+4.5);
+    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
+    const _dc="Indicative only. Not financial, investment, legal or tax advice. Projections based on user inputs and market data at time of generation — not guaranteed. Recipients must conduct independent due diligence. Strictly confidential. Valora accepts no liability for decisions made based on this document.";
+    const _dcL=doc.splitTextToSize(_dc,W-M*2-8);
+    _dcL.slice(0,3).forEach((l:string,i:number)=>doc.text(l,M+4,_dYc+8+i*3));
 
     pageFooter(doc,5);
   }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // FINAL PAGE — STANDALONE DISCLAIMER (always last)
-  // ═══════════════════════════════════════════════════════════════════
-  const hasCompsPage=assetType==="MixedUse"&&(mixedUseResiComps||mixedUseComComps);
-  const disclaimerPageNum=hasCompsPage?6:5;
-  doc.addPage();doc.setFillColor(...bg2);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
-  let dp=20;
-  doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,dp);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DISCLAIMER & LEGAL",W-M,dp,{align:"right"});
-  doc.setFillColor(...gold);doc.rect(M,dp+3,W-M*2,0.3,"F");dp+=16;
-
-  // Title
-  doc.setTextColor(...white);doc.setFontSize(16);doc.setFont("helvetica","bold");
-  doc.text("Important Disclaimer",M,dp);dp+=10;
-  doc.setDrawColor(...gold);doc.setLineWidth(0.5);doc.line(M,dp-2,M+40,dp-2);
-  dp+=6;
-
-  // Main disclaimer body (expanded version for standalone page)
-  doc.setTextColor(...grey);doc.setFontSize(9);doc.setFont("helvetica","normal");
-  const disclaimerParas=[
-    "This Investment Memorandum ('IM') has been prepared using the Valora platform for indicative and informational purposes only. It is not, and should not be construed as, an offer or solicitation for the sale or purchase of any securities, investments, or property interests.",
-    "The financial projections, valuations, and investment metrics contained herein (including but not limited to IRR, profit on cost, equity multiple, debt yield, LTGDV, and cashflow forecasts) are based on assumptions and inputs provided by the user and market data available at the time of generation. Actual results may differ materially due to changes in market conditions, planning outcomes, build costs, financing terms, tenant covenants, or economic factors.",
-    "This document does not constitute financial, investment, legal, tax, or professional advice. Recipients are strongly advised to conduct their own independent due diligence and to seek appropriate professional advice from qualified advisors before making any investment decision based on the content of this IM.",
-    "Past performance of similar investments is not a reliable indicator of future results. Forward-looking statements and projections involve inherent risks and uncertainties. Market comparables, where included, are AI-assisted and should be independently verified before transacting.",
-    "Valora and its affiliates accept no liability for any loss or damage, direct or indirect, arising from reliance on the information contained in this document. The platform, its operators, and any associated parties make no representations or warranties, express or implied, as to the accuracy or completeness of the information provided.",
-    "This document is strictly private and confidential. It is intended solely for the recipient named and may not be reproduced, distributed, or disclosed to third parties without the express written consent of the originator.",
-  ];
-  disclaimerParas.forEach((p)=>{
-    const lines=doc.splitTextToSize(p,W-M*2);
-    lines.forEach((l:string)=>{
-      if(dp>275)return;
-      doc.text(l,M,dp);dp+=4.5;
-    });
-    dp+=3;
-  });
-
-  // Regulatory/jurisdiction note
-  if(dp<260){
-    dp+=4;
-    doc.setFillColor(...bg3);doc.roundedRect(M,dp,W-M*2,22,2,2,"F");
-    doc.setDrawColor(...amber);doc.setLineWidth(0.3);doc.roundedRect(M,dp,W-M*2,22,2,2,"S");
-    doc.setTextColor(...amber);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("JURISDICTION & REGULATORY",M+5,dp+6);
-    doc.setTextColor(...grey);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
-    const juris="Content is intended for professional and institutional investors only. Distribution to retail investors may be restricted in certain jurisdictions. The figures herein should be reviewed in the context of local regulatory requirements including (where applicable) FCA, SEC, or equivalent authorities. Recipients outside the originator's primary jurisdiction should verify legal permissibility before acting on this information.";
-    const jl=doc.splitTextToSize(juris,W-M*2-10);
-    jl.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M+5,dp+11+i*3.5));
-  }
-
-  pageFooter(doc,disclaimerPageNum);
 
 
 
