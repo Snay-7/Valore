@@ -240,11 +240,34 @@ FLIP HOLD MODE (BRRR — bridge, refurb, refinance, rent — NO SALE):
 - DO NOT flag "Levered IRR < Unlevered IRR" as a risk for Hold deals — the Hold-deal data will omit Levered IRR because there is no sell exit to level against. Frame risks around: DSCR, refinance rate vs rental yield, tenancy/void risk, exit refinance liquidity at end of hold.
 - FRAME THE DEAL NARRATIVE around: "BRRR strategy extracting £X at refinance while retaining ownership, with £Y/mo net carry and Z× equity multiple over the hold period" — NOT around sale margins.
 
+MIXED USE STRATEGY FRAMING (MixedUse Advanced deals only):
+
+BUILD-TO-SELL MIXED USE (hold period ≤ 2 years, exits at or shortly after stabilisation):
+- Standard institutional IRR benchmarks apply. 15%+ unlevered IRR = strong.
+- Profit is realised at the terminal exit sale to an institutional BTR buyer or REIT.
+- Frame around IRR, PoC, exit pricing vs comps, stabilised yield at exit.
+
+BUILD-TO-HOLD / LONG-HOLD BTR MIXED USE (hold period 3+ years, cashflow-focused):
+- This is a developer-landlord strategy, not a developer-trader strategy. The investor builds, stabilises, then HOLDS for long-term rental income before eventual exit.
+- IRR compresses under time-weighting — a 2.0×+ MOIC over 5-10 years is institutional-grade even if annualised IRR is 6-12%. This is mathematically correct for the strategy, NOT a weakness.
+- DO NOT call 6-10% IRR "below hurdle" if the MOIC is >2.0× over a long hold — it is the expected shape of returns for long-hold BTR. Applying developer-trader IRR benchmarks to a long-hold BTR deal is a category error.
+- EVALUATE long-hold MixedUse deals using BTR-appropriate metrics:
+  - Stabilised Yield on Cost > 5.5% → institutional-grade
+  - DSCR > 1.25× throughout hold → fundable
+  - Debt Yield > 7% at exit → refinance optionality
+  - MOIC > 2.0× over hold → strong equity amplification
+  - Positive carry (rental NOI > debt service) → self-sustaining through hold
+- DO NOT flag "Levered IRR < Unlevered IRR" as a risk for long-hold MixedUse deals — rental income is accrued throughout the hold and the IRR shape differs from a sell-at-completion deal.
+- FRAME THE DEAL NARRATIVE around: "Long-hold BTR extracting X years of stabilised rental income with Y× equity multiple, DSCR Z× through hold, exit refinance optionality at W% debt yield" — NOT "IRR below hurdle."
+- Risks to flag for long-hold: exit refinance rate assumption, rental growth over hold period, void resilience, DSCR stress under rate rises.
+
+HOW TO DETECT STRATEGY: The deal data will include hold period in months or years. Hold ≤ 24 months → build-to-sell framing. Hold ≥ 36 months → long-hold BTR framing.
+
 Respond ONLY with a JSON object (no markdown, no backticks) with these exact keys:
 {
   "executiveSummary": "2-3 sentences summarising the opportunity, location appeal, and headline returns. LEAD WITH THE LARGEST ASSET COMPONENT, use benchmark-honest language (don't oversell marginal returns).",
   "dealStrengths": "3-4 specific strengths of this deal based on the numbers and asset type. Only call out metrics that genuinely meet institutional benchmarks.",
-  "riskAssessment": "2-3 key risks to consider. If Levered IRR < Unlevered IRR, mention that financing costs exceed asset yield (EXCEPT for Flip Hold/BRRR deals — do not apply this check when deal mode is 'Bridge + Hold (BTL)'). If IRR is below hurdle, flag it. Be honest about what would make this deal hard to place with institutional capital.",
+  "riskAssessment": "2-3 key risks to consider. If Levered IRR < Unlevered IRR, mention that financing costs exceed asset yield (EXCEPT for Flip Hold/BRRR deals — do not apply this check when deal mode is 'Bridge + Hold (BTL)'; ALSO EXCEPT for long-hold MixedUse BTR deals with hold period ≥ 3 years — time-weighting compresses IRR for these). If IRR is below hurdle, flag it — BUT for long-hold MixedUse BTR, IRR 6-10% with MOIC 2.0×+ is expected and NOT a hurdle issue. Be honest about what would make this deal hard to place with institutional capital.",
   "marketComparables": "Brief commentary on market context — reference the LIVE COMPARABLES above with specific numbers if provided, and compare how this deal stacks up. For Mixed Use, address residential AND commercial markets separately."
 }`;
 
