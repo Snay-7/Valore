@@ -23590,6 +23590,79 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const advR=isCommercialAdv?commercialAdv:isMixedUseAdv?mixedUseAdv:null;
   const today=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
 
+  // ── UNIVERSAL DEBT METRICS HELPER ─────────────────────────────────────
+  // Lenders care about different metrics for held vs sold deals:
+  //   HELD at exit (income-producing):  Debt Yield (NOI / Loan) + LTGDV
+  //   SOLD at completion:               LTGDV only (DY is meaningless — no NOI)
+  // This helper detects the scheme's exit strategy and returns only the metrics
+  // that are mathematically meaningful and useful to a lender.
+  const computeDebtMetrics=(src:any,at:string)=>{
+    const ln=src.loanAmount||src.peakLoanBalance||0;
+    const exit=src.exitValue||src.totalGDV||src.gdv||src.salePrice||0;
+    const dscr=src.dscr||0;
+    if(ln<=0)return{ln:0,noi:0,exit,noiBasis:"",dy:0,ltgdv:0,dscr:0,isHeld:false};
+    // ── Determine if this deal is HELD at exit (income-producing) or SOLD ──
+    // Hold signals: stabilised NOI exists, Hotel (always held to stabilisation),
+    // Commercial/Industrial (always held for NIY exit), BTR (always held),
+    // Flip in "hold" mode, MixedUse zones with exitStrategy="hold"
+    let isHeld=false;
+    if(src.stabilisedNOI>0||src.noi>0||src.ebitda>0)isHeld=true;
+    if(at==="Hotel"||at==="Commercial"||at==="Industrial"||at==="BTR")isHeld=true;
+    if(at==="Flip"&&data.flipMode==="hold")isHeld=true;
+    if(at==="MixedUse"&&Array.isArray(data.zones)){
+      // Mixed Use is "held" if ANY zone exits by hold (rented at completion)
+      if(data.zones.some((z:any)=>z.exitStrategy==="hold"))isHeld=true;
+    }
+    // ── NOI — only derived if deal is actually HELD ──
+    let noi=0;
+    let noiBasis="";
+    if(isHeld){
+      // 1. Real stabilised NOI from engine (preferred)
+      noi=src.stabilisedNOI||src.noi||src.netRent||src.totalNetPassing||src.ebitda||0;
+      if(noi>0)noiBasis="Stabilised NOI";
+      // 2. MixedUse — sum only zones that are HELD (rented at exit), not sold
+      if(noi<=0&&at==="MixedUse"&&Array.isArray(src.zoneResults)){
+        const heldZones=src.zoneResults.filter((z:any,i:number)=>{
+          const cfg=data.zones&&data.zones[i];
+          return cfg&&cfg.exitStrategy==="hold";
+        });
+        noi=heldZones.reduce((s:number,z:any)=>s+(Number(z.rentPcm||0)*12),0);
+        if(noi>0)noiBasis="Rent from held zones only";
+      }
+      // 3. Synthesised from exit yield × GDV (Hotel/Commercial with set yields)
+      if(noi<=0&&exit>0){
+        const exitYieldPct=Number(data.exitYield||data.niy||data.exitCapRate||data.targetNIY||data.stabilisedCapRate||0);
+        const exitYieldDec=exitYieldPct>1?exitYieldPct/100:exitYieldPct;
+        if(exitYieldDec>0&&exitYieldDec<0.25){
+          noi=exit*exitYieldDec;
+          noiBasis=`Implied (${(exitYieldDec*100).toFixed(2)}% exit yield × GDV)`;
+        }
+      }
+      // 4. Flip hold rent
+      if(noi<=0&&at==="Flip"&&Number(data.rentPcm||0)>0){
+        noi=Number(data.rentPcm)*12*(1-Number(data.voidPct||5)/100)-Number(data.holdOpexPm||0)*12;
+        if(noi>0)noiBasis="Hold rent (net of voids & opex)";
+      }
+      // 5. BTR — from units if engine didn't supply NOI directly
+      if(noi<=0&&at==="BTR"&&Array.isArray(data.units)){
+        const gross=data.units.reduce((s:number,u:any)=>s+Number(u.rentPcm||0)*Number(u.count||1)*12,0);
+        if(gross>0){
+          const gia=data.units.reduce((s:number,u:any)=>s+Number(u.size||0)*Number(u.count||1),0);
+          const opex=Number(data.opexPsf||0)*gia;
+          noi=gross*(1-Number(data.voidPct||5)/100)-opex;
+          if(noi>0)noiBasis="From unit rents (net of voids & opex)";
+        }
+      }
+    }
+    const dy=ln>0&&noi>0?noi/ln:0;
+    const ltgdv=exit>0&&ln>0?ln/exit:0;
+    return{ln,noi,exit,noiBasis,dy,ltgdv,dscr,isHeld};
+  };
+  const dyColour=(dy:number)=>dy>=0.10?green:dy>=0.08?amber:dy>=0.06?amber:red;
+  const ltgdvColour=(l:number)=>l<=0.60?green:l<=0.70?amber:red;
+
+
+
 
 
 
@@ -24293,7 +24366,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
     {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>=999?"N/A (All Equity)":(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
     {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:amber},
-    ...((()=>{const ln=(hotelAdv.loanAmount||r.loanAmount||0);if(ln<=0)return[];const noi=(hotelAdv.noi||r.noi||0);const exit=(hotelAdv.exitValue||r.exitValue||0);const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const o=[];if(dy>0)o.push({l:"Debt Yield",v:fmtPct(dy),c:dy>=0.08?green:amber});if(ltv>0)o.push({l:"LTV at Exit",v:fmtPct(ltv),c:ltv<=0.60?green:amber});return o;})()),
+    ...((()=>{const src={...r,...(hotelAdv||{})};const m=computeDebtMetrics(src,"Hotel");const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push({l:"Debt Yield",v:fmtPct(m.dy),c:dyColour(m.dy)});if(m.ltgdv>0)o.push({l:"LTGDV",v:fmtPct(m.ltgdv),c:ltgdvColour(m.ltgdv)});return o;})()),
     {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:blue},
   ]:assetType==="BTR"||assetType==="BTS"?[
     {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
@@ -25402,7 +25475,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],["RLV",fmt(r.rlv||0,currencySymbol),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
-      ...((()=>{const ln=r.loanAmount||r.peakLoanBalance||0;if(ln<=0)return[];const noi=r.noi||r.netRent||r.stabilisedNOI||r.totalNetPassing||0;const exit=r.exitValue||r.gdv||r.totalGDV||0;const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const o=[];if(dy>0)o.push(["Debt Yield",fmtPct(dy),dy>=0.08?green:amber] as [string,string,[number,number,number]]);if(ltv>0)o.push(["LTV at Exit",fmtPct(ltv),ltv<=0.60?green:amber] as [string,string,[number,number,number]]);return o;})()),
+      ...((()=>{const m=computeDebtMetrics(r,assetType);const o=[] as [string,string,[number,number,number]][];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as [string,string,[number,number,number]]);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as [string,string,[number,number,number]]);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
       ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
@@ -25434,7 +25507,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],["RLV",fmt(r.rlv||0,currencySymbol),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
-      ...((()=>{const ln=r.loanAmount||r.peakLoanBalance||0;if(ln<=0)return[];const noi=r.noi||r.netRent||r.stabilisedNOI||r.totalNetPassing||0;const exit=r.exitValue||r.gdv||r.totalGDV||0;const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const o:any[]=[];if(dy>0)o.push(["Debt Yield",fmtPct(dy),dy>=0.08?green:amber] as any);if(ltv>0)o.push(["LTV at Exit",fmtPct(ltv),ltv<=0.60?green:amber] as any);return o;})()),
+      ...((()=>{const m=computeDebtMetrics(r,assetType);const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
       ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
@@ -25502,7 +25575,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Unlevered)",fmtPct(dRC.irr||0),(dRC.irr||0)>=0.15?green:amber],
       ["IRR (Levered)",fmtPct(dRC.irrLevered||0),(dRC.irrLevered||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(dRC.moic||0),gold],["RLV",fmt(dRC.rlv||0,currencySymbol),gold],
-      ...((()=>{const ln=dRC.loanAmount||0;if(ln<=0)return[];const noi=dRC.stabilisedNOI||dRC.totalNetPassing||0;const exit=dRC.exitValue||dRC.gdv||0;const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const o:any[]=[];if(dy>0)o.push(["Debt Yield",fmtPct(dy),dy>=0.08?green:amber] as any);if(ltv>0)o.push(["LTV at Exit",fmtPct(ltv),ltv<=0.60?green:amber] as any);return o;})()),
+      ...((()=>{const m=computeDebtMetrics(dRC,assetType);const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
       ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
@@ -25577,7 +25650,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.12?green:(r.irrLevered||0)>=0.06?amber:red],
       ["Equity Multiple",fmtX(r.moic||0),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
-      ...((()=>{const ln=r.loanAmount||r.peakLoanBalance||0;if(ln<=0)return[];const noi=r.stabilisedNOI||0;const exit=r.exitValue||r.totalGDV||r.gdv||0;const dy=ln>0&&noi>0?noi/ln:0;const ltv=exit>0&&ln>0?ln/exit:0;const dscr=r.dscr||0;const o:any[]=[];if(dscr>0&&dscr<999)o.push(["DSCR / ICR",fmtX(dscr),dscr>=1.25?green:amber] as any);if(dy>0)o.push(["Debt Yield",fmtPct(dy),dy>=0.08?green:amber] as any);if(ltv>0)o.push(["LTV at Exit",fmtPct(ltv),ltv<=0.60?green:amber] as any);return o;})()),
+      ...((()=>{const m=computeDebtMetrics(r,"MixedUse");const o:any[]=[];if(m.ln<=0)return o;if(m.dscr>0&&m.dscr<999)o.push(["DSCR / ICR",fmtX(m.dscr),m.dscr>=1.25?green:amber] as any);if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ];
     lY3=drawColB("Returns",_returnsRows,colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
@@ -26101,17 +26174,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-  // Disclaimer strip
-  if(sp<260){
-    const dY=Math.max(sp+4,250);
-    doc.setFillColor(...bg3);doc.roundedRect(M,dY,W-M*2,32,2,2,"F");
-    doc.setDrawColor(...grey);doc.setLineWidth(0.15);doc.roundedRect(M,dY,W-M*2,32,2,2,"S");
-    doc.setTextColor(...amber);doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.text("DISCLAIMER",M+5,dY+7);
-    const disc2="For indicative purposes only. Based on assumptions that may not reflect actual market conditions. Does not constitute financial, investment, legal or tax advice. Recipients should conduct independent due diligence. Projections are not guaranteed. Valora accepts no liability for decisions made based on this document.";
-    const dL=doc.splitTextToSize(disc2,W-M*2-10);
-    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");
-    dL.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M+5,dY+14+i*5));
-  }
+  // Disclaimer moved to standalone final page (after market comparables)
 
 
 
@@ -26341,6 +26404,56 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     pageFooter(doc,5);
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FINAL PAGE — STANDALONE DISCLAIMER (always last)
+  // ═══════════════════════════════════════════════════════════════════
+  const hasCompsPage=assetType==="MixedUse"&&(mixedUseResiComps||mixedUseComComps);
+  const disclaimerPageNum=hasCompsPage?6:5;
+  doc.addPage();doc.setFillColor(...bg2);doc.rect(0,0,210,297,"F");doc.setFillColor(...gold);doc.rect(0,0,4,297,"F");
+  let dp=20;
+  doc.setTextColor(...white);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text("Valora",M,dp);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DISCLAIMER & LEGAL",W-M,dp,{align:"right"});
+  doc.setFillColor(...gold);doc.rect(M,dp+3,W-M*2,0.3,"F");dp+=16;
+
+  // Title
+  doc.setTextColor(...white);doc.setFontSize(16);doc.setFont("helvetica","bold");
+  doc.text("Important Disclaimer",M,dp);dp+=10;
+  doc.setDrawColor(...gold);doc.setLineWidth(0.5);doc.line(M,dp-2,M+40,dp-2);
+  dp+=6;
+
+  // Main disclaimer body (expanded version for standalone page)
+  doc.setTextColor(...grey);doc.setFontSize(9);doc.setFont("helvetica","normal");
+  const disclaimerParas=[
+    "This Investment Memorandum ('IM') has been prepared using the Valora platform for indicative and informational purposes only. It is not, and should not be construed as, an offer or solicitation for the sale or purchase of any securities, investments, or property interests.",
+    "The financial projections, valuations, and investment metrics contained herein (including but not limited to IRR, profit on cost, equity multiple, debt yield, LTGDV, and cashflow forecasts) are based on assumptions and inputs provided by the user and market data available at the time of generation. Actual results may differ materially due to changes in market conditions, planning outcomes, build costs, financing terms, tenant covenants, or economic factors.",
+    "This document does not constitute financial, investment, legal, tax, or professional advice. Recipients are strongly advised to conduct their own independent due diligence and to seek appropriate professional advice from qualified advisors before making any investment decision based on the content of this IM.",
+    "Past performance of similar investments is not a reliable indicator of future results. Forward-looking statements and projections involve inherent risks and uncertainties. Market comparables, where included, are AI-assisted and should be independently verified before transacting.",
+    "Valora and its affiliates accept no liability for any loss or damage, direct or indirect, arising from reliance on the information contained in this document. The platform, its operators, and any associated parties make no representations or warranties, express or implied, as to the accuracy or completeness of the information provided.",
+    "This document is strictly private and confidential. It is intended solely for the recipient named and may not be reproduced, distributed, or disclosed to third parties without the express written consent of the originator.",
+  ];
+  disclaimerParas.forEach((p)=>{
+    const lines=doc.splitTextToSize(p,W-M*2);
+    lines.forEach((l:string)=>{
+      if(dp>275)return;
+      doc.text(l,M,dp);dp+=4.5;
+    });
+    dp+=3;
+  });
+
+  // Regulatory/jurisdiction note
+  if(dp<260){
+    dp+=4;
+    doc.setFillColor(...bg3);doc.roundedRect(M,dp,W-M*2,22,2,2,"F");
+    doc.setDrawColor(...amber);doc.setLineWidth(0.3);doc.roundedRect(M,dp,W-M*2,22,2,2,"S");
+    doc.setTextColor(...amber);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text("JURISDICTION & REGULATORY",M+5,dp+6);
+    doc.setTextColor(...grey);doc.setFontSize(6.5);doc.setFont("helvetica","normal");
+    const juris="Content is intended for professional and institutional investors only. Distribution to retail investors may be restricted in certain jurisdictions. The figures herein should be reviewed in the context of local regulatory requirements including (where applicable) FCA, SEC, or equivalent authorities. Recipients outside the originator's primary jurisdiction should verify legal permissibility before acting on this information.";
+    const jl=doc.splitTextToSize(juris,W-M*2-10);
+    jl.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M+5,dp+11+i*3.5));
+  }
+
+  pageFooter(doc,disclaimerPageNum);
 
 
 
