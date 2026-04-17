@@ -12416,17 +12416,17 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
       zoneYearData.push({label:z.label||"Residential",type:"residential",exitStrategy:z.exitStrategy||"sell"});
     } else {
       // Commercial zone — year-by-year lease cashflows
-      const erv=num(String(z.erv||z.rentPcm||0)); // £/sqft/yr or monthly
-      const passingRent=erv*0.9; // assume 90% passing if not specified
+      // rentPcm interpreted as £/UNIT/MONTH (matches UI label) — converted to annual total
+      const rentPcm=num(String(z.rentPcm||z.erv||0));
+      const grossErv=units*rentPcm*12; // total gross annual rent for this zone
+      const passingRent=grossErv*0.9; // assume 90% passing if not specified
       const wault=num(String(z.wault||5));
       const voidPct=num(String(z.voidPct||5))/100;
       const rfMonths=num(String(z.rentFreeMonths||0));
       const reviewPct=num(String(z.rentReviewPct??data.rentReviewPct??3))/100;
       const reviewYears=Math.max(1,num(String(z.rentReviewYears??data.rentReviewYears??5)));
       const mgmtPct=num(String(z.mgmtPct??data.mgmtPct??10))/100;
-      const area=units*sizeSqft;
-      const grossErv=area*erv;
-      const grossPassing=area*passingRent;
+      const grossPassing=passingRent;
       const exitYield=num(String(z.exitYield||5.5))/100;
       const zoneNOI:number[]=[];
 
