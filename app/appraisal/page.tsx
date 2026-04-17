@@ -28393,8 +28393,8 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
         units_dmr:assetType==="BTR"?(data.units?.filter((u:any)=>u.type?.includes("DMR")).reduce((s:number,u:any)=>s+num(String(u.count)),0)||0):0,
         rent_omr_pcm:assetType==="BTR"?(data.units?.[0]?.rentPcm||0):0,
         exit_yield:num(String(data.exitYield||0))/100,land_cost:num(String(data.landCost||data.purchasePrice||0)),
-        gdv:r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:r.profit||0,
-        profit_on_cost:r.poc||r.roi||0,irr_unlevered:r.irr||0,irr_levered:r.irrLevered||0,programme_months:num(String(data.programmMonths)),firm_id:userFirmId,
+        gdv:r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,total_cost:r.totalCost||r.totalInvestment||0,profit:(assetType==="Flip"&&r.flipMode==="hold"?(r.profitCash??r.profit??0):(r.profit||0)),
+        profit_on_cost:(assetType==="Flip"&&r.flipMode==="hold"?(r.equity>0?(r.profitCash??r.profit??0)/r.equity:0):(r.poc||r.roi||0)),irr_unlevered:r.irr||0,irr_levered:r.irrLevered||0,programme_months:num(String(data.programmMonths)),firm_id:userFirmId,
         snapshot:{
           ...data,
           assetType,
