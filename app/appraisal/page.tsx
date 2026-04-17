@@ -21846,7 +21846,9 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     ...(assetType==="Flip"&&r.flipMode==="hold"
       ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
       :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
-    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
+    ...(assetType==="Flip"&&r.flipMode==="hold"
+      ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
+      :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
   ];
@@ -22316,7 +22318,9 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
             ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
             ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
           ]),
-      ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],
+      ...(r.flipMode==="hold"
+        ?[["Net Yield",fmtPct(r.netYield||0),(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red] as [string,string,[number,number,number]]]
+        :[["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber] as [string,string,[number,number,number]]]),
       ["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],
       ...(r.flipMode==="hold"?[["DSCR / ICR",!isFinite(r.dscr)?"N/A (vacant)":r.dscr>0?fmtX(r.dscr):"—",isFinite(r.dscr)&&r.dscr>=1.25?green:isFinite(r.dscr)&&r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:r.dscr>0?[["ICR (Bridge)",fmtX(r.dscr),r.dscr>=2?green:r.dscr>=1.5?amber:red] as [string,string,[number,number,number]]]:[] as any),
     ],colL,lY,colW)||lY;
@@ -24430,7 +24434,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     ...(r.flipMode==="hold"
       ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
       :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
-    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
+    ...(r.flipMode==="hold"
+      ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
+      :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
   ]:[
@@ -25595,7 +25601,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
             ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
             ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
           ]),
-      ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
+      ...(r.flipMode==="hold"
+        ?[["Net Yield",fmtPct(r.netYield||0),(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red] as [string,string,[number,number,number]]]
+        :[["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber] as [string,string,[number,number,number]]]),
       ["IRR",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
@@ -28939,10 +28947,17 @@ ${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:assetType==="Flip"?(r.fli
 Key Financials:
 - ${isHotelAdv?"Exit Value":assetType==="Flip"?"Sale Price":"GDV / Exit Value"}: ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)}
 - Total Investment: ${fmt(r.totalCost||r.totalInvestment||0,currSym)}
-- Profit: ${fmt(r.profit||0,currSym)}
-- Return on Cost: ${fmtPct(r.poc||r.roi||0)}
+${assetType==="Flip"&&r.flipMode==="hold"
+  ?`- Profit (to Equity — headline): ${fmt(r.profitCash??r.profit??0,currSym)} [actual cashflow return: refi cash-out + hold rental income + terminal value, net of equity deployed]
+- DO NOT use Profit (Margin) or accounting profit for this Hold/BRRR deal — it is not meaningful (no sale occurs). The headline is Profit (to Equity).
+- Monthly Net Cashflow (post-refi): ${currSym}${Math.round(r.netCashflowPm||0)}/mo ${(r.netCashflowPm||0)>=0?"(positive carry)":"(negative carry — rent does not cover debt service)"}
+- DSCR (income-based): ${isFinite(r.dscr)?fmtX(r.dscr):"N/A — Vacant"}
+- Cash Released at Refi: ${fmt(Math.max(0,r.cashOutRefi||0),currSym)}
+- Occupancy: ${r.holdOccupancy==="tenanted"?"Tenanted/let":"Vacant"}${r.holdOccupancy==="tenanted"?` | Rent: ${currSym}${r.rentPcm||0}pcm | Gross Yield: ${fmtPct(r.grossYield||0)}`:""}`
+  :`- Profit: ${fmt(r.profit||0,currSym)}
+- Return on Cost: ${fmtPct(r.poc||r.roi||0)}`}
 - IRR (Unlevered): ${fmtPct(r.irr||0)}
-- IRR (Levered): ${fmtPct(r.irrLevered||0)}
+${assetType==="Flip"&&r.flipMode==="hold"?"":`- IRR (Levered): ${fmtPct(r.irrLevered||0)}`}
 - Equity Multiple: ${fmtX(r.moic||0)}
 ${isHotelAdv?`
 Hotel Institutional Metrics:
@@ -47197,9 +47212,16 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                     ["Net Yield",r.flipMode==="hold"?fmtPct(r.netYield||0):"—","var(--blue)"],
                     ["Monthly Cashflow",r.flipMode==="hold"?`${currencySymbol}${Math.round(r.netCashflowPm||0)}/mo`:"—",(r.netCashflowPm||0)>0?"var(--green)":"var(--text-d)"],
                     ["DSCR",r.flipMode==="hold"&&r.dscr>=999?"N/A (All Equity)":r.dscr>0?fmtX(r.dscr):"—",r.flipMode==="hold"?r.dscr>=1.25?"var(--green)":r.dscr>=1.0?"var(--amber)":"var(--red)":"var(--text-d)"],
-                    ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
-                    ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],
-                    ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],
+                    ...(r.flipMode==="hold"
+                      ?[
+                        ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?"var(--green)":"var(--red)"],
+                        ["ROI on Equity",fmtPct(((r.profitCash??0)/(r.equity||1))),((r.profitCash??0)/(r.equity||1))>0.25?"var(--green)":((r.profitCash??0)/(r.equity||1))>0?"var(--amber)":"var(--red)"],
+                      ]
+                      :[
+                        ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                        ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],
+                        ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],
+                      ]),
                     ["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],
                     ["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],
                     ["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
@@ -52758,8 +52780,10 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Flip"&&[
               {label:r.flipMode==="hold"?"GDV / Value":"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},
-              {label:"Profit",value:fmt(r.profitAccounting??r.profit,currencySymbol),color:(r.profitAccounting??r.profit)>0?"var(--green)":"var(--red)"},
-              {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},
+              r.flipMode==="hold"
+                ?{label:"Profit (to Equity)",value:fmt(r.profitCash??r.profit??0,currencySymbol),color:(r.profitCash??r.profit??0)>0?"var(--green)":"var(--red)"}
+                :{label:"Profit",value:fmt(r.profitAccounting??r.profit,currencySymbol),color:(r.profitAccounting??r.profit)>0?"var(--green)":"var(--red)"},
+              {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.flipMode==="hold"?((r.netYield||0)>0.05?"var(--green)":(r.netYield||0)>0.03?"var(--amber)":"var(--red)"):(r.roi>0.15?"var(--green)":"var(--amber)")},
               {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
           </div>
