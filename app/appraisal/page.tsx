@@ -22849,23 +22849,45 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     py+=10;
     // Monthly table — key months only
     py=sectionHeader(doc,"Key Cashflow Months",py);py+=4;
-    // Smart selection: always M1 (equity deploy) + exit M, plus the biggest intermediate draws
+    // Smart selection: always M1 (equity deploy) + exit M, plus phase-balanced intermediate months.
+    // For long-hold deals (BTR / MixedUse Advanced), we MUST show hold-period income rows — not just
+    // build-phase draws. Previous logic sorted by abs(cf) which let build draws monopolise the table
+    // on 10-year holds, hiding the rental story entirely.
     const _all=cfs.map((cf,m)=>({cf,m,cum:cfs.slice(0,m+1).reduce((a,b)=>a+b,0)}));
     const _first=_all[0];
     const _last=_all[_all.length-1];
-    const _middle=_all.slice(1,-1).filter(r=>Math.abs(r.cf)>0);
-    // Keep the top 12 intermediate months by absolute cashflow
-    _middle.sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf));
-    const _topMiddle=_middle.slice(0,12).sort((a,b)=>a.m-b.m);
+    const _buildEndM=Math.max(0,Math.round(r.buildMonths||0)); // zero-indexed: build phase is m < buildEndM
+    const _middle=_all.slice(1,-1).filter(x=>Math.abs(x.cf)>0);
+    let _topMiddle:typeof _middle=[];
+    if(_buildEndM>0&&_middle.some(x=>x.m>=_buildEndM)){
+      // Hold-period deal: partition between build phase and post-build phase.
+      // Total rows in final table: 1 (first) + 7 build + 4 post-build + 1 (last) = 13. Stays within page budget.
+      const _build=_middle.filter(x=>x.m<_buildEndM).sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf)).slice(0,7);
+      const _postAll=_middle.filter(x=>x.m>=_buildEndM);
+      // Hold-phase income is typically steady-state — use centred sampling so final pre-exit month is represented
+      const _postCount=Math.min(4,_postAll.length);
+      const _post=_postCount>0?Array.from({length:_postCount},(_,i)=>_postAll[Math.floor(((i+0.5)*_postAll.length)/_postCount)]):[];
+      _topMiddle=[..._build,..._post].sort((a,b)=>a.m-b.m);
+    } else {
+      // Build-and-sell deal (Flip Sell, MixedUse Simple, etc.): original behaviour preserved
+      const _m2=[..._middle].sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf));
+      _topMiddle=_m2.slice(0,12).sort((a,b)=>a.m-b.m);
+    }
     const keyRows=[_first,..._topMiddle,_last].filter(Boolean);
     const tW2=W-M*2;const cols2=["Month","Event","Cashflow","Cumulative"];const cW2=[tW2*0.12,tW2*0.38,tW2*0.25,tW2*0.25];
     doc.setFillColor(...bg3);doc.rect(M,py-4,tW2,7,"F");
     doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
     let cx2=M+2;cols2.forEach((h,i)=>{doc.text(h,cx2,py);cx2+=cW2[i];});py+=5;
+    // Post-build positive cashflow label varies by asset type:
+    // - BTS: sale absorption proceeds
+    // - Hotel: operating income (NOI during stabilisation and hold)
+    // - BTR / MixedUse Advanced / Commercial / Industrial: rental income
+    const _postBuildIncomeLabel=assetType==="BTS"?"Sale proceeds":assetType==="Hotel"?"Operating income":"Rental income";
     const eventLabel=(m:number,cf:number)=>{
       if(m===0)return"Equity deployed";
       if(m===cfs.length-1)return"Exit / sale proceeds";
       if(assetType==="Flip"&&r.flipMode==="hold"&&m===Math.round(r.bridgingMonths||6))return"Refinance event";
+      if(_buildEndM>0&&m>=_buildEndM&&cf>0)return _postBuildIncomeLabel;
       if(cf<0)return"Cost / draw";return"Income";
     };
     keyRows.forEach(({cf,m,cum},i)=>{
