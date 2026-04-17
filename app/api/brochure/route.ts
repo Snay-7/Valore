@@ -218,6 +218,12 @@ BENCHMARK HONESTY:
 - If IRR is below 8%, describe returns as "below institutional hurdle" — do not call 6.4% "strong" or "healthy".
 - If Levered IRR is negative OR below Unlevered IRR, flag this as a financing structure issue in risk factors — it means the cost of debt exceeds asset yield on cost.
 
+FLIP PROFIT FRAMING (Flip deals only):
+- Flip deals may show TWO profit numbers: "Profit (Margin)" = accounting profit (sale - all costs including finance), and "Profit (to Equity)" = cashflow profit after financing (what the investor actually receives).
+- ALWAYS reference both if both are present. The gap between them shows the cost of leverage.
+- Never invent gross-margin percentages like "(Sale - Purchase) / Purchase". Use the actual Profit (Margin) / Total Cost = Return on Cost, and Profit (to Equity) / Equity = ROE.
+- If MOIC is shown alongside, note that MOIC ties to Profit (to Equity), not Profit (Margin).
+
 Respond ONLY with a JSON object (no markdown, no backticks) with these exact keys:
 {
   "executiveSummary": "2-3 sentences summarising the opportunity, location appeal, and headline returns. LEAD WITH THE LARGEST ASSET COMPONENT, use benchmark-honest language (don't oversell marginal returns).",
