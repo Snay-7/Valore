@@ -12502,6 +12502,7 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
     paybackMonth,uCfs,lCfs,buildMonths,totalMonths,
     noiMode:data.noiMode||"normalised",
     niy:num(String(data.niy||5))/100,
+    financeRate:annualRate,
     rlv:exitValue*(1-0.20)-totalBC-fin.totalFinanceCost-sdlt,
   };
 }
@@ -25650,7 +25651,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["IRR (Unlevered)",fmtPct(r.irr||0),(r.irr||0)>=0.12?green:(r.irr||0)>=0.08?amber:red],
       ["IRR (Levered)",fmtPct(r.irrLevered||0),(r.irrLevered||0)>=0.12?green:(r.irrLevered||0)>=0.06?amber:red],
       ["Equity Multiple",fmtX(r.moic||0),gold],
-      ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
+      ["Payback",r.paybackMonth&&r.paybackMonth<(r.totalMonths||999)?`Month ${r.paybackMonth}`:r.paybackMonth?"Beyond horizon":"—",white],
       ...((()=>{const m=computeDebtMetrics(r,"MixedUse");const o:any[]=[];if(m.ln<=0)return o;if(m.dscr>0&&m.dscr<999)o.push(["DSCR / ICR",fmtX(m.dscr),m.dscr>=1.25?green:amber] as any);if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ];
     lY3=drawColB("Returns",_returnsRows,colL3,lY3,colW3)||lY3;
@@ -52733,7 +52734,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 hotelMode==="advanced"&&r.ebitda&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—",
                 "var(--text-m)"
               ]] as any[]:[]),
-              ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
+              ["Payback",r.paybackMonth&&r.paybackMonth<(r.totalMonths||r.buildMonths||999)?`Month ${r.paybackMonth}`:r.paybackMonth?"Beyond horizon":"—","var(--text-m)"],
               ...(assetType==="BTR"?[["Break-even Yield",fmtPct(r.breakEvenYield),"var(--text-m)"],["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"]] as any[]:[]),
               ...(assetType==="BTS"?[["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—","var(--text-m)"]] as any[]:[]),
             ] as any[]).map(([l,v,c])=>(
