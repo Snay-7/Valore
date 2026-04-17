@@ -22371,7 +22371,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     rY=drawCol("Zone Breakdown",
       (r.zoneResults||[]).slice(0,8).map((z:any)=>[
         z.label||z.type,`${fmt(z.gdvZone||0,currencySymbol)} GDV`,
-        (z.gdvZone||0)-(z.totalBuildCost||0)>0?green:red
+        (z.gdvZone||0)>0?green:grey
       ] as [string,string,[number,number,number]]),
     colR,rY,colW)||rY;
     rY=drawCol("Scheme Details",[
