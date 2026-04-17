@@ -21604,6 +21604,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
   const programmLabel=assetType==="BTS"?`${data.programmMonths||30}m build · ${data.absorptionMonths||18}m absorption`:
     assetType==="BTR"?`${data.programmMonths||36}m build · ${data.stabilisationMonths||12}m stabilisation`:
+    assetType==="Flip"?(r.flipMode==="hold"?`${data.programmMonths||9}m refurb · ${data.bridgingTermMonths||12}m bridge · ${data.refiTermMonths||24}m hold`:`${data.programmMonths||9}m refurb · ${data.bridgingTermMonths||12}m bridge · ${data.sellMonths||12}m sell`):
     `${data.programmMonths||12} months`;
 
 
@@ -23287,7 +23288,16 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Name",data.name||"—"],["Location",data.location||"—"],["Asset Type",assetType],
       ["Currency",data.currency||"GBP"],["Date",today],
     ]],
-    ["Programme",[
+    ["Programme",assetType==="Flip"?[
+      ["Refurb Period",`${data.programmMonths||9} months`],
+      ["Bridge Term",`${data.bridgingTermMonths||12} months`],
+      ...(data.flipMode==="hold"?[
+        ["Refi Hold Term",`${data.refiTermMonths||24} months`] as [string,string],
+      ]:[
+        ["Sell Period",`${data.sellMonths||12} months`] as [string,string],
+      ]),
+      ["Total Timeline",`${(Number(data.bridgingTermMonths)||12)+(data.flipMode==="hold"?(Number(data.refiTermMonths)||24):(Number(data.sellMonths)||12))} months`],
+    ]:[
       ["Build Period",`${data.programmMonths||data.bridgingTermMonths||12} months`],
       ...(data.absorptionMonths?[["Absorption",`${data.absorptionMonths}m`] as [string,string]]:[] as any),
       ...(data.stabilisationMonths?[["Stabilisation",`${data.stabilisationMonths}m`] as [string,string]]:[] as any),
@@ -25493,7 +25503,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setFont("helvetica","normal");ry2+=7;
     });return ry2+4;
   };
-  const programmLabel=assetType==="BTS"?`${data.programmMonths||30}m build · ${data.absorptionMonths||18}m absorption`:assetType==="BTR"?`${data.programmMonths||36}m build · ${data.stabilisationMonths||12}m stab`:`${data.programmMonths||18}m`;
+  const programmLabel=assetType==="BTS"?`${data.programmMonths||30}m build · ${data.absorptionMonths||18}m absorption`:assetType==="BTR"?`${data.programmMonths||36}m build · ${data.stabilisationMonths||12}m stab`:assetType==="Flip"?(r.flipMode==="hold"?`${data.programmMonths||9}m refurb · ${data.bridgingTermMonths||12}m bridge · ${data.refiTermMonths||24}m hold`:`${data.programmMonths||9}m refurb · ${data.bridgingTermMonths||12}m bridge · ${data.sellMonths||12}m sell`):`${data.programmMonths||18}m`;
 
 
   if(assetType==="BTR"){
@@ -28400,7 +28410,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
 Project Name: ${data.name||"Unnamed"}
 Location: ${data.location||"Not specified"}
 Currency: ${data.currency||"GBP"}
-${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:`Programme: ${data.programmMonths} months`}
+${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:assetType==="Flip"?(r.flipMode==="hold"?`Refurb Period: ${data.programmMonths||9} months | Bridge Term: ${data.bridgingTermMonths||12} months | Refi Hold: ${data.refiTermMonths||24} months | TOTAL TIMELINE: ${(Number(data.bridgingTermMonths)||12)+(Number(data.refiTermMonths)||24)} months (use this total, NOT refurb period, when describing the deal timeline)`:`Refurb Period: ${data.programmMonths||9} months | Bridge Term: ${data.bridgingTermMonths||12} months | Sell Period: ${data.sellMonths||12} months | TOTAL TIMELINE: ${(Number(data.bridgingTermMonths)||12)+(Number(data.sellMonths)||12)} months (use this total, NOT refurb period, when describing the deal timeline)`):`Programme: ${data.programmMonths} months`}
 
 
 
