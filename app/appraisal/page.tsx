@@ -13433,10 +13433,26 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const monthlyOpex=num(String(data.holdOpexPm||200));
     const netCashflowPm=netRentPm-refiInterestPm-monthlyOpex;
     const totalHoldMonths=flipMode==="hold"?bridgingMonths+refiMonths:bridgingMonths+sellMonths;
-    // DSCR: based on refi loan NOI/debt-service only — unaffected by bridge or equity position
+    // DSCR: only meaningful when rent is coming in (hold mode with tenant)
+    // For vacant hold: N/A (rent=0 → NaN signal)
+    // For sell mode: use ICR = gross profit / total bridge interest
     const annualNOI=(netRentPm-monthlyOpex)*12;
     const annualDebtService=refiInterestPm*12;
-    const dscr=annualDebtService>0&&annualNOI>0?annualNOI/annualDebtService:0;
+    let dscr:number;
+    if(flipMode==="hold"&&holdOccupancy==="tenanted"&&annualDebtService>0){
+      // Income-based DSCR (lenders' standard for held, income-producing assets)
+      dscr=annualNOI>0?annualNOI/annualDebtService:0;
+    } else if(flipMode==="hold"&&holdOccupancy!=="tenanted"){
+      // Vacant hold — DSCR is not meaningful, flag as NaN (display layer shows "N/A — Vacant")
+      dscr=NaN;
+    } else if(flipMode==="sell"&&bridgingInterest>0){
+      // Sell mode: Interest Cover Ratio = gross profit before finance / total bridge interest
+      // Tells lender how many times gross project profit covers interest cost
+      const grossProfitBeforeFinance=(salePrice*(1-num(String(data.agentFeePct||1.5))/100))-(purchase+sdlt+refurb+profFees+contingency+other+vat+s106);
+      dscr=grossProfitBeforeFinance>0?grossProfitBeforeFinance/bridgingInterest:0;
+    } else {
+      dscr=0;
+    }
 
 
 
@@ -13578,6 +13594,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // Net equity actually at risk after refi cash-out (can be reduced if refi > bridge balance)
     const netEquityDeployed=flipMode==="hold"?Math.max(0,equityIn-Math.max(0,cashOutRefi)):equityIn;
     const equity=Math.max(0,equityIn);
+    // Accounting profit = sale - all costs (matches how developers report deals)
+    // This includes finance cost only once (as a cost item), not in equity
     const profit=flipMode==="hold"
       // profit = exit proceeds (net of refi loan) + hold cashflows - net equity deployed
       // cash-out at refi is NOT profit (it's return of capital), so we use equityIn not netEquityDeployed here
@@ -13585,9 +13603,17 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       :netProceeds-totalCost;
     const roi=totalCost>0?profit/totalCost:0;
     const roiEquity=equity>0?profit/equity:0;
-    // MOIC on net equity deployed: counts cash-out refi as return of capital in the multiple
-    const totalReturn=profit+Math.max(0,cashOutRefi); // cash returned + profit at exit
-    const moic=netEquityDeployed>0?(netEquityDeployed+totalReturn)/netEquityDeployed:equity>0?(equity+profit)/equity:0;
+    // MOIC must be CASHFLOW-BASED to reconcile with IRR (same mathematical framework).
+    // Build-once canonical: equity deployed at M0 + hold cashflows + exit proceeds.
+    // If we use the profit formula above (accounting view), MOIC would diverge from IRR.
+    // Cashflow profit = sum of all cashflows (net of equity injection & loan repayment).
+    // This is what the IRR sees, so MOIC derived from this will tie out to IRR time-adjusted.
+    const _cashflowFinalCf=flipMode==="hold"?(netProceeds-refiLoan):(netProceeds-peakLoanBalance);
+    const _cashflowHoldIncome=flipMode==="hold"?netCashflowPm*refiMonths:0;
+    const _cashflowTotalReturn=_cashflowFinalCf+_cashflowHoldIncome+Math.max(0,cashOutRefi);
+    const _cashflowProfit=_cashflowTotalReturn-(flipMode==="hold"?netEquityDeployed:equity);
+    // MOIC on actual cash deployed: (capital returned) / (capital deployed) — ties with IRR
+    const moic=netEquityDeployed>0?(netEquityDeployed+_cashflowProfit)/netEquityDeployed:equity>0?(equity+_cashflowProfit)/equity:0;
 
 
 
@@ -13747,7 +13773,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       profFees,contingency,other,vat,s106,totalFinanceCost,
       loanAmount,peakLoanBalance,bridgingInterest,arrangementFee,
       refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,cashOutRefi,netEquityDeployed,
-      totalCost,salePrice,agentFees,netProceeds,profit,roi,roiEquity,moic,irr,equity,
+      totalCost,salePrice,agentFees,netProceeds,profit,profitAccounting:profit,profitCash:_cashflowProfit,roi,roiEquity,moic,irr,equity,
       paybackMonth,financeRate:bridgingRatePm*12,grossYield,netYield,flipMode,
       bridgingMonths,sellMonths,refiMonths,totalHoldMonths,dscr,
       propertySqft,existingAreaSqft,newAreaSqft,totalArea,
@@ -22277,10 +22303,11 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
       ...(r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cashOutRefi<-100?[["Equity Top-up at Refi",fmt(Math.abs(r.cashOutRefi),currencySymbol),red] as [string,string,[number,number,number]]]:[] as any),
-      ["Profit",fmt(r.profit,currencySymbol),r.profit>0?green:red],
+      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
+      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
       ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],
-      ...(r.flipMode==="hold"?[["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"N/A (vacant)",r.dscr>=1.25?green:r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.flipMode==="hold"?[["DSCR / ICR",!isFinite(r.dscr)?"N/A (vacant)":r.dscr>0?fmtX(r.dscr):"—",isFinite(r.dscr)&&r.dscr>=1.25?green:isFinite(r.dscr)&&r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:r.dscr>0?[["ICR (Bridge)",fmtX(r.dscr),r.dscr>=2?green:r.dscr>=1.5?amber:red] as [string,string,[number,number,number]]]:[] as any),
     ],colL,lY,colW)||lY;
     rY=drawCol("Property & Finance",[
       ["Location",data.location||"—",white],["Property Size",data.propertySqft?`${data.propertySqft} sqft`:"—",white],
@@ -25540,11 +25567,13 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
       ...(r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
-      ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?green:red],
+      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
+      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
       ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
       ["IRR",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
+      ...(r.flipMode!=="hold"&&isFinite(r.dscr)&&r.dscr>0?[["ICR (Bridge)",fmtX(r.dscr),r.dscr>=2?green:r.dscr>=1.5?amber:red] as [string,string,[number,number,number]]]:[] as any),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Finance & Programme",[
       ["Bridging Rate",`${data.bridgingRatePct||0}%pm`,white],["LTV",`${data.flipLTV||75}%`,white],
@@ -25557,7 +25586,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         ["Refi LTV",`${data.refiLTV||75}%`,white],["Refi Rate",`${data.refiRatePct||6}% pa`,white],
         ["Hold Term",`${data.refiTermMonths||24}m`,white],
         ["Monthly Cashflow",`${currencySymbol}${Math.round(Math.abs(r.netCashflowPm||0))}/mo`,r.netCashflowPm>=0?green:red],
-        ["DSCR / ICR",r.dscr>0?fmtX(r.dscr):"N/A (vacant)",r.dscr>=1.25?green:r.dscr>0?amber:grey],
+        ["DSCR / ICR",!isFinite(r.dscr)?"N/A — Vacant":r.dscr>0?fmtX(r.dscr):"—",isFinite(r.dscr)&&r.dscr>=1.25?green:isFinite(r.dscr)&&r.dscr>0?amber:grey],
       ] as any:[] as any),
     ],colR3,rY3,colW3)||rY3;
   }else if(assetType==="Commercial"||assetType==="Industrial"){
@@ -45666,7 +45695,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                           {l:"Net monthly",v:`${netCfPm>=0?"+":"-"}${currencySymbol}${Math.round(Math.abs(netCfPm)).toLocaleString()}/mo`,c:netCfPm>=0?"var(--green)":"var(--red)"},
                           ...(cashOut>100?[{l:"Cash released at refi",v:`+${currencySymbol}${Math.round(cashOut).toLocaleString()}`,c:"var(--green)"}]:
                              cashOut<-100?[{l:"Equity top-up at refi",v:`-${currencySymbol}${Math.round(Math.abs(cashOut)).toLocaleString()}`,c:"var(--red)"}]:[]) as any[],
-                          {l:"DSCR",v:(r.dscr||0)>0?`${(r.dscr||0).toFixed(2)}×`:"N/A (vacant)",c:(r.dscr||0)>=1.25?"var(--green)":(r.dscr||0)>0?"var(--amber)":"var(--text-d)"},
+                          {l:"DSCR",v:!isFinite(r.dscr)?"N/A — Vacant":(r.dscr||0)>0?`${(r.dscr||0).toFixed(2)}×`:"—",c:isFinite(r.dscr)&&(r.dscr||0)>=1.25?"var(--green)":isFinite(r.dscr)&&(r.dscr||0)>0?"var(--amber)":"var(--text-d)"},
                         ].map((item:any)=>(
                           <div key={item.l} style={{background:"var(--bg2)",borderRadius:6,padding:"7px 10px"}}>
                             <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{item.l}</div>
@@ -52703,7 +52732,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Flip"&&[
               {label:r.flipMode==="hold"?"GDV / Value":"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},
-              {label:"Profit",value:fmt(r.profit,currencySymbol),color:r.profit>0?"var(--green)":"var(--red)"},
+              {label:"Profit",value:fmt(r.profitAccounting??r.profit,currencySymbol),color:(r.profitAccounting??r.profit)>0?"var(--green)":"var(--red)"},
               {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},
               {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
