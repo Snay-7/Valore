@@ -261,7 +261,7 @@ BUILD-TO-HOLD / LONG-HOLD BTR MIXED USE (hold period 3+ years, cashflow-focused)
 - FRAME THE DEAL NARRATIVE around: "Long-hold BTR extracting X years of stabilised rental income with Y× equity multiple, DSCR Z× through hold, exit refinance optionality at W% debt yield" — NOT "IRR below hurdle."
 - Risks to flag for long-hold: exit refinance rate assumption, rental growth over hold period, void resilience, DSCR stress under rate rises.
 
-HOW TO DETECT STRATEGY: The deal data will include hold period in months or years. Hold ≤ 24 months → build-to-sell framing. Hold ≥ 36 months → long-hold BTR framing.
+HOW TO DETECT STRATEGY: The deal data includes an explicit strategy marker in the "Hold Period" line. If you see "(LONG-HOLD BTR STRATEGY)" in the deal data, apply the BUILD-TO-HOLD / LONG-HOLD BTR framing above — this is non-negotiable, do not override with IRR-based hurdle logic. If you see "(build-to-sell at stabilisation)" or hold period ≤ 24 months, apply the BUILD-TO-SELL framing. When in doubt, check the Hold Period value: ≥ 36 months → long-hold BTR.
 
 Respond ONLY with a JSON object (no markdown, no backticks) with these exact keys:
 {
