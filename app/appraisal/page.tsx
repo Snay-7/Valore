@@ -12493,10 +12493,11 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const paybackMonth=calcPaybackMonth(uCfs);
 
   return{
-    gdv:exitValue,exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
-    equity,totalCost,landCost,sdlt,buildCost:totalBuildCost,profFees,contingency,vat,
+    gdv:exitValue,exitValue,totalGDV:exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
+    margin:exitValue>0?profit/exitValue:0,
+    equity,totalCost,landCost,sdlt,buildCost:totalBuildCost,totalBuildCost,profFees,contingency,vat,
     totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
-    interestCost:fin.interestCost,loanAmount:fin.loanAmount,
+    interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
     stabilisedNOI,totalHoldNOI,yearlyNOI,zoneYearData,holdYears,
     paybackMonth,uCfs,lCfs,buildMonths,totalMonths,
     noiMode:data.noiMode||"normalised",
