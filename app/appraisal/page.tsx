@@ -24427,7 +24427,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   ]:assetType==="Flip"?[
     {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
     {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
-    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    ...(r.flipMode==="hold"
+      ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
+      :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
     {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
