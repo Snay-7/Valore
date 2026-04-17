@@ -12492,29 +12492,6 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
   const paybackMonth=calcPaybackMonth(uCfs);
 
-  // For appraisal PDF compatibility (appraisal PDF reads zoneResults + totalSqft)
-  const totalSqftAdvanced=zones.reduce((s:number,z:any)=>s+num(String(z.units||0))*num(String(z.sizeSqft||0)),0);
-  const zoneResultsForDisplay=zones.map((z:any)=>{
-    const units=num(String(z.units||0));
-    const sizeSqft=num(String(z.sizeSqft||0));
-    const zoneTotalSqft=units*sizeSqft;
-    const buildCostPsf=num(String(z.buildCostPsf||0));
-    const zoneBuildCost=zoneTotalSqft*buildCostPsf;
-    // GDV per zone: sell zones use salePricePsf*area, hold zones capitalise rent
-    const isResidential=z.type==="residential"||!z.type;
-    let gdvZone=0;
-    if(isResidential&&(z.exitStrategy||"sell")==="sell"){
-      const salePricePsf=num(String(z.salePricePsf||0));
-      gdvZone=units*sizeSqft*salePricePsf;
-    } else {
-      const rentPcm=num(String(z.rentPcm||0));
-      const exitYield=num(String(z.exitYield||5))/100;
-      const grossRentPa=units*rentPcm*12;
-      gdvZone=exitYield>0?(grossRentPa*0.9)/exitYield:0;
-    }
-    return{label:z.label||z.type||"Zone",type:z.type||"residential",gdvZone,totalBuildCost:zoneBuildCost,totalSqft:zoneTotalSqft,exitYield:num(String(z.exitYield||0))/100};
-  });
-
   return{
     gdv:exitValue,exitValue,totalGDV:exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
     margin:exitValue>0?profit/exitValue:0,
@@ -12527,7 +12504,6 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
     niy:num(String(data.niy||5))/100,
     financeRate:annualRate,
     rlv:exitValue*(1-0.20)-totalBC-fin.totalFinanceCost-sdlt,
-    totalSqft:totalSqftAdvanced,zoneResults:zoneResultsForDisplay,
   };
 }
 
@@ -13807,7 +13783,6 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       refurbPsfDisplay:dispRefurbPsf,salePricePsfDisplay:dispSalePricePsf,totalCostPsfDisplay:dispTotalCostPsf,
       unitSystem:unitSys,useAreaModel,
       monthlyInterestArr,cfs,
-      holdOccupancy,rentPcm,voidPct,
     };
   }
   if(assetType==="MixedUse"){
@@ -21867,12 +21842,8 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   ]:[
     {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
     {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
-    ...(assetType==="Flip"&&r.flipMode==="hold"
-      ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
-      :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
-    ...(assetType==="Flip"&&r.flipMode==="hold"
-      ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
-      :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
   ];
@@ -22336,15 +22307,9 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
       ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cashOutRefi<-100?[["Equity Top-up at Refi",fmt(Math.abs(r.cashOutRefi),currencySymbol),red] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.flipMode==="hold"
-        ?[["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]]]
-        :[
-            ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
-            ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
-          ]),
-      ...(r.flipMode==="hold"
-        ?[["Net Yield",fmtPct(r.netYield||0),(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red] as [string,string,[number,number,number]]]
-        :[["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber] as [string,string,[number,number,number]]]),
+      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
+      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
+      ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic),gold],["IRR (Annualised)",fmtPct(r.irr),white],
       ...(r.flipMode==="hold"?[["DSCR / ICR",!isFinite(r.dscr)?"N/A (vacant)":r.dscr>0?fmtX(r.dscr):"—",isFinite(r.dscr)&&r.dscr>=1.25?green:isFinite(r.dscr)&&r.dscr>0?amber:grey] as [string,string,[number,number,number]]]:r.dscr>0?[["ICR (Bridge)",fmtX(r.dscr),r.dscr>=2?green:r.dscr>=1.5?amber:red] as [string,string,[number,number,number]]]:[] as any),
     ],colL,lY,colW)||lY;
@@ -22371,7 +22336,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     rY=drawCol("Zone Breakdown",
       (r.zoneResults||[]).slice(0,8).map((z:any)=>[
         z.label||z.type,`${fmt(z.gdvZone||0,currencySymbol)} GDV`,
-        (z.gdvZone||0)>0?green:grey
+        (z.gdvZone||0)-(z.totalBuildCost||0)>0?green:red
       ] as [string,string,[number,number,number]]),
     colR,rY,colW)||rY;
     rY=drawCol("Scheme Details",[
@@ -22849,45 +22814,23 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     py+=10;
     // Monthly table — key months only
     py=sectionHeader(doc,"Key Cashflow Months",py);py+=4;
-    // Smart selection: always M1 (equity deploy) + exit M, plus phase-balanced intermediate months.
-    // For long-hold deals (BTR / MixedUse Advanced), we MUST show hold-period income rows — not just
-    // build-phase draws. Previous logic sorted by abs(cf) which let build draws monopolise the table
-    // on 10-year holds, hiding the rental story entirely.
+    // Smart selection: always M1 (equity deploy) + exit M, plus the biggest intermediate draws
     const _all=cfs.map((cf,m)=>({cf,m,cum:cfs.slice(0,m+1).reduce((a,b)=>a+b,0)}));
     const _first=_all[0];
     const _last=_all[_all.length-1];
-    const _buildEndM=Math.max(0,Math.round(r.buildMonths||0)); // zero-indexed: build phase is m < buildEndM
-    const _middle=_all.slice(1,-1).filter(x=>Math.abs(x.cf)>0);
-    let _topMiddle:typeof _middle=[];
-    if(_buildEndM>0&&_middle.some(x=>x.m>=_buildEndM)){
-      // Hold-period deal: partition between build phase and post-build phase.
-      // Total rows in final table: 1 (first) + 7 build + 4 post-build + 1 (last) = 13. Stays within page budget.
-      const _build=_middle.filter(x=>x.m<_buildEndM).sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf)).slice(0,7);
-      const _postAll=_middle.filter(x=>x.m>=_buildEndM);
-      // Hold-phase income is typically steady-state — use centred sampling so final pre-exit month is represented
-      const _postCount=Math.min(4,_postAll.length);
-      const _post=_postCount>0?Array.from({length:_postCount},(_,i)=>_postAll[Math.floor(((i+0.5)*_postAll.length)/_postCount)]):[];
-      _topMiddle=[..._build,..._post].sort((a,b)=>a.m-b.m);
-    } else {
-      // Build-and-sell deal (Flip Sell, MixedUse Simple, etc.): original behaviour preserved
-      const _m2=[..._middle].sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf));
-      _topMiddle=_m2.slice(0,12).sort((a,b)=>a.m-b.m);
-    }
+    const _middle=_all.slice(1,-1).filter(r=>Math.abs(r.cf)>0);
+    // Keep the top 12 intermediate months by absolute cashflow
+    _middle.sort((a,b)=>Math.abs(b.cf)-Math.abs(a.cf));
+    const _topMiddle=_middle.slice(0,12).sort((a,b)=>a.m-b.m);
     const keyRows=[_first,..._topMiddle,_last].filter(Boolean);
     const tW2=W-M*2;const cols2=["Month","Event","Cashflow","Cumulative"];const cW2=[tW2*0.12,tW2*0.38,tW2*0.25,tW2*0.25];
     doc.setFillColor(...bg3);doc.rect(M,py-4,tW2,7,"F");
     doc.setFontSize(6);doc.setFont("helvetica","bold");doc.setTextColor(...grey);
     let cx2=M+2;cols2.forEach((h,i)=>{doc.text(h,cx2,py);cx2+=cW2[i];});py+=5;
-    // Post-build positive cashflow label varies by asset type:
-    // - BTS: sale absorption proceeds
-    // - Hotel: operating income (NOI during stabilisation and hold)
-    // - BTR / MixedUse Advanced / Commercial / Industrial: rental income
-    const _postBuildIncomeLabel=assetType==="BTS"?"Sale proceeds":assetType==="Hotel"?"Operating income":"Rental income";
     const eventLabel=(m:number,cf:number)=>{
       if(m===0)return"Equity deployed";
       if(m===cfs.length-1)return"Exit / sale proceeds";
       if(assetType==="Flip"&&r.flipMode==="hold"&&m===Math.round(r.bridgingMonths||6))return"Refinance event";
-      if(_buildEndM>0&&m>=_buildEndM&&cf>0)return _postBuildIncomeLabel;
       if(cf<0)return"Cost / draw";return"Income";
     };
     keyRows.forEach(({cf,m,cum},i)=>{
@@ -22898,8 +22841,8 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       let cx3=M+2;
       doc.setTextColor(...grey);doc.text(`M${m+1}${isExit?" (Exit)":""}`,cx3,py);cx3+=cW2[0];
       doc.setTextColor(...white);doc.text(eventLabel(m,cf),cx3,py);cx3+=cW2[1];
-      doc.setTextColor(...(cf>=0?green:red));doc.text(`${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`,cx3,py);cx3+=cW2[2];
-      doc.setTextColor(...(cum>=0?green:red));doc.text(`${cum>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cum)).toLocaleString()}`,cx3,py);
+      doc.setTextColor(...(cf>=0?green:red));doc.text(`${cf>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`,cx3,py);cx3+=cW2[2];
+      doc.setTextColor(...(cum>=0?green:white));doc.text(`${cum>=0?"+":""}${currencySymbol}${Math.abs(Math.round(cum)).toLocaleString()}`,cx3,py);
       py+=6;
     });
   }
@@ -24477,12 +24420,8 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   ]:assetType==="Flip"?[
     {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
     {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
-    ...(r.flipMode==="hold"
-      ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
-      :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
-    ...(r.flipMode==="hold"
-      ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
-      :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
+    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+    {l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber},
     {l:"IRR",v:fmtPct(r.irr||0),c:white},
     {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
   ]:[
@@ -25641,15 +25580,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
       ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.flipMode==="hold"
-        ?[["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]]]
-        :[
-            ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
-            ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red] as [string,string,[number,number,number]],
-          ]),
-      ...(r.flipMode==="hold"
-        ?[["Net Yield",fmtPct(r.netYield||0),(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red] as [string,string,[number,number,number]]]
-        :[["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber] as [string,string,[number,number,number]]]),
+      ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
+      ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
+      ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
       ["IRR",fmtPct(r.irr||0),(r.irr||0)>=0.15?green:amber],
       ["Equity Multiple",fmtX(r.moic||0),gold],
       ["Payback",r.paybackMonth?`Month ${r.paybackMonth}`:"—",white],
@@ -28457,7 +28390,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
   const shareWhatsApp=()=>{if(!liveLink)return;const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);window.open(`https://wa.me/?text=${text}`);};
   const handleGeneratePDF=async()=>{
     setGeneratingPDF(true);
-    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,r,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null);tickChecklist("generated_pdf");}
+    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,results,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null);tickChecklist("generated_pdf");}
     catch(e){console.error("PDF error:",e);}
     setGeneratingPDF(false);
   };
@@ -28993,17 +28926,10 @@ ${isHotelAdv?`Hold Period: ${data.holdYears||5} years`:assetType==="Flip"?(r.fli
 Key Financials:
 - ${isHotelAdv?"Exit Value":assetType==="Flip"?"Sale Price":"GDV / Exit Value"}: ${fmt(r.gdv||r.exitValue||r.salePrice||0,currSym)}
 - Total Investment: ${fmt(r.totalCost||r.totalInvestment||0,currSym)}
-${assetType==="Flip"&&r.flipMode==="hold"
-  ?`- Profit (to Equity — headline): ${fmt(r.profitCash??r.profit??0,currSym)} [actual cashflow return: refi cash-out + hold rental income + terminal value, net of equity deployed]
-- DO NOT use Profit (Margin) or accounting profit for this Hold/BRRR deal — it is not meaningful (no sale occurs). The headline is Profit (to Equity).
-- Monthly Net Cashflow (post-refi): ${currSym}${Math.round(r.netCashflowPm||0)}/mo ${(r.netCashflowPm||0)>=0?"(positive carry)":"(negative carry — rent does not cover debt service)"}
-- DSCR (income-based): ${isFinite(r.dscr)?fmtX(r.dscr):"N/A — Vacant"}
-- Cash Released at Refi: ${fmt(Math.max(0,r.cashOutRefi||0),currSym)}
-- Occupancy: ${r.holdOccupancy==="tenanted"?"Tenanted/let":"Vacant"}${r.holdOccupancy==="tenanted"?` | Rent: ${currSym}${r.rentPcm||0}pcm | Gross Yield: ${fmtPct(r.grossYield||0)}`:""}`
-  :`- Profit: ${fmt(r.profit||0,currSym)}
-- Return on Cost: ${fmtPct(r.poc||r.roi||0)}`}
+- Profit: ${fmt(r.profit||0,currSym)}
+- Return on Cost: ${fmtPct(r.poc||r.roi||0)}
 - IRR (Unlevered): ${fmtPct(r.irr||0)}
-${assetType==="Flip"&&r.flipMode==="hold"?"":`- IRR (Levered): ${fmtPct(r.irrLevered||0)}`}
+- IRR (Levered): ${fmtPct(r.irrLevered||0)}
 - Equity Multiple: ${fmtX(r.moic||0)}
 ${isHotelAdv?`
 Hotel Institutional Metrics:
@@ -29026,7 +28952,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 :assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
 :(assetType==="Commercial"||assetType===("Industrial" as any))?`- Mode: ${commercialMode==="advanced"?"Institutional Advanced":"Simple"}\n- Stabilised NOI pa: ${fmt(r.stabilisedNOI||r.totalNetPassing||r.effectiveNoi||0,currSym)}\n- Exit Method: ${data.exitMethod||"NIY"}\n- Target NIY: ${data.targetNIY||data.niy||0}%\n- NOI Mode: ${data.noiMode||"normalised"}${data.noiMode==="actual"?`\n- Actual NOI Input: ${fmt(num(String(data.actualNoi||0)),currSym)}`:""}\n- Area Unit: ${data.areaUnit||"sqft"}\n- Total Lettable Area: ${(data.units||[]).reduce((s:number,u:any)=>s+num(String(u.area||0)),0).toLocaleString()} ${(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}\n- Units: ${(data.units||[]).length} lettable ${(data.units||[]).length===1?"unit":"units"}${(data.units||[]).length>0?` (${(data.units||[]).slice(0,4).map((u:any)=>`${u.label||u.type||"Unit"}: ${currSym}${u.erv||0} ERV/${(data.areaUnit||"sqft")==="sqft"?"psf":"psm"}`).join(", ")}${(data.units||[]).length>4?"...":""})`:""}\n- WAULT: ${r.wault?`${r.wault.toFixed(1)} yrs`:"—"}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
-:assetType==="MixedUse"?`- Mode: ${mixedUseMode==="advanced"?"Institutional Advanced (year-by-year)":"Simple (blended exit)"}\n- Hold Period: ${mixedUseMode==="advanced"?`${r.holdYears||data.holdYears||5} years ${(r.holdYears||data.holdYears||5)>=3?"(LONG-HOLD BTR STRATEGY)":"(build-to-sell at stabilisation)"}`:"N/A (Simple mode — build and exit at completion)"}\n- Total GDV: ${fmt(r.totalGDV||0,currSym)}\n- Blended Exit Yield: ${data.exitYield||"—"}%\n- Zones: ${(data.zones||[]).length} total (${(data.zones||[]).filter((z:any)=>z.type==="residential").length} residential, ${(data.zones||[]).filter((z:any)=>z.type==="commercial").length} commercial)\n- Zone Breakdown: ${(data.zones||[]).slice(0,6).map((z:any)=>`${z.label||z.type} (${z.type}, exit: ${z.exitStrategy||"sell"})`).join("; ")}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
+:assetType==="MixedUse"?`- Mode: ${mixedUseMode==="advanced"?"Institutional Advanced (year-by-year)":"Simple (blended exit)"}\n- Total GDV: ${fmt(r.totalGDV||0,currSym)}\n- Blended Exit Yield: ${data.exitYield||"—"}%\n- Zones: ${(data.zones||[]).length} total (${(data.zones||[]).filter((z:any)=>z.type==="residential").length} residential, ${(data.zones||[]).filter((z:any)=>z.type==="commercial").length} commercial)\n- Zone Breakdown: ${(data.zones||[]).slice(0,6).map((z:any)=>`${z.label||z.type} (${z.type}, exit: ${z.exitStrategy||"sell"})`).join("; ")}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
 :""}
 
 
@@ -47258,16 +47184,9 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                     ["Net Yield",r.flipMode==="hold"?fmtPct(r.netYield||0):"—","var(--blue)"],
                     ["Monthly Cashflow",r.flipMode==="hold"?`${currencySymbol}${Math.round(r.netCashflowPm||0)}/mo`:"—",(r.netCashflowPm||0)>0?"var(--green)":"var(--text-d)"],
                     ["DSCR",r.flipMode==="hold"&&r.dscr>=999?"N/A (All Equity)":r.dscr>0?fmtX(r.dscr):"—",r.flipMode==="hold"?r.dscr>=1.25?"var(--green)":r.dscr>=1.0?"var(--amber)":"var(--red)":"var(--text-d)"],
-                    ...(r.flipMode==="hold"
-                      ?[
-                        ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?"var(--green)":"var(--red)"],
-                        ["ROI on Equity",fmtPct(((r.profitCash??0)/(r.equity||1))),((r.profitCash??0)/(r.equity||1))>0.25?"var(--green)":((r.profitCash??0)/(r.equity||1))>0?"var(--amber)":"var(--red)"],
-                      ]
-                      :[
-                        ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
-                        ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],
-                        ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],
-                      ]),
+                    ["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],
+                    ["ROI on Total Cost",fmtPct(r.roi),r.roi>0.15?"var(--green)":"var(--amber)"],
+                    ["ROI on Equity",fmtPct(r.roiEquity),r.roiEquity>0.25?"var(--green)":"var(--amber)"],
                     ["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>1.5?"var(--green)":"var(--text)"],
                     ["IRR (Annualised)",fmtPct(r.irr),"var(--blue)"],
                     ["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"—","var(--text-m)"],
@@ -52826,10 +52745,8 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="Flip"&&[
               {label:r.flipMode==="hold"?"GDV / Value":"Sale Price",value:fmt(r.salePrice,currencySymbol),color:"var(--gold)"},
-              r.flipMode==="hold"
-                ?{label:"Profit (to Equity)",value:fmt(r.profitCash??r.profit??0,currencySymbol),color:(r.profitCash??r.profit??0)>0?"var(--green)":"var(--red)"}
-                :{label:"Profit",value:fmt(r.profitAccounting??r.profit,currencySymbol),color:(r.profitAccounting??r.profit)>0?"var(--green)":"var(--red)"},
-              {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.flipMode==="hold"?((r.netYield||0)>0.05?"var(--green)":(r.netYield||0)>0.03?"var(--amber)":"var(--red)"):(r.roi>0.15?"var(--green)":"var(--amber)")},
+              {label:"Profit",value:fmt(r.profitAccounting??r.profit,currencySymbol),color:(r.profitAccounting??r.profit)>0?"var(--green)":"var(--red)"},
+              {label:r.flipMode==="hold"?"Net Yield":"ROI on Cost",value:r.flipMode==="hold"?fmtPct(r.netYield||0):fmtPct(r.roi),color:r.roi>0.15?"var(--green)":"var(--amber)"},
               {label:"IRR",value:fmtPct(r.irr),color:"var(--blue)"},
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
           </div>
