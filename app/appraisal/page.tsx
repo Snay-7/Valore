@@ -38784,7 +38784,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 <div className="section-title">Returns Summary</div>
                 <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,marginBottom:20}}>
                   {[
-                    ["Total GDV",currencySymbol+Math.round(r.totalGDV||0).toLocaleString(),"var(--gold)"],
+                    ["Total GDV",currencySymbol+Math.round(r.totalGDV||r.exitValue||r.gdv||0).toLocaleString(),"var(--gold)"],
                     ["Total Cost",currencySymbol+Math.round(r.totalCost||0).toLocaleString(),"var(--text-m)"],
                     ["Equity In",currencySymbol+Math.round(r.equity||0).toLocaleString(),"var(--gold)"],
                     ["Finance Cost",currencySymbol+Math.round(r.totalFinanceCost||0).toLocaleString(),"var(--amber)"],
@@ -52695,7 +52695,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
               {label:"IRR (Unlev.)",value:fmtPct(r.irr||0),color:"var(--blue)"},
             ].map(m=>(<div key={m.label} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:9,padding:12}}><div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>{m.label}</div><div style={{fontFamily:"var(--font-mono)",fontSize:18,fontWeight:600,color:m.color}}>{m.value}</div></div>))}
             {assetType==="MixedUse"&&[
-              {label:"Total GDV",value:currencySymbol+(Math.round(r.totalGDV||0)).toLocaleString(),color:"var(--gold)"},
+              {label:"Total GDV",value:currencySymbol+(Math.round(r.totalGDV||r.exitValue||r.gdv||0)).toLocaleString(),color:"var(--gold)"},
               {label:"Profit",value:currencySymbol+(Math.round(r.profit||0)).toLocaleString(),color:(r.profit||0)>0?"var(--green)":"var(--red)"},
               {label:"Profit on Cost",value:fmtPct(r.poc||0),color:(r.poc||0)>0.20?"var(--green)":"var(--amber)"},
               {label:"Blended IRR",value:fmtPct(r.irr||0),color:"var(--blue)"},
@@ -52786,7 +52786,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
             ] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="MixedUse"&&([
               {label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},
-              {label:"Build Cost",value:r.totalBuildCost||0,color:"var(--text-m)"},
+              {label:"Build Cost",value:r.totalBuildCost||r.buildCost||0,color:"var(--text-m)"},
               {label:"Finance Cost",value:r.totalFinanceCost||0,color:"var(--amber)"},
               {label:"Total Cost",value:r.totalCost||0,color:"var(--gold)",bold:true},
             ] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
