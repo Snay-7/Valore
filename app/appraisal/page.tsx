@@ -13610,7 +13610,10 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // This is what the IRR sees, so MOIC derived from this will tie out to IRR time-adjusted.
     const _cashflowFinalCf=flipMode==="hold"?(netProceeds-refiLoan):(netProceeds-peakLoanBalance);
     const _cashflowHoldIncome=flipMode==="hold"?netCashflowPm*refiMonths:0;
-    const _cashflowTotalReturn=_cashflowFinalCf+_cashflowHoldIncome+Math.max(0,cashOutRefi);
+    // cashOutRefi only meaningful in hold mode (it represents cash returned to investor at refi event)
+    // In sell mode, cashOutRefi is a stale/leaked value and must be excluded
+    const _cashflowCashOut=flipMode==="hold"?Math.max(0,cashOutRefi):0;
+    const _cashflowTotalReturn=_cashflowFinalCf+_cashflowHoldIncome+_cashflowCashOut;
     const _cashflowProfit=_cashflowTotalReturn-(flipMode==="hold"?netEquityDeployed:equity);
     // MOIC on actual cash deployed: (capital returned) / (capital deployed) — ties with IRR
     const moic=netEquityDeployed>0?(netEquityDeployed+_cashflowProfit)/netEquityDeployed:equity>0?(equity+_cashflowProfit)/equity:0;
@@ -22301,7 +22304,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),grey],
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
-      ...(r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cashOutRefi<-100?[["Equity Top-up at Refi",fmt(Math.abs(r.cashOutRefi),currencySymbol),red] as [string,string,[number,number,number]]]:[] as any),
       ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
       ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
@@ -25566,7 +25569,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
-      ...(r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
       ["Profit (Margin)",fmt(r.profitAccounting??r.profit??0,currencySymbol),(r.profitAccounting??r.profit??0)>0?green:red],
       ["Profit (to Equity)",fmt(r.profitCash??r.profit??0,currencySymbol),(r.profitCash??r.profit??0)>0?green:red],
       ["ROI on Cost",fmtPct(r.roi||0),(r.roi||0)>0.15?green:amber],
