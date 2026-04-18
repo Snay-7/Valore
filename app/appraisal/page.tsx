@@ -25294,14 +25294,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
     sp=hSection(sp,"Sensitivity: Exit Cap Rate × ADR Shift (Profit on Cost)");
-    const capRates3=[...[-1.0,-0.5,0,0.5,1.0].map(d=>(Number(data.exitCapRate||6)+d)/100)];
+    // Re-run full calc for each cell (mirrors live display) to include hold-period NOI, not just exit delta
+    const capRates3=[-1.0,-0.5,0,0.5,1.0].map(d=>Number(data.exitCapRate||6)+d); // percent
     const adrShifts3=[-0.10,-0.05,0,0.05,0.10];
-    const totalInv3=hr.totalInvestment||r.totalCost||1;
-    const baseEBITDA3=hr.ebitda||r.ebitda||0;
+    const baseAdr3=Number(data.adr||0);
     const sm3=capRates3.map(cap=>adrShifts3.map(adrS=>{
-      const adjE=baseEBITDA3*(1+adrS);
-      const exit=cap>0?adjE/cap:0;
-      return totalInv3>0?(exit-totalInv3)/totalInv3:0;
+      const newAdr=baseAdr3*(1+adrS);
+      const modData={...data,exitCapRate:cap,adr:newAdr,yearAdr:null,yearOcc:null};
+      const res:any=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
+      return res?.poc??0;
     }));
     const sCW3=(W-M*2)/(adrShifts3.length+1);const sRH3=8;
     doc.setFillColor(37,45,63);doc.rect(M,sp,W-M*2,sRH3,"F");
@@ -25313,7 +25314,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       const isBaseR=ri===2;
       if(ri%2===0&&!isBaseR){doc.setFillColor(248,249,250);doc.rect(M,sp,W-M*2,sRH3,"F");}
       doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica",isBaseR?"bold":"normal");
-      doc.text(`${(capRates3[ri]*100).toFixed(1)}%`,M+3,sp+5);
+      doc.text(`${capRates3[ri].toFixed(1)}%`,M+3,sp+5);
       row3.forEach((poc3,ci)=>{
         const c3=poc3>0.20?green:poc3>0.10?amber:red;
         const isBase3=ri===2&&ci===2;
@@ -47504,10 +47505,10 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   return(
                     <div style={{marginBottom:28}}>
                       <div className="section-title">Sensitivity — Return on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows IRR (Levered) %. Lower cap rate = higher exit value.</div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows Return on Cost %. Lower cap rate = higher exit value.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15% IRR)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (8–15%)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15% PoC)</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Solid (8–15%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;8%)</span></div>
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
