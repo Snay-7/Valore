@@ -131,7 +131,8 @@ select.inp{cursor:pointer}
 }
 `;
 // ─── CALC ENGINE ──────────────────────────────────────────────────────────────
-function calcSDLT(price:number,mode:'auto'|'manual',txType:'residential'|'commercial'|'mixed'|'spv',override:number,surcharge:boolean):number{
+function calcSDLT(price:number,mode:'auto'|'manual'|'none',txType:'residential'|'commercial'|'mixed'|'spv',override:number,surcharge:boolean):number{
+  if(mode==='none')return 0;
   if(mode==='manual')return override;
   if(price<=0||txType==='spv')return 0;
   let sdlt=0;
@@ -2878,7 +2879,8 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   // Transaction costs
   const capStructure=data.capStructure||"single";
-  const sdltPct=data.sdltShareDeal?0.005:num(String(data.sdltOverride??0))||0.05;
+  const sdltStruct=data.sdltStructure||(data.sdltShareDeal?"share":"standard");
+  const sdltPct=sdltStruct==="none"?0:sdltStruct==="share"?0.005:num(String(data.sdltOverride??0))||0.05;
   const sdlt=data.sdltMode==="manual"?num(String(data.sdltOverride)):purchasePrice*sdltPct;
   const legalCosts=num(String(data.legalCosts??500000));
   const financingDD=num(String(data.financingDD??250000));
@@ -11708,7 +11710,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
     yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
     purchasePrice,pricePerKey,capexPerKey,exitValue,exitValuePerKey,disposalCosts,netExitProceeds,
     entryYieldNOI,entryYieldEBITDA,
-    sdlt,legalCosts,financingDD,wiInsurance,
+    sdlt,legalCosts,financingDD,wiInsurance,workingCapital,
     loanAmount,interestTotal,arrangementFee,exitFee,brokerageFee,
     imAcqFee,imBasePATotal,imIncentiveProfit,imIncentiveSales,
     totalCost,equity,profit,poc,moic,dscr,
@@ -12815,7 +12817,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const irr=Math.pow(1+calcIRR(uCfs),12)-1;
     const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
-    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,profFees,contingency,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
+    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,profFees,contingency,otherCosts,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
   }
   if(assetType==="Flip"){
     const purchase=num(String(data.purchasePrice));
@@ -18508,8 +18510,9 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
 
       {/* ── Toggle buttons ── */}
       <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode!=="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode!=="manual"?"#0f1115":"var(--text-m)"}}>Auto</button>
+        <button onClick={()=>set("sdltMode","auto")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:(data.sdltMode||"auto")==="auto"?"var(--gold)":"rgba(255,255,255,0.07)",color:(data.sdltMode||"auto")==="auto"?"#0f1115":"var(--text-m)"}}>Auto</button>
         <button onClick={()=>set("sdltMode","manual")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="manual"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="manual"?"#0f1115":"var(--text-m)"}}>Override</button>
+        <button onClick={()=>set("sdltMode","none")} style={{padding:"4px 14px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,background:data.sdltMode==="none"?"var(--gold)":"rgba(255,255,255,0.07)",color:data.sdltMode==="none"?"#0f1115":"var(--text-m)"}}>None (0%)</button>
       </div>
 
 
@@ -19024,7 +19027,7 @@ function SDLTBlock({data,set,r,currencySymbol}:{data:any;set:(f:string,v:any)=>v
 
 
       {/* ── Auto mode ── */}
-      {data.sdltMode!=="manual"&&(
+      {(data.sdltMode||"auto")==="auto"&&(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           <select className="inp" value={data.sdltTransactionType??"residential"} onChange={e=>set("sdltTransactionType",e.target.value)}>
             <option value="residential">Residential</option>
@@ -22371,12 +22374,12 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Break-even Yield",fmtPct(r.breakEvenYield),white],["RLV",fmt(r.rlv,currencySymbol),gold],
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["SDLT / Property Tax",fmt(r.sdlt,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost,currencySymbol),grey],["Professional Fees",fmt(r.devCost-r.buildCost-r.arrangementFee-r.interestCost,currencySymbol),grey],
       ["Contingency",`${data.contingencyPct||5}% — ${fmt((r.buildCost||0)*(data.contingencyPct||5)/100,currencySymbol)}`,grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
       ["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost,currencySymbol),gold],
@@ -22402,11 +22405,11 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Equity Multiple",fmtX(r.moic),gold],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}`:"-",white],
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost,currencySymbol),gold],
     ],colR,rY,colW)||rY;
@@ -22429,13 +22432,25 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
       ["Purchase Price",fmt(r.purchasePrice||data.purchasePrice||0,currencySymbol),grey],
-      [data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],
+      ["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ...(r.legalCosts>0?[["Legal Costs",fmt(r.legalCosts,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.financingDD>0?[["Financing DD",fmt(r.financingDD,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.wiInsurance>0?[["W&I Insurance",fmt(r.wiInsurance,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ["CapEx",fmt(r.capex,currencySymbol),grey],
       ...(r.profFees>0?[["Professional Fees",fmt(r.profFees,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
       ...(r.contingency>0?[["Contingency",fmt(r.contingency,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.otherCosts>0?[["Other Costs",fmt(r.otherCosts,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
-      ["Total Finance Cost",fmt(r.totalFinanceCost||((r.arrangementFee||0)+(r.interestCost||0)),currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],
-      ["Total Investment",fmt(r.totalInvestment,currencySymbol),gold],
+      ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],
+      ...(r.brokerageFee>0?[["Brokerage Fee",fmt(r.brokerageFee,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.exitFee>0?[["Exit Fee",fmt(r.exitFee,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
+      ["Total Finance Cost",fmt(r.totalFinanceCost||((r.arrangementFee||0)+(r.interestCost||0)+(r.brokerageFee||0)+(r.exitFee||0)),currencySymbol),amber],
+      ...(r.imAcqFee>0?[["IM Acquisition Fee",fmt(r.imAcqFee,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.imBasePATotal>0?[["IM Base PA (hold)",fmt(r.imBasePATotal,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.workingCapital>0?[["Working Capital",fmt(r.workingCapital,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Total Investment",fmt(r.totalInvestment||r.totalCost||0,currencySymbol),gold],
     ],colR,rY,colW)||rY;
     rY=drawCol("Assumptions",[
       ["Rooms",String(data.rooms||0),white],["Star Rating",`${data.starRating||4} Star`,white],
@@ -22445,10 +22460,10 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     ],colR,rY,colW)||rY;
   }else if(assetType==="Flip"){
     lY=drawCol("Returns",[
-      ["Purchase Price",fmt(r.purchase,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt,currencySymbol),grey],
+      ["Purchase Price",fmt(r.purchase,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt,currencySymbol),grey],
       ["Refurb Budget",fmt(r.refurb,currencySymbol),grey],["Professional Fees",fmt(r.profFees,currencySymbol),grey],
       ...(r.vat>0?[[vatLabel(data.currency||"GBP"),fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),amber],["Total Cost",fmt(r.totalCost,currencySymbol),grey],
       ["Equity In",fmt(r.equity||0,currencySymbol),gold],["Net Sale Proceeds",fmt(r.netProceeds,currencySymbol),gold],
       ...(r.flipMode==="hold"&&r.cashOutRefi>100?[["Cash Released at Refi",fmt(r.cashOutRefi,currencySymbol),green] as [string,string,[number,number,number]]]:[] as any),
@@ -22510,11 +22525,11 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["RLV",fmt(r.rlv||0,currencySymbol),gold],
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
     ],colR,rY,colW)||rY;
@@ -23488,7 +23503,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ...(data.contingencyPct?[["Contingency",`${data.contingencyPct}%`] as [string,string]]:[] as any),
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol)] as [string,string]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol)] as [string,string]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol)] as [string,string]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol)] as [string,string]]:[] as any),
     ]],
   ];
   const gCols=2;const gW=(W-M*2-8)/gCols;
@@ -25146,7 +25161,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     cy2=hSection(cy2,"Cost Stack");
     [[`Purchase Price`,fmt(Number(data.purchasePrice||0),currencySymbol),white],
      [`CapEx Budget`,fmt(Number(data.capexBudget||0),currencySymbol),white],
-     [`SDLT`,fmt(r.sdlt||0,currencySymbol),white],
+     [`Transfer Tax`,fmt(r.sdlt||0,currencySymbol),white],
      ...((r.vat||0)>0?[[vatLabel(data.currency||"GBP"),fmt(r.vat||0,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
      [`Arrangement Fee`,fmt(hr.arrangementFee||r.arrangementFee||0,currencySymbol),amber],
      [`Interest (Rolled)`,fmt(hr.interestCost||r.interestCost||0,currencySymbol),amber],
@@ -25698,12 +25713,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ...((()=>{const m=computeDebtMetrics(r,assetType);const o=[] as [string,string,[number,number,number]][];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as [string,string,[number,number,number]]);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as [string,string,[number,number,number]]);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],["Professional Fees",fmt((r.devCost||0)-(r.buildCost||0)-(r.arrangementFee||0)-(r.interestCost||0),currencySymbol),grey],
       ["Contingency",`${data.contingencyPct||5}%`,grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
       ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
     ],colR3,rY3,colW3)||rY3;
@@ -25730,12 +25745,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ...((()=>{const m=computeDebtMetrics(r,assetType);const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],["Professional Fees",fmt(r.profFees||0,currencySymbol),grey],
       ["Contingency",`${data.contingencyPct||5}%`,grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Marketing & Sales",fmt((r.gdv||0)*((data.agentFeePct||1.5)+(data.marketingPct||1.0))/100,currencySymbol),grey],
       ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
       ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
@@ -25750,10 +25765,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     ],colR3,rY3,colW3)||rY3;
   }else if(assetType==="Flip"){
     lY3=drawColB("Returns",[
-      ["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Purchase Price",fmt(r.purchase||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Refurb Budget",fmt(r.refurb||0,currencySymbol),grey],["Professional Fees",fmt(r.profFees||0,currencySymbol),grey],
       ...(r.vat>0?[[vatLabel(data.currency||"GBP"),fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),grey],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Sale Price",fmt(r.salePrice||0,currencySymbol),gold],["Net Proceeds",fmt(r.netProceeds||0,currencySymbol),gold],
@@ -25806,12 +25821,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ...((()=>{const m=computeDebtMetrics(dRC,assetType);const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push(["Debt Yield",fmtPct(m.dy),dyColour(m.dy)] as any);if(m.ltgdv>0)o.push(["LTGDV",fmtPct(m.ltgdv),ltgdvColour(m.ltgdv)] as any);return o;})()),
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],["Professional Fees",fmt(r.profFees||0,currencySymbol),grey],
       ["Contingency",`${data.contingencyPct||5}%`,grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee||0,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost||0,currencySymbol),amber],
       ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
     ],colR3,rY3,colW3)||rY3;
@@ -25882,11 +25897,11 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     ];
     lY3=drawColB("Returns",_returnsRows,colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT / Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Total Build Cost",fmt(r.totalBuildCost||0,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
-      ...(r.s106>0?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",fmt(r.s106,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
       ["Total Cost",fmt(r.totalCost||0,currencySymbol),gold],
     ],colR3,rY3,colW3)||rY3;
@@ -25915,7 +25930,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Equity Multiple",fmtX(r.moic||0),gold],
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land",fmt(r.landCost||0,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land",fmt(r.landCost||0,currencySymbol),grey],["Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build / Refurb",fmt(r.buildCost||r.refurb||0,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
@@ -31357,10 +31372,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div className="section-title">Transaction Costs</div>
                     <div className="inp-row">
                       <div className="inp-group">
-                        <label className="inp-label">SDLT Structure</label>
-                        <select className="inp" value={data.sdltShareDeal?"share":"standard"} onChange={e=>set("sdltShareDeal",e.target.value==="share")}>
+                        <label className="inp-label">Transfer Tax Structure</label>
+                        <select className="inp" value={data.sdltStructure||(data.sdltShareDeal?"share":"standard")} onChange={e=>{const v=e.target.value;set("sdltStructure",v);set("sdltShareDeal",v==="share");}}>
                           <option value="standard">Standard (5%)</option>
                           <option value="share">Share Deal (0.5%)</option>
+                          <option value="none">No Transfer Tax (0%)</option>
                         </select>
                       </div>
                       <div className="inp-group"><label className="inp-label">Legal Costs ({currencySymbol})</label><input className="inp" type="number" value={data.legalCosts??""} onChange={e=>set("legalCosts",e.target.value)}/></div>
@@ -38865,13 +38881,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Scheme Cost Summary</div>
                     {[
                       ["Land",r.landCost||0,"var(--text-m)"],
-                      ["Property Tax (SDLT)",r.sdlt||0,"var(--text-d)"],
+                      ["Transfer Tax",r.sdlt||0,"var(--text-d)"],
                       ["Build (Hard Costs)",r.totalBuildCost||0,"var(--text-m)"],
                       ["Professional Fees",r.profFees||0,"var(--text-d)"],
                       ["Contingency",r.contingency||0,"var(--text-d)"],
                       ...((r.vat||0)>0?[["VAT (non-recoverable)",r.vat||0,"var(--text-d)"]]:[]),
                       ...((r.cil||0)>0?[["CIL",r.cil||0,"var(--text-d)"]]:[]),
-                      ["Section 106",r.s106||0,(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                      ...(data.currency==="GBP"?[["Section 106",r.s106||0,(r.s106||0)>0?"var(--amber)":"var(--text-d)"]]:[]),
                       ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
                       ["Total",r.totalCost||0,"var(--gold)"],
                     ].map(([l,v,c]:any)=>(
@@ -41109,12 +41125,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Cost Summary</div>
                     {[
                       ["Land",r.landCost||0,"var(--text-m)"],
-                      ["SDLT",r.sdlt||0,"var(--text-d)"],
+                      ["Transfer Tax",r.sdlt||0,"var(--text-d)"],
                       ["Build Cost",r.buildCost||0,"var(--text-m)"],
                       ["Prof Fees + Contingency",(r.profFees||0)+(r.contingency||0),"var(--text-d)"],
                       ...(r.vat>0?[[vatLabel(data.currency||"GBP"),r.vat,"var(--amber)"]]:[] as any),
                       ...(r.cil>0?[["CIL",r.cil,"var(--amber)"]]:[] as any),
-                      ...(r.s106>0?[["Section 106",r.s106,"var(--amber)"]]:[] as any),
+                      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",r.s106,"var(--amber)"]]:[] as any),
                       ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
                       ["Total",r.totalCost||0,"var(--gold)"],
                     ].map(([l,v,c]:any)=>(
@@ -41580,7 +41596,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],
                     [vatLabel(data.currency||"GBP"),(r.vat||0)>0?fmt(r.vat||0,currencySymbol):"—",(r.vat||0)>0?"var(--amber)":"var(--text-d)"],
                     ["CIL",(r.cil||0)>0?fmt(r.cil||0,currencySymbol):"—",(r.cil||0)>0?"var(--amber)":"var(--text-d)"],
-                    ["Section 106",(r.s106||0)>0?fmt(r.s106||0,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                    ...(data.currency==="GBP"?[["Section 106",(r.s106||0)>0?fmt(r.s106||0,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"]]:[]),
                     ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--amber)"],
                     ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
                     ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
@@ -43189,12 +43205,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Cost Summary</div>
                     {[
                       ["Land",r.landCost||0,"var(--text-m)"],
-                      ["SDLT",r.sdlt||0,"var(--text-d)"],
+                      ["Transfer Tax",r.sdlt||0,"var(--text-d)"],
                       ["Build Cost",r.buildCost||0,"var(--text-m)"],
                       ["Prof Fees + Contingency",(r.profFees||0)+(r.contingency||0),"var(--text-d)"],
                       ...(r.vat>0?[[vatLabel(data.currency||"GBP"),r.vat,"var(--amber)"]]:[] as any),
                       ...(r.cil>0?[["CIL",r.cil,"var(--amber)"]]:[] as any),
-                      ...(r.s106>0?[["Section 106",r.s106,"var(--amber)"]]:[] as any),
+                      ...(r.s106>0&&data.currency==="GBP"?[["Section 106",r.s106,"var(--amber)"]]:[] as any),
                       ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
                       ["Total",r.totalCost||0,"var(--gold)"],
                     ].map(([l,v,c]:any)=>(
@@ -43621,7 +43637,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],
                     [vatLabel(data.currency||"GBP"),(r.vat||0)>0?fmt(r.vat||0,currencySymbol):"—",(r.vat||0)>0?"var(--amber)":"var(--text-d)"],
                     ["CIL",(r.cil||0)>0?fmt(r.cil||0,currencySymbol):"—",(r.cil||0)>0?"var(--amber)":"var(--text-d)"],
-                    ["Section 106",(r.s106||0)>0?fmt(r.s106||0,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                    ...(data.currency==="GBP"?[["Section 106",(r.s106||0)>0?fmt(r.s106||0,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"]]:[]),
                     ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--amber)"],
                     ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
                     ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
@@ -47341,10 +47357,10 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 <div className="section-title">Returns Summary</div>
                 <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:20,marginBottom:20}}>
                   {assetType==="BTR"&&([
-                    ["GDV (Exit)",fmt(r.gdv,currencySymbol),"var(--gold)"],["Gross NOI pa",fmt(r.noi,currencySymbol),"var(--text)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],["Total Build Cost",fmt(r.buildCost,currencySymbol),"var(--text-m)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],[vatLabel(data.currency||"GBP"),r.vat>0?fmt(r.vat,currencySymbol):"—",r.vat>0?"var(--amber)":"var(--text-d)"],["CIL",r.cil>0?fmt(r.cil,currencySymbol):"—",r.cil>0?"var(--amber)":"var(--text-d)"],["Section 106",r.s106>0?fmt(r.s106,currencySymbol):"—",r.s106>0?"var(--amber)":"var(--text-d)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),irrCol(r.irr||0)],["IRR (Levered)",fmtPct(r.irrLevered),irrCol(r.irrLevered||0)],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["DSCR / ICR",r.dscr>=999?"N/A (All Equity)":r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],["Break-even Exit Yield",fmtPct(r.breakEvenYield),"var(--text-m)"],["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"],
+                    ["GDV (Exit)",fmt(r.gdv,currencySymbol),"var(--gold)"],["Gross NOI pa",fmt(r.noi,currencySymbol),"var(--text)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],["Total Build Cost",fmt(r.buildCost,currencySymbol),"var(--text-m)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],["Total Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],[vatLabel(data.currency||"GBP"),r.vat>0?fmt(r.vat,currencySymbol):"—",r.vat>0?"var(--amber)":"var(--text-d)"],["CIL",r.cil>0?fmt(r.cil,currencySymbol):"—",r.cil>0?"var(--amber)":"var(--text-d)"],...(data.currency==="GBP"?[["Section 106",r.s106>0?fmt(r.s106,currencySymbol):"—",r.s106>0?"var(--amber)":"var(--text-d)"]]:[]),["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],["Yield on Cost",fmtPct(r.yoc),"var(--blue)"],["IRR (Unlevered)",fmtPct(r.irr),irrCol(r.irr||0)],["IRR (Levered)",fmtPct(r.irrLevered),irrCol(r.irrLevered||0)],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["DSCR / ICR",r.dscr>=999?"N/A (All Equity)":r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"—",r.dscr>=1.5?"var(--green)":r.dscr>=1.25?"var(--amber)":"var(--red)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],["Break-even Exit Yield",fmtPct(r.breakEvenYield),"var(--text-m)"],["Residual Land Value",fmt(r.rlv,currencySymbol),"var(--gold)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="BTS"&&([
-                    ["GDV",fmt(r.gdv,currencySymbol),"var(--gold)"],["Total Units",r.totalUnits?.toString()||"—","var(--text)"],["Total Sqft",r.totalSqft?.toLocaleString()||"—","var(--text-m)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],[vatLabel(data.currency||"GBP"),r.vat>0?fmt(r.vat,currencySymbol):"—",r.vat>0?"var(--amber)":"var(--text-d)"],["CIL",r.cil>0?fmt(r.cil,currencySymbol):"—",r.cil>0?"var(--amber)":"var(--text-d)"],["Section 106",r.s106>0?fmt(r.s106,currencySymbol):"—",r.s106>0?"var(--amber)":"var(--text-d)"],["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],["IRR (Unlevered)",fmtPct(r.irr),irrCol(r.irr||0)],["IRR (Levered)",fmtPct(r.irrLevered),irrCol(r.irrLevered||0)],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],["Break-even Sale psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—","var(--text-m)"],
+                    ["GDV",fmt(r.gdv,currencySymbol),"var(--gold)"],["Total Units",r.totalUnits?.toString()||"—","var(--text)"],["Total Sqft",r.totalSqft?.toLocaleString()||"—","var(--text-m)"],["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),"var(--amber)"],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),"var(--amber)"],[vatLabel(data.currency||"GBP"),r.vat>0?fmt(r.vat,currencySymbol):"—",r.vat>0?"var(--amber)":"var(--text-d)"],["CIL",r.cil>0?fmt(r.cil,currencySymbol):"—",r.cil>0?"var(--amber)":"var(--text-d)"],...(data.currency==="GBP"?[["Section 106",r.s106>0?fmt(r.s106,currencySymbol):"—",r.s106>0?"var(--amber)":"var(--text-d)"]]:[]),["Profit",fmt(r.profit,currencySymbol),r.profit>0?"var(--green)":"var(--red)"],["Profit on Cost",fmtPct(r.poc),r.poc>0.2?"var(--green)":r.poc>0.1?"var(--amber)":"var(--red)"],["Profit on GDV",fmtPct(r.margin),r.margin>0.15?"var(--green)":"var(--amber)"],["IRR (Unlevered)",fmtPct(r.irr),irrCol(r.irr||0)],["IRR (Levered)",fmtPct(r.irrLevered),irrCol(r.irrLevered||0)],["Equity Multiple (MOIC)",fmtX(r.moic),r.moic>2?"var(--green)":"var(--text)"],["Payback Period",r.paybackMonth?`Month ${r.paybackMonth}`:"Beyond horizon","var(--text-m)"],["Break-even Sale psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}psf`:"—","var(--text-m)"],
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Hotel"&&(()=>{
                     const hRev=hotelMode==="advanced"&&r.revenuePa>0?r.revenuePa:hotelRev?.totalRev||0;
@@ -47363,7 +47379,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                       ["Total Investment",fmt(r.totalInvestment||r.totalCost||0,currencySymbol),"var(--text-m)"],
                       ["Equity In",fmt(r.equity||0,currencySymbol),"var(--gold)"],
                       [vatLabel(data.currency||"GBP"),(r.vat||0)>0?fmt(r.vat,currencySymbol):"—",(r.vat||0)>0?"var(--amber)":"var(--text-d)"],
-                      ["Section 106",(r.s106||0)>0?fmt(r.s106,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                      ...(data.currency==="GBP"?[["Section 106",(r.s106||0)>0?fmt(r.s106,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"]]:[]),
                       ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
                       ["Return on Cost",fmtPct(r.poc||0),(r.poc||0)>0.15?"var(--green)":"var(--amber)"],
                       ["Yield on Cost",fmtPct(r.yoc||0),"var(--blue)"],
@@ -47381,7 +47397,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                     [`Refurb /${r.unitSystem||"sqft"}`,r.propertySqft>0?`${currencySymbol}${Math.round(r.refurbPsfDisplay||0)}/${r.unitSystem||"sqft"}`:"—","var(--text-d)"],
                     ["Prof Fees + Contingency",fmt((r.profFees||0)+(r.contingency||0),currencySymbol),"var(--text-d)"],
                     [vatLabel(data.currency||"GBP"),(r.vat||0)>0?fmt(r.vat,currencySymbol):"—",(r.vat||0)>0?"var(--amber)":"var(--text-d)"],
-                    ["Section 106",(r.s106||0)>0?fmt(r.s106,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
+                    ...(data.currency==="GBP"?[["Section 106",(r.s106||0)>0?fmt(r.s106,currencySymbol):"—",(r.s106||0)>0?"var(--amber)":"var(--text-d)"]]:[]),
                     ["Finance Cost",fmt(r.totalFinanceCost,currencySymbol),"var(--amber)"],
                     ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
                     ["Total Cost",fmt(r.totalCost,currencySymbol),"var(--text-m)"],
@@ -53025,7 +53041,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
           )}
           <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:16}}>
             <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Cost Breakdown</div>
-            {assetType==="BTR"&&([{label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Dev Costs (total)",value:r.devCost,color:"var(--text-m)"},...(r.vat>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),...(r.cil>0?[{label:"CIL",value:r.cil,color:"var(--amber)"}]:[]),...(r.s106>0?[{label:"Section 106",value:r.s106,color:"var(--amber)"}]:[]),{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Finance Cost",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Cost",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
+            {assetType==="BTR"&&([{label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Dev Costs (total)",value:r.devCost,color:"var(--text-m)"},...(r.vat>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),...(r.cil>0?[{label:"CIL",value:r.cil,color:"var(--amber)"}]:[]),...(r.s106>0&&data.currency==="GBP"?[{label:"Section 106",value:r.s106,color:"var(--amber)"}]:[]),{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Finance Cost",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Cost",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="BTS"&&([{label:"Land + Property Tax",value:(r.landCost||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"Build Cost",value:r.buildCost,color:"var(--text-m)"},{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Finance Cost",value:r.totalFinanceCost,color:"var(--amber)"},{label:"Total Cost",value:r.totalCost,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="Hotel"&&([{label:"Purchase + Property Tax",value:(r.purchasePrice||0)+(r.sdlt||0),color:"var(--text-m)"},{label:"CapEx",value:r.capex,color:"var(--text-m)"},...((r.vat||0)>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),{label:"Arrangement Fee",value:r.arrangementFee,color:"var(--amber)"},{label:"Interest (Rolled)",value:r.interestCost,color:"var(--amber)"},{label:"Total Investment",value:r.totalInvestment,color:"var(--gold)",bold:true}] as any[]).map((item:any)=>(<div key={item.label} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid var(--bg4)",fontSize:12}}><span style={{color:"var(--text-m)"}}>{item.label}</span><span style={{fontFamily:"var(--font-mono)",color:item.color,fontWeight:item.bold?600:400}}>{fmt(item.value||0,currencySymbol)}</span></div>))}
             {assetType==="Flip"&&([
@@ -53042,7 +53058,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
               {label:"Contingency",value:r.contingency||0,color:"var(--text-d)"},
               ...(r.vat>0?[{label:vatLabel(data.currency||"GBP"),value:r.vat,color:"var(--amber)"}]:[]),
               ...(r.cil>0?[{label:"CIL",value:r.cil,color:"var(--amber)"}]:[]),
-              ...(r.s106>0?[{label:"Section 106",value:r.s106,color:"var(--amber)"}]:[]),
+              ...(r.s106>0&&data.currency==="GBP"?[{label:"Section 106",value:r.s106,color:"var(--amber)"}]:[]),
               {label:"Arrangement Fee",value:r.arrangementFee||0,color:"var(--amber)"},
               {label:"Interest (Rolled)",value:r.interestCost||0,color:"var(--amber)"},
               {label:"Total Finance Cost",value:r.totalFinanceCost||0,color:"var(--amber)"},
