@@ -11185,7 +11185,8 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   // Alias fields to match what the UI / Returns Summary / sidebar expect
   const totalInvestment=totalCost;
-  const revpar=stabilisedYear.revpar;
+  // Entry RevPAR (Year 1) = ADR × Occupancy. Stabilised RevPAR is exposed as revparStabilised below.
+  const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);
   const revenuePa=stabilisedYear.totalRev;
   const ebitda=stabilisedEBITDA;
   const interestCost=interestTotal;
@@ -22401,7 +22402,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["Equity Multiple",fmtX(r.moic),gold],["Break-even psf",r.breakEvenPsf?`${currencySymbol}${Math.round(r.breakEvenPsf)}`:"-",white],
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],["SDLT",fmt(r.sdlt,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
@@ -22428,10 +22429,12 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
       ["Purchase Price",fmt(r.purchasePrice||data.purchasePrice||0,currencySymbol),grey],
-      ["SDLT",fmt(r.sdlt||0,currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],
+      [data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],["CapEx",fmt(r.capex,currencySymbol),grey],
+      ...(r.profFees>0?[["Professional Fees",fmt(r.profFees,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
+      ...(r.contingency>0?[["Contingency",fmt(r.contingency,currencySymbol),grey] as [string,string,[number,number,number]]]:[] as any),
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Arrangement Fee",fmt(r.arrangementFee,currencySymbol),amber],["Interest (Rolled)",fmt(r.interestCost,currencySymbol),amber],
-      ["Total Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],
+      ["Total Finance Cost",fmt(r.totalFinanceCost||((r.arrangementFee||0)+(r.interestCost||0)),currencySymbol),amber],["Equity In",fmt(r.equity||0,currencySymbol),gold],
       ["Total Investment",fmt(r.totalInvestment,currencySymbol),gold],
     ],colR,rY,colW)||rY;
     rY=drawCol("Assumptions",[
@@ -22507,7 +22510,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       ["RLV",fmt(r.rlv||0,currencySymbol),gold],
     ],colL,lY,colW)||lY;
     rY=drawCol("Cost Stack",[
-      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land / Acquisition",fmt(r.landCost||0,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build Cost",fmt(r.buildCost||0,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ...(r.cil>0?[["CIL",fmt(r.cil,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
@@ -25912,7 +25915,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       ["Equity Multiple",fmtX(r.moic||0),gold],
     ],colL3,lY3,colW3)||lY3;
     rY3=drawColB("Cost Stack",[
-      ["Land",fmt(r.landCost||0,currencySymbol),grey],["SDLT",fmt(r.sdlt||0,currencySymbol),grey],
+      ["Land",fmt(r.landCost||0,currencySymbol),grey],[data.currency==="GBP"?"SDLT":"Transfer Tax",fmt(r.sdlt||0,currencySymbol),grey],
       ["Build / Refurb",fmt(r.buildCost||r.refurb||0,currencySymbol),grey],
       ...(r.vat>0?[["VAT",fmt(r.vat,currencySymbol),amber] as [string,string,[number,number,number]]]:[] as any),
       ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),amber],
@@ -29137,7 +29140,7 @@ Hotel Institutional Metrics:
 - Exit Cap Rate: ${data.exitCapRate}%
 ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,currSym)}, Base ${fmt(hotelAdv.imBasePATotal,currSym)} total)`:""}`
 :assetType==="BTR"?`- Exit Yield: ${data.exitYield}%\n- Gross NOI pa: ${fmt(r.noi,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Total Units: ${r.totalUnits}`
-:assetType==="Hotel"?`- RevPAR: ${fmt(r.revpar,currSym)}\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
+:assetType==="Hotel"?`- ADR (USE THIS EXACT FIGURE): ${currencySymbol}${data.adr||0}\n- Occupancy (USE THIS EXACT FIGURE): ${data.occupancy||0}%\n- RevPAR (computed ADR × Occupancy): ${fmt(r.revpar,currSym)}\n- Star Rating: ${data.starRating||4}-Star\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
 :(assetType==="Commercial"||assetType===("Industrial" as any))?`- Mode: ${commercialMode==="advanced"?"Institutional Advanced":"Simple"}\n- Stabilised NOI pa: ${fmt(r.stabilisedNOI||r.totalNetPassing||r.effectiveNoi||0,currSym)}\n- Exit Method: ${data.exitMethod||"NIY"}\n- Target NIY: ${data.targetNIY||data.niy||0}%\n- NOI Mode: ${data.noiMode||"normalised"}${data.noiMode==="actual"?`\n- Actual NOI Input: ${fmt(num(String(data.actualNoi||0)),currSym)}`:""}\n- Area Unit: ${data.areaUnit||"sqft"}\n- Total Lettable Area: ${(data.units||[]).reduce((s:number,u:any)=>s+num(String(u.area||0)),0).toLocaleString()} ${(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}\n- Units: ${(data.units||[]).length} lettable ${(data.units||[]).length===1?"unit":"units"}${(data.units||[]).length>0?` (${(data.units||[]).slice(0,4).map((u:any)=>`${u.label||u.type||"Unit"}: ${currSym}${u.erv||0} ERV/${(data.areaUnit||"sqft")==="sqft"?"psf":"psm"}`).join(", ")}${(data.units||[]).length>4?"...":""})`:""}\n- WAULT: ${r.wault?`${r.wault.toFixed(1)} yrs`:"—"}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
 :assetType==="MixedUse"?`- Mode: ${mixedUseMode==="advanced"?"Institutional Advanced (year-by-year)":"Simple (blended exit)"}\n- Hold Period: ${mixedUseMode==="advanced"?`${r.holdYears||data.holdYears||5} years ${(r.holdYears||data.holdYears||5)>=3?"(LONG-HOLD BTR STRATEGY)":"(build-to-sell at stabilisation)"}`:"N/A (Simple mode — build and exit at completion)"}\n- Total GDV: ${fmt(r.totalGDV||0,currSym)}\n- Blended Exit Yield: ${data.exitYield||"—"}%\n- Zones: ${(data.zones||[]).length} total (${(data.zones||[]).filter((z:any)=>z.type==="residential").length} residential, ${(data.zones||[]).filter((z:any)=>z.type==="commercial").length} commercial)\n- Zone Breakdown: ${(data.zones||[]).slice(0,6).map((z:any)=>`${z.label||z.type} (${z.type}, exit: ${z.exitStrategy||"sell"})`).join("; ")}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
