@@ -203,6 +203,13 @@ IMPORTANT INSTRUCTIONS:
 - Compare this deal's metrics directly against the comps (e.g. "Prime Mayfair NIY benchmark of 4.25% vs this deal's exit NIY of 5.50% — a 125bps cushion").
 - If no comps are provided, give general market context appropriate to the asset type and location.
 
+HOTEL-SPECIFIC ANTI-HALLUCINATION RULES (Hotel deals only):
+- The Deal Data above contains "ADR (USE THIS EXACT FIGURE): $XXX" and "Occupancy (USE THIS EXACT FIGURE): XX%". These are the deal's actual assumptions. You MUST quote these numbers verbatim. Do NOT invent, back-calculate, or substitute different ADR or Occupancy figures.
+- RevPAR must be quoted from the Deal Data — do NOT recompute it differently from what the Deal Data states.
+- When comparing the deal's ADR to the Star-rating benchmarks in LIVE MARKET COMPARABLES, calculate variance from the deal's actual ADR — NEVER invent a "discount to benchmark" that implies a different ADR than what the Deal Data shows.
+- Example: If Deal Data shows "ADR: $580" and benchmark avg is "$546", say "6.2% above the $546 luxury 5-Star benchmark" — NOT "trading below benchmark".
+- If the deal's ADR is ABOVE its star-rating benchmark, frame the deal as premium-positioned; do NOT describe it as "discounted" or "below benchmark".
+
 ZONE ORDERING (Mixed Use only):
 - When mentioning scheme components in the executive summary, ALWAYS lead with the largest component by GDV (typically residential units), then commercial, then ancillary (parking, gym).
 - Do NOT lead with parking spaces or minor commercial — residential unit count is the headline for BTR schemes.
