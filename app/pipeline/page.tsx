@@ -3,80 +3,117 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
-
-
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── DARK — Valora Institutional ── */
 :root{
   --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.22);
-  --bg:#0D1017;--bg1:#252D3F;--bg2:#141920;--bg3:#1A2030;--bg4:#202840;--bg5:#2A3350;
+  --bg:#0D1017;--bg1:#141920;--bg2:#141920;--bg3:#1A2030;--bg4:#202840;--bg5:#2A3350;
   --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
   --border:rgba(255,255,255,0.07);--border-m:rgba(255,255,255,0.13);
   --green:#52C498;--red:#D45252;--amber:#E0A030;--blue:#4A80C4;
   --font-display:'Inter',system-ui,sans-serif;
   --font-body:'Inter',system-ui,sans-serif;
   --font-mono:'DM Mono',monospace;
-}
-body.light{
-  --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(82,196,152,0.09);--gold-border:rgba(82,196,152,0.25);
-  --bg:#F8F9FA;--bg1:#252D3F;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
-  --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
-  --border:#E8EAED;--border-m:#D0D4DC;
-  --green:#2A8A64;--red:#C04040;--amber:#B07820;--blue:#2A5FAA;
+  --shadow-card:0 1px 2px rgba(0,0,0,0.25);
+  --shadow-hover:0 8px 24px rgba(0,0,0,0.45);
+  --shadow-panel:0 1px 2px rgba(0,0,0,0.20);
+  --shadow-side:-8px 0 32px rgba(0,0,0,0.35);
 }
 html{height:100%}
 body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overflow:hidden}
+
+/* ── LIGHT — Slate & Sage, refined for premium feel ── */
+body.light{
+  --gold:#2A8A64;--gold-l:#1F7050;--gold-bg:rgba(42,138,100,0.08);--gold-border:rgba(42,138,100,0.25);
+  --bg:#F8F9FA;--bg1:#FFFFFF;--bg2:#FFFFFF;--bg3:#F3F4F7;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
+  --border:rgba(30,36,51,0.08);--border-m:rgba(30,36,51,0.16);
+  --green:#2A8A64;--red:#C04040;--amber:#B07820;--blue:#2A5FAA;
+  --shadow-card:0 1px 2px rgba(30,36,51,0.04);
+  --shadow-hover:0 6px 20px rgba(30,36,51,0.08);
+  --shadow-panel:0 1px 2px rgba(30,36,51,0.04);
+  --shadow-side:-8px 0 32px rgba(30,36,51,0.08);
+}
+body.light .overlay{background:rgba(30,36,51,.35)}
+body.light .bottom-nav{background:#FFFFFF;border-top:1px solid rgba(30,36,51,0.08)}
+body.light .bottom-nav-item{color:#5A6478}
+body.light .bottom-nav-item.active{color:var(--gold)}
+
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
-
-.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+/* ── BUTTONS ── */
+.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-.btn-primary{background:var(--gold);color:#0D1017;border:none;border-radius:7px;padding:7px 14px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap;flex-shrink:0}
+.btn-primary{background:var(--gold);color:#0D1017;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;white-space:nowrap;flex-shrink:0;letter-spacing:-.005em}
 .btn-primary:hover{background:var(--gold-l)}
+.btn-primary:active{transform:translateY(1px)}
+body.light .btn-primary{color:#ffffff}
 
-
-.deal-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;cursor:grab;transition:border-color .2s,box-shadow .2s;animation:fadeIn .2s ease;user-select:none;position:relative}
-.deal-card:hover{border-color:var(--gold-border);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+/* ── DEAL CARD ── */
+.deal-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;cursor:grab;transition:border-color .2s,box-shadow .2s,transform .15s;animation:fadeIn .2s ease;user-select:none;position:relative;box-shadow:var(--shadow-card)}
+.deal-card:hover{border-color:var(--gold-border);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
 .deal-card.dragging{opacity:.4;cursor:grabbing}
 .deal-card.selected{border-color:var(--gold)}
 
+/* ── KANBAN COLUMN ── */
+.col-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;width:220px;flex-shrink:0;display:flex;flex-direction:column;max-height:100%;box-shadow:var(--shadow-panel)}
+.col-wrap.drag-over{background:var(--gold-bg);border-color:var(--gold-border)}
 
-.col-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;width:220px;flex-shrink:0;display:flex;flex-direction:column;max-height:100%}
-.col-wrap.drag-over{background:rgba(82,196,152,.04);border-color:var(--gold-border)}
-
-
+/* ── BADGES ── */
 .asset-badge{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.04em;font-family:var(--font-body)}
 .task-count{position:absolute;top:10px;right:10px;background:var(--gold);color:#0D1017;border-radius:8px;padding:0 5px;font-size:9px;font-weight:700;font-family:var(--font-mono);line-height:18px}
+body.light .task-count{color:#ffffff}
 
-
-.inp{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--font-body);font-size:12px;outline:none;transition:border-color .2s}
-.inp:focus{border-color:var(--gold)}
+/* ── INPUTS ── */
+.inp{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:12px;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg)}
 .inp::placeholder{color:var(--text-d)}
 
-
-.panel{position:fixed;top:0;right:0;width:min(400px,100vw);height:100%;background:var(--bg1);border-left:1px solid var(--border-m);z-index:60;display:flex;flex-direction:column;animation:slideIn .18s ease;overflow:hidden}
+/* ── SIDE PANEL ── */
+.panel{position:fixed;top:0;right:0;width:min(420px,100vw);height:100%;background:var(--bg1);border-left:1px solid var(--border-m);z-index:60;display:flex;flex-direction:column;animation:slideIn .18s ease;overflow:hidden;box-shadow:var(--shadow-side)}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:59;backdrop-filter:blur(3px)}
-.panel-tab{padding:9px 14px;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:var(--font-body);background:none;border-top:none;border-left:none;border-right:none;color:var(--text-d);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-.panel-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.panel-tab{padding:10px 14px;font-size:11px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:var(--font-body);background:none;border-top:none;border-left:none;border-right:none;color:var(--text-d);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.panel-tab:hover{color:var(--text-m)}
+.panel-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
 
-
-.task-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px;margin-bottom:7px;transition:border-color .2s}
+/* ── TASK / NOTE ITEMS ── */
+.task-item{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:11px;margin-bottom:7px;transition:border-color .2s;box-shadow:var(--shadow-panel)}
 .task-item:hover{border-color:var(--border-m)}
 .task-item.done{opacity:.45}
-.note-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px;margin-bottom:7px}
-.activity-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bg4)}
+.note-item{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:7px;box-shadow:var(--shadow-panel)}
+
+/* ── ACTIVITY ── */
+.activity-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+
+/* ── PRIORITY BADGE ── */
 .priority-badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;font-family:var(--font-body);letter-spacing:.04em}
 
-
-.stage-action{flex:1;padding:5px 0;background:var(--bg4);border:1px solid var(--border);border-radius:5px;color:var(--text-d);font-size:10px;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:center}
+/* ── STAGE ACTION ── */
+.stage-action{flex:1;padding:5px 0;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text-d);font-size:10px;font-weight:500;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:center}
 .stage-action:hover{border-color:var(--gold);color:var(--gold)}
-.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#252D3F;border-top:1px solid rgba(255,255,255,0.07);z-index:100;padding:6px 0 env(safe-area-inset-bottom,12px)}
-.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;background:none;border:none;color:#8B93A5;cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s}
+
+/* ── STAT STRIP ── */
+.stat-strip{display:flex;gap:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow-panel)}
+.stat-cell{flex:1;padding:9px 0;display:flex;flex-direction:column;align-items:center;gap:2px;border-right:1px solid var(--border)}
+.stat-cell:last-child{border-right:none}
+.stat-cell-label{font-size:9px;color:var(--text-d);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.stat-cell-value{font-family:var(--font-mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ── THEME TOGGLE ── */
+.theme-toggle{padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--text-d);font-size:10px;font-family:var(--font-body);font-weight:500;transition:all .15s;letter-spacing:.04em}
+.theme-toggle:hover{color:var(--text);border-color:var(--border-m)}
+
+/* ── MOBILE BOTTOM NAV ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#141920;border-top:1px solid rgba(255,255,255,0.07);z-index:100;padding:6px 0 env(safe-area-inset-bottom,12px)}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;background:none;border:none;color:#8B93A5;cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;transition:color .2s}
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
 @media(max-width:768px){
   body{overflow:auto!important}
   html{height:auto!important}
@@ -84,17 +121,16 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-b
   .bottom-nav{display:flex!important}
   .kanban-board{flex-direction:column!important;overflow-x:hidden!important;overflow-y:auto!important;height:auto!important;padding-bottom:100px!important}
   .col-wrap{width:100%!important;max-height:none!important;height:auto!important}
+  .panel{width:100vw!important}
+  .stat-strip{flex-wrap:wrap}
+  .stat-cell{min-width:33.33%;border-bottom:1px solid var(--border)}
 }
 `;
-
-
 const fmt=(n:number,prefix="£")=>{if(!n||!isFinite(n)||isNaN(n))return"—";const abs=Math.abs(n);if(abs>=1e9)return`${prefix}${(n/1e9).toFixed(2)}bn`;if(abs>=1e6)return`${prefix}${(n/1e6).toFixed(2)}m`;if(abs>=1e3)return`${prefix}${(n/1e3).toFixed(0)}k`;return`${prefix}${n.toFixed(0)}`;};
 const fmtPct=(n:number)=>(!n||!isFinite(n)||isNaN(n)?"—":`${(n*100).toFixed(1)}%`);
 const fmtDate=(d:string)=>new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
 const fmtDateTime=(d:string)=>new Date(d).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
 const CURRENCY_SYMBOLS:Record<string,string>={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$"};
-
-
 const STAGES=[
   {id:"prospect",      label:"Prospect",       color:"#7d8590"},
   {id:"feasibility",   label:"Feasibility",    color:"#E0A030"},
@@ -114,8 +150,6 @@ const PRIORITY_STYLES:Record<string,{bg:string;color:string;label:string}>={
   high:{bg:"rgba(240,164,41,.15)",color:"#E0A030",label:"High"},
   urgent:{bg:"rgba(244,100,95,.15)",color:"#D45252",label:"Urgent"},
 };
-
-
 export default function PipelinePage(){
   const router=useRouter();
   const[theme,setTheme]=useState<"dark"|"light">(()=>{
@@ -141,8 +175,6 @@ export default function PipelinePage(){
   const[savingTask,setSavingTask]=useState(false);
   const[newNote,setNewNote]=useState("");
   const[savingNote,setSavingNote]=useState(false);
-
-
   useEffect(()=>{
     const init=async()=>{
       const{data:{session}}=await supabase.auth.getSession();
@@ -152,8 +184,6 @@ export default function PipelinePage(){
     };
     init();
   },[router]);
-
-
   const loadAll=async(userId:string)=>{
     setLoading(true);
     const[{data:projData},{data:taskData},{data:noteData},{data:actData}]=await Promise.all([
@@ -173,15 +203,11 @@ export default function PipelinePage(){
     setActivity(actData||[]);
     setLoading(false);
   };
-
-
   const logActivity=async(projectId:string,action:string,meta?:any)=>{
     if(!user)return;
     const{data:a}=await supabase.from("activity").insert({project_id:projectId,created_by:user.id,action,meta}).select().single();
     if(a)setActivity(prev=>[a,...prev].slice(0,50));
   };
-
-
   const moveProject=async(projectId:string,newStage:string)=>{
     const p=projects.find(x=>x.id===projectId);
     const old=p?.pipeline_stage||"prospect";
@@ -190,8 +216,6 @@ export default function PipelinePage(){
     await supabase.from("projects").update({pipeline_stage:newStage}).eq("id",projectId);
     await logActivity(projectId,`Moved to ${STAGES.find(s=>s.id===newStage)?.label||newStage}`,{from:old,to:newStage});
   };
-
-
   const onDragStart=(e:React.DragEvent,p:any)=>{dragItem.current=p;setDraggingId(p.id);e.dataTransfer.effectAllowed="move";};
   const onDragEnd=()=>{setDraggingId(null);setDragOverCol(null);};
   const onDragOver=(e:React.DragEvent,sid:string)=>{e.preventDefault();setDragOverCol(sid);};
@@ -200,12 +224,8 @@ export default function PipelinePage(){
     if(dragItem.current&&(dragItem.current.pipeline_stage||"prospect")!==sid)moveProject(dragItem.current.id,sid);
     setDraggingId(null);setDragOverCol(null);dragItem.current=null;
   };
-
-
   const openPanel=(p:any,tab:"tasks"|"notes"|"activity"="tasks")=>{setSelectedProject(p);setPanelTab(tab);};
   const openProject=(p:any)=>{const l=p.appraisals?.[0];router.push(l?`/appraisal?project=${p.id}&appraisal=${l.id}`:`/appraisal?project=${p.id}`);};
-
-
   const addTask=async()=>{
     if(!newTask.description.trim()||!selectedProject||!user)return;
     setSavingTask(true);
@@ -221,22 +241,16 @@ export default function PipelinePage(){
     }
     setSavingTask(false);
   };
-
-
   const toggleTask=async(task:any)=>{
     const u={...task,completed:!task.completed};
     await supabase.from("tasks").update({completed:u.completed}).eq("id",task.id);
     setTasks(prev=>({...prev,[task.project_id]:prev[task.project_id].map(t=>t.id===task.id?u:t)}));
     if(u.completed)await logActivity(task.project_id,`Task completed: "${task.description}"`);
   };
-
-
   const deleteTask=async(task:any)=>{
     await supabase.from("tasks").delete().eq("id",task.id);
     setTasks(prev=>({...prev,[task.project_id]:prev[task.project_id].filter(t=>t.id!==task.id)}));
   };
-
-
   // ── UNIFIED addNote — writes to shared notes table ──
   const addNote=async()=>{
     if(!newNote.trim()||!selectedProject||!user)return;
@@ -257,50 +271,42 @@ export default function PipelinePage(){
     }
     setSavingNote(false);
   };
-
-
   const deleteNote=async(note:any)=>{
     await supabase.from("notes").delete().eq("id",note.id).eq("user_id",user.id);
     setNotes(prev=>({...prev,[note.project_id]:prev[note.project_id].filter(n=>n.id!==note.id)}));
   };
-
-
   const totalGDV=projects.reduce((s,p)=>s+(p.appraisals?.[0]?.gdv||0),0);
   const avgPoC=(()=>{const v=projects.filter(p=>p.appraisals?.[0]?.profit_on_cost);return v.length?v.reduce((s,p)=>s+(p.appraisals[0].profit_on_cost||0),0)/v.length:0;})();
   const active=projects.filter(p=>p.pipeline_stage!=="completed").length;
   const done=projects.filter(p=>p.pipeline_stage==="completed").length;
   const openTasks=Object.values(tasks).flat().filter(t=>!t.completed).length;
-
-
   if(loading)return(
-    <div style={{minHeight:"100vh",background:"#0D1017",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
-      <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff"}}>Valora</span>
-      <div style={{width:26,height:26,border:"2px solid rgba(82,196,152,.15)",borderTopColor:"#52C498",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
-      <div style={{fontSize:11,color:"#3d4249",letterSpacing:".06em"}}>Loading pipeline…</div>
+    <div style={{minHeight:"100vh",background:theme==="light"?"#F8F9FA":"#0D1017",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
+      <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:theme==="light"?"#1E2433":"#ffffff"}}>Valora</span>
+      <div style={{width:26,height:26,border:"2px solid rgba(82,196,152,.15)",borderTopColor:theme==="light"?"#2A8A64":"#52C498",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+      <div style={{fontSize:11,color:theme==="light"?"#9AA3AF":"#3d4249",letterSpacing:".06em"}}>Loading pipeline…</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
-
-
   return(
     <div style={{height:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-body)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <style>{CSS}</style>
       <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
-
-
       {/* NAV */}
       <nav className="desktop-nav" style={{background:"var(--bg1)",borderBottom:"1px solid var(--border)",padding:"0 16px",height:50,display:"flex",alignItems:"center",gap:10,flexShrink:0,zIndex:10}}>
-        <span onClick={()=>router.push("/dashboard")} style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"#ffffff",cursor:"pointer",flexShrink:0}}>Valora</span>
+        <span onClick={()=>router.push("/dashboard")} style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:16,fontWeight:600,letterSpacing:"-.02em",color:"var(--text)",cursor:"pointer",flexShrink:0}}>Valora</span>
         <div style={{width:1,height:16,background:"var(--border)"}}/>
         <button onClick={()=>router.push("/dashboard")} className="btn-ghost" style={{fontSize:11,padding:"4px 10px"}}>Dashboard</button>
         <button className="btn-ghost" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--gold)",color:"var(--gold)"}}>Pipeline</button>
         <button onClick={()=>router.push("/tasks")} className="btn-ghost" style={{fontSize:11,padding:"4px 10px"}}>Tasks</button>
         <button onClick={()=>router.push("/notes")} className="btn-ghost" style={{fontSize:11,padding:"4px 10px"}}>Notes</button>
         <div style={{flex:1}}/>
-        {openTasks>0&&<span style={{fontSize:11,color:"var(--amber)",background:"rgba(240,164,41,.1)",padding:"2px 9px",borderRadius:8,fontFamily:"var(--font-mono)",flexShrink:0}}>{openTasks} open</span>}
+        {openTasks>0&&<span style={{fontSize:11,color:"var(--amber)",background:"rgba(240,164,41,.1)",padding:"2px 9px",borderRadius:8,fontFamily:"var(--font-mono)",flexShrink:0,fontWeight:600,fontVariantNumeric:"tabular-nums" as any}}>{openTasks} open</span>}
+        <button className="theme-toggle" onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} title={theme==="dark"?"Switch to light":"Switch to dark"}>
+          <span style={{fontSize:11,lineHeight:1}}>{theme==="dark"?"◐":"◑"}</span>
+          <span style={{textTransform:"uppercase"}}>{theme==="dark"?"Light":"Dark"}</span>
+        </button>
       </nav>
-
-
       {/* PAGE HEADER */}
       <div style={{padding:"14px 16px 12px",flexShrink:0,borderBottom:"1px solid var(--border)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:12}}>
@@ -310,23 +316,21 @@ export default function PipelinePage(){
           </div>
           <button className="btn-primary" onClick={()=>router.push("/dashboard")}>+ New</button>
         </div>
-        <div style={{display:"flex",gap:0,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,overflow:"hidden"}}>
+        <div className="stat-strip">
           {[
             {label:"Active",value:String(active),color:"var(--blue)"},
             {label:"Done",value:String(done),color:"var(--green)"},
             {label:"GDV",value:fmt(totalGDV),color:"var(--gold)"},
             {label:"Avg PoC",value:fmtPct(avgPoC),color:avgPoC>0.2?"var(--green)":avgPoC>0.1?"var(--amber)":"var(--text-m)"},
             {label:"Tasks",value:String(openTasks),color:openTasks>0?"var(--amber)":"var(--text-d)"},
-          ].map((s,i,arr)=>(
-            <div key={s.label} style={{flex:1,padding:"8px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:2,borderRight:i<arr.length-1?"1px solid var(--border)":"none"}}>
-              <span style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".07em"}}>{s.label}</span>
-              <span style={{fontFamily:"var(--font-mono)",fontSize:13,fontWeight:600,color:s.color}}>{s.value}</span>
+          ].map((s)=>(
+            <div key={s.label} className="stat-cell">
+              <span className="stat-cell-label">{s.label}</span>
+              <span className="stat-cell-value" style={{color:s.color}}>{s.value}</span>
             </div>
           ))}
         </div>
       </div>
-
-
       {/* KANBAN BOARD */}
       <div className="kanban-board" style={{flex:1,overflowX:"auto",overflowY:"hidden",padding:"14px 16px",display:"flex",gap:10,alignItems:"flex-start",WebkitOverflowScrolling:"touch" as any}}>
         {STAGES.map(stage=>{
@@ -338,13 +342,13 @@ export default function PipelinePage(){
               onDragOver={e=>onDragOver(e,stage.id)} onDrop={e=>onDrop(e,stage.id)}>
               <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:gdv>0?4:10,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:stage.color,flexShrink:0}}/>
-                <span style={{fontSize:10,fontWeight:600,color:stage.color,textTransform:"uppercase",letterSpacing:".07em"}}>{stage.label}</span>
-                <span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg4)",borderRadius:8,padding:"0 6px",fontFamily:"var(--font-mono)"}}>{cols.length}</span>
+                <span style={{fontSize:10,fontWeight:700,color:stage.color,textTransform:"uppercase",letterSpacing:".08em"}}>{stage.label}</span>
+                <span style={{fontSize:10,color:"var(--text-d)",background:"var(--bg4)",borderRadius:8,padding:"0 6px",fontFamily:"var(--font-mono)",fontVariantNumeric:"tabular-nums" as any}}>{cols.length}</span>
               </div>
-              {gdv>0&&<div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",marginBottom:10}}>{fmt(gdv)}</div>}
+              {gdv>0&&<div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",marginBottom:10,fontVariantNumeric:"tabular-nums" as any}}>{fmt(gdv)}</div>}
               <div style={{flex:1,overflowY:"auto",minHeight:80}}>
                 {cols.length===0&&(
-                  <div style={{border:"1px dashed var(--border)",borderRadius:7,padding:"14px 8px",textAlign:"center",fontSize:10,color:"var(--text-d)"}}>Drop here</div>
+                  <div style={{border:"1px dashed var(--border)",borderRadius:8,padding:"14px 8px",textAlign:"center",fontSize:10,color:"var(--text-d)",letterSpacing:".04em"}}>Drop here</div>
                 )}
                 {cols.map(project=>{
                   const latest=project.appraisals?.[0];
@@ -366,22 +370,22 @@ export default function PipelinePage(){
                       <div style={{fontSize:10,color:"var(--text-d)",marginBottom:8}}>{project.location||"—"}</div>
                       {latest?(
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                          <span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-m)"}}>{fmt(latest.gdv,sym)}</span>
-                          <span style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,color:poc>0.2?"var(--green)":poc>0.1?"var(--amber)":"var(--red)"}}>{fmtPct(poc)}</span>
+                          <span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--text-m)",fontVariantNumeric:"tabular-nums" as any}}>{fmt(latest.gdv,sym)}</span>
+                          <span style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,color:poc>0.2?"var(--green)":poc>0.1?"var(--amber)":"var(--red)",fontVariantNumeric:"tabular-nums" as any}}>{fmtPct(poc)}</span>
                         </div>
                       ):(
                         <div style={{fontSize:10,color:"var(--text-d)",marginBottom:8}}>No appraisal yet</div>
                       )}
                       {(pt.length>0||pn>0)&&(
                         <div style={{display:"flex",gap:4,marginBottom:8}}>
-                          {pt.length>0&&<span style={{fontSize:9,color:"var(--amber)",background:"rgba(240,164,41,.1)",padding:"1px 6px",borderRadius:4}}>✓ {pt.length}</span>}
-                          {pn>0&&<span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4}}>📝 {pn}</span>}
+                          {pt.length>0&&<span style={{fontSize:9,color:"var(--amber)",background:"rgba(240,164,41,.1)",padding:"1px 6px",borderRadius:4,fontWeight:600}}>✓ {pt.length}</span>}
+                          {pn>0&&<span style={{fontSize:9,color:"var(--text-d)",background:"var(--bg4)",padding:"1px 6px",borderRadius:4,fontWeight:600}}>📝 {pn}</span>}
                         </div>
                       )}
-                      <div style={{paddingTop:8,borderTop:"1px solid var(--bg4)",marginBottom:8}} onClick={e=>e.stopPropagation()}>
+                      <div style={{paddingTop:8,borderTop:"1px solid var(--border)",marginBottom:8}} onClick={e=>e.stopPropagation()}>
                         <select value={project.pipeline_stage||"prospect"}
                           onChange={e=>{e.stopPropagation();moveProject(project.id,e.target.value);}}
-                          style={{width:"100%",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:5,color:"var(--text-d)",fontFamily:"var(--font-body)",fontSize:10,padding:"3px 6px",cursor:"pointer",outline:"none"}}>
+                          style={{width:"100%",background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text-d)",fontFamily:"var(--font-body)",fontSize:10,padding:"4px 8px",cursor:"pointer",outline:"none"}}>
                           {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
                         </select>
                       </div>
@@ -397,7 +401,7 @@ export default function PipelinePage(){
                 })}
               </div>
               <button onClick={()=>router.push("/dashboard")}
-                style={{width:"100%",marginTop:8,padding:"6px",background:"transparent",border:"1px dashed var(--border)",borderRadius:7,color:"var(--text-d)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",flexShrink:0}}
+                style={{width:"100%",marginTop:8,padding:"6px",background:"transparent",border:"1px dashed var(--border)",borderRadius:8,color:"var(--text-d)",fontSize:10,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:500,flexShrink:0,transition:"all .15s"}}
                 onMouseEnter={e=>{(e.target as HTMLElement).style.borderColor="var(--gold)";(e.target as HTMLElement).style.color="var(--gold)"}}
                 onMouseLeave={e=>{(e.target as HTMLElement).style.borderColor="var(--border)";(e.target as HTMLElement).style.color="var(--text-d)"}}>
                 + Add
@@ -406,25 +410,23 @@ export default function PipelinePage(){
           );
         })}
       </div>
-
-
       {/* SIDE PANEL */}
       {selectedProject&&(
         <>
           <div className="overlay" onClick={()=>setSelectedProject(null)}/>
           <div className="panel">
-            <div style={{padding:"16px 16px 0",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+            <div style={{padding:"18px 18px 0",borderBottom:"1px solid var(--border)",flexShrink:0}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{flex:1,minWidth:0,paddingRight:8}}>
-                  <div style={{fontFamily:"var(--font-display)",fontSize:19,fontWeight:300,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedProject.name||"Untitled"}</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",marginTop:1}}>{selectedProject.location||"—"} · {selectedProject.asset_type}</div>
+                  <div style={{fontFamily:"var(--font-display)",fontSize:19,fontWeight:300,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:".01em"}}>{selectedProject.name||"Untitled"}</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",marginTop:2}}>{selectedProject.location||"—"} · {selectedProject.asset_type}</div>
                 </div>
                 <div style={{display:"flex",gap:6,flexShrink:0}}>
                   <button className="btn-ghost" style={{fontSize:10,padding:"4px 9px"}} onClick={()=>openProject(selectedProject)}>Open ↗</button>
                   <button onClick={()=>setSelectedProject(null)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:22,lineHeight:1,padding:"0 2px"}}>×</button>
                 </div>
               </div>
-              <div style={{display:"flex",overflowX:"auto",marginTop:10}}>
+              <div style={{display:"flex",overflowX:"auto",marginTop:12}}>
                 {(["tasks","notes","activity"] as const).map(tab=>(
                   <button key={tab} className={`panel-tab ${panelTab===tab?"active":""}`} onClick={()=>setPanelTab(tab)}>
                     {tab==="tasks"?`Tasks (${(tasks[selectedProject.id]||[]).filter(t=>!t.completed).length})`:tab==="notes"?`Notes (${(notes[selectedProject.id]||[]).length})`:"Activity"}
@@ -432,31 +434,27 @@ export default function PipelinePage(){
                 ))}
               </div>
             </div>
-
-
-            <div style={{flex:1,overflowY:"auto",padding:16}}>
-
-
+            <div style={{flex:1,overflowY:"auto",padding:18}}>
               {panelTab==="tasks"&&(
                 <div>
-                  <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:18}}>
-                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>New Task</div>
+                  <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:14,marginBottom:18,boxShadow:"var(--shadow-panel)"}}>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",fontWeight:600,marginBottom:10}}>New Task</div>
                     <textarea className="inp" placeholder="Task description…" value={newTask.description}
                       onChange={e=>setNewTask(p=>({...p,description:e.target.value}))}
                       style={{resize:"none",height:64,marginBottom:8,fontFamily:"var(--font-body)"}}/>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                       <div>
-                        <div style={{fontSize:10,color:"var(--text-d)",marginBottom:3}}>Due date</div>
-                        <input className="inp" type="datetime-local" value={newTask.due_at} onChange={e=>setNewTask(p=>({...p,due_at:e.target.value}))} style={{fontSize:11,colorScheme:"dark"}}/>
+                        <div style={{fontSize:10,color:"var(--text-d)",marginBottom:3,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase"}}>Due date</div>
+                        <input className="inp" type="datetime-local" value={newTask.due_at} onChange={e=>setNewTask(p=>({...p,due_at:e.target.value}))} style={{fontSize:11,colorScheme:theme as any}}/>
                       </div>
                       <div>
-                        <div style={{fontSize:10,color:"var(--text-d)",marginBottom:3}}>Priority</div>
+                        <div style={{fontSize:10,color:"var(--text-d)",marginBottom:3,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase"}}>Priority</div>
                         <select className="inp" value={newTask.priority} onChange={e=>setNewTask(p=>({...p,priority:e.target.value}))} style={{fontSize:11,cursor:"pointer"}}>
                           <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
                         </select>
                       </div>
                     </div>
-                    <button style={{width:"100%",background:"var(--gold)",color:"#0D1017",border:"none",borderRadius:7,padding:"9px",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,cursor:"pointer",opacity:!newTask.description.trim()||savingTask?.6:1}}
+                    <button style={{width:"100%",background:"var(--gold)",color:theme==="light"?"#ffffff":"#0D1017",border:"none",borderRadius:8,padding:"9px",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,cursor:"pointer",opacity:!newTask.description.trim()||savingTask?.6:1,transition:"background .2s"}}
                       onClick={addTask} disabled={!newTask.description.trim()||savingTask}>
                       {savingTask?"Adding…":"+ Add Task"}
                     </button>
@@ -469,18 +467,18 @@ export default function PipelinePage(){
                         const overdue=task.due_at&&new Date(task.due_at)<new Date();
                         return(
                           <div key={task.id} className="task-item">
-                            <div style={{display:"flex",gap:9,alignItems:"flex-start"}}>
-                              <button onClick={()=>toggleTask(task)} style={{width:17,height:17,borderRadius:4,border:"1.5px solid var(--border-m)",background:"none",cursor:"pointer",flexShrink:0,marginTop:2}}
+                            <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                              <button onClick={()=>toggleTask(task)} style={{width:17,height:17,borderRadius:5,border:"1.5px solid var(--border-m)",background:"none",cursor:"pointer",flexShrink:0,marginTop:2,transition:"border-color .15s"}}
                                 onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--green)")}
                                 onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border-m)")}/>
                               <div style={{flex:1}}>
-                                <div style={{fontSize:13,marginBottom:5,lineHeight:1.4}}>{task.description}</div>
-                                <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+                                <div style={{fontSize:13,marginBottom:6,lineHeight:1.4}}>{task.description}</div>
+                                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
                                   <span className="priority-badge" style={{background:p.bg,color:p.color}}>{p.label}</span>
-                                  {task.due_at&&<span style={{fontSize:10,color:overdue?"var(--red)":"var(--text-d)",fontFamily:"var(--font-mono)"}}>{overdue?"⚠ ":""}{fmtDateTime(task.due_at)}</span>}
+                                  {task.due_at&&<span style={{fontSize:10,color:overdue?"var(--red)":"var(--text-d)",fontFamily:"var(--font-mono)",fontVariantNumeric:"tabular-nums" as any}}>{overdue?"⚠ ":""}{fmtDateTime(task.due_at)}</span>}
                                 </div>
                               </div>
-                              <button onClick={()=>deleteTask(task)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}
+                              <button onClick={()=>deleteTask(task)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:14,padding:0,flexShrink:0,transition:"color .15s"}}
                                 onMouseEnter={e=>(e.currentTarget.style.color="var(--red)")}
                                 onMouseLeave={e=>(e.currentTarget.style.color="var(--text-d)")}>×</button>
                             </div>
@@ -488,12 +486,12 @@ export default function PipelinePage(){
                         );
                       })}
                       {(tasks[selectedProject.id]||[]).filter(t=>t.completed).length>0&&<>
-                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",margin:"14px 0 8px"}}>Completed</div>
+                        <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",fontWeight:600,margin:"14px 0 8px"}}>Completed</div>
                         {(tasks[selectedProject.id]||[]).filter(t=>t.completed).map(task=>(
                           <div key={task.id} className="task-item done">
-                            <div style={{display:"flex",gap:9,alignItems:"flex-start"}}>
-                              <button onClick={()=>toggleTask(task)} style={{width:17,height:17,borderRadius:4,border:"1.5px solid var(--green)",background:"var(--green)",cursor:"pointer",flexShrink:0,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                <span style={{color:"#0D1017",fontSize:9,fontWeight:700}}>✓</span>
+                            <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                              <button onClick={()=>toggleTask(task)} style={{width:17,height:17,borderRadius:5,border:"1.5px solid var(--green)",background:"var(--green)",cursor:"pointer",flexShrink:0,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                <span style={{color:theme==="light"?"#ffffff":"#0D1017",fontSize:9,fontWeight:700}}>✓</span>
                               </button>
                               <div style={{flex:1,textDecoration:"line-through",fontSize:13,color:"var(--text-d)"}}>{task.description}</div>
                               <button onClick={()=>deleteTask(task)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:14,padding:0}}>×</button>
@@ -505,24 +503,22 @@ export default function PipelinePage(){
                   }
                 </div>
               )}
-
-
               {panelTab==="notes"&&(
                 <div>
-                  <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:18}}>
-                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>New Note</div>
+                  <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:11,padding:14,marginBottom:18,boxShadow:"var(--shadow-panel)"}}>
+                    <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".1em",fontWeight:600,marginBottom:8}}>New Note</div>
                     <textarea className="inp" placeholder="Add a note…" value={newNote} onChange={e=>setNewNote(e.target.value)}
                       style={{resize:"none",height:80,marginBottom:8,fontFamily:"var(--font-body)",lineHeight:1.6}}/>
-                    <button style={{width:"100%",background:"var(--gold)",color:"#0D1017",border:"none",borderRadius:7,padding:"9px",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,cursor:"pointer",opacity:!newNote.trim()||savingNote?.6:1}}
+                    <button style={{width:"100%",background:"var(--gold)",color:theme==="light"?"#ffffff":"#0D1017",border:"none",borderRadius:8,padding:"9px",fontFamily:"var(--font-body)",fontSize:12,fontWeight:600,cursor:"pointer",opacity:!newNote.trim()||savingNote?.6:1,transition:"background .2s"}}
                       onClick={addNote} disabled={!newNote.trim()||savingNote}>{savingNote?"Saving…":"+ Add Note"}</button>
                   </div>
                   {(notes[selectedProject.id]||[]).length===0
                     ?<div style={{textAlign:"center",padding:"32px 0",color:"var(--text-d)",fontSize:13}}>No notes yet</div>
                     :(notes[selectedProject.id]||[]).map(note=>(
                       <div key={note.id} className="note-item">
-                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
-                          <span style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{fmtDate(note.created_at)}</span>
-                          <button onClick={()=>deleteNote(note)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:13,padding:0}}
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                          <span style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",fontVariantNumeric:"tabular-nums" as any,letterSpacing:".04em"}}>{fmtDate(note.created_at)}</span>
+                          <button onClick={()=>deleteNote(note)} style={{background:"none",border:"none",color:"var(--text-d)",cursor:"pointer",fontSize:13,padding:0,transition:"color .15s"}}
                             onMouseEnter={e=>(e.currentTarget.style.color="var(--red)")}
                             onMouseLeave={e=>(e.currentTarget.style.color="var(--text-d)")}>×</button>
                         </div>
@@ -532,21 +528,19 @@ export default function PipelinePage(){
                   }
                 </div>
               )}
-
-
               {panelTab==="activity"&&(
                 <div>
                   {activity.filter(a=>a.project_id===selectedProject.id).length===0
                     ?<div style={{textAlign:"center",padding:"32px 0",color:"var(--text-d)",fontSize:13}}>No activity yet</div>
                     :activity.filter(a=>a.project_id===selectedProject.id).map(act=>(
                       <div key={act.id} className="activity-row">
-                        <div style={{width:26,height:26,borderRadius:"50%",background:"var(--bg3)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--bg3)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11}}>
                           {act.action.startsWith("Moved")?"→":act.action.startsWith("Task completed")?"✓":act.action.startsWith("Task added")?"✚":"📝"}
                         </div>
                         <div style={{flex:1}}>
-                          <div style={{fontSize:12,marginBottom:1}}>{act.action}</div>
-                          {act.meta?.preview&&<div style={{fontSize:11,color:"var(--text-d)",fontStyle:"italic"}}>"{act.meta.preview}{act.meta.preview?.length>=60?"…":""}"</div>}
-                          <div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",marginTop:2}}>{fmtDateTime(act.created_at)}</div>
+                          <div style={{fontSize:12,marginBottom:2,lineHeight:1.4}}>{act.action}</div>
+                          {act.meta?.preview&&<div style={{fontSize:11,color:"var(--text-d)",fontStyle:"italic",lineHeight:1.4}}>"{act.meta.preview}{act.meta.preview?.length>=60?"…":""}"</div>}
+                          <div style={{fontSize:10,color:"var(--text-d)",fontFamily:"var(--font-mono)",marginTop:3,fontVariantNumeric:"tabular-nums" as any}}>{fmtDateTime(act.created_at)}</div>
                         </div>
                       </div>
                     ))
