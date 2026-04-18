@@ -223,6 +223,39 @@ const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>100?"—":`${(n*10
 const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>1000?"—":`${n.toFixed(2)}×`);
 const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
 const irrCol=(irr:number)=>irr>=0.15?"var(--green)":irr>=0.08?"var(--amber)":"var(--red)";
+// ─────────────────────────────────────────────────────────────────────────────
+// Valuation & operating-cost defaults — shared across every hold-model engine so
+// net-to-gross, purchaser's costs and profit definitions are applied consistently
+// across Mixed Use, Commercial, BTR and Hotel. Override per-zone or per-deal via
+// data.opexPct / data.mgmtPct / data.purchasersCostsPct (exposed in the UI).
+//
+// UK market defaults (applied when user hasn't set an explicit override):
+//   • Residential BTR opex: 25% of gross rent (mgmt + voids + repairs + SC shortfall + insurance)
+//   • Commercial FRI mgmt:   3% of gross rent (tenant pays repairs/SC/insurance; LL carries AM fee + non-recoverables)
+//   • Purchaser's costs:     5.75% residential investment, 6.75% commercial / mixed
+//   • Passing rent default:  100% of ERV (only discount if user explicitly provides passingRent)
+// ─────────────────────────────────────────────────────────────────────────────
+const VAL_DEFAULTS={
+  RESI_OPEX_PCT:0.25,
+  COMM_MGMT_PCT:0.03,
+  PC_RESI_INVESTMENT:0.0575,
+  PC_COMMERCIAL:0.0675,
+} as const;
+function resolveOpexPct(z:any,data:any,useClass:string):number{
+  const explicit=z?.opexPct??z?.mgmtPct??data?.opexPct??data?.mgmtPct;
+  if(explicit!==undefined&&explicit!==null&&explicit!==""){return num(String(explicit))/100;}
+  return useClass==="residential"?VAL_DEFAULTS.RESI_OPEX_PCT:VAL_DEFAULTS.COMM_MGMT_PCT;
+}
+function resolvePurchasersCostsPct(z:any,data:any,useClass:string):number{
+  const explicit=z?.purchasersCostsPct??data?.purchasersCostsPct;
+  if(explicit!==undefined&&explicit!==null&&explicit!==""){return num(String(explicit))/100;}
+  return useClass==="residential"?VAL_DEFAULTS.PC_RESI_INVESTMENT:VAL_DEFAULTS.PC_COMMERCIAL;
+}
+// Capitalise an NOI into net capital value (net of purchaser's costs)
+function calcNetCapitalValue(noi:number,yieldPct:number,pcPct:number):number{
+  if(yieldPct<=0)return 0;
+  return (noi/yieldPct)/(1+pcPct);
+}
 function calcHotelRev(d:any){
   const rooms=num(String(d.rooms));const occRoomNights=rooms*365*(num(String(d.occupancy))/100);
   const roomsRev=num(String(d.adr))*occRoomNights;const roomsEbitda=roomsRev*(num(String(d.roomsMarginPct??75))/100);
@@ -12300,13 +12333,14 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
   const totalCost=landCost+sdlt+totalBuildCost+fin.totalFinanceCost;
   const equity=Math.max(0,totalCost-fin.loanAmount);
 
-  // Exit
+  // Exit — capitalise NOI and deduct purchaser's costs so GDV is the institutional transferable value
   const niy=num(String(data.niy||5.5))/100;
   const stabilisedNOI=yearlyNOI[holdYears-1]||yearlyNOI[0]||0;
   const noiMode=data.noiMode||"normalised";
   const actualNoiInput=num(String(data.actualNoi||0));
   const exitNOI=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:stabilisedNOI;
-  const exitValue=niy>0?exitNOI/niy:0;
+  const commPcPct=resolvePurchasersCostsPct(null,data,"commercial");
+  const exitValue=calcNetCapitalValue(exitNOI,niy,commPcPct);
   const totalHoldNOI=yearlyNOI.reduce((s,n)=>s+n,0);
 
   // IRR cashflows
@@ -12330,7 +12364,10 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
 
   const irr=Math.pow(1+calcIRR(uCfs),12)-1;
   const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
-  const profit=exitValue-totalCost+totalHoldNOI;
+  // Two PoC definitions — developer margin vs total-return (incl. hold NOI)
+  const developmentProfit=exitValue-totalCost;
+  const pocDev=totalCost>0?developmentProfit/totalCost:0;
+  const profit=developmentProfit+totalHoldNOI;
   const poc=totalCost>0?profit/totalCost:0;
   const moic=equity>0?(equity+profit)/equity:0;
   const annualDebtService=fin.peakLoanBalance*annualRate;
@@ -12342,6 +12379,7 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
 
   return{
     gdv:exitValue,exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
+    developmentProfit,pocDev,developmentMargin:pocDev,
     equity,totalCost,landCost,sdlt,buildCost,profFees,contingency,vat,cil,s106,
     totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
     interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
@@ -12355,12 +12393,15 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     breakEvenYield:totalCost>0?stabilisedNOI/totalCost:0,
     rlv:exitValue*(1-0.20)-totalBuildCost-fin.totalFinanceCost-sdlt,
     financeRate:annualRate,
+    purchasersCostsPct:commPcPct,
     sensMatrix:(()=>{
+      // Sensitivity uses the same net-of-purchaser's-costs basis as the headline
+      // so the centre cell reconciles to the headline PoC.
       const niySteps=[niy*0.9,niy*0.95,niy,niy*1.05,niy*1.10];
       const ervSteps=[0.9,0.95,1,1.05,1.10];
       return niySteps.map((n:number)=>ervSteps.map((e:number)=>{
         const adjNOI=exitNOI*e;
-        const adjExit=n>0?adjNOI/n:0;
+        const adjExit=calcNetCapitalValue(adjNOI,n,commPcPct);
         const adjProfit=adjExit-totalCost+totalHoldNOI;
         return totalCost>0?adjProfit/totalCost:0;
       }));
@@ -12405,27 +12446,35 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
         yearlyNOI[0]+=(saleRevenue-agentFee);
       } else {
         // BTR hold — rental income each year
+        // Net-to-gross via resolveOpexPct (default 25% BTR opex — mgmt + voids + repairs + SC).
+        // Capital value is taken net of purchaser's costs so GDV = institutional transferable value.
         const rentPcm=num(String(z.rentPcm||0));
         const grossRentPa=units*rentPcm*12;
-        const netRentPa=grossRentPa*0.9; // 10% management
+        const opexPct=resolveOpexPct(z,data,"residential");
+        const netRentPa=grossRentPa*(1-opexPct);
         for(let yr=0;yr<holdYears;yr++) yearlyNOI[yr]+=netRentPa;
         const exitYield=num(String(z.exitYield||5))/100;
-        const zoneGDV=exitYield>0?netRentPa/exitYield:0;
+        const pcPct=resolvePurchasersCostsPct(z,data,"residential");
+        const zoneGDV=calcNetCapitalValue(netRentPa,exitYield,pcPct);
         totalGDV+=zoneGDV;
       }
       zoneYearData.push({label:z.label||"Residential",type:"residential",exitStrategy:z.exitStrategy||"sell"});
     } else {
       // Commercial zone — year-by-year lease cashflows
-      // rentPcm interpreted as £/UNIT/MONTH (matches UI label) — converted to annual total
+      // rentPcm interpreted as £/UNIT/MONTH (matches UI label) — converted to annual total.
+      // Passing rent defaults to ERV (no silent 10% discount); override via z.passingRent if known.
       const rentPcm=num(String(z.rentPcm||z.erv||0));
       const grossErv=units*rentPcm*12; // total gross annual rent for this zone
-      const passingRent=grossErv*0.9; // assume 90% passing if not specified
+      const passingOverride=z.passingRent!==undefined&&z.passingRent!==null&&z.passingRent!==""
+        ?num(String(z.passingRent))*units*12
+        :NaN;
+      const passingRent=isFinite(passingOverride)?passingOverride:grossErv;
       const wault=num(String(z.wault||5));
       const voidPct=num(String(z.voidPct||5))/100;
       const rfMonths=num(String(z.rentFreeMonths||0));
       const reviewPct=num(String(z.rentReviewPct??data.rentReviewPct??3))/100;
       const reviewYears=Math.max(1,num(String(z.rentReviewYears??data.rentReviewYears??5)));
-      const mgmtPct=num(String(z.mgmtPct??data.mgmtPct??10))/100;
+      const mgmtPct=resolveOpexPct(z,data,"commercial");
       const grossPassing=passingRent;
       const exitYield=num(String(z.exitYield||5.5))/100;
       const zoneNOI:number[]=[];
@@ -12444,7 +12493,8 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
         yearlyNOI[yr-1]+=net;
       }
       const stabNOI=zoneNOI[holdYears-1]||zoneNOI[0]||0;
-      const zoneGDV=exitYield>0?stabNOI/exitYield:0;
+      const pcPct=resolvePurchasersCostsPct(z,data,"commercial");
+      const zoneGDV=calcNetCapitalValue(stabNOI,exitYield,pcPct);
       totalGDV+=zoneGDV;
       zoneYearData.push({label:z.label||"Commercial",type:"commercial",zoneNOI});
     }
@@ -12455,16 +12505,28 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"mixed",data.sdltOverride??0,data.sdltSurcharge??false);
   const profFees=totalBuildCost*(num(String(data.professionalFeesPct||8))/100);
   const contingency=totalBuildCost*(num(String(data.contingencyPct||5))/100);
+  // VAT handled via recoverable toggle — same treatment as BTR engine
+  const isRecoverableVatMUA=data.vatRecoverable!==undefined?!!data.vatRecoverable:vatIsRecoverable(data.currency||"GBP");
   const vatRaw=totalBuildCost*(num(String(data.vatPct||0))/100);
-  const vat=vatRaw;
-  const totalBC=totalBuildCost+profFees+contingency+vat;
+  const vat=isRecoverableVatMUA?0:vatRaw;
+  // CIL — new-build floorspace only. Uses total zone sqft as approximation (zone-level CIL exempt flags handled in simple engine).
+  const zoneGIA=zones.reduce((s:number,z:any)=>s+num(String(z.units||0))*num(String(z.sizeSqft||0)),0);
+  const cil=num(String(data.cilPsf||0))*zoneGIA;
+  // Section 106 is a hard cash obligation — NEVER classed as recoverable. Flows into total cost always.
+  const s106=num(String(data.s106||0));
+  const totalBC=totalBuildCost+profFees+contingency+vat+cil+s106;
   const fin=calcFinanceCostMonthly({landCost:landCost+sdlt,sdlt:0,buildCost:totalBC,buildMonths,annualRate,ltcPct,arrangementFeePct,costProfile:data.costProfile??"straight"});
   const totalCost=landCost+sdlt+totalBC+fin.totalFinanceCost;
   const equity=Math.max(0,totalCost-fin.loanAmount);
   const totalHoldNOI=yearlyNOI.reduce((s,n)=>s+n,0);
   const stabilisedNOI=yearlyNOI[holdYears-1]||0;
   const exitValue=totalGDV;
-  const profit=exitValue-totalCost+totalHoldNOI;
+  // Two profit / PoC definitions:
+  //   • developmentMargin / pocDev = (Exit Value − Total Cost) / Total Cost  ← traditional developer's margin
+  //   • profit / poc (incl. Hold)  = (Exit Value + Hold NOI − Total Cost) / Total Cost  ← total-return appraisal
+  const developmentProfit=exitValue-totalCost;
+  const pocDev=totalCost>0?developmentProfit/totalCost:0;
+  const profit=developmentProfit+totalHoldNOI;
   const poc=totalCost>0?profit/totalCost:0;
   const moic=equity>0?(equity+profit)/equity:0;
   const yoc=totalCost>0?stabilisedNOI/totalCost:0;
@@ -12492,33 +12554,74 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
   const paybackMonth=calcPaybackMonth(uCfs);
 
-  // For appraisal PDF compatibility (appraisal PDF reads zoneResults + totalSqft)
-  const totalSqftAdvanced=zones.reduce((s:number,z:any)=>s+num(String(z.units||0))*num(String(z.sizeSqft||0)),0);
+  // For appraisal PDF compatibility (appraisal PDF reads zoneResults + totalSqft).
+  // CRITICAL: this display calc must mirror the main zone GDV logic above so that
+  // sum(zoneResults.gdvZone) === totalGDV — otherwise the Zone Profit Contribution
+  // panel reconciles to a different number than the Returns Summary.
+  // Parking excluded from GIA denominator — cost/sqft should be based on saleable/let floorspace only.
+  const totalSqftAdvanced=zones.reduce((s:number,z:any)=>{
+    if((z.type||"").toLowerCase()==="parking") return s;
+    return s+num(String(z.units||0))*num(String(z.sizeSqft||0));
+  },0);
   const zoneResultsForDisplay=zones.map((z:any)=>{
-    const units=num(String(z.units||0));
+    const zUnits=num(String(z.units||0));
     const sizeSqft=num(String(z.sizeSqft||0));
-    const zoneTotalSqft=units*sizeSqft;
+    const zoneTotalSqft=zUnits*sizeSqft;
     const buildCostPsf=num(String(z.buildCostPsf||0));
     const zoneBuildCost=zoneTotalSqft*buildCostPsf;
-    // GDV per zone: sell zones use salePricePsf*area, hold zones capitalise rent
     const isResidential=z.type==="residential"||!z.type;
+    const exitStrategy=z.exitStrategy||"sell";
+    const exitYield=num(String(z.exitYield||(isResidential?5:5.5)))/100;
     let gdvZone=0;
-    if(isResidential&&(z.exitStrategy||"sell")==="sell"){
+    if(isResidential&&exitStrategy==="sell"){
       const salePricePsf=num(String(z.salePricePsf||0));
-      gdvZone=units*sizeSqft*salePricePsf;
-    } else {
+      const saleRevenue=zUnits*sizeSqft*salePricePsf;
+      gdvZone=saleRevenue*(1-0.015); // net of 1.5% agent fee — matches main calc
+    } else if(isResidential){
       const rentPcm=num(String(z.rentPcm||0));
-      const exitYield=num(String(z.exitYield||5))/100;
-      const grossRentPa=units*rentPcm*12;
-      gdvZone=exitYield>0?(grossRentPa*0.9)/exitYield:0;
+      const grossRentPa=zUnits*rentPcm*12;
+      const opexPct=resolveOpexPct(z,data,"residential");
+      const netRentPa=grossRentPa*(1-opexPct);
+      const pcPct=resolvePurchasersCostsPct(z,data,"residential");
+      gdvZone=calcNetCapitalValue(netRentPa,exitYield,pcPct);
+    } else {
+      // Commercial — replicate the year-N stabilised NOI used in the main calc
+      const rentPcm=num(String(z.rentPcm||z.erv||0));
+      const grossErv=zUnits*rentPcm*12;
+      const passingOverride=z.passingRent!==undefined&&z.passingRent!==null&&z.passingRent!==""
+        ?num(String(z.passingRent))*zUnits*12
+        :NaN;
+      const passingRent=isFinite(passingOverride)?passingOverride:grossErv;
+      const wault=num(String(z.wault||5));
+      const voidPct=num(String(z.voidPct||5))/100;
+      const rfMonths=num(String(z.rentFreeMonths||0));
+      const reviewPct=num(String(z.rentReviewPct??data.rentReviewPct??3))/100;
+      const reviewYears=Math.max(1,num(String(z.rentReviewYears??data.rentReviewYears??5)));
+      const mgmtPct=resolveOpexPct(z,data,"commercial");
+      let stabIncome=0;
+      for(let yr=1;yr<=holdYears;yr++){
+        if(yr<=Math.floor(rfMonths/12)) stabIncome=0;
+        else if(yr<=Math.ceil(wault)) stabIncome=passingRent;
+        else {
+          const reviewsApplied=Math.floor((yr-1)/reviewYears);
+          const reviewedErv=grossErv*Math.pow(1+reviewPct,reviewsApplied);
+          stabIncome=reviewedErv*(1-voidPct);
+        }
+      }
+      const stabNOI=stabIncome*(1-mgmtPct);
+      const pcPct=resolvePurchasersCostsPct(z,data,"commercial");
+      gdvZone=calcNetCapitalValue(stabNOI,exitYield,pcPct);
     }
-    return{label:z.label||z.type||"Zone",type:z.type||"residential",gdvZone,totalBuildCost:zoneBuildCost,totalSqft:zoneTotalSqft,exitYield:num(String(z.exitYield||0))/100};
+    return{label:z.label||z.type||"Zone",type:z.type||"residential",gdvZone,totalBuildCost:zoneBuildCost,totalSqft:zoneTotalSqft,exitYield};
   });
 
   return{
+    // Headline figures (incl. hold-period income)
     gdv:exitValue,exitValue,totalGDV:exitValue,profit,poc,moic,irr,irrLevered,yoc,dscr,
+    // Developer's margin — GDV vs Cost only, no hold NOI blended in
+    developmentProfit,pocDev,developmentMargin:pocDev,
     margin:exitValue>0?profit/exitValue:0,
-    equity,totalCost,landCost,sdlt,buildCost:totalBuildCost,totalBuildCost,profFees,contingency,vat,
+    equity,totalCost,landCost,sdlt,buildCost:totalBuildCost,totalBuildCost,profFees,contingency,vat,cil,s106,
     totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
     interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
     stabilisedNOI,totalHoldNOI,yearlyNOI,zoneYearData,holdYears,
@@ -14094,20 +14197,30 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
-      // Exit / GDV
+      // Exit / GDV — applies shared net-to-gross + purchaser's costs so Simple mode
+      // uses the same valuation basis as Advanced. Sell-resi stays on salePricePsf basis.
       const exitStrategy=z.exitStrategy||"sell";
       const salePricePsf=num(String(z.salePricePsf||0));
       const rentPcm=num(String(z.rentPcm||0));
       const exitYield=num(String(z.exitYield||0))/100;
+      const isResidentialZ=z.type==="residential";
       let gdvZone=0;
-      if(exitStrategy==="sell"&&z.type==="residential"){
-        gdvZone=totalSqft*salePricePsf; // totalSqft=units*sizeSqft; salePricePsf drives GDV
-      } else if(exitStrategy==="sell"&&z.type!=="residential"&&exitYield>0){
-        const noi=rentPcm*units*12;
-        gdvZone=noi/exitYield;
+      if(exitStrategy==="sell"&&isResidentialZ){
+        gdvZone=totalSqft*salePricePsf;
+      } else if(exitStrategy==="sell"&&!isResidentialZ&&exitYield>0){
+        // Commercial sale — investment valuation basis (NOI ÷ yield, net of PCs)
+        const grossRent=rentPcm*units*12;
+        const mgmtPct=resolveOpexPct(z,data,"commercial");
+        const noi=grossRent*(1-mgmtPct);
+        const pcPct=resolvePurchasersCostsPct(z,data,"commercial");
+        gdvZone=calcNetCapitalValue(noi,exitYield,pcPct);
       } else if(exitStrategy==="hold"){
-        const noi=rentPcm*units*12;
-        gdvZone=exitYield>0?noi/exitYield:0;
+        const grossRent=rentPcm*units*12;
+        const useClass=isResidentialZ?"residential":"commercial";
+        const opexPct=resolveOpexPct(z,data,useClass);
+        const noi=grossRent*(1-opexPct);
+        const pcPct=resolvePurchasersCostsPct(z,data,useClass);
+        gdvZone=calcNetCapitalValue(noi,exitYield,pcPct);
       }
 
 
@@ -14517,7 +14630,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       :normalisedGDV;
     const totalGDV=effectiveGDV;
     const normalisedNoi=normalisedGDV;
-    const totalSqft=zoneResults.reduce((s:number,z:any)=>s+z.totalSqft,0);
+    // Exclude parking from GIA denominator so £/sqft metrics reflect saleable / let floorspace
+    const totalSqft=zoneResults.reduce((s:number,z:any)=>((z.type||"").toLowerCase()==="parking"?s:s+z.totalSqft),0);
     const schemeS106=s106;
     const totalDevCost=totalBuildCost+schemeS106;
 
@@ -38749,8 +38863,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {[
                       ["Land",r.landCost||0,"var(--text-m)"],
                       ["Property Tax (SDLT)",r.sdlt||0,"var(--text-d)"],
-                      ["Total Build Cost",r.totalBuildCost||0,"var(--text-m)"],
-                      ["Section 106",r.s106||0,"var(--amber)"],
+                      ["Build (Hard Costs)",r.totalBuildCost||0,"var(--text-m)"],
+                      ["Professional Fees",r.profFees||0,"var(--text-d)"],
+                      ["Contingency",r.contingency||0,"var(--text-d)"],
+                      ...((r.vat||0)>0?[["VAT (non-recoverable)",r.vat||0,"var(--text-d)"]]:[]),
+                      ...((r.cil||0)>0?[["CIL",r.cil||0,"var(--text-d)"]]:[]),
+                      ["Section 106",r.s106||0,(r.s106||0)>0?"var(--amber)":"var(--text-d)"],
                       ["Finance Cost",r.totalFinanceCost||0,"var(--amber)"],
                       ["Total",r.totalCost||0,"var(--gold)"],
                     ].map(([l,v,c]:any)=>(
@@ -38907,7 +39025,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Finance Cost",currencySymbol+Math.round(r.totalFinanceCost||0).toLocaleString(),"var(--amber)"],
                     ["Peak Loan Balance",currencySymbol+Math.round(r.peakLoanBalance||0).toLocaleString(),"var(--amber)"],
                     ["Profit",currencySymbol+Math.round(r.profit||0).toLocaleString(),(r.profit||0)>0?"var(--green)":"var(--red)"],
-                    ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.20?"var(--green)":(r.poc||0)>0.10?"var(--amber)":"var(--red)"],
+                    ...((r.developmentMargin!==undefined||r.pocDev!==undefined)?[[
+                      "Development Margin",fmtPct(r.developmentMargin??r.pocDev??0),
+                      (r.developmentMargin??r.pocDev??0)>0.20?"var(--green)":(r.developmentMargin??r.pocDev??0)>0.10?"var(--amber)":"var(--red)"
+                    ]]:[]),
+                    ["Profit on Cost (incl. Hold)",fmtPct(r.poc||0),(r.poc||0)>0.20?"var(--green)":(r.poc||0)>0.10?"var(--amber)":"var(--red)"],
                     ["Profit on GDV",fmtPct(r.margin||0),"var(--text-m)"],
                     ["IRR (Blended)",fmtPct(r.irr||0),irrCol(r.irr||0)],
                     ["Equity Multiple",fmtX(r.moic||0),(r.moic||0)>1.5?"var(--green)":"var(--text)"],
@@ -39182,13 +39304,18 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     </div>
                   </div>
                 )}
-                {/* MixedUse sensitivity: GDV shift (rows) × total cost shift (cols) */}
+                {/* MixedUse sensitivity: GDV shift (rows) × total cost shift (cols).
+                    Uses calcMixedUseAdvanced when in advanced mode so the sensitivity base cell
+                    ties exactly to the headline PoC (same engine, same definition of profit). */}
                 {(()=>{
                   const gdvSteps=[1.10,1.05,1,0.95,0.90];
                   const costSteps=[0.90,0.95,1,1.05,1.10];
+                  const useAdvancedEngine=mixedUseMode==="advanced";
                   const muSens=gdvSteps.map(gs=>costSteps.map(cs=>{
                     const modZones=(data.zones||[]).map((z:any)=>({...z,salePricePsf:num(String(z.salePricePsf||0))*gs,rentPcm:num(String(z.rentPcm||0))*gs,buildCostPsf:num(String(z.buildCostPsf||0))*cs}));
-                    const res=calcAll("MixedUse",{...data,zones:modZones});
+                    const res=useAdvancedEngine
+                      ?calcMixedUseAdvanced({...data,zones:modZones})
+                      :calcAll("MixedUse",{...data,zones:modZones});
                     return res.poc??0;
                   }));
                   return(
@@ -41454,7 +41581,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--amber)"],
                     ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
                     ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
-                    ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
+                    ...((r.developmentMargin!==undefined||r.pocDev!==undefined)?[[
+                      "Development Margin",fmtPct(r.developmentMargin??r.pocDev??0),
+                      (r.developmentMargin??r.pocDev??0)>0.20?"var(--green)":(r.developmentMargin??r.pocDev??0)>0.10?"var(--amber)":"var(--red)"
+                    ]]:[]),
+                    ["Profit on Cost (incl. Hold)",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
                     ["Profit on GDV",fmtPct(r.margin||0),"var(--text-m)"],
                     ["Yield on Cost",fmtPct(r.yoc||0),"var(--blue)"],
                     ["DSCR",isFinite(r.dscr||0)?r.dscr>=999?"N/A (All Equity)":r.dscr>0?fmtX(r.dscr):"—":"—",(r.dscr||0)>=1.5?"var(--green)":(r.dscr||0)>=1.25?"var(--amber)":"var(--red)"],
@@ -43491,7 +43622,11 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     ["Finance Cost",fmt(r.totalFinanceCost||0,currencySymbol),"var(--amber)"],
                     ["Peak Loan Balance",fmt(r.peakLoanBalance||0,currencySymbol),"var(--amber)"],
                     ["Profit",fmt(r.profit||0,currencySymbol),(r.profit||0)>0?"var(--green)":"var(--red)"],
-                    ["Profit on Cost",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
+                    ...((r.developmentMargin!==undefined||r.pocDev!==undefined)?[[
+                      "Development Margin",fmtPct(r.developmentMargin??r.pocDev??0),
+                      (r.developmentMargin??r.pocDev??0)>0.20?"var(--green)":(r.developmentMargin??r.pocDev??0)>0.10?"var(--amber)":"var(--red)"
+                    ]]:[]),
+                    ["Profit on Cost (incl. Hold)",fmtPct(r.poc||0),(r.poc||0)>0.2?"var(--green)":(r.poc||0)>0.1?"var(--amber)":"var(--red)"],
                     ["Profit on GDV",fmtPct(r.margin||0),"var(--text-m)"],
                     ["Yield on Cost",fmtPct(r.yoc||0),"var(--blue)"],
                     ["DSCR",isFinite(r.dscr||0)?r.dscr>=999?"N/A (All Equity)":r.dscr>0?fmtX(r.dscr):"—":"—",(r.dscr||0)>=1.5?"var(--green)":(r.dscr||0)>=1.25?"var(--amber)":"var(--red)"],
