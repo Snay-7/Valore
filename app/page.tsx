@@ -23,21 +23,13 @@ const CSS = `
 
 /* ─── VALORA PALETTE — LIGHT only ─── */
 :root{
-  /* brand green (primary CTA on light bg — Valora light-mode green) */
   --sage:#2E9E72;--sage-l:#52C498;--sage-bg:rgba(46,158,114,0.10);--sage-border:rgba(46,158,114,0.25);
-  /* dark-navy accent (hero mock, footer, final CTA, pricing featured card) */
   --navy:#0F1115;--navy-l:#1A1E26;--navy-ll:#242933;
-  /* gold (used sparingly for headline values on dark backdrops — Valora gold) */
   --gold:#C9A84C;
-  /* surfaces */
   --bg:#F8F5EE;--bg2:#FFFFFF;--bg3:#F2EEE4;
-  /* text */
   --text:#0F1115;--text-m:#3D4351;--text-d:#6B7280;
-  /* borders */
   --border:rgba(15,17,21,0.10);--border-m:rgba(15,17,21,0.18);
-  /* semantic */
   --red:#C24844;--amber:#C57E14;--blue:#2D7AB5;
-  /* type */
   --font:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
   --mono:'JetBrains Mono','SF Mono','Consolas',monospace;
 }
@@ -60,7 +52,6 @@ a{text-decoration:none;color:inherit}
 .reveal-delay-3{transition-delay:.3s}
 .reveal-delay-4{transition-delay:.4s}
 
-/* ═══ NAV ═══ */
 .nav{position:fixed;top:0;left:0;right:0;z-index:200;height:64px;display:flex;align-items:center;padding:0 48px;transition:all .3s;background:rgba(248,245,238,0)}
 .nav.on{background:rgba(248,245,238,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);box-shadow:0 1px 0 var(--border)}
 .nav-logo{font-size:20px;font-weight:700;letter-spacing:-.015em;color:var(--navy);cursor:pointer;flex-shrink:0}
@@ -69,188 +60,67 @@ a{text-decoration:none;color:inherit}
 .nav-links a:hover{color:var(--text)}
 .nav-btns{display:flex;gap:10px;align-items:center}
 
-/* ═══ BUTTONS ═══ */
-.btn-primary{
-  display:inline-flex;align-items:center;gap:8px;
-  background:var(--navy);color:#F6F4EF;
-  padding:0 22px;height:38px;
-  border-radius:8px;
-  font-size:13px;font-weight:600;letter-spacing:-.015em;
-  border:none;cursor:pointer;transition:all .2s;
-  font-family:var(--font);white-space:nowrap;
-}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#F6F4EF;padding:0 22px;height:38px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:-.015em;border:none;cursor:pointer;transition:all .2s;font-family:var(--font);white-space:nowrap}
 .btn-primary:hover{background:var(--navy-l);transform:translateY(-1px)}
-.btn-sage{
-  display:inline-flex;align-items:center;gap:8px;
-  background:var(--sage);color:#fff;
-  padding:0 22px;height:38px;
-  border-radius:8px;
-  font-size:13px;font-weight:600;letter-spacing:-.015em;
-  border:none;cursor:pointer;transition:all .2s;
-  font-family:var(--font);white-space:nowrap;
-}
+.btn-sage{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:#fff;padding:0 22px;height:38px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:-.015em;border:none;cursor:pointer;transition:all .2s;font-family:var(--font);white-space:nowrap}
 .btn-sage:hover{background:#267F5C;transform:translateY(-1px)}
-.btn-ghost{
-  display:inline-flex;align-items:center;gap:8px;
-  background:transparent;color:var(--text-m);
-  padding:0 20px;height:36px;
-  border-radius:8px;
-  font-size:13px;font-weight:600;letter-spacing:-.015em;
-  border:1px solid var(--border-m);cursor:pointer;transition:all .2s;
-  font-family:var(--font);
-}
+.btn-ghost{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--text-m);padding:0 20px;height:36px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:-.015em;border:1px solid var(--border-m);cursor:pointer;transition:all .2s;font-family:var(--font)}
 .btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
 
 .container{max-width:1120px;margin:0 auto;padding:0 48px}
 
-/* ═══ CHIP ═══ */
-.chip{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--sage-bg);border:1px solid var(--sage-border);color:var(--sage);
-  padding:4px 12px;border-radius:999px;
-  font-size:11px;font-weight:600;letter-spacing:-.015em;
-}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--sage-bg);border:1px solid var(--sage-border);color:var(--sage);padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:-.015em}
 
-/* ═══ STAT / FEATURE CARDS ═══ */
-.stat-card{
-  background:var(--bg2);border:1px solid var(--border);
-  border-radius:12px;padding:28px 24px;
-  transition:all .2s;
-}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;transition:all .2s}
 .stat-card:hover{border-color:var(--sage-border);box-shadow:0 4px 20px rgba(46,158,114,.08)}
-.feature-card{
-  background:var(--bg2);border:1px solid var(--border);
-  border-radius:12px;padding:28px;
-  transition:all .25s;position:relative;overflow:hidden;
-}
+.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;transition:all .25s;position:relative;overflow:hidden}
 .feature-card:hover{border-color:var(--sage-border);transform:translateY(-2px);box-shadow:0 8px 32px rgba(46,158,114,.08)}
-.feature-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--sage-l),transparent);
-  opacity:0;transition:opacity .25s;
-}
+.feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--sage-l),transparent);opacity:0;transition:opacity .25s}
 .feature-card:hover::before{opacity:1}
 
-.model-pill{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:4px 10px;border-radius:6px;
-  font-size:11px;font-weight:600;
-  border:1px solid;
-  font-family:var(--mono);font-variant-numeric:tabular-nums;
-}
+.model-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid;font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-/* ═══ PRICING ═══ */
-.price-card{
-  background:var(--bg2);border:1px solid var(--border);
-  border-radius:16px;padding:36px;
-  transition:all .25s;position:relative;
-}
+.price-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:36px;transition:all .25s;position:relative}
 .price-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(15,17,21,.10)}
-.price-card.featured{
-  border:2px solid var(--sage);
-  background:var(--navy);color:#F6F4EF;
-}
+.price-card.featured{border:2px solid var(--sage);background:var(--navy);color:#F6F4EF}
 .price-card.featured .price-desc{color:rgba(246,244,239,.6)}
 .price-card.featured .price-feature{color:rgba(246,244,239,.82);border-color:rgba(255,255,255,.08)}
 .price-card.featured .price-feature::before{color:var(--sage-l)}
-.price-feature{
-  display:flex;align-items:flex-start;gap:10px;
-  padding:8px 0;font-size:13px;color:var(--text-m);
-  border-bottom:1px solid var(--border);font-weight:500;
-}
+.price-feature{display:flex;align-items:flex-start;gap:10px;padding:8px 0;font-size:13px;color:var(--text-m);border-bottom:1px solid var(--border);font-weight:500}
 .price-feature::before{content:'✓';color:var(--sage);font-weight:700;flex-shrink:0;margin-top:1px}
 .price-feature:last-child{border:none}
 
-/* ═══ FAQ ═══ */
 .faq-item{border-bottom:1px solid var(--border)}
-.faq-q{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:20px 0;cursor:pointer;
-  font-size:15px;font-weight:600;color:var(--text);
-  letter-spacing:-.015em;gap:16px;
-}
+.faq-q{display:flex;justify-content:space-between;align-items:center;padding:20px 0;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.015em;gap:16px}
 .faq-a{font-size:14px;color:var(--text-m);line-height:1.75;padding-bottom:20px;font-weight:500}
-.faq-icon{
-  flex-shrink:0;width:22px;height:22px;border-radius:50%;
-  border:1.5px solid var(--border-m);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;color:var(--text-d);transition:all .2s;
-}
+.faq-icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-m);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-d);transition:all .2s}
 .faq-item.open .faq-icon{background:var(--sage);border-color:var(--sage);color:#fff}
 
-/* ═══ TICKER ═══ */
 .ticker-wrap{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2);padding:14px 0}
 .ticker-inner{display:inline-flex;gap:64px;animation:ticker 60s linear infinite}
-.ticker-item{
-  display:inline-flex;align-items:center;gap:10px;
-  font-size:11px;color:var(--text-d);
-  letter-spacing:.08em;text-transform:uppercase;
-  font-weight:600;white-space:nowrap;
-}
+.ticker-item{display:inline-flex;align-items:center;gap:10px;font-size:11px;color:var(--text-d);letter-spacing:.08em;text-transform:uppercase;font-weight:600;white-space:nowrap}
 .ticker-dot{width:4px;height:4px;border-radius:50%;background:var(--sage-l);flex-shrink:0}
 
-/* ═══ SCREENSHOT FRAME (Valora dark surfaces inside) ═══ */
-.screenshot-frame{
-  background:#1A1E26;border-radius:12px;overflow:hidden;
-  border:1px solid rgba(255,255,255,.06);
-  box-shadow:0 40px 80px rgba(15,17,21,.22);
-}
-.screen-bar{
-  background:#242933;padding:12px 16px;
-  display:flex;align-items:center;gap:8px;
-  border-bottom:1px solid rgba(255,255,255,.05);
-}
+.screenshot-frame{background:#1A1E26;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 40px 80px rgba(15,17,21,.22)}
+.screen-bar{background:#242933;padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.05)}
 .screen-dot{width:10px;height:10px;border-radius:50%}
 .screen-content{padding:20px;background:#0F1115}
-.mock-card{
-  background:#1A1E26;border:1px solid rgba(255,255,255,.06);
-  border-radius:8px;padding:14px;
-}
-.mock-label{
-  font-size:10px;color:#949CA0;
-  text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;
-  font-family:var(--mono);font-weight:600;
-}
-.mock-value{
-  font-size:20px;font-weight:700;color:#F6F4EF;
-  font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.015em;
-}
-.mock-badge{
-  display:inline-block;
-  background:rgba(82,196,152,.15);color:#52C498;
-  font-size:10px;font-weight:600;
-  padding:2px 8px;border-radius:4px;margin-top:4px;
-  font-family:var(--mono);letter-spacing:-.015em;
-}
+.mock-card{background:#1A1E26;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:14px}
+.mock-label{font-size:10px;color:#949CA0;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;font-family:var(--mono);font-weight:600}
+.mock-value{font-size:20px;font-weight:700;color:#F6F4EF;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+.mock-badge{display:inline-block;background:rgba(82,196,152,.15);color:#52C498;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-top:4px;font-family:var(--mono);letter-spacing:-.015em}
 .mock-badge-red{background:rgba(244,100,95,.15);color:#F4645F}
 
-/* ═══ MOBILE NAV ═══ */
 .hamburger{display:none;background:none;border:none;cursor:pointer;flex-direction:column;gap:5px;padding:4px}
 .hamburger span{display:block;width:22px;height:1.5px;background:var(--text-m);transition:all .3s}
-.mobile-menu{
-  display:none;position:fixed;inset:0;z-index:199;
-  background:rgba(248,245,238,.98);padding:80px 40px 40px;
-  flex-direction:column;gap:0;backdrop-filter:blur(20px);
-}
+.mobile-menu{display:none;position:fixed;inset:0;z-index:199;background:rgba(248,245,238,.98);padding:80px 40px 40px;flex-direction:column;gap:0;backdrop-filter:blur(20px)}
 .mobile-menu.open{display:flex}
-.mobile-menu a{
-  font-size:24px;font-weight:700;color:var(--text);
-  padding:16px 0;border-bottom:1px solid var(--border);
-  cursor:pointer;letter-spacing:-.02em;
-}
+.mobile-menu a{font-size:24px;font-weight:700;color:var(--text);padding:16px 0;border-bottom:1px solid var(--border);cursor:pointer;letter-spacing:-.02em}
 
-/* ═══ INPUT ═══ */
-.inp{
-  width:100%;padding:13px 16px;
-  background:var(--bg3);border:1px solid var(--border);
-  border-radius:8px;color:var(--text);
-  font-family:var(--font);font-size:14px;font-weight:500;
-  outline:none;transition:all .2s;
-}
+.inp{width:100%;padding:13px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;font-weight:500;outline:none;transition:all .2s}
 .inp:focus{border-color:var(--sage);box-shadow:0 0 0 3px var(--sage-bg);background:var(--bg2)}
 .inp::placeholder{color:var(--text-d)}
 
-/* ═══ RESPONSIVE ═══ */
 @media(max-width:900px){
   .login-wrap{grid-template-columns:1fr !important}
   .login-left{display:none !important}
@@ -442,7 +312,7 @@ function LandingPage({onLogin,onPage}:any){
                   Book a demo
                 </button>
               </div>
-              {/* Micro-proof line — quantified trust signal under the CTAs */}
+              {/* Micro-proof line */}
               <div style={{display:"inline-flex",alignItems:"center",gap:8,marginTop:22,padding:"7px 14px",background:"var(--sage-bg)",border:"1px solid var(--sage-border)",borderRadius:999,animation:"fadeUp .6s .24s ease both",opacity:0}}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 <span style={{fontSize:12,color:"var(--sage)",fontWeight:600,letterSpacing:"-.015em"}}>Used to evaluate £1M–£500M+ opportunities</span>
@@ -458,42 +328,20 @@ function LandingPage({onLogin,onPage}:any){
                   <div style={{flex:1,textAlign:"center",fontSize:10,color:"rgba(246,244,239,.28)",fontFamily:"var(--mono)",fontWeight:500}}>Valora — Jay Mews SW7</div>
                 </div>
                 <div className="screen-content">
-                  {/* Asset type tabs */}
                   <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
                     {["Flip","BTR","BTS","Hotel"].map((m,i)=>(
                       <div key={m} className="model-pill" style={{color:i===0?"#52C498":"#949CA0",background:i===0?"rgba(82,196,152,.15)":"transparent",borderColor:i===0?"rgba(82,196,152,.35)":"rgba(255,255,255,.07)"}}>{m}</div>
                     ))}
                   </div>
-                  {/* Metric cards */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                    <div className="mock-card">
-                      <div className="mock-label">Profit on Cost</div>
-                      <div className="mock-value" style={{fontSize:18}}>18.4%</div>
-                      <div className="mock-badge">On target</div>
-                    </div>
-                    <div className="mock-card">
-                      <div className="mock-label">IRR Levered</div>
-                      <div className="mock-value" style={{fontSize:18}}>24.1%</div>
-                      <div className="mock-badge">Strong</div>
-                    </div>
-                    <div className="mock-card">
-                      <div className="mock-label">GDV</div>
-                      <div className="mock-value" style={{fontSize:18,color:"#C9A84C"}}>£6.6m</div>
-                      <div className="mock-badge">Live</div>
-                    </div>
+                    <div className="mock-card"><div className="mock-label">Profit on Cost</div><div className="mock-value" style={{fontSize:18}}>18.4%</div><div className="mock-badge">On target</div></div>
+                    <div className="mock-card"><div className="mock-label">IRR Levered</div><div className="mock-value" style={{fontSize:18}}>24.1%</div><div className="mock-badge">Strong</div></div>
+                    <div className="mock-card"><div className="mock-label">GDV</div><div className="mock-value" style={{fontSize:18,color:"#C9A84C"}}>£6.6m</div><div className="mock-badge">Live</div></div>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                    <div className="mock-card">
-                      <div className="mock-label">Total Cost</div>
-                      <div className="mock-value" style={{fontSize:16}}>£5.3m</div>
-                    </div>
-                    <div className="mock-card">
-                      <div className="mock-label">Equity Multiple</div>
-                      <div className="mock-value" style={{fontSize:16}}>2.31×</div>
-                      <div className="mock-badge">MOIC</div>
-                    </div>
+                    <div className="mock-card"><div className="mock-label">Total Cost</div><div className="mock-value" style={{fontSize:16}}>£5.3m</div></div>
+                    <div className="mock-card"><div className="mock-label">Equity Multiple</div><div className="mock-value" style={{fontSize:16}}>2.31×</div><div className="mock-badge">MOIC</div></div>
                   </div>
-                  {/* Mini cashflow bars */}
                   <div className="mock-card" style={{padding:"12px 14px"}}>
                     <div className="mock-label" style={{marginBottom:8}}>Monthly Cashflow</div>
                     <div style={{display:"flex",alignItems:"flex-end",gap:3,height:32}}>
@@ -514,10 +362,7 @@ function LandingPage({onLogin,onPage}:any){
           {[...Array(2)].map((_,r)=>(
             <div key={r} style={{display:"inline-flex",gap:64,alignItems:"center"}}>
               {["Build to Rent","Build to Sell","Hotel","House Flip","Mixed Use","Commercial","Industrial","Monthly Cashflow","Sensitivity Analysis","DSCR / ICR","Promote Waterfall","Residual Land Value","AI Sense Check","Live Share Links"].map(t=>(
-                <div key={t} className="ticker-item">
-                  <div className="ticker-dot"/>
-                  {t}
-                </div>
+                <div key={t} className="ticker-item"><div className="ticker-dot"/>{t}</div>
               ))}
             </div>
           ))}
@@ -529,7 +374,7 @@ function LandingPage({onLogin,onPage}:any){
           <div className="stats-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
             {[
               {n:7,suffix:"",label:"Asset models",sub:"BTR to Industrial"},
-              {n:3,suffix:"",label:"AI tools built-in",sub:"Comps · Sense · URL"},
+              {n:3,suffix:"",label:"AI tools built-in",sub:"Sense · Comps · Copilot"},
               {n:45,suffix:"",label:"Sensitivity scenarios",sub:"Per matrix, live"},
               {n:14,suffix:"-day",label:"Free trial",sub:"No card required"},
             ].map(({n,suffix,label,sub})=>(
@@ -544,7 +389,7 @@ function LandingPage({onLogin,onPage}:any){
           </div>
         </div>
       </section>
-      {/* ── WHY VALORA (new — the "assumptions" insight, sets up the AI section) ── */}
+      {/* ── WHY VALORA ── */}
       <section style={{padding:"88px 0"}}>
         <div className="container">
           <div className="reveal" style={{maxWidth:720,margin:"0 auto",textAlign:"center"}}>
@@ -566,7 +411,7 @@ function LandingPage({onLogin,onPage}:any){
           </div>
         </div>
       </section>
-      {/* ── AI SECTION (moved BEFORE features — reads as the direct answer to Why Valora above) ── */}
+      {/* ── AI SECTION ── */}
       <section style={{padding:"96px 0",background:"var(--navy)",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",inset:0,pointerEvents:"none",background:"radial-gradient(ellipse 60% 40% at 20% 30%,rgba(82,196,152,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 85% 70%,rgba(82,196,152,.05) 0%,transparent 55%)"}}/>
         <div className="container" style={{position:"relative",zIndex:1}}>
@@ -584,26 +429,13 @@ function LandingPage({onLogin,onPage}:any){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18,maxWidth:1040,margin:"0 auto"}} className="features-grid reveal reveal-delay-1">
             {[
-              {
-                icon:"◎",title:"AI Sense Check",
-                desc:"Benchmarks your assumptions against market data in real time. Flags aggressive yields, stretched LTC, DSCR breaches and unrealistic build costs — exactly what a senior lender will challenge.",
-                tag:"Auto-flag risks",
-              },
-              {
-                icon:"⊛",title:"AI Market Comps",
-                desc:"Pulls rent PSF, NIY, sale comparables and local transaction data for your postcode. Ranks the most relevant comps and explains why — no more manual CoStar digging.",
-                tag:"Comparable evidence",
-              },
-              {
-                icon:"◈",title:"AI URL Import",
-                desc:"Paste a Rightmove, Zoopla, Christie & Co or Savills listing URL. Valora extracts price, size, rooms, brand and address — pre-filling a Flip or Hotel appraisal in under 10 seconds.",
-                tag:"Zero data entry",
-              },
+              {icon:"◎",title:"AI Sense Check",desc:"Benchmarks your assumptions against market data in real time. Flags aggressive yields, stretched LTC, DSCR breaches and unrealistic build costs — exactly what a senior lender will challenge.",tag:"Auto-flag risks"},
+              {icon:"⊛",title:"AI Market Comps",desc:"Pulls rent PSF, NIY, sale comparables and local transaction data for your postcode. Ranks the most relevant comps and explains why — no more manual CoStar digging.",tag:"Comparable evidence"},
+              {icon:"✦",title:"AI Copilot",desc:"Your underwriting analyst, embedded in every deal. Ask questions in plain English, explore scenarios, challenge your assumptions and draft investor summaries — without leaving the model.",tag:"Coming soon"},
             ].map(f=>(
-              <div key={f.title} style={{background:"rgba(255,255,255,.035)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:"26px 24px",transition:"all .25s var(--val-ease, cubic-bezier(.16,1,.3,1))",position:"relative"}}
+              <div key={f.title} style={{background:"rgba(255,255,255,.035)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:"26px 24px",transition:"all .25s cubic-bezier(.16,1,.3,1)",position:"relative"}}
                 onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(82,196,152,.35)";(e.currentTarget as HTMLDivElement).style.transform="translateY(-2px)";}}
-                onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(255,255,255,.08)";(e.currentTarget as HTMLDivElement).style.transform="none";}}
-              >
+                onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(255,255,255,.08)";(e.currentTarget as HTMLDivElement).style.transform="none";}}>
                 <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:44,height:44,borderRadius:10,background:"rgba(82,196,152,.15)",border:"1px solid rgba(82,196,152,.3)",color:"var(--sage-l)",fontSize:20,marginBottom:16}}>{f.icon}</div>
                 <div style={{display:"inline-block",fontSize:10,fontWeight:700,color:"var(--sage-l)",background:"rgba(82,196,152,.12)",border:"1px solid rgba(82,196,152,.25)",borderRadius:4,padding:"2px 8px",marginBottom:10,letterSpacing:".08em",textTransform:"uppercase"}}>{f.tag}</div>
                 <div style={{fontSize:16,fontWeight:700,color:"#F6F4EF",marginBottom:8,letterSpacing:"-.015em",lineHeight:1.25}}>{f.title}</div>
@@ -640,7 +472,7 @@ function LandingPage({onLogin,onPage}:any){
           </div>
         </div>
       </section>
-      {/* ── TRADITIONAL VS VALORA (new — classic conversion comparison block) ── */}
+      {/* ── TRADITIONAL VS VALORA ── */}
       <section style={{padding:"80px 0"}}>
         <div className="container">
           <div className="reveal" style={{maxWidth:520,margin:"0 auto 48px",textAlign:"center"}}>
@@ -650,7 +482,6 @@ function LandingPage({onLogin,onPage}:any){
             </h2>
           </div>
           <div className="three-col reveal" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:840,margin:"0 auto"}}>
-            {/* Traditional (muted) */}
             <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"28px 26px"}}>
               <div style={{fontSize:11,fontWeight:700,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".12em",marginBottom:20}}>Traditional tools</div>
               {["Manual modelling","Static outputs","Assumption guessing","Hours of work"].map((t,i,arr)=>(
@@ -659,7 +490,6 @@ function LandingPage({onLogin,onPage}:any){
                 </div>
               ))}
             </div>
-            {/* Valora (green accent) */}
             <div style={{background:"var(--bg2)",border:"2px solid var(--sage-border)",borderRadius:12,padding:"28px 26px",position:"relative"}}>
               <div style={{fontSize:11,fontWeight:700,color:"var(--sage)",textTransform:"uppercase",letterSpacing:".12em",marginBottom:20}}>Valora</div>
               {["Instant analysis","Dynamic scenarios","AI-backed benchmarking","Minutes to clarity"].map((t,i,arr)=>(
@@ -692,7 +522,6 @@ function LandingPage({onLogin,onPage}:any){
               </div>
             </div>
             <div className="reveal reveal-delay-2">
-              {/* Mini pipeline mockup */}
               <div className="screenshot-frame">
                 <div className="screen-bar">
                   <div className="screen-dot" style={{background:"#FF5F57"}}/><div className="screen-dot" style={{background:"#FFBD2E"}}/><div className="screen-dot" style={{background:"#28C840"}}/>
@@ -740,16 +569,14 @@ function LandingPage({onLogin,onPage}:any){
                   <span style={{fontSize:14,color:plan.featured?"rgba(246,244,239,.55)":"var(--text-d)",fontWeight:500}}>{plan.period}</span>
                 </div>
                 <div className="price-desc" style={{fontSize:13,color:"var(--text-m)",marginBottom:24,lineHeight:1.55,fontWeight:500}}>{plan.desc}</div>
-                <button
-                  onClick={onLogin}
+                <button onClick={onLogin}
                   style={{width:"100%",height:44,borderRadius:8,fontSize:13,fontWeight:600,letterSpacing:"-.015em",cursor:"pointer",marginBottom:24,background:plan.featured?"var(--sage)":"transparent",color:plan.featured?"#fff":"var(--navy)",border:plan.featured?"none":"2px solid var(--navy)",fontFamily:"var(--font)",transition:"all .2s"}}
                   onMouseEnter={e=>{if(!plan.featured){(e.currentTarget as HTMLButtonElement).style.background="var(--navy)";(e.currentTarget as HTMLButtonElement).style.color="#F6F4EF";}}}
-                  onMouseLeave={e=>{if(!plan.featured){(e.currentTarget as HTMLButtonElement).style.background="transparent";(e.currentTarget as HTMLButtonElement).style.color="var(--navy)";}}}
-                >{plan.cta}</button>
+                  onMouseLeave={e=>{if(!plan.featured){(e.currentTarget as HTMLButtonElement).style.background="transparent";(e.currentTarget as HTMLButtonElement).style.color="var(--navy)";}}}>
+                  {plan.cta}
+                </button>
                 <div style={{display:"flex",flexDirection:"column",gap:0}}>
-                  {plan.features.map(f=>(
-                    <div key={f} className="price-feature">{f}</div>
-                  ))}
+                  {plan.features.map(f=>(<div key={f} className="price-feature">{f}</div>))}
                 </div>
               </div>
             ))}
@@ -778,7 +605,7 @@ function LandingPage({onLogin,onPage}:any){
           </div>
         </div>
       </section>
-      {/* ── FINAL CTA (dark Valora surface for dramatic contrast) ── */}
+      {/* ── FINAL CTA ── */}
       <section style={{padding:"80px 0",background:"var(--navy)"}}>
         <div className="container" style={{textAlign:"center"}}>
           <div className="reveal">
@@ -789,9 +616,7 @@ function LandingPage({onLogin,onPage}:any){
               No credit card. No setup. Three full appraisals free — all models, all analysis tools included.
             </p>
             <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-              <button className="btn-sage" onClick={onLogin} style={{height:48,padding:"0 32px",fontSize:15}}>
-                Start free →
-              </button>
+              <button className="btn-sage" onClick={onLogin} style={{height:48,padding:"0 32px",fontSize:15}}>Start free →</button>
               <button onClick={()=>window.open("https://calendly.com/hello-valoraplatform/30min","_blank")} style={{background:"transparent",color:"rgba(246,244,239,.75)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,height:48,padding:"0 28px",fontSize:15,cursor:"pointer",fontFamily:"var(--font)",fontWeight:600,letterSpacing:"-.015em",transition:"all .2s"}} onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,255,255,.5)";(e.currentTarget as HTMLButtonElement).style.color="#F6F4EF";}} onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,255,255,.2)";(e.currentTarget as HTMLButtonElement).style.color="rgba(246,244,239,.75)";}}>
                 Book a demo
               </button>
@@ -899,7 +724,6 @@ function Login({onBack}:any){
   };
   return(
     <div style={{minHeight:"100vh",display:"grid",gridTemplateColumns:"1fr 1fr"}} className="login-wrap">
-      {/* Left — brand panel (Valora dark) */}
       <div className="login-left" style={{background:"var(--navy)",display:"flex",flexDirection:"column",padding:"48px 64px",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle at 30% 50%, rgba(82,196,152,.08) 0%, transparent 60%)",pointerEvents:"none"}}/>
         <div style={{position:"relative",zIndex:1}}>
@@ -921,7 +745,6 @@ function Login({onBack}:any){
           </div>
         </div>
       </div>
-      {/* Right — auth form */}
       <div className="login-right" style={{display:"flex",alignItems:"center",justifyContent:"center",padding:40,background:"var(--bg)"}}>
         <div style={{width:"100%",maxWidth:420}}>
           <button onClick={onBack} className="btn-ghost" style={{marginBottom:28,height:32,padding:"0 14px",fontSize:12}}>← Back to site</button>
