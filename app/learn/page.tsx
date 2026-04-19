@@ -1,7 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
+/* ═══════════════════════════════════════════════════════════════════════
+   VALORA — LEARN v2
+   Rebranded to the Valora design system. Dark navy sidebar (Navigation +
+   Benchmarks) + dark hero with green radial glow + light/dark content area
+   with benchmark tables, RAG pill chips, tip/warn boxes, coming-soon
+   course cards. All data (MODELS, BENCHMARKS, COMING_SOON_COURSES)
+   preserved verbatim. Theme sync unified with dashboard + pipeline + tasks
+   + team + notes + workspace.
+   ═══════════════════════════════════════════════════════════════════════ */
 const MODELS = [
   { id: "btr", label: "BTR", full: "Build to Rent" },
   { id: "bts", label: "BTS", full: "Build to Sell" },
@@ -11,7 +19,6 @@ const MODELS = [
   { id: "mixeduse", label: "Mixed Use", full: "Mixed Use Schemes" },
   { id: "finance", label: "Finance", full: "Finance & SDLT" },
 ];
-
 const BENCHMARKS: Record<string, {
   description: string;
   tip: string;
@@ -168,91 +175,262 @@ const BENCHMARKS: Record<string, {
     ],
   },
 };
-
 const COMING_SOON_COURSES = [
   { title: "Development Finance Masterclass", level: "Intermediate", duration: "45 min", topics: ["LTC vs LTV", "Drawdown profiles", "Mezzanine structures", "Lender covenants"] },
   { title: "Hotel Underwriting Fundamentals", level: "Intermediate", duration: "60 min", topics: ["RevPAR analysis", "Cap rate selection", "IM waterfall structures", "Operator agreements"] },
   { title: "Residential Development Appraisal", level: "Beginner", duration: "30 min", topics: ["GDV calculation", "Profit on Cost", "Sensitivity analysis", "Viability basics"] },
   { title: "Commercial Yield Guide", level: "Advanced", duration: "50 min", topics: ["Sector yield benchmarks", "WAULT impact", "Void analysis", "ERV vs passing rent"] },
 ];
-
 export default function LearnPage() {
   const router = useRouter();
   const [activeModel, setActiveModel] = useState("btr");
   const bench = BENCHMARKS[activeModel];
-
+  // ── Unified theme sync ──
+  useEffect(() => {
+    const detectTheme = (): "dark" | "light" => {
+      if (typeof document === "undefined") return "light";
+      if (document.body && document.body.classList.contains("light")) return "light";
+      const htmlTheme = document.documentElement.getAttribute("data-theme");
+      if (htmlTheme === "light" || htmlTheme === "dark") return htmlTheme;
+      try {
+        for (const key of ["valora-theme", "val-theme", "theme"]) {
+          const v = localStorage.getItem(key);
+          if (v === "light" || v === "dark") return v;
+        }
+      } catch {}
+      return "light";
+    };
+    const applyTheme = (t: "dark" | "light") => {
+      document.documentElement.setAttribute("data-theme", t);
+      document.body.classList.toggle("light", t === "light");
+      try { localStorage.setItem("valora-theme", t); } catch {}
+      try { localStorage.setItem("val-theme", t); } catch {}
+    };
+    const resync = () => applyTheme(detectTheme());
+    resync();
+    const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", resync);
+    document.addEventListener("visibilitychange", resync);
+    const bodyObs = new MutationObserver(resync);
+    bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    const htmlObs = new MutationObserver(resync);
+    htmlObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", resync);
+      document.removeEventListener("visibilitychange", resync);
+      bodyObs.disconnect();
+      htmlObs.disconnect();
+    };
+  }, []);
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex" }}>
+    <div style={{ minHeight: "100vh", background: "var(--val-bg-app)", display: "flex", fontFamily: "var(--val-font-body)" }}>
       <style>{`
-        :root{--bg:#f8f9fa;--bg2:#ffffff;--bg3:#f1f3f5;--bg4:#e8eaed;--border:#e2e5e9;--text:#1a1f2e;--text-m:#4a5568;--text-d:#9aa0ac;--gold:#2a8a64;--gold-light:#e1f5ee;--gold-border:rgba(42,138,100,.2);--navy:#252D3F;--sidebar-w:220px}
-        @media(prefers-color-scheme:dark){:root{--bg:#0f1117;--bg2:#181c27;--bg3:#1e2330;--bg4:#252d3f;--border:#2a3040;--text:#e8edf5;--text-m:#8892a4;--text-d:#4a5568;--gold:#52c498;--gold-light:rgba(82,196,152,.08);--gold-border:rgba(82,196,152,.2)}}
-        *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif}
-        .sidebar{width:var(--sidebar-w);background:var(--navy);min-height:100vh;position:sticky;top:0;display:flex;flex-direction:column;flex-shrink:0}
-        .nav-item{width:100%;text-align:left;padding:9px 14px;border:none;background:transparent;color:rgba(255,255,255,.55);font-size:13px;cursor:pointer;border-radius:6px;transition:all .15s;display:flex;align-items:center;gap:8px}
-        .nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
-        .nav-item.active{background:rgba(82,196,152,.12);color:#52c498}
-        .main{flex:1;padding:0;overflow-y:auto}
-        .hero{background:var(--navy);padding:40px 40px 36px;position:relative;overflow:hidden}
-        .hero::after{content:"";position:absolute;right:-40px;top:-40px;width:300px;height:300px;border-radius:50%;background:rgba(42,138,100,.08);pointer-events:none}
-        .model-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
-        .model-pill:hover{background:rgba(255,255,255,.1);color:#fff}
-        .model-pill.active{background:rgba(42,138,100,.25);border-color:rgba(42,138,100,.5);color:#52c498}
-        .content{padding:32px 40px;max-width:1000px}
-        .section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-d);margin-bottom:12px}
-        .bench-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
-        .bench-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-        table{width:100%;border-collapse:collapse}
-        th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:var(--text-d);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--bg3);white-space:nowrap}
-        td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:top;line-height:1.5}
-        tr:last-child td{border-bottom:none}
-        tr:hover td{background:var(--bg3)}
-        .metric-name{font-weight:500;color:var(--text)}
-        .metric-desc{font-size:11px;color:var(--text-d);margin-top:2px}
-        .mono{font-family:'DM Mono',monospace;font-size:12px}
-        .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;margin:1px 1px}
-        .pill-g{background:#e1f5ee;color:#085041}
-        .pill-a{background:#faeeda;color:#633806}
-        .pill-r{background:#fcebeb;color:#791f1f}
-        .tip-box{padding:14px 18px;border-left:3px solid var(--gold);background:var(--gold-light);border-radius:0 8px 8px 0;font-size:13px;color:var(--text-m);line-height:1.7;margin-bottom:12px}
-        .warn-box{padding:14px 18px;border-left:3px solid #c07030;background:rgba(192,112,48,.06);border-radius:0 8px 8px 0;font-size:13px;color:var(--text-m);line-height:1.7;margin-bottom:24px}
-        .course-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
-        .course-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#2a8a64,#52c498)}
-        .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
-        .badge-begin{background:#e1f5ee;color:#0f6e56}
-        .badge-inter{background:#e6f1fb;color:#0c447c}
-        .badge-adv{background:#faeeda;color:#633806}
-        .soon-badge{position:absolute;top:16px;right:16px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;color:var(--text-d);font-weight:500}
-        .topic-tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;background:var(--bg3);color:var(--text-m);margin:2px}
-        @media(max-width:768px){.sidebar{display:none}.content{padding:20px}.hero{padding:24px 20px}}
-      `}</style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* ─── VALORA TOKENS — DARK (default) ─── */
+:root,
+:root[data-theme="dark"]{
+  --val-bg-app:#0F1115;--val-bg-panel:#1A1E26;--val-bg-panel-2:#242933;--val-bg-panel-3:#2D3340;
+  --val-text:#F6F4EF;--val-text-mid:#C8CCD4;--val-text-dim:#949CA0;--val-text-faint:#6B7280;
+  --val-gold:#C9A84C;
+  --val-green:#52C498;--val-green-tint:rgba(82,196,152,0.12);--val-green-deep:#2E7D58;
+  --val-amber:#F0A429;--val-amber-tint:rgba(240,164,41,0.12);
+  --val-red:#F4645F;--val-red-tint:rgba(244,100,95,0.12);
+  --val-blue:#5CA5DC;--val-blue-tint:rgba(92,165,220,0.12);
+  --val-border:#383E4A;--val-border-lt:#4A505C;--val-border-accent:rgba(82,196,152,0.35);
+  --val-font-body:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --val-font-mono:'JetBrains Mono','SF Mono','Consolas',monospace;
+  --val-r-xs:4px;--val-r-sm:6px;--val-r-md:8px;--val-r-lg:10px;--val-r-xl:12px;--val-r-pill:999px;
+  --val-ease:cubic-bezier(0.16,1,0.3,1);
+  --val-dur:180ms;
+  --sidebar-w:232px;
+  --val-navy:#1A1E26;
+}
+/* ─── LIGHT ─── */
+body.light,
+:root[data-theme="light"]{
+  --val-bg-app:#F8F5EE;--val-bg-panel:#FFFFFF;--val-bg-panel-2:#F2EEE4;--val-bg-panel-3:#EAE5D8;
+  --val-text:#0F1115;--val-text-mid:#3D4351;--val-text-dim:#6B7280;--val-text-faint:#A0A5AE;
+  --val-gold:#A8843A;
+  --val-green:#2E9E72;--val-green-tint:rgba(46,158,114,0.10);--val-green-deep:#1F7050;
+  --val-amber:#C57E14;--val-amber-tint:rgba(197,126,20,0.10);
+  --val-red:#C24844;--val-red-tint:rgba(194,72,68,0.10);
+  --val-blue:#2D7AB5;--val-blue-tint:rgba(45,122,181,0.10);
+  --val-border:rgba(15,17,21,0.10);--val-border-lt:rgba(15,17,21,0.18);--val-border-accent:rgba(46,158,114,0.35);
+  /* Sidebar + hero stay dark-navy in both themes (matches mockup) */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:var(--val-font-body);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+/* ─── SIDEBAR (always dark navy — matches mockup) ─── */
+.sidebar{
+  width:var(--sidebar-w);background:var(--val-navy);
+  min-height:100vh;position:sticky;top:0;
+  display:flex;flex-direction:column;flex-shrink:0;
+  border-right:1px solid rgba(255,255,255,.05);
+}
+.nav-item{
+  width:100%;text-align:left;
+  padding:9px 14px;border:none;background:transparent;
+  color:rgba(246,244,239,.55);font-size:13px;font-weight:500;letter-spacing:-.005em;
+  cursor:pointer;border-radius:var(--val-r-md);
+  transition:all var(--val-dur) var(--val-ease);
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--val-font-body);
+}
+.nav-item:hover{background:rgba(255,255,255,.06);color:rgba(246,244,239,.95)}
+.nav-item.active{background:var(--val-green-tint);color:var(--val-green);font-weight:600}
+
+/* ─── MAIN ─── */
+.main{flex:1;padding:0;overflow-y:auto}
+
+/* ─── HERO (dark navy with green glow) ─── */
+.hero{
+  background:var(--val-navy);
+  padding:48px 44px 40px;
+  position:relative;overflow:hidden;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.hero::after{
+  content:"";position:absolute;right:-60px;top:-60px;width:340px;height:340px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(82,196,152,.10) 0%,transparent 60%);
+  pointer-events:none;
+}
+.model-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 16px;border-radius:var(--val-r-pill);
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+  color:rgba(246,244,239,.7);font-size:12px;font-weight:500;letter-spacing:-.015em;
+  cursor:pointer;transition:all var(--val-dur) var(--val-ease);white-space:nowrap;
+  font-family:var(--val-font-body);
+}
+.model-pill:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2)}
+.model-pill.active{background:var(--val-green-tint);border-color:var(--val-border-accent);color:var(--val-green);font-weight:600}
+
+/* ─── CONTENT ─── */
+.content{padding:36px 44px;max-width:1080px;color:var(--val-text);background:var(--val-bg-app)}
+.section-label{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--val-text-dim);margin-bottom:14px;
+}
+
+/* ─── BENCH CARD / TABLE ─── */
+.bench-card{
+  background:var(--val-bg-panel);
+  border:1px solid var(--val-border);
+  border-radius:var(--val-r-lg);overflow:hidden;margin-bottom:24px;
+}
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;padding:12px 18px;
+  font-size:11px;font-weight:600;
+  color:var(--val-text-dim);text-transform:uppercase;letter-spacing:.08em;
+  border-bottom:1px solid var(--val-border);
+  background:var(--val-bg-panel-2);white-space:nowrap;
+}
+td{
+  padding:14px 18px;
+  border-bottom:1px solid var(--val-border);
+  font-size:13px;color:var(--val-text);vertical-align:top;line-height:1.55;
+}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--val-bg-panel-2)}
+.metric-name{font-weight:600;color:var(--val-text);letter-spacing:-.015em}
+.metric-desc{font-size:11px;color:var(--val-text-dim);margin-top:3px;font-weight:500}
+.mono{font-family:var(--val-font-mono);font-size:12px;font-variant-numeric:tabular-nums;font-weight:500}
+
+/* ─── RAG PILLS ─── */
+.pill{
+  display:inline-block;padding:2px 8px;border-radius:var(--val-r-xs);
+  font-size:11px;font-weight:600;letter-spacing:-.015em;margin:1px 1px;
+}
+.pill-g{background:var(--val-green-tint);color:var(--val-green)}
+.pill-a{background:var(--val-amber-tint);color:var(--val-amber)}
+.pill-r{background:var(--val-red-tint);color:var(--val-red)}
+
+/* ─── TIP / WARN BOXES ─── */
+.tip-box{
+  padding:14px 18px;border-left:3px solid var(--val-green);
+  background:var(--val-green-tint);border-radius:0 var(--val-r-md) var(--val-r-md) 0;
+  font-size:13px;color:var(--val-text-mid);line-height:1.7;margin-bottom:14px;font-weight:500;
+}
+.warn-box{
+  padding:14px 18px;border-left:3px solid var(--val-amber);
+  background:var(--val-amber-tint);border-radius:0 var(--val-r-md) var(--val-r-md) 0;
+  font-size:13px;color:var(--val-text-mid);line-height:1.7;margin-bottom:24px;font-weight:500;
+}
+
+/* ─── COURSE CARDS ─── */
+.course-card{
+  background:var(--val-bg-panel);
+  border:1px solid var(--val-border);
+  border-radius:var(--val-r-lg);
+  padding:22px;
+  position:relative;overflow:hidden;
+  transition:border-color var(--val-dur) var(--val-ease);
+}
+.course-card:hover{border-color:var(--val-border-lt)}
+.course-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--val-green-deep),var(--val-green));
+}
+.badge{
+  display:inline-block;padding:2px 9px;border-radius:var(--val-r-xs);
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+}
+.badge-begin{background:var(--val-green-tint);color:var(--val-green)}
+.badge-inter{background:var(--val-blue-tint);color:var(--val-blue)}
+.badge-adv{background:var(--val-amber-tint);color:var(--val-amber)}
+.soon-badge{
+  position:absolute;top:18px;right:18px;
+  background:var(--val-bg-panel-2);
+  border:1px solid var(--val-border);
+  border-radius:var(--val-r-sm);
+  padding:3px 9px;font-size:10px;color:var(--val-text-dim);font-weight:600;
+  letter-spacing:-.015em;
+}
+.topic-tag{
+  display:inline-block;padding:3px 9px;border-radius:var(--val-r-xs);
+  font-size:11px;background:var(--val-bg-panel-2);color:var(--val-text-mid);margin:2px;
+  font-weight:500;letter-spacing:-.015em;
+}
+
+@media(max-width:900px){
+  .sidebar{display:none}
+  .content{padding:24px 20px}
+  .hero{padding:28px 20px}
+}
+      `}</style>
+      <script dangerouslySetInnerHTML={{__html:`(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');else if(document.body)document.body.classList.remove('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()`}}/>
       {/* Sidebar */}
       <div className="sidebar">
-        <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "-.02em" }}>Valora</div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 2 }}>Development Appraisal</div>
+        <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#F6F4EF", letterSpacing: "-.015em", lineHeight: 1 }}>Valora</div>
+          <div style={{ fontSize: 10, color: "rgba(246,244,239,.35)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 4, fontWeight: 500 }}>Development Appraisal</div>
         </div>
-        <div style={{ padding: "14px 10px", flex: 1 }}>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 10px", marginBottom: 6 }}>Navigation</div>
+        <div style={{ padding: "16px 10px", flex: 1 }}>
+          <div style={{ fontSize: 10, color: "rgba(246,244,239,.35)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>Navigation</div>
           <button className="nav-item" onClick={() => router.push("/dashboard")}>← Dashboard</button>
           <button className="nav-item active">Learn</button>
-          <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "10px 0" }} />
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: ".12em", padding: "0 10px", marginBottom: 6 }}>Benchmarks</div>
+          <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "12px 8px" }} />
+          <div style={{ fontSize: 10, color: "rgba(246,244,239,.35)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>Benchmarks</div>
           {MODELS.map(m => (
             <button key={m.id} className={`nav-item ${activeModel === m.id ? "active" : ""}`} onClick={() => setActiveModel(m.id)}>
-              {m.label} <span style={{ fontSize: 11, opacity: .5 }}>— {m.full}</span>
+              {m.label} <span style={{ fontSize: 11, opacity: .5, fontWeight: 400 }}>— {m.full}</span>
             </button>
           ))}
         </div>
       </div>
-
       {/* Main content */}
       <div className="main">
         {/* Hero */}
         <div className="hero">
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 10 }}>Valora Learn</div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: "-.03em", marginBottom: 8 }}>Benchmark Reference</h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,.55)", maxWidth: 560, lineHeight: 1.6, marginBottom: 24 }}>
+          <div style={{ fontSize: 11, color: "rgba(246,244,239,.4)", textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 12, fontWeight: 600 }}>Valora Learn</div>
+          <h1 style={{ fontSize: 34, fontWeight: 700, color: "#F6F4EF", letterSpacing: "-.03em", marginBottom: 10, lineHeight: 1.1 }}>Benchmark Reference</h1>
+          <p style={{ fontSize: 14, color: "rgba(246,244,239,.55)", maxWidth: 600, lineHeight: 1.6, marginBottom: 26, fontWeight: 500 }}>
             Institutional benchmarks for every asset model. Use these when you're unsure about inputs — built from real market data and updated regularly.
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -263,23 +441,19 @@ export default function LearnPage() {
             ))}
           </div>
         </div>
-
         <div className="content">
           {/* Description */}
-          <p style={{ fontSize: 14, color: "var(--text-m)", lineHeight: 1.7, marginBottom: 20 }}>{bench.description}</p>
-
+          <p style={{ fontSize: 14, color: "var(--val-text-mid)", lineHeight: 1.7, marginBottom: 20, fontWeight: 500 }}>{bench.description}</p>
           {/* Key formula */}
           <div className="tip-box">
-            <span style={{ fontWeight: 600, color: "var(--gold)", marginRight: 6 }}>Formula:</span>
+            <span style={{ fontWeight: 600, color: "var(--val-green)", marginRight: 6 }}>Formula:</span>
             {bench.tip}
           </div>
-
           {/* Warning */}
           <div className="warn-box">
-            <span style={{ fontWeight: 600, color: "#c07030", marginRight: 6 }}>Watch out:</span>
+            <span style={{ fontWeight: 600, color: "var(--val-amber)", marginRight: 6 }}>Watch out:</span>
             {bench.warning}
           </div>
-
           {/* Main benchmark table */}
           <div className="section-label">Input & metric benchmarks</div>
           <div className="bench-card">
@@ -308,16 +482,15 @@ export default function LearnPage() {
                           <span className="pill pill-r">{row.rag[2]}</span>
                         </>
                       ) : (
-                        <span style={{ fontSize: 12, color: "var(--text-d)" }}>Contextual — see notes</span>
+                        <span style={{ fontSize: 12, color: "var(--val-text-dim)", fontWeight: 500 }}>Contextual — see notes</span>
                       )}
                     </td>
-                    <td style={{ fontSize: 12, color: "var(--text-m)" }}>{row.notes}</td>
+                    <td style={{ fontSize: 12, color: "var(--val-text-mid)", fontWeight: 500 }}>{row.notes}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
           {/* Extra tables */}
           {bench.extra?.map((ext, ei) => (
             <div key={ei}>
@@ -332,8 +505,8 @@ export default function LearnPage() {
                       <tr key={ri}>
                         <td><div className="metric-name">{row.col1}</div></td>
                         <td><span className="mono">{row.col2}</span></td>
-                        <td style={{ fontSize: 12, color: "var(--text-m)" }}>{row.col3}</td>
-                        {row.col4 !== undefined && <td style={{ fontSize: 12, color: "var(--text-m)" }}>{row.col4}</td>}
+                        <td style={{ fontSize: 12, color: "var(--val-text-mid)", fontWeight: 500 }}>{row.col3}</td>
+                        {row.col4 !== undefined && <td style={{ fontSize: 12, color: "var(--val-text-mid)", fontWeight: 500 }}>{row.col4}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -341,23 +514,21 @@ export default function LearnPage() {
               </div>
             </div>
           ))}
-
           {/* Coming soon courses */}
-          <div style={{ marginTop: 40 }}>
+          <div style={{ marginTop: 44 }}>
             <div className="section-label">Courses — coming soon</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
               {COMING_SOON_COURSES.map((course, i) => (
                 <div key={i} className="course-card">
                   <div className="soon-badge">Coming soon</div>
                   <span className={`badge ${course.level === "Beginner" ? "badge-begin" : course.level === "Advanced" ? "badge-adv" : "badge-inter"}`}>{course.level}</span>
-                  <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", margin: "10px 0 6px", lineHeight: 1.3 }}>{course.title}</h3>
-                  <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 12 }}>{course.duration}</div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--val-text)", margin: "12px 0 6px", lineHeight: 1.3, letterSpacing: "-.015em" }}>{course.title}</h3>
+                  <div style={{ fontSize: 12, color: "var(--val-text-dim)", marginBottom: 12, fontWeight: 500 }}>{course.duration}</div>
                   <div>{course.topics.map((t, ti) => <span key={ti} className="topic-tag">{t}</span>)}</div>
                 </div>
               ))}
             </div>
           </div>
-
           <div style={{ height: 60 }} />
         </div>
       </div>
