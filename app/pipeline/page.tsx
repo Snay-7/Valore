@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
-
 // ═══════════════════════════════════════════════════════════════════════
 // VALORA PIPELINE v7 — Drop-in single-file page, defensive theme sync
 //
@@ -21,9 +20,7 @@ import { useRouter } from "next/navigation";
 // All Supabase queries, drag/drop, side-panel, tasks/notes/activity
 // logic preserved verbatim from the production pipeline page.
 // ═══════════════════════════════════════════════════════════════════════
-
 const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 .kb-board {
       display: grid;
       grid-template-columns: repeat(5, minmax(280px, 1fr));
@@ -156,13 +153,11 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
       font-family: inherit;
     }
     .pipeline-topnav__item--active { color: var(--val-green); border-color: var(--val-green); }
-
 /* ──────────────────────────────────────────────────────────────
    VALORA — DESIGN TOKENS v1
    Foundation layer: colours, typography, spacing, radii, motion.
    Import first in your global stylesheet, then import components.css
    ────────────────────────────────────────────────────────────── */
-
 /* Default theme = dark. Set data-theme="light" on <html> to switch. */
 :root,
 :root[data-theme="dark"] {
@@ -172,13 +167,11 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-bg-panel-2:      #242933;    /* elevated / input bg */
   --val-bg-panel-3:      #2D3340;    /* input filled / hover */
   --val-bg-overlay:      rgba(15,17,21,0.72);   /* modal backdrop */
-
   /* ─── COLOUR — TEXT (dark) ─── */
   --val-text:            #F6F4EF;    /* primary cream text */
   --val-text-mid:        #C8CCD4;    /* secondary labels */
   --val-text-dim:        #949CA0;    /* tertiary / captions */
   --val-text-faint:      #6B7280;    /* placeholders, disabled */
-
   /* ─── COLOUR — BRAND / ACCENTS (dark) ─── */
   --val-gold:            #C9A84C;    /* headline values, active tab, brand */
   --val-green:           #52C498;    /* positive / valora primary / CTAs */
@@ -188,18 +181,15 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-amber-tint:      rgba(240,164,41,0.12);
   --val-red:             #F4645F;    /* alert / negative */
   --val-red-tint:        rgba(244,100,95,0.12);
-  --val-blue:            #5CA5DC;    /* informational / neutral highlight */
+  --val-blue:             #5CA5DC;   /* informational / neutral highlight */
   --val-blue-tint:       rgba(92,165,220,0.12);
-
   /* ─── COLOUR — BORDERS (dark) ─── */
   --val-border:          #383E4A;    /* default card/panel border */
   --val-border-lt:       #4A505C;    /* elevated / input border */
   --val-border-accent:   rgba(82,196,152,0.35);   /* active input outline */
-
   /* ─── TYPOGRAPHY — FAMILIES ─── */
   --val-font-body:       'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --val-font-mono:       'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
-
   /* ─── TYPOGRAPHY — SIZE SCALE ─── */
   --val-size-10:  10px;
   --val-size-11:  11px;
@@ -216,19 +206,16 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-size-40:  40px;
   --val-size-48:  48px;
   --val-size-64:  64px;
-
   /* ─── TYPOGRAPHY — WEIGHT ─── */
   --val-w-regular:  400;
   --val-w-medium:   500;
   --val-w-semibold: 600;
   --val-w-bold:     700;
-
   /* ─── TYPOGRAPHY — LINE HEIGHT ─── */
   --val-lh-tight:   1.1;
   --val-lh-snug:    1.25;
   --val-lh-normal:  1.45;
   --val-lh-loose:   1.6;
-
   /* ─── TYPOGRAPHY — LETTER SPACING ─── */
   --val-track-tight:   -0.03em;
   --val-track-snug:    -0.015em;
@@ -236,7 +223,6 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-track-wide:    0.04em;
   --val-track-wider:   0.08em;
   --val-track-widest:  0.14em;  /* caps labels */
-
   /* ─── SPACING SCALE (in px, 4px grid) ─── */
   --val-s-0:    0;
   --val-s-1:    4px;
@@ -252,7 +238,6 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-s-14:   56px;
   --val-s-16:   64px;
   --val-s-20:   80px;
-
   /* ─── RADII ─── */
   --val-r-xs:     4px;   /* chip, small pill */
   --val-r-sm:     6px;   /* button */
@@ -260,16 +245,13 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-r-lg:     10px;  /* card */
   --val-r-xl:     12px;  /* feature card, message bubble */
   --val-r-pill:   999px; /* status chip, primary pill */
-
   /* ─── SHADOWS (subtle — dark UI relies on borders more than shadows) ─── */
   --val-shadow-sm:  0 1px 2px rgba(0,0,0,0.12);
   --val-shadow-md:  0 4px 12px rgba(0,0,0,0.20);
   --val-shadow-lg:  0 20px 60px rgba(0,0,0,0.45);
   --val-shadow-inset:  inset 0 1px 0 rgba(255,255,255,0.02);
-
   /* ─── FOCUS RING (accessibility) ─── */
   --val-ring:       0 0 0 2px var(--val-bg-app), 0 0 0 4px var(--val-green);
-
   /* ─── MOTION ─── */
   --val-ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
   --val-ease-out-back:   cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -277,19 +259,16 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-dur-fast:        120ms;
   --val-dur-base:        200ms;
   --val-dur-slow:        320ms;
-
   /* ─── LAYOUT TOKENS ─── */
   --val-nav-h:          56px;
   --val-tabbar-h:       44px;
   --val-copilot-w:      560px;      /* right-side Copilot panel width */
   --val-content-max:    1400px;     /* max content width on ultra-wide */
 }
-
 /* ══════════════════════════════════════════════════════════════
    LIGHT THEME — activated by <html data-theme="light">
    Cream surface, navy ink, same brand accents (adjusted for legibility)
    ══════════════════════════════════════════════════════════════ */
-
 :root[data-theme="light"] {
   /* Surfaces */
   --val-bg-app:          #F8F5EE;    /* cream (matches landing page) */
@@ -297,13 +276,11 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-bg-panel-2:      #F2EEE4;    /* input / elevated */
   --val-bg-panel-3:      #EAE5D8;    /* hover / pressed */
   --val-bg-overlay:      rgba(15,17,21,0.5);
-
   /* Text */
   --val-text:            #0F1115;    /* navy */
   --val-text-mid:        #3D4351;
   --val-text-dim:        #6B7280;
   --val-text-faint:      #A0A5AE;
-
   /* Brand (slightly deeper for contrast on cream) */
   --val-gold:            #A8843A;
   --val-green:           #2E9E72;
@@ -315,19 +292,16 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
   --val-red-tint:        rgba(194,72,68,0.10);
   --val-blue:            #2D7AB5;
   --val-blue-tint:       rgba(45,122,181,0.10);
-
   /* Borders */
   --val-border:          rgba(15,17,21,0.10);
   --val-border-lt:       rgba(15,17,21,0.18);
   --val-border-accent:   rgba(46,158,114,0.35);
-
   /* Shadows (more pronounced on light bg) */
   --val-shadow-sm:       0 1px 2px rgba(15,17,21,0.06);
   --val-shadow-md:       0 4px 12px rgba(15,17,21,0.08);
   --val-shadow-lg:       0 20px 60px rgba(15,17,21,0.15);
   --val-shadow-inset:    inset 0 0 0 1px rgba(15,17,21,0.02);
 }
-
 /* Respect system preference as initial state (optional — remove if manual-only) */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -335,7 +309,6 @@ const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppin
        Remove this @media block if you want to default to dark always. */
   }
 }
-
 /* ─── RESET / BASE ─── */
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
@@ -354,7 +327,6 @@ body { min-height: 100vh; }
 a { color: var(--val-green); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { font-family: inherit; }
-
 /* ─── SCROLLBARS (subtle) ─── */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -364,25 +336,19 @@ button { font-family: inherit; }
   border: 2px solid var(--val-bg-app);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--val-text-dim); }
-
 /* ─── SELECTION ─── */
 ::selection { background: var(--val-green-tint); color: var(--val-text); }
-
-
 /* ──────────────────────────────────────────────────────────────
    VALORA — COMPONENTS v1
    Depends on tokens.css. Every class prefixed \`val-\` to avoid
    collisions when you drop into an existing codebase.
    ────────────────────────────────────────────────────────────── */
-
 /* ══════════════════════════════ LAYOUT ══════════════════════════════ */
-
 .val-app {
   min-height: 100vh;
   display: flex;
   background: var(--val-bg-app);
 }
-
 .val-main {
   display: flex;
   flex: 1;
@@ -390,18 +356,14 @@ button { font-family: inherit; }
   min-height: 0;
   min-width: 0;
 }
-
 .val-content {
   flex: 1;
   min-width: 0;
   padding: var(--val-s-8) var(--val-s-10);
   overflow-y: auto;
 }
-
 .val-content--narrow { max-width: 1100px; margin: 0 auto; width: 100%; }
-
 /* ══════════════════════════════ SIDEBAR ══════════════════════════════ */
-
 .val-sidebar {
   width: 232px;
   flex-shrink: 0;
@@ -414,7 +376,6 @@ button { font-family: inherit; }
   top: 0;
   z-index: 20;
 }
-
 .val-sidebar__brand {
   padding: var(--val-s-5) var(--val-s-5) var(--val-s-4);
 }
@@ -433,7 +394,6 @@ button { font-family: inherit; }
   color: var(--val-text-dim);
   margin-top: 4px;
 }
-
 .val-sidebar__section-title {
   font-size: 10px;
   font-weight: var(--val-w-semibold);
@@ -442,14 +402,12 @@ button { font-family: inherit; }
   color: var(--val-text-dim);
   padding: var(--val-s-4) var(--val-s-5) var(--val-s-2);
 }
-
 .val-sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 0 var(--val-s-3);
 }
-
 .val-nav-item {
   display: flex;
   align-items: center;
@@ -495,7 +453,6 @@ button { font-family: inherit; }
   min-width: 18px;
   text-align: center;
 }
-
 .val-sidebar__footer {
   margin-top: auto;
   padding: var(--val-s-4) var(--val-s-5);
@@ -515,14 +472,11 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: space-between;
 }
-
 /* light theme → sidebar bg stays white */
 :root[data-theme="light"] .val-sidebar {
   background: var(--val-bg-panel);
 }
-
 /* ══════════════════════════════ THEME TOGGLE ══════════════════════════════ */
-
 .val-theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -542,9 +496,7 @@ button { font-family: inherit; }
   color: var(--val-text);
   border-color: var(--val-border-lt);
 }
-
 /* ══════════════════════════════ PAGE HEADER ══════════════════════════════ */
-
 .val-page-header {
   display: flex;
   align-items: flex-start;
@@ -572,9 +524,24 @@ button { font-family: inherit; }
   gap: var(--val-s-2);
   flex-shrink: 0;
 }
-
+/* ══════════════════════════════ MOBILE HAMBURGER ══════════════════════════════ */
+.val-hamburger {
+  display: none;
+  width: 40px; height: 40px;
+  border-radius: var(--val-r-sm);
+  border: 1px solid var(--val-border);
+  background: var(--val-bg-panel);
+  color: var(--val-text);
+  cursor: pointer;
+  font-family: inherit;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.val-hamburger svg { width: 20px; height: 20px; }
+.val-sidebar__backdrop { display: none; }
 /* ══════════════════════════════ STAT STRIP ══════════════════════════════ */
-
 .val-stat-strip {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -605,9 +572,7 @@ button { font-family: inherit; }
   letter-spacing: var(--val-track-snug);
   font-variant-numeric: tabular-nums;
 }
-
 /* ══════════════════════════════ TYPE PILLS ══════════════════════════════ */
-
 .val-type-pill {
   display: inline-flex;
   align-items: center;
@@ -624,9 +589,7 @@ button { font-family: inherit; }
 .val-type-pill--mixeduse  { background: rgba(46,158,114,0.15);  color: var(--val-green); }
 .val-type-pill--commercial{ background: rgba(92,165,220,0.15);  color: var(--val-blue); }
 .val-type-pill--industrial{ background: rgba(148,152,160,0.18); color: var(--val-text-mid); }
-
 /* ══════════════════════════════ DEAL CARD ══════════════════════════════ */
-
 .val-deal-card {
   background: var(--val-bg-panel);
   border: 1px solid var(--val-border);
@@ -704,9 +667,7 @@ button { font-family: inherit; }
   color: var(--val-green);
   font-variant-numeric: tabular-nums;
 }
-
 /* ══════════════════════════════ TAB FILTER (sub-tabs) ══════════════════════════════ */
-
 .val-filter-tabs {
   display: flex;
   gap: var(--val-s-5);
@@ -737,9 +698,7 @@ button { font-family: inherit; }
   height: 2px;
   background: var(--val-green);
 }
-
 /* ══════════════════════════════ TOP NAV ══════════════════════════════ */
-
 .val-nav {
   height: var(--val-nav-h);
   background: var(--val-bg-panel);
@@ -752,14 +711,12 @@ button { font-family: inherit; }
   top: 0;
   z-index: 40;
 }
-
 .val-nav__brand {
   font-weight: var(--val-w-bold);
   font-size: var(--val-size-22);
   letter-spacing: var(--val-track-snug);
   color: var(--val-text);
 }
-
 .val-breadcrumb {
   display: flex;
   align-items: center;
@@ -770,14 +727,12 @@ button { font-family: inherit; }
 }
 .val-breadcrumb__sep { opacity: 0.5; }
 .val-breadcrumb__current { color: var(--val-text); }
-
 .val-nav__right {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--val-s-4);
 }
-
 .val-avatar-stack {
   display: flex;
   align-items: center;
@@ -797,9 +752,7 @@ button { font-family: inherit; }
 }
 .val-avatar:first-child { margin-left: 0; }
 .val-avatar--me { background: var(--val-green); color: var(--val-bg-app); }
-
 /* ══════════════════════════════ TAB BAR ══════════════════════════════ */
-
 .val-tabbar {
   display: flex;
   gap: var(--val-s-1);
@@ -838,9 +791,7 @@ button { font-family: inherit; }
   background: var(--val-gold);
   border-radius: 2px 2px 0 0;
 }
-
 /* ══════════════════════════════ DEAL HEADER ══════════════════════════════ */
-
 .val-deal-header {
   display: flex;
   align-items: flex-start;
@@ -864,9 +815,7 @@ button { font-family: inherit; }
   font-weight: var(--val-w-medium);
   margin-top: var(--val-s-1);
 }
-
 /* ══════════════════════════════ CARD ══════════════════════════════ */
-
 .val-card {
   background: var(--val-bg-panel);
   border: 1px solid var(--val-border);
@@ -890,9 +839,7 @@ button { font-family: inherit; }
   margin-top: -6px;
   margin-bottom: var(--val-s-2);
 }
-
 /* ══════════════════════════════ METRIC ROW ══════════════════════════════ */
-
 .val-metric-row {
   display: flex;
   align-items: center;
@@ -927,7 +874,6 @@ button { font-family: inherit; }
 .val-metric-row--total .val-metric-row__value {
   color: var(--val-gold);
 }
-
 /* state-coloured values */
 .val-v--gold   { color: var(--val-gold)  !important; }
 .val-v--green  { color: var(--val-green) !important; }
@@ -936,9 +882,7 @@ button { font-family: inherit; }
 .val-v--blue   { color: var(--val-blue)  !important; }
 .val-v--mid    { color: var(--val-text-mid) !important; }
 .val-v--dim    { color: var(--val-text-dim) !important; }
-
 /* ══════════════════════════════ CHIP / STATUS ══════════════════════════════ */
-
 .val-chip {
   display: inline-flex;
   align-items: center;
@@ -960,7 +904,6 @@ button { font-family: inherit; }
 .val-chip--red    { background: var(--val-red-tint);    color: var(--val-red);    border: 1px solid rgba(244,100,95,0.3); }
 .val-chip--blue   { background: var(--val-blue-tint);   color: var(--val-blue);   border: 1px solid rgba(92,165,220,0.3); }
 .val-chip--neutral{ background: rgba(255,255,255,0.04); color: var(--val-text-mid); border: 1px solid var(--val-border); }
-
 /* confidence / provenance chip (smaller, flat) */
 .val-chip-sm {
   display: inline-flex;
@@ -972,9 +915,7 @@ button { font-family: inherit; }
   font-weight: var(--val-w-medium);
   letter-spacing: var(--val-track-wide);
 }
-
 /* ══════════════════════════════ BUTTON ══════════════════════════════ */
-
 .val-btn {
   display: inline-flex;
   align-items: center;
@@ -995,13 +936,11 @@ button { font-family: inherit; }
 }
 .val-btn:active { transform: translateY(1px); }
 .val-btn:focus-visible { outline: none; box-shadow: var(--val-ring); }
-
 .val-btn--primary {
   background: var(--val-green);
   color: var(--val-bg-app);
 }
 .val-btn--primary:hover { background: #5DD3A4; }
-
 .val-btn--secondary {
   background: transparent;
   color: var(--val-text-mid);
@@ -1011,7 +950,6 @@ button { font-family: inherit; }
   color: var(--val-text);
   border-color: var(--val-text-dim);
 }
-
 .val-btn--ghost {
   background: transparent;
   color: var(--val-text-dim);
@@ -1020,12 +958,9 @@ button { font-family: inherit; }
   color: var(--val-text);
   background: rgba(255,255,255,0.04);
 }
-
 .val-btn--sm { height: 28px; padding: 0 var(--val-s-3); font-size: var(--val-size-12); }
 .val-btn--lg { height: 44px; padding: 0 var(--val-s-5); font-size: var(--val-size-14); }
-
 /* ══════════════════════════════ INPUT ══════════════════════════════ */
-
 .val-input {
   width: 100%;
   height: 40px;
@@ -1047,7 +982,6 @@ button { font-family: inherit; }
   box-shadow: 0 0 0 3px var(--val-green-tint);
 }
 .val-input--mono { font-family: var(--val-font-mono); font-variant-numeric: tabular-nums; }
-
 .val-label {
   display: block;
   font-size: var(--val-size-11);
@@ -1057,11 +991,8 @@ button { font-family: inherit; }
   color: var(--val-text-dim);
   margin-bottom: var(--val-s-2);
 }
-
 .val-input-group { display: flex; flex-direction: column; gap: 0; }
-
 /* ══════════════════════════════ SECTION TITLE ══════════════════════════════ */
-
 .val-section-title {
   font-size: var(--val-size-11);
   font-weight: var(--val-w-semibold);
@@ -1070,25 +1001,19 @@ button { font-family: inherit; }
   color: var(--val-text-dim);
   margin: var(--val-s-10) 0 var(--val-s-3);
 }
-
 /* ══════════════════════════════ GRID / STACK ══════════════════════════════ */
-
 .val-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--val-s-5); }
 .val-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--val-s-5); }
 .val-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--val-s-4); }
 .val-stack  { display: flex; flex-direction: column; gap: var(--val-s-5); }
 .val-row    { display: flex; align-items: center; gap: var(--val-s-3); }
-
 /* ══════════════════════════════ DIVIDER ══════════════════════════════ */
-
 .val-divider {
   height: 1px;
   background: var(--val-border);
   margin: var(--val-s-6) 0;
 }
-
 /* ══════════════════════════════ COPILOT PANEL ══════════════════════════════ */
-
 .val-copilot {
   width: var(--val-copilot-w);
   flex-shrink: 0;
@@ -1133,7 +1058,6 @@ button { font-family: inherit; }
 }
 .val-copilot__sparkle::before { inset: 8px 0; width: 100%; height: 4px; }
 .val-copilot__sparkle::after  { inset: 0 8px; width: 4px; height: 100%; }
-
 .val-copilot__body {
   flex: 1;
   overflow-y: auto;
@@ -1142,7 +1066,6 @@ button { font-family: inherit; }
   flex-direction: column;
   gap: var(--val-s-5);
 }
-
 .val-copilot__context {
   background: var(--val-bg-panel);
   border: 1px solid var(--val-border);
@@ -1162,7 +1085,6 @@ button { font-family: inherit; }
   font-weight: var(--val-w-medium);
   margin-top: 4px;
 }
-
 .val-msg { display: flex; flex-direction: column; gap: var(--val-s-2); max-width: 88%; }
 .val-msg--user   { align-self: flex-end; }
 .val-msg--bot    { align-self: flex-start; }
@@ -1188,7 +1110,6 @@ button { font-family: inherit; }
   color: var(--val-text-dim);
   font-weight: var(--val-w-medium);
 }
-
 .val-copilot__input-wrap {
   border-top: 1px solid var(--val-border);
   padding: var(--val-s-3) var(--val-s-4) var(--val-s-4);
@@ -1215,7 +1136,6 @@ button { font-family: inherit; }
   border-color: var(--val-green);
   color: var(--val-green);
 }
-
 .val-copilot__input {
   position: relative;
   display: flex;
@@ -1254,9 +1174,7 @@ button { font-family: inherit; }
   font-weight: var(--val-w-regular);
   margin-top: var(--val-s-2);
 }
-
 /* ══════════════════════════════ UTILITY ══════════════════════════════ */
-
 .val-muted { color: var(--val-text-dim) !important; }
 .val-bold  { font-weight: var(--val-w-bold) !important; }
 .val-mono  { font-family: var(--val-font-mono) !important; font-variant-numeric: tabular-nums; }
@@ -1266,15 +1184,148 @@ button { font-family: inherit; }
   .val-copilot { display: none; }
   :root { --val-copilot-w: 0; }
 }
-
 /* ══════════════════════════════ FOCUS VISIBLE ══════════════════════════════ */
-
 :focus-visible {
   outline: 2px solid var(--val-green);
   outline-offset: 2px;
 }
-button:focus-visible, a:focus-visible { box-shadow: var(--val-ring); outline: none; }`;
+button:focus-visible, a:focus-visible { box-shadow: var(--val-ring); outline: none; }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE — ≤ 768px
+   Sidebar becomes a slide-in drawer triggered by hamburger.
+   Kanban becomes a horizontal swipe-through-stages layout.
+   Side panel docks to the bottom as a sheet.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* App layout: sidebar is overlaid, main takes full width */
+  .val-app { display: block; min-height: 100vh; }
+  .val-main { width: 100%; }
+
+  /* Sidebar as drawer — hidden by default */
+  .val-sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: min(272px, 80vw);
+    height: 100vh;
+    min-height: 0;
+    transform: translateX(-100%);
+    transition: transform var(--val-dur-base) var(--val-ease-out);
+    box-shadow: var(--val-shadow-lg);
+    z-index: 110;
+    overflow-y: auto;
+  }
+  .val-sidebar--open { transform: translateX(0); }
+  .val-sidebar__backdrop {
+    display: block;
+    position: fixed; inset: 0;
+    background: var(--val-bg-overlay);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--val-dur-base) var(--val-ease-out);
+  }
+  .val-sidebar__backdrop--open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Hamburger visible */
+  .val-hamburger { display: inline-flex; }
+
+  /* Content breathing room */
+  .val-content { padding: var(--val-s-4) var(--val-s-4) var(--val-s-6); }
+
+  /* Page header stacks; hamburger + title on one row, actions below */
+  .val-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--val-s-3);
+    margin-bottom: var(--val-s-5);
+  }
+  .val-page-header__top {
+    display: flex;
+    align-items: center;
+    gap: var(--val-s-3);
+  }
+  .val-page-header__title { font-size: 26px; line-height: 1.1; }
+  .val-page-header__sub { font-size: var(--val-size-13); margin-top: var(--val-s-1); }
+  .val-page-header__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Stat strip — 3 columns + wrap (5 stats → 3 + 2) */
+  .val-stat-strip {
+    grid-template-columns: repeat(3, 1fr);
+    border-radius: var(--val-r-md);
+  }
+  .val-stat {
+    padding: var(--val-s-3) var(--val-s-3);
+  }
+  .val-stat__value { font-size: 18px; }
+  .val-stat__label { font-size: 9px; }
+  /* Second row gets a top border */
+  .val-stat:nth-child(n+4) { border-top: 1px solid var(--val-border); }
+  /* Third cell in each row has no right border */
+  .val-stat:nth-child(3n) { border-right: none; }
+
+  /* Kanban — horizontal scroll + snap so user swipes between stages */
+  .kb-board {
+    grid-template-columns: repeat(5, 88vw);
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--val-s-3);
+    margin: 0 calc(-1 * var(--val-s-4));
+    padding: 0 var(--val-s-4) var(--val-s-3);
+    scroll-padding-left: var(--val-s-4);
+  }
+  .kb-col {
+    scroll-snap-align: start;
+    gap: var(--val-s-2);
+  }
+  .kb-card { padding: var(--val-s-3); }
+
+  /* Side panel → bottom sheet */
+  .side-panel-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    background: var(--val-bg-overlay) !important;
+    z-index: 120 !important;
+  }
+  .side-panel {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 88vh !important;
+    max-height: 88vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--val-border) !important;
+    border-radius: var(--val-r-xl) var(--val-r-xl) 0 0 !important;
+    animation: val-slide-up 0.25s var(--val-ease-out);
+    z-index: 130 !important;
+  }
+  @keyframes val-slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  /* Loading + empty states feel less cramped */
+  .pipe-empty { padding: var(--val-s-6) var(--val-s-4); }
+  .pipe-empty__title { font-size: var(--val-size-17); }
+}
+
+@media (max-width: 420px) {
+  .val-page-header__title { font-size: 22px; }
+  .val-stat__value { font-size: 16px; }
+  .kb-board { grid-template-columns: repeat(5, 92vw); }
+}`;
 const fmt = (n: number, prefix = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
   const abs = Math.abs(n);
@@ -1287,7 +1338,6 @@ const fmtPct = (n: number) => (!n || !isFinite(n) || isNaN(n) ? "—" : `${(n * 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const fmtDateTime = (d: string) => new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" };
-
 const STAGES = [
   { id: "prospect",       label: "Prospect",       dotMod: "prospect" },
   { id: "feasibility",    label: "Feasibility",    dotMod: "feasibility" },
@@ -1295,7 +1345,6 @@ const STAGES = [
   { id: "in_development", label: "In Development", dotMod: "in_development" },
   { id: "completed",      label: "Completed",      dotMod: "completed" },
 ];
-
 // Map asset_type (DB value) to the val-type-pill modifier class suffix
 const ASSET_PILL: Record<string, string> = {
   BTR: "btr",
@@ -1315,12 +1364,9 @@ const ASSET_LABEL: Record<string, string> = {
   Commercial: "Commercial",
   Industrial: "Industrial",
 };
-
 const PRIORITY_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
-
 export default function PipelinePage() {
   const router = useRouter();
-
   // ── Theme — defensive sync across every mechanism the app might use ──
   //
   // Different pages in the app historically used different theme mechanisms
@@ -1350,10 +1396,8 @@ export default function PipelinePage() {
     try { localStorage.setItem("valora-theme", t); } catch {}
     try { localStorage.setItem("val-theme", t); } catch {}
   };
-
   const [theme, setTheme] = useState<"dark" | "light">(() => detectTheme());
   useEffect(() => { applyTheme(theme); }, [theme]);
-
   // Watch for theme changes from anywhere else — storage events (other tabs),
   // body.light flipped by dashboard, data-theme attribute changed on html,
   // focus / visibility returning to the pipeline tab.
@@ -1365,16 +1409,13 @@ export default function PipelinePage() {
       setTheme(prev => prev === t ? prev : t);
     };
     const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
-
     const bodyObs = new MutationObserver(resync);
     bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     const htmlObs = new MutationObserver(resync);
     htmlObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", resync);
     document.addEventListener("visibilitychange", resync);
-
     return () => {
       disposed = true;
       bodyObs.disconnect();
@@ -1384,7 +1425,27 @@ export default function PipelinePage() {
       document.removeEventListener("visibilitychange", resync);
     };
   }, []);
-
+  // ── Mobile sidebar drawer ──
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Close drawer on route change and when the viewport grows past mobile
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth > 768 && sidebarOpen) setSidebarOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [sidebarOpen]);
+  // Prevent body scroll while drawer is open
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (sidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [sidebarOpen]);
+  // Helper: navigate and close drawer in one call
+  const navTo = (path: string) => { setSidebarOpen(false); router.push(path); };
   // ── Data state ──
   const [user, setUser] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
@@ -1392,20 +1453,17 @@ export default function PipelinePage() {
   const [notes, setNotes] = useState<Record<string, any[]>>({});
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   // ── Drag & side-panel state ──
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const dragItem = useRef<any>(null);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [panelTab, setPanelTab] = useState<"tasks" | "notes" | "activity">("tasks");
-
   // ── Form state ──
   const [newTask, setNewTask] = useState({ description: "", due_at: "", priority: "medium" });
   const [savingTask, setSavingTask] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1415,7 +1473,6 @@ export default function PipelinePage() {
     };
     init();
   }, [router]);
-
   const loadAll = async (userId: string) => {
     setLoading(true);
     const [{ data: projData }, { data: taskData }, { data: noteData }, { data: actData }] = await Promise.all([
@@ -1435,13 +1492,11 @@ export default function PipelinePage() {
     setActivity(actData || []);
     setLoading(false);
   };
-
   const logActivity = async (projectId: string, action: string, meta?: any) => {
     if (!user) return;
     const { data: a } = await supabase.from("activity").insert({ project_id: projectId, created_by: user.id, action, meta }).select().single();
     if (a) setActivity(prev => [a, ...prev].slice(0, 50));
   };
-
   const moveProject = async (projectId: string, newStage: string) => {
     const p = projects.find(x => x.id === projectId);
     const old = p?.pipeline_stage || "prospect";
@@ -1450,7 +1505,6 @@ export default function PipelinePage() {
     await supabase.from("projects").update({ pipeline_stage: newStage }).eq("id", projectId);
     await logActivity(projectId, `Moved to ${STAGES.find(s => s.id === newStage)?.label || newStage}`, { from: old, to: newStage });
   };
-
   const onDragStart = (e: React.DragEvent, p: any) => { dragItem.current = p; setDraggingId(p.id); e.dataTransfer.effectAllowed = "move"; };
   const onDragEnd = () => { setDraggingId(null); setDragOverCol(null); };
   const onDragOver = (e: React.DragEvent, sid: string) => { e.preventDefault(); setDragOverCol(sid); };
@@ -1459,10 +1513,8 @@ export default function PipelinePage() {
     if (dragItem.current && (dragItem.current.pipeline_stage || "prospect") !== sid) moveProject(dragItem.current.id, sid);
     setDraggingId(null); setDragOverCol(null); dragItem.current = null;
   };
-
   const openPanel = (p: any, tab: "tasks" | "notes" | "activity" = "tasks") => { setSelectedProject(p); setPanelTab(tab); };
   const openProject = (p: any) => { const l = p.appraisals?.[0]; router.push(l ? `/appraisal?project=${p.id}&appraisal=${l.id}` : `/appraisal?project=${p.id}`); };
-
   const addTask = async () => {
     if (!newTask.description.trim() || !selectedProject || !user) return;
     setSavingTask(true);
@@ -1478,19 +1530,16 @@ export default function PipelinePage() {
     }
     setSavingTask(false);
   };
-
   const toggleTask = async (task: any) => {
     const u = { ...task, completed: !task.completed };
     await supabase.from("tasks").update({ completed: u.completed }).eq("id", task.id);
     setTasks(prev => ({ ...prev, [task.project_id]: prev[task.project_id].map(t => t.id === task.id ? u : t) }));
     if (u.completed) await logActivity(task.project_id, `Task completed: "${task.description}"`);
   };
-
   const deleteTask = async (task: any) => {
     await supabase.from("tasks").delete().eq("id", task.id);
     setTasks(prev => ({ ...prev, [task.project_id]: prev[task.project_id].filter(t => t.id !== task.id) }));
   };
-
   // ── UNIFIED addNote — writes to shared notes table ──
   const addNote = async () => {
     if (!newNote.trim() || !selectedProject || !user) return;
@@ -1511,21 +1560,17 @@ export default function PipelinePage() {
     }
     setSavingNote(false);
   };
-
   const deleteNote = async (note: any) => {
     await supabase.from("notes").delete().eq("id", note.id).eq("user_id", user.id);
     setNotes(prev => ({ ...prev, [note.project_id]: prev[note.project_id].filter(n => n.id !== note.id) }));
   };
-
   const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
-
   // ── Derived stats ──
   const totalGDV = projects.reduce((s, p) => s + (p.appraisals?.[0]?.gdv || 0), 0);
   const avgPoC = (() => { const v = projects.filter(p => p.appraisals?.[0]?.profit_on_cost); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
   const active = projects.filter(p => p.pipeline_stage !== "completed").length;
   const done = projects.filter(p => p.pipeline_stage === "completed").length;
   const openTasks = Object.values(tasks).flat().filter(t => !t.completed).length;
-
   if (loading) return (
     <>
       <style>{VALORA_CSS}</style>
@@ -1537,34 +1582,35 @@ export default function PipelinePage() {
       </div>
     </>
   );
-
   return (
     <div className="val-app">
       <style>{VALORA_CSS}</style>
       <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='dark';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()` }} />
-
+      {/* ── BACKDROP (mobile drawer) ── */}
+      <div
+        className={`val-sidebar__backdrop ${sidebarOpen ? "val-sidebar__backdrop--open" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
       {/* ── SIDEBAR ── */}
-      <aside className="val-sidebar">
+      <aside className={`val-sidebar ${sidebarOpen ? "val-sidebar--open" : ""}`}>
         <div className="val-sidebar__brand">
           <div className="val-sidebar__brand-name">Valora</div>
           <div className="val-sidebar__brand-sub">Development Appraisal</div>
         </div>
-
         <div className="val-sidebar__section-title">My Work</div>
         <nav className="val-sidebar__nav">
-          <button className="val-nav-item" onClick={() => router.push("/dashboard")}>Portfolio</button>
-          <button className="val-nav-item val-nav-item--active">Pipeline</button>
-          <button className="val-nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-          <button className="val-nav-item" onClick={() => router.push("/notes")}>Notes</button>
-          <button className="val-nav-item" onClick={() => router.push("/learn")}>+ Learn</button>
+          <button className="val-nav-item" onClick={() => navTo("/dashboard")}>Portfolio</button>
+          <button className="val-nav-item val-nav-item--active" onClick={() => setSidebarOpen(false)}>Pipeline</button>
+          <button className="val-nav-item" onClick={() => navTo("/tasks")}>Tasks</button>
+          <button className="val-nav-item" onClick={() => navTo("/notes")}>Notes</button>
+          <button className="val-nav-item" onClick={() => navTo("/learn")}>+ Learn</button>
         </nav>
-
         <div className="val-sidebar__section-title">Team</div>
         <nav className="val-sidebar__nav">
-          <button className="val-nav-item" onClick={() => router.push("/workspace")}>◆ Workspace</button>
-          <button className="val-nav-item" onClick={() => router.push("/team")}>Team</button>
+          <button className="val-nav-item" onClick={() => navTo("/workspace")}>◆ Workspace</button>
+          <button className="val-nav-item" onClick={() => navTo("/team")}>Team</button>
         </nav>
-
         <div className="val-sidebar__footer">
           <div className="val-sidebar__footer-email">{user?.email}</div>
           <div className="val-sidebar__footer-row">
@@ -1576,17 +1622,28 @@ export default function PipelinePage() {
           </div>
         </div>
       </aside>
-
       {/* ── MAIN ── */}
       <div className="val-main">
         <main className="val-content">
-
           {/* Page header */}
           <div className="val-page-header">
-            <div>
-              <h1 className="val-page-header__title">Deal Pipeline</h1>
-              <div className="val-page-header__sub">
-                {projects.length} deal{projects.length !== 1 ? "s" : ""} · drag to move stage
+            <div className="val-page-header__top">
+              <button
+                className="val-hamburger"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open navigation"
+              >
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="3" y1="6"  x2="17" y2="6"/>
+                  <line x1="3" y1="10" x2="17" y2="10"/>
+                  <line x1="3" y1="14" x2="17" y2="14"/>
+                </svg>
+              </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 className="val-page-header__title">Deal Pipeline</h1>
+                <div className="val-page-header__sub">
+                  {projects.length} deal{projects.length !== 1 ? "s" : ""} · drag to move stage
+                </div>
               </div>
             </div>
             <div className="val-page-header__actions">
@@ -1598,7 +1655,6 @@ export default function PipelinePage() {
               <button className="val-btn val-btn--primary" onClick={() => router.push("/dashboard")}>+ New</button>
             </div>
           </div>
-
           {/* Stat strip */}
           <div className="val-stat-strip">
             <div className="val-stat">
@@ -1622,7 +1678,6 @@ export default function PipelinePage() {
               <div className={`val-stat__value ${openTasks > 0 ? "val-v--amber" : "val-v--dim"}`}>{openTasks}</div>
             </div>
           </div>
-
           {/* Empty state */}
           {projects.length === 0 && (
             <div className="pipe-empty">
@@ -1632,7 +1687,6 @@ export default function PipelinePage() {
               <button className="val-btn val-btn--primary" onClick={() => router.push("/dashboard")}>+ Create First Appraisal</button>
             </div>
           )}
-
           {/* Kanban board */}
           {projects.length > 0 && (
             <div className="kb-board">
@@ -1644,16 +1698,13 @@ export default function PipelinePage() {
                     className={`kb-col ${dragOverCol === stage.id ? "kb-col--drag-over" : ""}`}
                     onDragOver={e => onDragOver(e, stage.id)}
                     onDrop={e => onDrop(e, stage.id)}>
-
                     <div className="kb-col__head">
                       <span className={`kb-col__dot kb-col__dot--${stage.dotMod}`} />
                       <span className="kb-col__label">{stage.label}</span>
                       <span className="kb-col__count">{cols.length}</span>
                     </div>
                     {gdv > 0 && <div className="kb-col__total">{fmt(gdv)}</div>}
-
                     {cols.length === 0 && <div className="kb-drop">Drop here</div>}
-
                     {cols.map(project => {
                       const latest = project.appraisals?.[0];
                       const poc = latest?.profit_on_cost;
@@ -1670,18 +1721,14 @@ export default function PipelinePage() {
                           onDragStart={e => onDragStart(e, project)}
                           onDragEnd={onDragEnd}
                           onClick={() => openPanel(project, "tasks")}>
-
                           {pt.length > 0 && <div className="kb-card__task-count">{pt.length}</div>}
-
                           <span className={`val-type-pill val-type-pill--${pillMod}`} style={{ alignSelf: "flex-start" }}>
                             {assetLabel}
                           </span>
-
                           <div>
                             <h3 className="kb-card__title">{project.name || "Untitled"}</h3>
                             <div className="kb-card__loc">{project.location || "—"}</div>
                           </div>
-
                           {latest ? (
                             <div className="kb-card__row">
                               <span className="kb-card__row-left">{fmt(latest.gdv, sym)}</span>
@@ -1690,21 +1737,18 @@ export default function PipelinePage() {
                           ) : (
                             <div style={{ fontSize: "var(--val-size-11)", color: "var(--val-text-dim)" }}>No appraisal yet</div>
                           )}
-
                           {(pt.length > 0 || pn > 0) && (
                             <div className="kb-card__mini-stats">
                               {pt.length > 0 && <span className="kb-card__mini-stat" style={{ color: "var(--val-amber)" }}>✓ {pt.length}</span>}
                               {pn > 0 && <span className="kb-card__mini-stat">📝 {pn}</span>}
                             </div>
                           )}
-
                           <select className="kb-select"
                             value={project.pipeline_stage || "prospect"}
                             onClick={e => e.stopPropagation()}
                             onChange={e => { e.stopPropagation(); moveProject(project.id, e.target.value); }}>
                             {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                           </select>
-
                           <div className="kb-card__actions" onClick={e => e.stopPropagation()}>
                             <button className="kb-card__btn" onClick={e => { e.stopPropagation(); openPanel(project, "tasks"); }}>Tasks</button>
                             <button className="kb-card__btn" onClick={e => { e.stopPropagation(); openPanel(project, "notes"); }}>Notes</button>
@@ -1713,7 +1757,6 @@ export default function PipelinePage() {
                         </div>
                       );
                     })}
-
                     <button className="kb-col__add" onClick={() => router.push("/dashboard")}>+ Add</button>
                   </div>
                 );
@@ -1722,7 +1765,6 @@ export default function PipelinePage() {
           )}
         </main>
       </div>
-
       {/* ── SIDE PANEL ── */}
       {selectedProject && (
         <>
@@ -1755,7 +1797,6 @@ export default function PipelinePage() {
                 ))}
               </div>
             </div>
-
             <div className="side-panel__body">
               {panelTab === "tasks" && (
                 <>
@@ -1799,7 +1840,6 @@ export default function PipelinePage() {
                       {savingTask ? "Adding…" : "+ Add Task"}
                     </button>
                   </div>
-
                   {(tasks[selectedProject.id] || []).length === 0 ? (
                     <div className="side-panel__empty">No tasks yet</div>
                   ) : (
@@ -1825,7 +1865,6 @@ export default function PipelinePage() {
                           </div>
                         );
                       })}
-
                       {(tasks[selectedProject.id] || []).filter(t => t.completed).length > 0 && (
                         <>
                           <div className="side-panel__section-title">Completed</div>
@@ -1844,7 +1883,6 @@ export default function PipelinePage() {
                   )}
                 </>
               )}
-
               {panelTab === "notes" && (
                 <>
                   <div className="side-panel__form">
@@ -1863,7 +1901,6 @@ export default function PipelinePage() {
                       {savingNote ? "Saving…" : "+ Add Note"}
                     </button>
                   </div>
-
                   {(notes[selectedProject.id] || []).length === 0 ? (
                     <div className="side-panel__empty">No notes yet</div>
                   ) : (
@@ -1879,7 +1916,6 @@ export default function PipelinePage() {
                   )}
                 </>
               )}
-
               {panelTab === "activity" && (
                 <>
                   {activity.filter(a => a.project_id === selectedProject.id).length === 0 ? (
