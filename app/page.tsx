@@ -164,12 +164,12 @@ const PLANS = [
   },
 ];
 const FEATURES = [
-  {icon:"▦",label:"True Monthly Cashflow",desc:"Full month-by-month P&L from acquisition to exit. S-curve drawdown with interest rolled on actual drawn balances.",tag:"Core"},
-  {icon:"▣",label:"Residual Land Value",desc:"Real-time RLV that updates as you type. Uses exact cashflow interest — instantly shows what you can pay for land.",tag:"Valuation"},
-  {icon:"▤",label:"Sensitivity Matrices",desc:"45-scenario yield vs rent matrices with RAG colour coding. Exit yield, levered profit and PoC — recalculated live.",tag:"Risk"},
-  {icon:"▥",label:"Live Benchmark Curves",desc:"SONIA, SOFR, EURIBOR, EIBOR and 6 more. Finance costs calculated against the actual forward curve.",tag:"Finance"},
-  {icon:"◈",label:"3-Tier Promote Waterfall",desc:"Configurable IRR hurdles with developer and investor allocations. Visual split bar per hurdle. Scenario-aware.",tag:"JV"},
-  {icon:"◉",label:"DSCR / ICR & Equity Multiple",desc:"Debt service cover, ICR, equity multiple, payback period and break-even yield — exactly what a lender stress tests.",tag:"Institutional"},
+  {icon:"▦",label:"True Monthly Cashflow",desc:"See exactly where your deal makes — or loses — money. Full month-by-month cashflow with S-curve drawdown and interest rolled on actual drawn balances.",tag:"Core"},
+  {icon:"▣",label:"Residual Land Value",desc:"Know exactly what you can pay — instantly. Real-time RLV that updates as you type, using exact cashflow interest.",tag:"Valuation"},
+  {icon:"▤",label:"Sensitivity Matrices",desc:"Instantly see how fragile your returns are. 45-scenario yield vs rent matrices with RAG colour coding, recalculated live.",tag:"Risk"},
+  {icon:"▥",label:"Live Benchmark Curves",desc:"Finance costs priced like the market — not guessed. Live SONIA, SOFR, EURIBOR and 6 more.",tag:"Finance"},
+  {icon:"◈",label:"3-Tier Promote Waterfall",desc:"Align investor and developer returns with precision. Configurable IRR hurdles, visual split per tier, scenario-aware.",tag:"JV"},
+  {icon:"◉",label:"DSCR / ICR & Equity Multiple",desc:"Underwrite like a lender — not just an investor. DSCR, ICR, equity multiple, payback period and break-even yield — exactly what a lender stress tests.",tag:"Institutional"},
   {icon:"◎",label:"AI Sense Check",desc:"Benchmarks your assumptions against market data. Flags DSCR breaches, aggressive yields and LTC limits automatically.",tag:"AI"},
   {icon:"◫",label:"Deal Pipeline",desc:"Kanban boards from Prospect to Completion. Tasks, notes and activity feed on every deal — everything linked.",tag:"PM"},
 ];
@@ -300,8 +300,8 @@ function LandingPage({onLogin,onPage}:any){
                 in 5 minutes.<br/>
                 <span style={{color:"var(--sage)"}}>Not 5 hours.</span>
               </h1>
-              <p style={{fontSize:"clamp(15px,1.5vw,18px)",color:"var(--text-m)",lineHeight:1.7,maxWidth:520,marginBottom:32,animation:"fadeUp .6s .12s ease both",opacity:0,fontWeight:500}}>
-                Seven asset models. <strong style={{color:"var(--navy)",fontWeight:600}}>AI underwriting</strong>, live benchmarks, investor-ready outputs. From first inputs to decision in minutes.
+              <p style={{fontSize:"clamp(15px,1.5vw,18px)",color:"var(--text-m)",lineHeight:1.7,maxWidth:540,marginBottom:32,animation:"fadeUp .6s .12s ease both",opacity:0,fontWeight:500}}>
+                Not a spreadsheet. An <strong style={{color:"var(--navy)",fontWeight:600}}>AI appraisal engine</strong> with seven asset models, live benchmarks and investor-ready outputs — clarity in minutes, not days.
               </p>
               <div className="hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",animation:"fadeUp .6s .18s ease both",opacity:0}}>
                 <button className="btn-sage" onClick={onLogin} style={{height:46,padding:"0 28px",fontSize:14}}>
@@ -478,7 +478,7 @@ function LandingPage({onLogin,onPage}:any){
           <div className="reveal" style={{maxWidth:520,margin:"0 auto 48px",textAlign:"center"}}>
             <div className="chip" style={{marginBottom:16}}>The difference</div>
             <h2 style={{fontSize:"clamp(28px,3vw,40px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12}}>
-              Traditional tools, and<br/><span style={{color:"var(--sage)"}}>the Valora way.</span>
+              Stop guessing.<br/><span style={{color:"var(--sage)"}}>Start underwriting like an institution.</span>
             </h2>
           </div>
           <div className="three-col reveal" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:840,margin:"0 auto"}}>
@@ -543,6 +543,47 @@ function LandingPage({onLogin,onPage}:any){
                       ))}
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* ── TESTIMONIALS (real quotes from Max + Rodrigo, lightly anonymised) ── */}
+      <section style={{padding:"80px 0",background:"var(--bg3)"}}>
+        <div className="container">
+          <div className="reveal" style={{textAlign:"center",maxWidth:580,margin:"0 auto 48px"}}>
+            <div className="chip" style={{marginBottom:16}}>In their words</div>
+            <h2 style={{fontSize:"clamp(28px,3vw,40px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12}}>
+              Real users. Real deals.
+            </h2>
+          </div>
+          <div className="three-col reveal" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:920,margin:"0 auto"}}>
+            {/* Quote 1 — Max, on speed (validates hero 5-minute claim) */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"28px 28px 24px",display:"flex",flexDirection:"column"}}>
+              <div style={{fontSize:42,lineHeight:.8,color:"var(--sage)",opacity:.38,marginBottom:6,fontFamily:"var(--font)",fontWeight:700}}>&ldquo;</div>
+              <blockquote style={{fontSize:16,color:"var(--text)",lineHeight:1.6,fontWeight:500,marginBottom:20,flex:1,letterSpacing:"-.01em"}}>
+                I can cut through the noise in the market and find the real deals in <strong style={{color:"var(--navy)",fontWeight:700}}>literally 5 minutes</strong>. I&apos;ll press to buy the licence for the whole year.
+              </blockquote>
+              <div style={{display:"flex",alignItems:"center",gap:12,paddingTop:20,borderTop:"1px solid var(--border)"}}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"var(--sage-bg)",border:"1px solid var(--sage-border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"var(--sage)",fontWeight:700,letterSpacing:".02em"}}>MB</div>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--navy)",letterSpacing:"-.015em"}}>Max B.</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",fontWeight:500}}>Principal · UK property investor</div>
+                </div>
+              </div>
+            </div>
+            {/* Quote 2 — Rodrigo, on institutional rigour */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"28px 28px 24px",display:"flex",flexDirection:"column"}}>
+              <div style={{fontSize:42,lineHeight:.8,color:"var(--sage)",opacity:.38,marginBottom:6,fontFamily:"var(--font)",fontWeight:700}}>&ldquo;</div>
+              <blockquote style={{fontSize:16,color:"var(--text)",lineHeight:1.6,fontWeight:500,marginBottom:20,flex:1,letterSpacing:"-.01em"}}>
+                Really strong tool. We&apos;ll keep using Valora for <strong style={{color:"var(--navy)",fontWeight:700}}>validation and scenario testing</strong> in our underwriting projects.
+              </blockquote>
+              <div style={{display:"flex",alignItems:"center",gap:12,paddingTop:20,borderTop:"1px solid var(--border)"}}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(45,122,181,.10)",border:"1px solid rgba(45,122,181,.28)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"var(--blue)",fontWeight:700,letterSpacing:".02em"}}>RM</div>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--navy)",letterSpacing:"-.015em"}}>Rodrigo M.</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",fontWeight:500}}>Investment Principal · Hotel investment firm</div>
                 </div>
               </div>
             </div>
