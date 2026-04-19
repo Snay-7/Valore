@@ -3,18 +3,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
-
 /* ═══════════════════════════════════════════════════════════════════
    VALORA — DASHBOARD v2
    Refreshed with new design system (tokens + component primitives).
    Drop-in replacement: preserves all data flow, handlers, and routing.
    Only CSS + typography hierarchy updated.
    ═══════════════════════════════════════════════════════════════════ */
-
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
 /* ── DARK THEME (default) ── */
 :root{
   /* Surfaces */
@@ -35,9 +32,12 @@ const CSS = `
   --ease:cubic-bezier(0.16,1,0.3,1);
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-
 /* ── LIGHT THEME ── */
-body.light{
+/* Dual selector: responds to EITHER body.light OR html[data-theme="light"] so
+   the dashboard stays consistent with pipeline and any future page regardless
+   of which signal they flip. applyTheme() writes both; this keeps CSS tolerant. */
+body.light,
+:root[data-theme="light"]{
   --bg:#F8F5EE;--bg1:#FFFFFF;--bg2:#FFFFFF;--bg3:#F2EEE4;--bg4:#EAE5D8;--bg5:#D7D0C0;
   --text:#0F1115;--text-m:#3D4351;--text-d:#6B7280;
   --gold:#2E9E72;--gold-l:#25855E;--gold-bg:rgba(46,158,114,0.08);--gold-border:rgba(46,158,114,0.28);
@@ -45,10 +45,8 @@ body.light{
   --accent-gold:#A8843A;
   --border:rgba(15,17,21,0.08);--border-m:rgba(15,17,21,0.16);
 }
-
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
 /* ── CARDS ── */
 .card{
   background:var(--bg2);
@@ -63,7 +61,6 @@ body.light{
 }
 .card:hover{border-color:var(--border-m);transform:translateY(-1px)}
 .card.trashed{opacity:.55;border-style:dashed}
-
 /* Metric pills — clean sub-panel instead of loose pills */
 .metrics-panel{
   display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
@@ -85,7 +82,6 @@ body.light{
   font-variant-numeric:tabular-nums;
   letter-spacing:-0.01em;
 }
-
 /* ── MODAL ── */
 .modal-overlay{
   position:fixed;inset:0;
@@ -103,7 +99,6 @@ body.light{
   width:460px;max-width:calc(100vw - 32px);
   box-shadow:0 20px 60px rgba(0,0,0,0.4);
 }
-
 /* ── INPUTS ── */
 .inp{
   width:100%;
@@ -131,7 +126,6 @@ body.light{
 }
 .inp-group{margin-bottom:14px}
 select.inp{cursor:pointer;font-family:var(--font-body)}
-
 /* ── BUTTONS ── */
 .btn-primary{
   background:var(--gold);color:var(--bg);
@@ -146,7 +140,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
 .btn-primary:hover{background:var(--gold-l)}
 .btn-primary:active{transform:translateY(1px)}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
-
 .btn-ghost{
   background:transparent;color:var(--text-m);
   border:1px solid var(--border-m);border-radius:8px;
@@ -157,7 +150,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
 }
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-
 .btn-danger{
   background:transparent;color:var(--red);
   border:1px solid rgba(244,100,95,.35);border-radius:6px;
@@ -167,7 +159,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   transition:all .2s var(--ease);
 }
 .btn-danger:hover{background:rgba(244,100,95,.1);border-color:var(--red)}
-
 .btn-demo{
   display:flex;align-items:center;gap:8px;
   background:transparent;color:var(--gold);
@@ -180,7 +171,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   margin-bottom:2px;
 }
 .btn-demo:hover{background:var(--gold-bg);border-color:var(--gold)}
-
 /* ── MENU / DROPDOWN ── */
 .menu-btn{
   background:none;border:none;color:var(--text-d);cursor:pointer;
@@ -212,7 +202,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
 .dropdown-item:hover{background:var(--bg4);color:var(--text)}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
-
 /* ── STATS STRIP ── */
 .stats-strip{
   display:grid;grid-template-columns:repeat(5,1fr);
@@ -243,14 +232,12 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   line-height:1.1;
   font-variant-numeric:tabular-nums;
 }
-
 /* ── CARDS GRID ── */
 .cards-grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:16px;
 }
-
 /* ── NAV ── */
 .nav-item{
   width:100%;
@@ -283,7 +270,6 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   border-color:rgba(244,100,95,.22);
   font-weight:600;
 }
-
 /* ── SIDEBAR ── */
 .sidebar{
   width:224px;
@@ -293,8 +279,8 @@ select.inp{cursor:pointer;font-family:var(--font-body)}
   position:fixed;top:0;left:0;bottom:0;
   z-index:100;
 }
-body.light .sidebar{background:var(--bg1)}
-
+body.light .sidebar,
+:root[data-theme="light"] .sidebar{background:var(--bg1)}
 /* ── MOBILE ── */
 .bottom-nav{
   display:none;
@@ -315,7 +301,6 @@ body.light .sidebar{background:var(--bg1)}
 }
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-
 .mobile-topbar{
   display:none;
   align-items:center;justify-content:space-between;
@@ -324,7 +309,6 @@ body.light .sidebar{background:var(--bg1)}
   border-bottom:1px solid var(--border);
   position:sticky;top:0;z-index:50;
 }
-
 /* ── BANNERS ── */
 .demo-banner{
   background:var(--gold-bg);
@@ -334,7 +318,6 @@ body.light .sidebar{background:var(--bg1)}
   margin-bottom:20px;
   display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
 }
-
 /* ── FILTER TABS ── */
 .filter-tabs{
   display:flex;gap:0;
@@ -356,7 +339,6 @@ body.light .sidebar{background:var(--bg1)}
 }
 .filter-tab:hover{color:var(--text-m)}
 .filter-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:700}
-
 /* ── TYPE / STATUS PILLS ── */
 .pill{
   display:inline-flex;align-items:center;
@@ -372,7 +354,6 @@ body.light .sidebar{background:var(--bg1)}
   border:1px solid var(--border);
   text-transform:capitalize;
 }
-
 /* ── PAGE HEADER ── */
 .page-header{
   display:flex;justify-content:space-between;align-items:flex-start;
@@ -384,7 +365,6 @@ body.light .sidebar{background:var(--bg1)}
   letter-spacing:-0.03em;line-height:1;
   color:var(--text);
 }
-
 /* ── RESPONSIVE ── */
 @media(max-width:1100px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){
@@ -403,7 +383,6 @@ body.light .sidebar{background:var(--bg1)}
   .page-header-actions{flex-direction:row!important;width:100%}
 }
 `;
-
 const fmt = (n: number, prefix = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
   const abs = Math.abs(n);
@@ -418,18 +397,62 @@ const ASSET_LABELS: Record<string,string> = {BTR:"BTR",BTS:"BTS",Hotel:"Hotel",F
 const CURRENCIES = ["GBP", "USD", "EUR", "AED", "SGD", "AUD"];
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
 const TRASH_DAYS = 3;
-
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [theme, setTheme] = useState<"dark"|"light">(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("valora-theme") || "light") as "dark"|"light";
-    return "light";
-  });
+  // ── Theme — unified sync across every mechanism the app uses ──
+  //
+  // Matches app/pipeline/page.tsx so a toggle on EITHER page propagates to the
+  // other via body.light + html[data-theme] + localStorage(valora-theme|val-theme).
+  // Any future page that reads ONE of those signals stays in lockstep too.
+  const detectTheme = (): "dark" | "light" => {
+    if (typeof document === "undefined") return "light";
+    if (document.body && document.body.classList.contains("light")) return "light";
+    const htmlTheme = document.documentElement.getAttribute("data-theme");
+    if (htmlTheme === "light" || htmlTheme === "dark") return htmlTheme;
+    try {
+      for (const key of ["valora-theme", "val-theme", "theme"]) {
+        const v = localStorage.getItem(key);
+        if (v === "light" || v === "dark") return v;
+      }
+    } catch {}
+    return "light"; // dashboard's historical default
+  };
+  const applyTheme = (t: "dark" | "light") => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("data-theme", t);
+    document.body.classList.toggle("light", t === "light");
+    try { localStorage.setItem("valora-theme", t); } catch {}
+    try { localStorage.setItem("val-theme", t); } catch {}
+  };
+  const [theme, setTheme] = useState<"dark"|"light">(() => detectTheme());
+  useEffect(() => { applyTheme(theme); }, [theme]);
+  // Resync if theme changes via: another tab (storage event), another page
+  // flipping body.light, html[data-theme] mutation, or tab-focus return.
   useEffect(() => {
-    document.body.classList.toggle("light", theme === "light");
-    localStorage.setItem("valora-theme", theme);
-  }, [theme]);
+    let disposed = false;
+    const resync = () => {
+      if (disposed) return;
+      const t = detectTheme();
+      setTheme(prev => prev === t ? prev : t);
+    };
+    const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
+    const bodyObs = new MutationObserver(resync);
+    bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    const htmlObs = new MutationObserver(resync);
+    htmlObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", resync);
+    document.addEventListener("visibilitychange", resync);
+    return () => {
+      disposed = true;
+      bodyObs.disconnect();
+      htmlObs.disconnect();
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", resync);
+      document.removeEventListener("visibilitychange", resync);
+    };
+  }, []);
   const [projects, setProjects] = useState<any[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -465,7 +488,6 @@ export default function Dashboard() {
   const trialDaysLeft = isTrialing ? Math.ceil((trialEndsAt!.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
   const isEnterprise = tier === "enterprise" || isTrialing;
   const isPro = tier === "professional" || isEnterprise;
-
   useEffect(() => {
     const done = localStorage.getItem("valora_onboarding_done");
     const dismissed = localStorage.getItem("valora_video_dismissed");
@@ -497,7 +519,6 @@ export default function Dashboard() {
       setOnboardingDone(true);
     }
   }, [user]);
-
   const tickChecklist = (key: string) => {
     setChecklistDone(prev => {
       const next = { ...prev, [key]: true };
@@ -511,7 +532,6 @@ export default function Dashboard() {
       return next;
     });
   };
-
   const completeOnboarding = async (level: string) => {
     setExperienceLevel(level);
     localStorage.setItem("valora_onboarding_done", "true");
@@ -537,15 +557,12 @@ export default function Dashboard() {
       }
     } catch(e) { console.warn("Welcome email error:", e); }
   };
-
   const dismissVideo = () => {
     setVideoDismissed(true);
     localStorage.setItem("valora_video_dismissed", "true");
   };
-
   const isStarter = tier === "starter";
   const activeProjectLimit = isPro ? Infinity : isStarter ? 10 : 3;
-
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -559,7 +576,6 @@ export default function Dashboard() {
     };
     init();
   }, [router]);
-
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null);
@@ -567,7 +583,6 @@ export default function Dashboard() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
   const loadProjects = async (userId: string) => {
     setLoading(true);
     const { data: all } = await supabase
@@ -588,9 +603,7 @@ export default function Dashboard() {
     });
     setProjects(active); setTrashedProjects(trashed); setTotalProjectCount(totalCount); setLoading(false);
   };
-
   const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
-
   const createProject = async () => {
     if (!newProject.name.trim() || !user) return;
     setCreating(true);
@@ -603,7 +616,6 @@ export default function Dashboard() {
     setCreating(false);
     tickChecklist("created_appraisal");
   };
-
   const createFromUrl = async () => {
     if (!urlImport.trim() || !user) return;
     setUrlImporting(true); setUrlImportError(null);
@@ -644,13 +656,11 @@ export default function Dashboard() {
     } catch (e: any) { setUrlImportError(e.message || "Failed to import"); }
     setUrlImporting(false);
   };
-
   const openProject = (project: any) => {
     const latest = project.appraisals?.[0];
     if (latest) router.push(`/appraisal?project=${project.id}&appraisal=${latest.id}`);
     else router.push(`/appraisal?project=${project.id}`);
   };
-
   const moveToTrash = async (projectId: string) => {
     setOpenMenuId(null);
     const now = new Date().toISOString();
@@ -658,31 +668,26 @@ export default function Dashboard() {
     const project = projects.find(p => p.id === projectId);
     if (project) { setProjects(prev => prev.filter(p => p.id !== projectId)); setTrashedProjects(prev => [...prev, { ...project, deleted_at: now, _daysLeft: TRASH_DAYS }]); }
   };
-
   const restoreProject = async (projectId: string) => {
     await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
     const project = trashedProjects.find(p => p.id === projectId);
     if (project) { const { _daysLeft, deleted_at, ...restored } = project; setTrashedProjects(prev => prev.filter(p => p.id !== projectId)); setProjects(prev => [{ ...restored, deleted_at: null }, ...prev]); }
   };
-
   const permanentlyDelete = async (projectId: string) => {
     await supabase.from("appraisals").delete().eq("project_id", projectId);
     await supabase.from("projects").delete().eq("id", projectId);
     setTrashedProjects(prev => prev.filter(p => p.id !== projectId));
     setConfirmDelete(null);
   };
-
   const emptyTrash = async () => {
     for (const p of trashedProjects) { await supabase.from("appraisals").delete().eq("project_id", p.id); await supabase.from("projects").delete().eq("id", p.id); }
     setTrashedProjects([]); setConfirmDelete(null);
   };
-
   const filteredProjects = filter === "all" ? projects : projects.filter(p => p.asset_type === filter);
   const totalGDV = projects.reduce((s, p) => s + (p.appraisals?.[0]?.gdv || 0), 0);
   const totalProfit = projects.reduce((s, p) => s + (p.appraisals?.[0]?.profit || 0), 0);
   const avgPoC = (() => { const v = projects.filter(p => p.appraisals?.[0]?.profit_on_cost != null); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
   const avgIRR = (() => { const v = projects.filter(p => p.appraisals?.[0]?.irr_unlevered); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].irr_unlevered || 0), 0) / v.length : 0; })();
-
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0F1115", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
       <span style={{fontFamily:"'Poppins',system-ui,sans-serif",fontSize:22,fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF"}}>Valora</span>
@@ -691,11 +696,10 @@ export default function Dashboard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
-
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
       <style>{CSS}</style>
-      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
+      <script dangerouslySetInnerHTML={{__html:`(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');else if(document.body)document.body.classList.remove('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()`}}/>
       {/* ── SIDEBAR ── */}
       <div className="sidebar">
         <div style={{ padding: "20px 20px 18px", borderBottom: "1px solid var(--border)" }}>
