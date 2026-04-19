@@ -3,221 +3,1277 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
-const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 
-// ═════════════════════════════════════════════════════════════════════
-// VALORA PIPELINE v4 — Editorial shell matching dashboard-v3
-// Shell (sidebar, mobile-topbar, bottom-nav, main-content, page-header)
-// + CSS tokens lifted verbatim from dashboard-page-v3.tsx.
-// All Supabase queries, drag/drop, side panel, tasks/notes/activity
-// logic preserved from pipeline-page-v3.tsx unchanged.
-// ═════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// VALORA PIPELINE v6 — Drop-in single-file page
+//
+// Contains the full Valora design system INLINE:
+//   • tokens.css (dark + light themes via data-theme)
+//   • components.css (val-* classes)
+//   • Pipeline-specific CSS (kb-board, kb-card, side-panel, etc.)
+//   • Google Fonts @import for Poppins + JetBrains Mono
+//
+// Drop this at app/pipeline/page.tsx — no layout.tsx edits needed.
+// When other pages adopt the val- system, you can refactor by extracting
+// VALORA_CSS into app/globals.css (or tokens.css + components.css in
+// /styles) and importing once in layout.tsx.
+//
+// All Supabase queries, drag/drop, side-panel, tasks/notes/activity
+// logic preserved verbatim from the production pipeline page.
+// ═══════════════════════════════════════════════════════════════════════
 
-const LOGO = "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";
+const VALORA_CSS = `@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+.kb-board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(280px, 1fr));
+      gap: var(--val-s-4);
+      align-items: flex-start;
+    }
+    .kb-col {
+      display: flex;
+      flex-direction: column;
+      gap: var(--val-s-3);
+    }
+    .kb-col__head {
+      display: flex;
+      align-items: center;
+      gap: var(--val-s-2);
+      padding: 0 var(--val-s-2) var(--val-s-1);
+    }
+    .kb-col__dot { width: 8px; height: 8px; border-radius: 50%; }
+    .kb-col__dot--prospect { background: var(--val-text-dim); }
+    .kb-col__dot--feasibility { background: var(--val-amber); }
+    .kb-col__dot--under-offer { background: var(--val-blue); }
+    .kb-col__dot--dev { background: var(--val-green); }
+    .kb-col__dot--done { background: var(--val-green); }
+    .kb-col__label {
+      font-size: 10px;
+      font-weight: var(--val-w-semibold);
+      letter-spacing: var(--val-track-widest);
+      text-transform: uppercase;
+      color: var(--val-text);
+    }
+    .kb-col__count {
+      font-size: var(--val-size-11);
+      color: var(--val-text-dim);
+      background: var(--val-bg-panel-2);
+      padding: 1px 8px;
+      border-radius: var(--val-r-pill);
+      font-weight: var(--val-w-semibold);
+    }
+    .kb-col__total {
+      font-size: var(--val-size-11);
+      color: var(--val-text-dim);
+      padding: 0 var(--val-s-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .kb-drop {
+      padding: var(--val-s-5) var(--val-s-3);
+      border: 1px dashed var(--val-border);
+      border-radius: var(--val-r-md);
+      text-align: center;
+      font-size: var(--val-size-12);
+      color: var(--val-text-dim);
+    }
+    .kb-card {
+      background: var(--val-bg-panel);
+      border: 1px solid var(--val-border);
+      border-radius: var(--val-r-lg);
+      padding: var(--val-s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--val-s-3);
+      cursor: grab;
+      transition: border-color var(--val-dur-fast) var(--val-ease-out);
+    }
+    .kb-card:hover { border-color: var(--val-border-lt); }
+    .kb-card__title {
+      font-size: var(--val-size-14);
+      font-weight: var(--val-w-bold);
+      color: var(--val-text);
+      letter-spacing: var(--val-track-snug);
+      line-height: 1.3;
+      margin: 0;
+    }
+    .kb-card__loc {
+      font-size: var(--val-size-11);
+      color: var(--val-text-dim);
+      font-weight: var(--val-w-medium);
+      margin-top: 2px;
+    }
+    .kb-card__row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: var(--val-size-13);
+      font-weight: var(--val-w-bold);
+      font-variant-numeric: tabular-nums;
+    }
+    .kb-card__actions {
+      display: flex;
+      gap: var(--val-s-1);
+      margin-top: 2px;
+    }
+    .kb-card__btn {
+      flex: 1;
+      font-size: var(--val-size-11);
+      padding: 5px 8px;
+      background: var(--val-bg-panel-2);
+      border: 1px solid var(--val-border);
+      border-radius: var(--val-r-sm);
+      color: var(--val-text-mid);
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: var(--val-w-medium);
+    }
+    .kb-card__btn:hover { color: var(--val-green); border-color: var(--val-green); }
+    .kb-select {
+      background: var(--val-bg-panel-2);
+      border: 1px solid var(--val-border);
+      border-radius: var(--val-r-sm);
+      padding: 4px 8px;
+      font-size: var(--val-size-11);
+      color: var(--val-text-mid);
+      font-family: inherit;
+    }
+    .pipeline-topnav {
+      display: flex;
+      gap: var(--val-s-3);
+      padding: var(--val-s-3) var(--val-s-6);
+      border-bottom: 1px solid var(--val-border);
+      background: var(--val-bg-panel);
+    }
+    .pipeline-topnav__item {
+      padding: 6px 14px;
+      border-radius: var(--val-r-md);
+      font-size: var(--val-size-12);
+      color: var(--val-text-dim);
+      border: 1px solid var(--val-border);
+      background: transparent;
+      font-weight: var(--val-w-medium);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .pipeline-topnav__item--active { color: var(--val-green); border-color: var(--val-green); }
 
-/* ── DARK (default) — Editorial, warm gold ── */
-:root{
-  --gold:#c9a84c;--gold-l:#e2c97e;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.22);
-  --bg:#06070a;--bg1:#0c0e12;--bg2:#12151a;--bg3:#191d24;--bg4:#21262f;--bg5:#2a303a;
-  --text:#eceae4;--text-m:#7d8590;--text-d:#3d4249;
-  --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
-  --green:#3ddc84;--red:#f4645f;--amber:#f0a429;--blue:#5b9cf6;
-  --font-display:'Cormorant Garamond',Georgia,serif;
-  --font-body:'Instrument Sans',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono',monospace;
-  --shadow-card:0 1px 2px rgba(0,0,0,0.20);
-  --shadow-hover:0 8px 24px rgba(0,0,0,0.45);
-  --shadow-panel:0 1px 2px rgba(0,0,0,0.18);
-  --shadow-side:-8px 0 32px rgba(0,0,0,0.40);
+/* ──────────────────────────────────────────────────────────────
+   VALORA — DESIGN TOKENS v1
+   Foundation layer: colours, typography, spacing, radii, motion.
+   Import first in your global stylesheet, then import components.css
+   ────────────────────────────────────────────────────────────── */
+
+/* Default theme = dark. Set data-theme="light" on <html> to switch. */
+:root,
+:root[data-theme="dark"] {
+  /* ─── COLOUR — SURFACES (dark) ─── */
+  --val-bg-app:          #0F1115;    /* page bg — deep navy */
+  --val-bg-panel:        #1A1E26;    /* card / sidebar bg */
+  --val-bg-panel-2:      #242933;    /* elevated / input bg */
+  --val-bg-panel-3:      #2D3340;    /* input filled / hover */
+  --val-bg-overlay:      rgba(15,17,21,0.72);   /* modal backdrop */
+
+  /* ─── COLOUR — TEXT (dark) ─── */
+  --val-text:            #F6F4EF;    /* primary cream text */
+  --val-text-mid:        #C8CCD4;    /* secondary labels */
+  --val-text-dim:        #949CA0;    /* tertiary / captions */
+  --val-text-faint:      #6B7280;    /* placeholders, disabled */
+
+  /* ─── COLOUR — BRAND / ACCENTS (dark) ─── */
+  --val-gold:            #C9A84C;    /* headline values, active tab, brand */
+  --val-green:           #52C498;    /* positive / valora primary / CTAs */
+  --val-green-tint:      rgba(82,196,152,0.12);
+  --val-green-deep:      #2E7D58;    /* pressed state */
+  --val-amber:           #F0A429;    /* caution / marginal metrics */
+  --val-amber-tint:      rgba(240,164,41,0.12);
+  --val-red:             #F4645F;    /* alert / negative */
+  --val-red-tint:        rgba(244,100,95,0.12);
+  --val-blue:            #5CA5DC;    /* informational / neutral highlight */
+  --val-blue-tint:       rgba(92,165,220,0.12);
+
+  /* ─── COLOUR — BORDERS (dark) ─── */
+  --val-border:          #383E4A;    /* default card/panel border */
+  --val-border-lt:       #4A505C;    /* elevated / input border */
+  --val-border-accent:   rgba(82,196,152,0.35);   /* active input outline */
+
+  /* ─── TYPOGRAPHY — FAMILIES ─── */
+  --val-font-body:       'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --val-font-mono:       'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* ─── TYPOGRAPHY — SIZE SCALE ─── */
+  --val-size-10:  10px;
+  --val-size-11:  11px;
+  --val-size-12:  12px;
+  --val-size-13:  13px;
+  --val-size-14:  14px;
+  --val-size-15:  15px;
+  --val-size-16:  16px;
+  --val-size-17:  17px;
+  --val-size-20:  20px;
+  --val-size-22:  22px;
+  --val-size-26:  26px;
+  --val-size-32:  32px;
+  --val-size-40:  40px;
+  --val-size-48:  48px;
+  --val-size-64:  64px;
+
+  /* ─── TYPOGRAPHY — WEIGHT ─── */
+  --val-w-regular:  400;
+  --val-w-medium:   500;
+  --val-w-semibold: 600;
+  --val-w-bold:     700;
+
+  /* ─── TYPOGRAPHY — LINE HEIGHT ─── */
+  --val-lh-tight:   1.1;
+  --val-lh-snug:    1.25;
+  --val-lh-normal:  1.45;
+  --val-lh-loose:   1.6;
+
+  /* ─── TYPOGRAPHY — LETTER SPACING ─── */
+  --val-track-tight:   -0.03em;
+  --val-track-snug:    -0.015em;
+  --val-track-normal:  0;
+  --val-track-wide:    0.04em;
+  --val-track-wider:   0.08em;
+  --val-track-widest:  0.14em;  /* caps labels */
+
+  /* ─── SPACING SCALE (in px, 4px grid) ─── */
+  --val-s-0:    0;
+  --val-s-1:    4px;
+  --val-s-2:    8px;
+  --val-s-3:    12px;
+  --val-s-4:    16px;
+  --val-s-5:    20px;
+  --val-s-6:    24px;
+  --val-s-7:    28px;
+  --val-s-8:    32px;
+  --val-s-10:   40px;
+  --val-s-12:   48px;
+  --val-s-14:   56px;
+  --val-s-16:   64px;
+  --val-s-20:   80px;
+
+  /* ─── RADII ─── */
+  --val-r-xs:     4px;   /* chip, small pill */
+  --val-r-sm:     6px;   /* button */
+  --val-r-md:     8px;   /* input */
+  --val-r-lg:     10px;  /* card */
+  --val-r-xl:     12px;  /* feature card, message bubble */
+  --val-r-pill:   999px; /* status chip, primary pill */
+
+  /* ─── SHADOWS (subtle — dark UI relies on borders more than shadows) ─── */
+  --val-shadow-sm:  0 1px 2px rgba(0,0,0,0.12);
+  --val-shadow-md:  0 4px 12px rgba(0,0,0,0.20);
+  --val-shadow-lg:  0 20px 60px rgba(0,0,0,0.45);
+  --val-shadow-inset:  inset 0 1px 0 rgba(255,255,255,0.02);
+
+  /* ─── FOCUS RING (accessibility) ─── */
+  --val-ring:       0 0 0 2px var(--val-bg-app), 0 0 0 4px var(--val-green);
+
+  /* ─── MOTION ─── */
+  --val-ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+  --val-ease-out-back:   cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --val-ease-in-out:     cubic-bezier(0.65, 0, 0.35, 1);
+  --val-dur-fast:        120ms;
+  --val-dur-base:        200ms;
+  --val-dur-slow:        320ms;
+
+  /* ─── LAYOUT TOKENS ─── */
+  --val-nav-h:          56px;
+  --val-tabbar-h:       44px;
+  --val-copilot-w:      560px;      /* right-side Copilot panel width */
+  --val-content-max:    1400px;     /* max content width on ultra-wide */
 }
-html{height:100%}
-body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overflow:hidden}
 
-/* ── LIGHT — Editorial cream, matching gold ── */
-body.light{
-  --gold:#a8833a;--gold-l:#876724;--gold-bg:rgba(168,131,58,0.07);--gold-border:rgba(168,131,58,0.25);
-  --bg:#faf8f3;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f3efe7;--bg4:#ece6d7;--bg5:#e3dcca;
-  --text:#1a1815;--text-m:#5a5750;--text-d:#9b9689;
-  --border:rgba(26,24,21,0.08);--border-m:rgba(26,24,21,0.16);
-  --green:#2a8a52;--red:#c04a45;--amber:#b07820;--blue:#2a5ca8;
-  --shadow-card:0 1px 2px rgba(26,24,21,0.04);
-  --shadow-hover:0 8px 24px rgba(26,24,21,0.10);
-  --shadow-panel:0 1px 2px rgba(26,24,21,0.04);
-  --shadow-side:-8px 0 32px rgba(26,24,21,0.08);
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME — activated by <html data-theme="light">
+   Cream surface, navy ink, same brand accents (adjusted for legibility)
+   ══════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  /* Surfaces */
+  --val-bg-app:          #F8F5EE;    /* cream (matches landing page) */
+  --val-bg-panel:        #FFFFFF;
+  --val-bg-panel-2:      #F2EEE4;    /* input / elevated */
+  --val-bg-panel-3:      #EAE5D8;    /* hover / pressed */
+  --val-bg-overlay:      rgba(15,17,21,0.5);
+
+  /* Text */
+  --val-text:            #0F1115;    /* navy */
+  --val-text-mid:        #3D4351;
+  --val-text-dim:        #6B7280;
+  --val-text-faint:      #A0A5AE;
+
+  /* Brand (slightly deeper for contrast on cream) */
+  --val-gold:            #A8843A;
+  --val-green:           #2E9E72;
+  --val-green-tint:      rgba(46,158,114,0.10);
+  --val-green-deep:      #1F7050;
+  --val-amber:           #C57E14;
+  --val-amber-tint:      rgba(197,126,20,0.10);
+  --val-red:             #C24844;
+  --val-red-tint:        rgba(194,72,68,0.10);
+  --val-blue:            #2D7AB5;
+  --val-blue-tint:       rgba(45,122,181,0.10);
+
+  /* Borders */
+  --val-border:          rgba(15,17,21,0.10);
+  --val-border-lt:       rgba(15,17,21,0.18);
+  --val-border-accent:   rgba(46,158,114,0.35);
+
+  /* Shadows (more pronounced on light bg) */
+  --val-shadow-sm:       0 1px 2px rgba(15,17,21,0.06);
+  --val-shadow-md:       0 4px 12px rgba(15,17,21,0.08);
+  --val-shadow-lg:       0 20px 60px rgba(15,17,21,0.15);
+  --val-shadow-inset:    inset 0 0 0 1px rgba(15,17,21,0.02);
 }
 
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-
-/* ── INPUTS ── */
-.inp{
-  width:100%;padding:10px 12px;
-  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
-  color:var(--text);font-family:var(--font-mono);font-size:13px;
-  outline:none;transition:border-color .2s,box-shadow .2s;
-}
-.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg)}
-.inp::placeholder{color:var(--text-d);font-family:var(--font-body)}
-select.inp{cursor:pointer;font-family:var(--font-body)}
-
-/* ── BUTTONS ── */
-.btn-primary{
-  background:var(--gold);color:#06070a;border:none;border-radius:8px;
-  padding:10px 20px;font-family:var(--font-body);font-size:12px;font-weight:600;
-  cursor:pointer;transition:background .2s,transform .1s;
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  letter-spacing:-.005em;white-space:nowrap;flex-shrink:0;
-}
-body.light .btn-primary{color:#faf8f3}
-.btn-primary:hover{background:var(--gold-l)}
-.btn-primary:active{transform:translateY(1px)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-
-.btn-ghost{
-  background:transparent;color:var(--text-m);
-  border:1px solid var(--border);border-radius:8px;
-  padding:9px 16px;font-family:var(--font-body);font-size:12px;
-  cursor:pointer;transition:all .2s;font-weight:500;
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  white-space:nowrap;
-}
-.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-
-.btn-demo{
-  display:flex;align-items:center;gap:8px;
-  background:transparent;color:var(--gold);
-  border:1px solid var(--gold-border);border-radius:8px;
-  padding:9px 14px;font-family:var(--font-body);font-size:12px;font-weight:500;
-  cursor:pointer;transition:all .2s;
-  width:100%;margin-bottom:2px;
-}
-.btn-demo:hover{background:var(--gold-bg);border-color:var(--gold)}
-
-/* ── STATS STRIP ── */
-.stats-strip{
-  display:flex;
-  background:var(--bg2);
-  border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;margin-bottom:24px;flex-shrink:0;
-  box-shadow:var(--shadow-card);
-}
-.stat-cell{
-  flex:1;padding:14px 18px;
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;gap:4px;
-}
-.stat-cell:last-child{border-right:none}
-
-/* ── NAV ── */
-.nav-item{
-  width:100%;display:flex;align-items:center;
-  padding:9px 12px;border-radius:8px;font-size:13px;
-  color:var(--text-m);background:transparent;border:1px solid transparent;
-  cursor:pointer;font-family:var(--font-body);
-  transition:all .15s;text-align:left;margin-bottom:2px;
-  font-weight:500;
-}
-.nav-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active{color:var(--gold);background:rgba(201,168,76,.08);border-color:var(--gold-border);font-weight:600}
-body.light .nav-item.active{background:rgba(168,131,58,.07);border-color:var(--gold-border)}
-.nav-item.danger-item{color:var(--text-m)}
-.nav-item.danger-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active-danger{color:var(--red);background:rgba(244,100,95,.06);border-color:rgba(244,100,95,.2);font-weight:600}
-
-/* ── SIDEBAR ── */
-.sidebar{
-  width:220px;
-  background:var(--bg1);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  position:fixed;top:0;left:0;bottom:0;z-index:100;
+/* Respect system preference as initial state (optional — remove if manual-only) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    /* If no explicit theme chosen, use light when OS prefers it.
+       Remove this @media block if you want to default to dark always. */
+  }
 }
 
-/* ── THEME TOGGLE ── */
-.theme-toggle{
-  padding:5px 10px;border-radius:999px;
-  border:1px solid var(--border);background:transparent;cursor:pointer;
-  display:inline-flex;align-items:center;gap:6px;
-  color:var(--text-d);font-size:10px;font-family:var(--font-body);font-weight:500;
-  transition:all .15s;letter-spacing:.04em;
+/* ─── RESET / BASE ─── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--val-bg-app);
+  color: var(--val-text);
+  font-family: var(--val-font-body);
+  font-size: var(--val-size-14);
+  line-height: var(--val-lh-normal);
+  font-weight: var(--val-w-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.theme-toggle:hover{color:var(--text);border-color:var(--border-m)}
+body { min-height: 100vh; }
+a { color: var(--val-green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font-family: inherit; }
 
-/* ── MOBILE ── */
-.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--border);z-index:100;padding:6px 0 env(safe-area-inset-bottom,12px)}
-.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .2s;position:relative}
-.bottom-nav-item.active{color:var(--gold)}
-.bottom-nav-item svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;flex-shrink:0}
-
-/* ── PAGE HEADER ── */
-.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:16px;flex-shrink:0}
-
-/* ── DEAL CARD ── */
-.deal-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;cursor:grab;transition:border-color .2s,box-shadow .2s,transform .15s;animation:fadeIn .2s ease;user-select:none;position:relative;box-shadow:var(--shadow-card)}
-.deal-card:hover{border-color:var(--gold-border);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
-.deal-card.dragging{opacity:.4;cursor:grabbing}
-.deal-card.selected{border-color:var(--gold)}
-
-/* ── KANBAN COLUMN ── */
-.col-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;width:240px;flex-shrink:0;display:flex;flex-direction:column;max-height:100%;box-shadow:var(--shadow-panel)}
-.col-wrap.drag-over{background:var(--gold-bg);border-color:var(--gold-border)}
-
-/* ── BADGES ── */
-.asset-badge{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.04em;font-family:var(--font-body)}
-.task-count{position:absolute;top:10px;right:10px;background:var(--gold);color:#06070a;border-radius:8px;padding:0 5px;font-size:9px;font-weight:700;font-family:var(--font-mono);line-height:18px}
-body.light .task-count{color:#faf8f3}
-
-/* ── SIDE PANEL ── */
-.panel{position:fixed;top:0;right:0;width:min(420px,100vw);height:100%;background:var(--bg1);border-left:1px solid var(--border-m);z-index:160;display:flex;flex-direction:column;animation:slideIn .18s ease;overflow:hidden;box-shadow:var(--shadow-side)}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:159;backdrop-filter:blur(3px)}
-body.light .overlay{background:rgba(26,24,21,.35)}
-.panel-tab{padding:10px 14px;font-size:11px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:var(--font-body);background:none;border-top:none;border-left:none;border-right:none;color:var(--text-d);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
-.panel-tab:hover{color:var(--text-m)}
-.panel-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
-
-/* ── TASK / NOTE ITEMS ── */
-.task-item{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:11px;margin-bottom:7px;transition:border-color .2s;box-shadow:var(--shadow-panel)}
-.task-item:hover{border-color:var(--border-m)}
-.task-item.done{opacity:.45}
-.note-item{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:7px;box-shadow:var(--shadow-panel)}
-
-/* ── ACTIVITY ── */
-.activity-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
-
-/* ── PRIORITY BADGE ── */
-.priority-badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;font-family:var(--font-body);letter-spacing:.04em}
-
-/* ── STAGE ACTION ── */
-.stage-action{flex:1;padding:5px 0;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text-d);font-size:10px;font-weight:500;cursor:pointer;font-family:var(--font-body);transition:all .15s;text-align:center}
-.stage-action:hover{border-color:var(--gold);color:var(--gold)}
-
-/* ── KANBAN CONTAINER (scrollbar polish) ── */
-.kanban-board::-webkit-scrollbar{height:10px;width:10px}
-.kanban-board::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
-.kanban-board::-webkit-scrollbar-track{background:transparent}
-
-@media(max-width:768px){
-  body{overflow:auto!important}
-  html{height:auto!important}
-  .sidebar{display:none}
-  .bottom-nav{display:flex}
-  .mobile-topbar{display:flex}
-  .main-content{margin-left:0!important;max-width:100vw!important;padding:14px 14px 90px!important;height:auto!important;overflow:visible!important}
-  .kanban-board{flex-direction:column!important;overflow-x:hidden!important;overflow-y:visible!important;height:auto!important;padding-bottom:0!important}
-  .col-wrap{width:100%!important;max-height:none!important;height:auto!important}
-  .panel{width:100vw!important}
-  .stats-strip{flex-wrap:wrap}
-  .stat-cell{min-width:50%;border-bottom:1px solid var(--border)}
-  .page-header{flex-direction:column;align-items:flex-start!important;gap:10px!important}
-  .page-header-actions{flex-direction:row!important;width:100%}
+/* ─── SCROLLBARS (subtle) ─── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--val-border-lt);
+  border-radius: var(--val-r-pill);
+  border: 2px solid var(--val-bg-app);
 }
-`;
+::-webkit-scrollbar-thumb:hover { background: var(--val-text-dim); }
+
+/* ─── SELECTION ─── */
+::selection { background: var(--val-green-tint); color: var(--val-text); }
+
+
+/* ──────────────────────────────────────────────────────────────
+   VALORA — COMPONENTS v1
+   Depends on tokens.css. Every class prefixed \`val-\` to avoid
+   collisions when you drop into an existing codebase.
+   ────────────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════ LAYOUT ══════════════════════════════ */
+
+.val-app {
+  min-height: 100vh;
+  display: flex;
+  background: var(--val-bg-app);
+}
+
+.val-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.val-content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--val-s-8) var(--val-s-10);
+  overflow-y: auto;
+}
+
+.val-content--narrow { max-width: 1100px; margin: 0 auto; width: 100%; }
+
+/* ══════════════════════════════ SIDEBAR ══════════════════════════════ */
+
+.val-sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--val-bg-panel);
+  border-right: 1px solid var(--val-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.val-sidebar__brand {
+  padding: var(--val-s-5) var(--val-s-5) var(--val-s-4);
+}
+.val-sidebar__brand-name {
+  font-size: var(--val-size-22);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  letter-spacing: var(--val-track-snug);
+  line-height: 1;
+}
+.val-sidebar__brand-sub {
+  font-size: 10px;
+  font-weight: var(--val-w-medium);
+  letter-spacing: var(--val-track-widest);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+  margin-top: 4px;
+}
+
+.val-sidebar__section-title {
+  font-size: 10px;
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-widest);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+  padding: var(--val-s-4) var(--val-s-5) var(--val-s-2);
+}
+
+.val-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--val-s-3);
+}
+
+.val-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-3);
+  padding: var(--val-s-2) var(--val-s-3);
+  border-radius: var(--val-r-md);
+  font-size: var(--val-size-14);
+  font-weight: var(--val-w-medium);
+  color: var(--val-text-mid);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--val-dur-fast) var(--val-ease-out);
+  border: none;
+  background: transparent;
+  text-align: left;
+  position: relative;
+}
+.val-nav-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--val-text);
+}
+.val-nav-item--active {
+  background: var(--val-green-tint);
+  color: var(--val-green);
+}
+.val-nav-item--active:hover {
+  background: var(--val-green-tint);
+  color: var(--val-green);
+}
+.val-nav-item__icon {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.val-nav-item__badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--val-w-bold);
+  background: var(--val-red);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--val-r-pill);
+  min-width: 18px;
+  text-align: center;
+}
+
+.val-sidebar__footer {
+  margin-top: auto;
+  padding: var(--val-s-4) var(--val-s-5);
+  border-top: 1px solid var(--val-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--val-s-3);
+}
+.val-sidebar__footer-email {
+  font-size: var(--val-size-11);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  word-break: break-all;
+}
+.val-sidebar__footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* light theme → sidebar bg stays white */
+:root[data-theme="light"] .val-sidebar {
+  background: var(--val-bg-panel);
+}
+
+/* ══════════════════════════════ THEME TOGGLE ══════════════════════════════ */
+
+.val-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--val-s-2);
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-pill);
+  color: var(--val-text-dim);
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-medium);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--val-dur-fast) var(--val-ease-out);
+}
+.val-theme-toggle:hover {
+  color: var(--val-text);
+  border-color: var(--val-border-lt);
+}
+
+/* ══════════════════════════════ PAGE HEADER ══════════════════════════════ */
+
+.val-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--val-s-5);
+  margin-bottom: var(--val-s-8);
+}
+.val-page-header__title {
+  font-size: 34px;
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  letter-spacing: var(--val-track-tight);
+  margin: 0;
+  line-height: 1;
+}
+.val-page-header__sub {
+  font-size: var(--val-size-14);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: var(--val-s-2);
+}
+.val-page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-2);
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════ STAT STRIP ══════════════════════════════ */
+
+.val-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--val-s-1);
+  margin-bottom: var(--val-s-6);
+  background: var(--val-bg-panel);
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-lg);
+  overflow: hidden;
+}
+.val-stat {
+  padding: var(--val-s-4) var(--val-s-5);
+  border-right: 1px solid var(--val-border);
+}
+.val-stat:last-child { border-right: none; }
+.val-stat__label {
+  font-size: 10px;
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-widest);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+}
+.val-stat__value {
+  font-size: 22px;
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  margin-top: 4px;
+  letter-spacing: var(--val-track-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════ TYPE PILLS ══════════════════════════════ */
+
+.val-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--val-r-xs);
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-snug);
+}
+.val-type-pill--btr       { background: rgba(82,196,152,0.15);  color: var(--val-green); }
+.val-type-pill--bts       { background: rgba(92,165,220,0.15);  color: var(--val-blue); }
+.val-type-pill--hotel     { background: rgba(201,168,76,0.18);  color: var(--val-gold); }
+.val-type-pill--flip      { background: rgba(240,164,41,0.15);  color: var(--val-amber); }
+.val-type-pill--mixeduse  { background: rgba(46,158,114,0.15);  color: var(--val-green); }
+.val-type-pill--commercial{ background: rgba(92,165,220,0.15);  color: var(--val-blue); }
+.val-type-pill--industrial{ background: rgba(148,152,160,0.18); color: var(--val-text-mid); }
+
+/* ══════════════════════════════ DEAL CARD ══════════════════════════════ */
+
+.val-deal-card {
+  background: var(--val-bg-panel);
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-lg);
+  padding: var(--val-s-5);
+  transition: border-color var(--val-dur-base) var(--val-ease-out),
+              transform var(--val-dur-base) var(--val-ease-out);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--val-s-4);
+}
+.val-deal-card:hover {
+  border-color: var(--val-border-lt);
+  transform: translateY(-1px);
+}
+.val-deal-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-2);
+  justify-content: space-between;
+}
+.val-deal-card__header-left { display: flex; align-items: center; gap: var(--val-s-2); }
+.val-deal-card__date {
+  font-size: var(--val-size-11);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  font-variant-numeric: tabular-nums;
+}
+.val-deal-card__title {
+  font-size: var(--val-size-17);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  letter-spacing: var(--val-track-snug);
+  margin: 0;
+  line-height: 1.2;
+}
+.val-deal-card__loc {
+  font-size: var(--val-size-12);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: 2px;
+}
+.val-deal-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--val-s-2);
+  background: var(--val-bg-panel-2);
+  border-radius: var(--val-r-md);
+  padding: var(--val-s-3);
+}
+.val-deal-card__metric-label {
+  font-size: 10px;
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-wide);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+}
+.val-deal-card__metric-value {
+  font-size: var(--val-size-15);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.val-deal-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--val-size-12);
+  color: var(--val-text-dim);
+}
+.val-deal-card__footer-value {
+  font-weight: var(--val-w-bold);
+  color: var(--val-green);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════ TAB FILTER (sub-tabs) ══════════════════════════════ */
+
+.val-filter-tabs {
+  display: flex;
+  gap: var(--val-s-5);
+  border-bottom: 1px solid var(--val-border);
+  margin-bottom: var(--val-s-5);
+}
+.val-filter-tab {
+  padding: var(--val-s-2) 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: var(--val-size-13);
+  font-weight: var(--val-w-medium);
+  color: var(--val-text-dim);
+  cursor: pointer;
+  position: relative;
+  letter-spacing: var(--val-track-wide);
+  text-transform: uppercase;
+}
+.val-filter-tab--active {
+  color: var(--val-green);
+  font-weight: var(--val-w-bold);
+}
+.val-filter-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--val-green);
+}
+
+/* ══════════════════════════════ TOP NAV ══════════════════════════════ */
+
+.val-nav {
+  height: var(--val-nav-h);
+  background: var(--val-bg-panel);
+  border-bottom: 1px solid var(--val-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--val-s-6);
+  gap: var(--val-s-6);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.val-nav__brand {
+  font-weight: var(--val-w-bold);
+  font-size: var(--val-size-22);
+  letter-spacing: var(--val-track-snug);
+  color: var(--val-text);
+}
+
+.val-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-2);
+  font-size: var(--val-size-13);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+}
+.val-breadcrumb__sep { opacity: 0.5; }
+.val-breadcrumb__current { color: var(--val-text); }
+
+.val-nav__right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-4);
+}
+
+.val-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+.val-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--val-r-pill);
+  background: var(--val-bg-panel-2);
+  border: 2px solid var(--val-bg-panel);
+  display: grid;
+  place-items: center;
+  font-size: var(--val-size-12);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  margin-left: -6px;
+}
+.val-avatar:first-child { margin-left: 0; }
+.val-avatar--me { background: var(--val-green); color: var(--val-bg-app); }
+
+/* ══════════════════════════════ TAB BAR ══════════════════════════════ */
+
+.val-tabbar {
+  display: flex;
+  gap: var(--val-s-1);
+  padding: 0 var(--val-s-6);
+  height: var(--val-tabbar-h);
+  background: var(--val-bg-app);
+  border-bottom: 1px solid var(--val-border);
+  position: sticky;
+  top: var(--val-nav-h);
+  z-index: 30;
+}
+.val-tab {
+  padding: 0 var(--val-s-4);
+  display: grid;
+  place-items: center;
+  font-size: var(--val-size-14);
+  font-weight: var(--val-w-medium);
+  color: var(--val-text-dim);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  position: relative;
+  transition: color var(--val-dur-fast) var(--val-ease-out);
+}
+.val-tab:hover { color: var(--val-text-mid); }
+.val-tab--active {
+  color: var(--val-text);
+  font-weight: var(--val-w-bold);
+}
+.val-tab--active::after {
+  content: '';
+  position: absolute;
+  left: var(--val-s-3); right: var(--val-s-3);
+  bottom: -1px;
+  height: 3px;
+  background: var(--val-gold);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ══════════════════════════════ DEAL HEADER ══════════════════════════════ */
+
+.val-deal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--val-s-5) var(--val-s-6);
+  background: var(--val-bg-panel);
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-lg);
+  margin-bottom: var(--val-s-6);
+}
+.val-deal-header__title {
+  font-size: var(--val-size-22);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  letter-spacing: var(--val-track-snug);
+  margin: 0;
+}
+.val-deal-header__sub {
+  font-size: var(--val-size-13);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: var(--val-s-1);
+}
+
+/* ══════════════════════════════ CARD ══════════════════════════════ */
+
+.val-card {
+  background: var(--val-bg-panel);
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-lg);
+  padding: var(--val-s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--val-s-3);
+}
+.val-card__title {
+  font-size: var(--val-size-15);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  letter-spacing: var(--val-track-snug);
+  margin: 0 0 var(--val-s-1);
+}
+.val-card__sub {
+  font-size: var(--val-size-12);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: -6px;
+  margin-bottom: var(--val-s-2);
+}
+
+/* ══════════════════════════════ METRIC ROW ══════════════════════════════ */
+
+.val-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--val-s-1) 0;
+  border-bottom: 1px solid transparent;
+}
+.val-metric-row + .val-metric-row {
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+.val-metric-row__label {
+  font-size: var(--val-size-13);
+  font-weight: var(--val-w-medium);
+  color: var(--val-text-dim);
+}
+.val-metric-row__value {
+  font-size: var(--val-size-14);
+  font-weight: var(--val-w-bold);
+  font-feature-settings: 'tnum';   /* tabular figures so columns line up */
+  color: var(--val-text);
+  letter-spacing: var(--val-track-snug);
+}
+.val-metric-row--total {
+  padding-top: var(--val-s-3);
+  margin-top: var(--val-s-2);
+  border-top: 1px solid var(--val-border);
+}
+.val-metric-row--total .val-metric-row__label {
+  color: var(--val-text);
+  font-weight: var(--val-w-bold);
+}
+.val-metric-row--total .val-metric-row__value {
+  color: var(--val-gold);
+}
+
+/* state-coloured values */
+.val-v--gold   { color: var(--val-gold)  !important; }
+.val-v--green  { color: var(--val-green) !important; }
+.val-v--amber  { color: var(--val-amber) !important; }
+.val-v--red    { color: var(--val-red)   !important; }
+.val-v--blue   { color: var(--val-blue)  !important; }
+.val-v--mid    { color: var(--val-text-mid) !important; }
+.val-v--dim    { color: var(--val-text-dim) !important; }
+
+/* ══════════════════════════════ CHIP / STATUS ══════════════════════════════ */
+
+.val-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--val-s-2);
+  padding: var(--val-s-1) var(--val-s-3);
+  border-radius: var(--val-r-pill);
+  font-size: var(--val-size-12);
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-snug);
+  line-height: 1.4;
+}
+.val-chip__dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.val-chip--green  { background: var(--val-green-tint);  color: var(--val-green);  border: 1px solid rgba(82,196,152,0.35); }
+.val-chip--amber  { background: var(--val-amber-tint);  color: var(--val-amber);  border: 1px solid rgba(240,164,41,0.3); }
+.val-chip--red    { background: var(--val-red-tint);    color: var(--val-red);    border: 1px solid rgba(244,100,95,0.3); }
+.val-chip--blue   { background: var(--val-blue-tint);   color: var(--val-blue);   border: 1px solid rgba(92,165,220,0.3); }
+.val-chip--neutral{ background: rgba(255,255,255,0.04); color: var(--val-text-mid); border: 1px solid var(--val-border); }
+
+/* confidence / provenance chip (smaller, flat) */
+.val-chip-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--val-s-1);
+  padding: 2px 8px;
+  border-radius: var(--val-r-xs);
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-medium);
+  letter-spacing: var(--val-track-wide);
+}
+
+/* ══════════════════════════════ BUTTON ══════════════════════════════ */
+
+.val-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--val-s-2);
+  height: 36px;
+  padding: 0 var(--val-s-4);
+  font-family: inherit;
+  font-size: var(--val-size-13);
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-snug);
+  border-radius: var(--val-r-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--val-dur-fast) var(--val-ease-out),
+              border-color var(--val-dur-fast) var(--val-ease-out),
+              transform var(--val-dur-fast) var(--val-ease-out);
+}
+.val-btn:active { transform: translateY(1px); }
+.val-btn:focus-visible { outline: none; box-shadow: var(--val-ring); }
+
+.val-btn--primary {
+  background: var(--val-green);
+  color: var(--val-bg-app);
+}
+.val-btn--primary:hover { background: #5DD3A4; }
+
+.val-btn--secondary {
+  background: transparent;
+  color: var(--val-text-mid);
+  border-color: var(--val-border-lt);
+}
+.val-btn--secondary:hover {
+  color: var(--val-text);
+  border-color: var(--val-text-dim);
+}
+
+.val-btn--ghost {
+  background: transparent;
+  color: var(--val-text-dim);
+}
+.val-btn--ghost:hover {
+  color: var(--val-text);
+  background: rgba(255,255,255,0.04);
+}
+
+.val-btn--sm { height: 28px; padding: 0 var(--val-s-3); font-size: var(--val-size-12); }
+.val-btn--lg { height: 44px; padding: 0 var(--val-s-5); font-size: var(--val-size-14); }
+
+/* ══════════════════════════════ INPUT ══════════════════════════════ */
+
+.val-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--val-s-3);
+  background: var(--val-bg-panel-2);
+  border: 1px solid var(--val-border-lt);
+  border-radius: var(--val-r-md);
+  color: var(--val-text);
+  font-family: inherit;
+  font-size: var(--val-size-14);
+  font-weight: var(--val-w-medium);
+  transition: border-color var(--val-dur-fast) var(--val-ease-out);
+}
+.val-input::placeholder { color: var(--val-text-faint); }
+.val-input:hover { border-color: var(--val-text-dim); }
+.val-input:focus {
+  outline: none;
+  border-color: var(--val-green);
+  box-shadow: 0 0 0 3px var(--val-green-tint);
+}
+.val-input--mono { font-family: var(--val-font-mono); font-variant-numeric: tabular-nums; }
+
+.val-label {
+  display: block;
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-wide);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+  margin-bottom: var(--val-s-2);
+}
+
+.val-input-group { display: flex; flex-direction: column; gap: 0; }
+
+/* ══════════════════════════════ SECTION TITLE ══════════════════════════════ */
+
+.val-section-title {
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-semibold);
+  letter-spacing: var(--val-track-widest);
+  text-transform: uppercase;
+  color: var(--val-text-dim);
+  margin: var(--val-s-10) 0 var(--val-s-3);
+}
+
+/* ══════════════════════════════ GRID / STACK ══════════════════════════════ */
+
+.val-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--val-s-5); }
+.val-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--val-s-5); }
+.val-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--val-s-4); }
+.val-stack  { display: flex; flex-direction: column; gap: var(--val-s-5); }
+.val-row    { display: flex; align-items: center; gap: var(--val-s-3); }
+
+/* ══════════════════════════════ DIVIDER ══════════════════════════════ */
+
+.val-divider {
+  height: 1px;
+  background: var(--val-border);
+  margin: var(--val-s-6) 0;
+}
+
+/* ══════════════════════════════ COPILOT PANEL ══════════════════════════════ */
+
+.val-copilot {
+  width: var(--val-copilot-w);
+  flex-shrink: 0;
+  background: #20242C;                  /* slightly distinct so it reads as separate */
+  border-left: 1px solid var(--val-border);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--val-nav-h));
+  position: sticky;
+  top: var(--val-nav-h);
+}
+.val-copilot__header {
+  padding: var(--val-s-4) var(--val-s-5);
+  border-bottom: 1px solid var(--val-border);
+  display: flex;
+  align-items: center;
+  gap: var(--val-s-3);
+}
+.val-copilot__title {
+  font-size: var(--val-size-17);
+  font-weight: var(--val-w-bold);
+  color: var(--val-text);
+  line-height: 1.2;
+}
+.val-copilot__sub {
+  font-size: var(--val-size-11);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: 2px;
+}
+.val-copilot__sparkle {
+  width: 20px; height: 20px;
+  background:
+    radial-gradient(circle at center, var(--val-green) 0%, transparent 70%);
+  border-radius: 50%;
+  position: relative;
+}
+.val-copilot__sparkle::before, .val-copilot__sparkle::after {
+  content: '';
+  position: absolute;
+  background: var(--val-green);
+}
+.val-copilot__sparkle::before { inset: 8px 0; width: 100%; height: 4px; }
+.val-copilot__sparkle::after  { inset: 0 8px; width: 4px; height: 100%; }
+
+.val-copilot__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--val-s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--val-s-5);
+}
+
+.val-copilot__context {
+  background: var(--val-bg-panel);
+  border: 1px solid var(--val-border);
+  border-radius: var(--val-r-md);
+  padding: var(--val-s-3);
+}
+.val-copilot__context-title {
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-bold);
+  color: var(--val-green);
+  letter-spacing: var(--val-track-wide);
+  display: flex; align-items: center; gap: 6px;
+}
+.val-copilot__context-body {
+  font-size: var(--val-size-12);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+  margin-top: 4px;
+}
+
+.val-msg { display: flex; flex-direction: column; gap: var(--val-s-2); max-width: 88%; }
+.val-msg--user   { align-self: flex-end; }
+.val-msg--bot    { align-self: flex-start; }
+.val-msg__bubble {
+  padding: var(--val-s-3) var(--val-s-4);
+  border-radius: var(--val-r-xl);
+  font-size: var(--val-size-13);
+  line-height: var(--val-lh-normal);
+}
+.val-msg--user .val-msg__bubble {
+  background: rgba(82,196,152,0.14);
+  border: 1px solid rgba(82,196,152,0.2);
+  color: var(--val-text);
+  border-bottom-right-radius: var(--val-r-sm);
+}
+.val-msg--bot .val-msg__bubble {
+  background: transparent;
+  padding-left: 0;
+  color: var(--val-text);
+}
+.val-msg__meta {
+  font-size: var(--val-size-10);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-medium);
+}
+
+.val-copilot__input-wrap {
+  border-top: 1px solid var(--val-border);
+  padding: var(--val-s-3) var(--val-s-4) var(--val-s-4);
+  background: #20242C;
+}
+.val-copilot__suggestions {
+  display: flex;
+  gap: var(--val-s-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--val-s-3);
+}
+.val-sug-chip {
+  padding: 4px 12px;
+  border-radius: var(--val-r-pill);
+  border: 1px solid var(--val-border-lt);
+  background: transparent;
+  color: var(--val-text-mid);
+  font-size: var(--val-size-11);
+  font-weight: var(--val-w-medium);
+  cursor: pointer;
+  transition: all var(--val-dur-fast) var(--val-ease-out);
+}
+.val-sug-chip:hover {
+  border-color: var(--val-green);
+  color: var(--val-green);
+}
+
+.val-copilot__input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--val-bg-panel-2);
+  border: 1px solid var(--val-border-lt);
+  border-radius: var(--val-r-md);
+  padding-right: var(--val-s-2);
+}
+.val-copilot__input input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: var(--val-s-3);
+  color: var(--val-text);
+  font-size: var(--val-size-14);
+  font-family: inherit;
+  font-weight: var(--val-w-medium);
+}
+.val-copilot__input input:focus { outline: none; }
+.val-copilot__input input::placeholder { color: var(--val-text-faint); }
+.val-copilot__send {
+  width: 32px; height: 32px;
+  border-radius: var(--val-r-sm);
+  border: none;
+  background: var(--val-green);
+  color: var(--val-bg-app);
+  font-size: var(--val-size-16);
+  font-weight: var(--val-w-bold);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.val-copilot__disclaimer {
+  font-size: var(--val-size-10);
+  color: var(--val-text-dim);
+  font-weight: var(--val-w-regular);
+  margin-top: var(--val-s-2);
+}
+
+/* ══════════════════════════════ UTILITY ══════════════════════════════ */
+
+.val-muted { color: var(--val-text-dim) !important; }
+.val-bold  { font-weight: var(--val-w-bold) !important; }
+.val-mono  { font-family: var(--val-font-mono) !important; font-variant-numeric: tabular-nums; }
+.val-hide-mobile { }
+@media (max-width: 900px) {
+  .val-hide-mobile { display: none !important; }
+  .val-copilot { display: none; }
+  :root { --val-copilot-w: 0; }
+}
+
+/* ══════════════════════════════ FOCUS VISIBLE ══════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid var(--val-green);
+  outline-offset: 2px;
+}
+button:focus-visible, a:focus-visible { box-shadow: var(--val-ring); outline: none; }`;
 
 const fmt = (n: number, prefix = "£") => {
   if (!n || !isFinite(n) || isNaN(n)) return "—";
@@ -231,62 +1287,70 @@ const fmtPct = (n: number) => (!n || !isFinite(n) || isNaN(n) ? "—" : `${(n * 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const fmtDateTime = (d: string) => new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" };
+
 const STAGES = [
-  { id: "prospect",       label: "Prospect",       color: "#7d8590" },
-  { id: "feasibility",    label: "Feasibility",    color: "#E0A030" },
-  { id: "under_offer",    label: "Under Offer",    color: "#4A80C4" },
-  { id: "in_development", label: "In Development", color: "#52C498" },
-  { id: "completed",      label: "Completed",      color: "#52C498" },
+  { id: "prospect",       label: "Prospect",       dotMod: "prospect" },
+  { id: "feasibility",    label: "Feasibility",    dotMod: "feasibility" },
+  { id: "under_offer",    label: "Under Offer",    dotMod: "under_offer" },
+  { id: "in_development", label: "In Development", dotMod: "in_development" },
+  { id: "completed",      label: "Completed",      dotMod: "completed" },
 ];
-const ASSET_COLORS: Record<string, { bg: string; color: string }> = {
-  BTR:   { bg: "rgba(82,196,152,.12)",  color: "#52C498" },
-  BTS:   { bg: "rgba(91,156,246,.12)",  color: "#4A80C4" },
-  Hotel: { bg: "rgba(240,164,41,.12)",  color: "#E0A030" },
-  Flip:  { bg: "rgba(61,220,132,.10)",  color: "#52C498" },
+
+// Map asset_type (DB value) to the val-type-pill modifier class suffix
+const ASSET_PILL: Record<string, string> = {
+  BTR: "btr",
+  BTS: "bts",
+  Hotel: "hotel",
+  Flip: "flip",
+  MixedUse: "mixeduse",
+  Commercial: "commercial",
+  Industrial: "industrial",
 };
-const PRIORITY_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  low:    { bg: "rgba(125,133,144,.15)", color: "#7d8590", label: "Low" },
-  medium: { bg: "rgba(91,156,246,.15)",  color: "#4A80C4", label: "Medium" },
-  high:   { bg: "rgba(240,164,41,.15)",  color: "#E0A030", label: "High" },
-  urgent: { bg: "rgba(244,100,95,.15)",  color: "#D45252", label: "Urgent" },
+const ASSET_LABEL: Record<string, string> = {
+  BTR: "BTR",
+  BTS: "BTS",
+  Hotel: "Hotel",
+  Flip: "Flip",
+  MixedUse: "Mixed Use",
+  Commercial: "Commercial",
+  Industrial: "Industrial",
 };
+
+const PRIORITY_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
 
 export default function PipelinePage() {
   const router = useRouter();
+
+  // ── Theme (data-theme on <html>, localStorage key 'val-theme') ──
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("valora-theme") || "dark") as "dark" | "light";
+    if (typeof window !== "undefined") return (localStorage.getItem("val-theme") || "dark") as "dark" | "light";
     return "dark";
   });
   useEffect(() => {
-    document.body.classList.toggle("light", theme === "light");
-    localStorage.setItem("valora-theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("val-theme", theme);
   }, [theme]);
 
+  // ── Data state ──
   const [user, setUser] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [tasks, setTasks] = useState<Record<string, any[]>>({});
   const [notes, setNotes] = useState<Record<string, any[]>>({});
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Drag & side-panel state ──
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const dragItem = useRef<any>(null);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [panelTab, setPanelTab] = useState<"tasks" | "notes" | "activity">("tasks");
+
+  // ── Form state ──
   const [newTask, setNewTask] = useState({ description: "", due_at: "", priority: "medium" });
   const [savingTask, setSavingTask] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-
-  // Sidebar state parity with dashboard-v3
-  const [subscription, setSubscription] = useState<any>(null);
-  const [hasFirm, setHasFirm] = useState(false);
-  const [trashedCount, setTrashedCount] = useState(0);
-  const tier = subscription?.tier || "free";
-  const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
-  const isTrialing = trialEndsAt && trialEndsAt > new Date();
-  const isEnterprise = tier === "enterprise" || isTrialing;
-  const isPro = tier === "professional" || isEnterprise;
 
   useEffect(() => {
     const init = async () => {
@@ -294,12 +1358,6 @@ export default function PipelinePage() {
       if (!session) { router.push("/"); return; }
       setUser(session.user);
       await loadAll(session.user.id);
-      const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
-      setSubscription(sub);
-      const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
-      setHasFirm(!!memberRow);
-      const { count } = await supabase.from("projects").select("id", { count: "exact", head: true }).eq("created_by", session.user.id).not("deleted_at", "is", null);
-      setTrashedCount(count || 0);
     };
     init();
   }, [router]);
@@ -407,6 +1465,7 @@ export default function PipelinePage() {
 
   const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
 
+  // ── Derived stats ──
   const totalGDV = projects.reduce((s, p) => s + (p.appraisals?.[0]?.gdv || 0), 0);
   const avgPoC = (() => { const v = projects.filter(p => p.appraisals?.[0]?.profit_on_cost); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
   const active = projects.filter(p => p.pipeline_stage !== "completed").length;
@@ -414,377 +1473,390 @@ export default function PipelinePage() {
   const openTasks = Object.values(tasks).flat().filter(t => !t.completed).length;
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: theme === "light" ? "#faf8f3" : "#06070a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-      <img src={`data:image/png;base64,${LOGO}`} alt="Valora" style={{ height: "32px", width: "auto" }} />
-      <div style={{ width: 26, height: 26, border: "2px solid rgba(201,168,76,.15)", borderTopColor: theme === "light" ? "#a8833a" : "#c9a84c", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-      <div style={{ fontSize: 11, color: theme === "light" ? "#9b9689" : "#3d4249", letterSpacing: ".06em", fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>Loading pipeline…</div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
+    <>
+      <style>{VALORA_CSS}</style>
+      <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('val-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()` }} />
+      <div className="pipe-loading">
+        <div className="pipe-loading__brand">Valora</div>
+        <div className="pipe-loading__spinner" />
+        <div className="pipe-loading__label">Loading pipeline…</div>
+      </div>
+    </>
   );
 
   return (
-    <div style={{ height: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex", overflow: "hidden" }}>
-      <style>{CSS}</style>
-      <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('valora-theme')||'dark';if(t==='light')document.body.classList.add('light');})()` }} />
+    <div className="val-app">
+      <style>{VALORA_CSS}</style>
+      <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('val-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()` }} />
 
-      {/* ── SIDEBAR (dashboard-v3 shell; Pipeline active) ── */}
-      <div className="sidebar">
-        <div style={{ padding: "20px 20px 18px", borderBottom: "1px solid var(--border)" }}>
-          <img src={`data:image/png;base64,${LOGO}`} alt="Valora" style={{ height: "26px", width: "auto" }} />
-          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".14em", textTransform: "uppercase", marginTop: 3, fontWeight: 500 }}>Development Appraisal</div>
+      {/* ── SIDEBAR ── */}
+      <aside className="val-sidebar">
+        <div className="val-sidebar__brand">
+          <div className="val-sidebar__brand-name">Valora</div>
+          <div className="val-sidebar__brand-sub">Development Appraisal</div>
         </div>
-        <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
-          <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 10px", marginBottom: 8, fontWeight: 600 }}>My Work</div>
-          <button className="nav-item" onClick={() => router.push("/dashboard")}>Portfolio</button>
-          <button className="nav-item active">Pipeline</button>
-          <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-          <button className="nav-item" onClick={() => router.push("/notes")}>Notes</button>
-          {hasFirm && (<>
-            <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-            <div style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 10px", marginBottom: 8, fontWeight: 600 }}>Team</div>
-            <button className="nav-item" onClick={() => router.push("/workspace")} style={{ color: "var(--gold)" }}>◈ Workspace</button>
-            <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
-          </>)}
-          {!hasFirm && <button className="nav-item" onClick={() => router.push("/team")}>Team</button>}
-          <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-          <button className="nav-item danger-item" onClick={() => router.push("/dashboard")} style={{ justifyContent: "space-between" }}>
-            <span>Trash</span>
-            {trashedCount > 0 && <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{trashedCount}</span>}
-          </button>
-          {!isPro && (<>
-            <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-            <button className="nav-item" onClick={() => router.push("/pricing")} style={{ color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", fontWeight: 600, fontSize: 12 }}>✦ Upgrade Plan</button>
-          </>)}
-        </div>
-        <div style={{ padding: "12px 12px 0", borderTop: "1px solid var(--border)" }}>
-          <button className="btn-demo" onClick={() => window.open(CALENDLY, "_blank")}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Book a Demo
-          </button>
-          <div style={{ padding: "10px 0 14px" }}>
-            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{user?.email}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <button className="nav-item" onClick={signOut} style={{ fontSize: 12, padding: "5px 8px", width: "auto" }}>Sign Out</button>
-              <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Light mode" : "Dark mode"}>
-                {theme === "dark"
-                  ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>Light</>
-                  : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</>
-                }
-              </button>
-            </div>
+
+        <div className="val-sidebar__section-title">My Work</div>
+        <nav className="val-sidebar__nav">
+          <button className="val-nav-item" onClick={() => router.push("/dashboard")}>Portfolio</button>
+          <button className="val-nav-item val-nav-item--active">Pipeline</button>
+          <button className="val-nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
+          <button className="val-nav-item" onClick={() => router.push("/notes")}>Notes</button>
+          <button className="val-nav-item" onClick={() => router.push("/learn")}>+ Learn</button>
+        </nav>
+
+        <div className="val-sidebar__section-title">Team</div>
+        <nav className="val-sidebar__nav">
+          <button className="val-nav-item" onClick={() => router.push("/workspace")}>◆ Workspace</button>
+          <button className="val-nav-item" onClick={() => router.push("/team")}>Team</button>
+        </nav>
+
+        <div className="val-sidebar__footer">
+          <div className="val-sidebar__footer-email">{user?.email}</div>
+          <div className="val-sidebar__footer-row">
+            <button className="val-nav-item" onClick={signOut} style={{ padding: "4px 0", fontSize: "var(--val-size-12)" }}>Sign Out</button>
+            <button className="val-theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light" : "Switch to dark"}>
+              <span>{theme === "dark" ? "◐" : "◑"}</span>
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* ── MAIN ── */}
-      <div className="main-content" style={{ marginLeft: 220, flex: 1, minWidth: 0, maxWidth: "calc(100vw - 220px)", padding: "36px 36px", display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-        {/* Mobile top bar */}
-        <div className="mobile-topbar">
-          <img src={`data:image/png;base64,${LOGO}`} alt="Valora" style={{ height: "24px", width: "auto" }} />
-          <div style={{ display: "flex", gap: 6 }}>
-            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => router.push("/dashboard")}>+ New</button>
-            <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title="Toggle theme">
-              {theme === "dark"
-                ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              }
-            </button>
-            <button className="btn-ghost" style={{ padding: "6px 10px", fontSize: 11 }} onClick={signOut}>Sign Out</button>
-          </div>
-        </div>
+      <div className="val-main">
+        <main className="val-content">
 
-        {/* Page header */}
-        <div className="page-header">
-          <div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 300, letterSpacing: ".01em", lineHeight: 1 }}>Deal Pipeline</h1>
-            {projects.length > 0 && (
-              <p style={{ fontSize: 13, color: "var(--text-d)", marginTop: 6, fontWeight: 500 }}>
+          {/* Page header */}
+          <div className="val-page-header">
+            <div>
+              <h1 className="val-page-header__title">Deal Pipeline</h1>
+              <div className="val-page-header__sub">
                 {projects.length} deal{projects.length !== 1 ? "s" : ""} · drag to move stage
-              </p>
-            )}
-          </div>
-          <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {openTasks > 0 && <span style={{ fontSize: 11, color: "var(--amber)", background: "rgba(240,164,41,.1)", padding: "2px 9px", borderRadius: 8, fontFamily: "var(--font-mono)", flexShrink: 0, fontWeight: 600, fontVariantNumeric: "tabular-nums" as any }}>{openTasks} open</span>}
-            <button className="btn-primary" onClick={() => router.push("/dashboard")}>+ New Appraisal</button>
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        {projects.length > 0 && (
-          <div className="stats-strip">
-            {[
-              { label: "Active",  value: String(active),   color: "var(--blue)" },
-              { label: "Done",    value: String(done),     color: "var(--green)" },
-              { label: "GDV",     value: fmt(totalGDV),    color: "var(--gold)" },
-              { label: "Avg PoC", value: fmtPct(avgPoC),   color: avgPoC > 0.2 ? "var(--green)" : avgPoC > 0.1 ? "var(--amber)" : "var(--text-m)" },
-              { label: "Tasks",   value: String(openTasks), color: openTasks > 0 ? "var(--amber)" : "var(--text-d)" },
-            ].map(stat => (
-              <div key={stat.label} className="stat-cell">
-                <span style={{ fontSize: 9, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600 }}>{stat.label}</span>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, color: stat.color, lineHeight: 1.1, letterSpacing: ".01em" }}>{stat.value}</span>
               </div>
-            ))}
+            </div>
+            <div className="val-page-header__actions">
+              {openTasks > 0 && (
+                <span className="val-chip val-chip--amber" style={{ fontSize: "var(--val-size-11)" }}>
+                  {openTasks} open
+                </span>
+              )}
+              <button className="val-btn val-btn--primary" onClick={() => router.push("/dashboard")}>+ New</button>
+            </div>
           </div>
-        )}
 
-        {/* Empty state */}
-        {projects.length === 0 && (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 300, color: "var(--gold)", marginBottom: 16, opacity: .7 }}>◈</div>
-            <p style={{ fontSize: 17, color: "var(--text-m)", marginBottom: 8, fontFamily: "var(--font-display)", fontWeight: 400, letterSpacing: ".01em" }}>No deals in pipeline</p>
-            <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 28, fontWeight: 500 }}>Create your first appraisal to start tracking deals.</p>
-            <button className="btn-primary" onClick={() => router.push("/dashboard")} style={{ padding: "12px 28px", fontSize: 13 }}>+ Create First Appraisal</button>
+          {/* Stat strip */}
+          <div className="val-stat-strip">
+            <div className="val-stat">
+              <div className="val-stat__label">Active</div>
+              <div className="val-stat__value val-v--blue">{active}</div>
+            </div>
+            <div className="val-stat">
+              <div className="val-stat__label">Done</div>
+              <div className={`val-stat__value ${done > 0 ? "val-v--green" : ""}`}>{done}</div>
+            </div>
+            <div className="val-stat">
+              <div className="val-stat__label">GDV</div>
+              <div className="val-stat__value val-v--green">{fmt(totalGDV)}</div>
+            </div>
+            <div className="val-stat">
+              <div className="val-stat__label">Avg PoC</div>
+              <div className={`val-stat__value ${avgPoC > 0.2 ? "val-v--green" : avgPoC > 0.1 ? "val-v--amber" : "val-v--mid"}`}>{fmtPct(avgPoC)}</div>
+            </div>
+            <div className="val-stat">
+              <div className="val-stat__label">Tasks</div>
+              <div className={`val-stat__value ${openTasks > 0 ? "val-v--amber" : "val-v--dim"}`}>{openTasks}</div>
+            </div>
           </div>
-        )}
 
-        {/* Kanban board */}
-        {projects.length > 0 && (
-          <div className="kanban-board" style={{ flex: 1, overflowX: "auto", overflowY: "hidden", display: "flex", gap: 12, alignItems: "flex-start", WebkitOverflowScrolling: "touch" as any, minHeight: 0 }}>
-            {STAGES.map(stage => {
-              const cols = projects.filter(p => (p.pipeline_stage || "prospect") === stage.id);
-              const gdv = cols.reduce((s, p) => s + (p.appraisals?.[0]?.gdv || 0), 0);
-              return (
-                <div key={stage.id} className={`col-wrap ${dragOverCol === stage.id ? "drag-over" : ""}`}
-                  style={{ height: "100%" }}
-                  onDragOver={e => onDragOver(e, stage.id)} onDrop={e => onDrop(e, stage.id)}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: gdv > 0 ? 4 : 10, flexShrink: 0 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: stage.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: stage.color, textTransform: "uppercase", letterSpacing: ".08em" }}>{stage.label}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-d)", background: "var(--bg4)", borderRadius: 8, padding: "0 6px", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" as any }}>{cols.length}</span>
-                  </div>
-                  {gdv > 0 && <div style={{ fontSize: 10, color: "var(--text-d)", fontFamily: "var(--font-mono)", marginBottom: 10, fontVariantNumeric: "tabular-nums" as any }}>{fmt(gdv)}</div>}
-                  <div style={{ flex: 1, overflowY: "auto", minHeight: 80 }}>
-                    {cols.length === 0 && (
-                      <div style={{ border: "1px dashed var(--border)", borderRadius: 8, padding: "14px 8px", textAlign: "center", fontSize: 10, color: "var(--text-d)", letterSpacing: ".04em" }}>Drop here</div>
-                    )}
+          {/* Empty state */}
+          {projects.length === 0 && (
+            <div className="pipe-empty">
+              <div className="pipe-empty__icon">◆</div>
+              <div className="pipe-empty__title">No deals in pipeline</div>
+              <div className="pipe-empty__sub">Create your first appraisal to start tracking deals.</div>
+              <button className="val-btn val-btn--primary" onClick={() => router.push("/dashboard")}>+ Create First Appraisal</button>
+            </div>
+          )}
+
+          {/* Kanban board */}
+          {projects.length > 0 && (
+            <div className="kb-board">
+              {STAGES.map(stage => {
+                const cols = projects.filter(p => (p.pipeline_stage || "prospect") === stage.id);
+                const gdv = cols.reduce((s, p) => s + (p.appraisals?.[0]?.gdv || 0), 0);
+                return (
+                  <div key={stage.id}
+                    className={`kb-col ${dragOverCol === stage.id ? "kb-col--drag-over" : ""}`}
+                    onDragOver={e => onDragOver(e, stage.id)}
+                    onDrop={e => onDrop(e, stage.id)}>
+
+                    <div className="kb-col__head">
+                      <span className={`kb-col__dot kb-col__dot--${stage.dotMod}`} />
+                      <span className="kb-col__label">{stage.label}</span>
+                      <span className="kb-col__count">{cols.length}</span>
+                    </div>
+                    {gdv > 0 && <div className="kb-col__total">{fmt(gdv)}</div>}
+
+                    {cols.length === 0 && <div className="kb-drop">Drop here</div>}
+
                     {cols.map(project => {
                       const latest = project.appraisals?.[0];
                       const poc = latest?.profit_on_cost;
                       const sym = CURRENCY_SYMBOLS[project.currency] || "£";
-                      const ac = ASSET_COLORS[project.asset_type] || ASSET_COLORS.BTR;
+                      const pillMod = ASSET_PILL[project.asset_type] || "btr";
+                      const assetLabel = ASSET_LABEL[project.asset_type] || project.asset_type || "BTR";
                       const pt = (tasks[project.id] || []).filter(t => !t.completed);
                       const pn = (notes[project.id] || []).length;
+                      const pocClass = poc > 0.2 ? "val-v--green" : poc > 0.1 ? "val-v--amber" : "val-v--red";
                       return (
                         <div key={project.id}
-                          className={`deal-card ${draggingId === project.id ? "dragging" : ""} ${selectedProject?.id === project.id ? "selected" : ""}`}
-                          draggable onDragStart={e => onDragStart(e, project)} onDragEnd={onDragEnd}
+                          className={`kb-card ${draggingId === project.id ? "kb-card--dragging" : ""} ${selectedProject?.id === project.id ? "kb-card--selected" : ""}`}
+                          draggable
+                          onDragStart={e => onDragStart(e, project)}
+                          onDragEnd={onDragEnd}
                           onClick={() => openPanel(project, "tasks")}>
-                          {pt.length > 0 && <div className="task-count">{pt.length}</div>}
-                          <div style={{ marginBottom: 6, paddingRight: pt.length > 0 ? 22 : 0 }}>
-                            <span className="asset-badge" style={{ background: ac.bg, color: ac.color }}>{project.asset_type || "BTR"}</span>
+
+                          {pt.length > 0 && <div className="kb-card__task-count">{pt.length}</div>}
+
+                          <span className={`val-type-pill val-type-pill--${pillMod}`} style={{ alignSelf: "flex-start" }}>
+                            {assetLabel}
+                          </span>
+
+                          <div>
+                            <h3 className="kb-card__title">{project.name || "Untitled"}</h3>
+                            <div className="kb-card__loc">{project.location || "—"}</div>
                           </div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", marginBottom: 1, lineHeight: 1.25, fontFamily: "var(--font-display)", letterSpacing: ".01em" }}>{project.name || "Untitled"}</div>
-                          <div style={{ fontSize: 10, color: "var(--text-d)", marginBottom: 8 }}>{project.location || "—"}</div>
+
                           {latest ? (
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-m)", fontVariantNumeric: "tabular-nums" as any }}>{fmt(latest.gdv, sym)}</span>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: poc > 0.2 ? "var(--green)" : poc > 0.1 ? "var(--amber)" : "var(--red)", fontVariantNumeric: "tabular-nums" as any }}>{fmtPct(poc)}</span>
+                            <div className="kb-card__row">
+                              <span className="kb-card__row-left">{fmt(latest.gdv, sym)}</span>
+                              <span className={pocClass}>{fmtPct(poc)}</span>
                             </div>
                           ) : (
-                            <div style={{ fontSize: 10, color: "var(--text-d)", marginBottom: 8 }}>No appraisal yet</div>
+                            <div style={{ fontSize: "var(--val-size-11)", color: "var(--val-text-dim)" }}>No appraisal yet</div>
                           )}
+
                           {(pt.length > 0 || pn > 0) && (
-                            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                              {pt.length > 0 && <span style={{ fontSize: 9, color: "var(--amber)", background: "rgba(240,164,41,.1)", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>✓ {pt.length}</span>}
-                              {pn > 0 && <span style={{ fontSize: 9, color: "var(--text-d)", background: "var(--bg4)", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>📝 {pn}</span>}
+                            <div className="kb-card__mini-stats">
+                              {pt.length > 0 && <span className="kb-card__mini-stat" style={{ color: "var(--val-amber)" }}>✓ {pt.length}</span>}
+                              {pn > 0 && <span className="kb-card__mini-stat">📝 {pn}</span>}
                             </div>
                           )}
-                          <div style={{ paddingTop: 8, borderTop: "1px solid var(--border)", marginBottom: 8 }} onClick={e => e.stopPropagation()}>
-                            <select value={project.pipeline_stage || "prospect"}
-                              onChange={e => { e.stopPropagation(); moveProject(project.id, e.target.value); }}
-                              style={{ width: "100%", background: "var(--bg4)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-d)", fontFamily: "var(--font-body)", fontSize: 10, padding: "4px 8px", cursor: "pointer", outline: "none" }}>
-                              {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                            </select>
-                          </div>
-                          <div style={{ display: "flex", gap: 4 }} onClick={e => e.stopPropagation()}>
-                            <button className="stage-action" onClick={e => { e.stopPropagation(); openPanel(project, "tasks"); }}>Tasks</button>
-                            <button className="stage-action" onClick={e => { e.stopPropagation(); openPanel(project, "notes"); }}>Notes</button>
-                            <button className="stage-action" style={{ color: "var(--text-d)" }} onClick={e => { e.stopPropagation(); openProject(project); }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--green)"; e.currentTarget.style.color = "var(--green)"; }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-d)"; }}>Open →</button>
+
+                          <select className="kb-select"
+                            value={project.pipeline_stage || "prospect"}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => { e.stopPropagation(); moveProject(project.id, e.target.value); }}>
+                            {STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                          </select>
+
+                          <div className="kb-card__actions" onClick={e => e.stopPropagation()}>
+                            <button className="kb-card__btn" onClick={e => { e.stopPropagation(); openPanel(project, "tasks"); }}>Tasks</button>
+                            <button className="kb-card__btn" onClick={e => { e.stopPropagation(); openPanel(project, "notes"); }}>Notes</button>
+                            <button className="kb-card__btn" onClick={e => { e.stopPropagation(); openProject(project); }}>Open →</button>
                           </div>
                         </div>
                       );
                     })}
+
+                    <button className="kb-col__add" onClick={() => router.push("/dashboard")}>+ Add</button>
                   </div>
-                  <button onClick={() => router.push("/dashboard")}
-                    style={{ width: "100%", marginTop: 8, padding: "6px", background: "transparent", border: "1px dashed var(--border)", borderRadius: 8, color: "var(--text-d)", fontSize: 10, cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 500, flexShrink: 0, transition: "all .15s" }}
-                    onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "var(--gold)"; (e.target as HTMLElement).style.color = "var(--gold)"; }}
-                    onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = "var(--border)"; (e.target as HTMLElement).style.color = "var(--text-d)"; }}>
-                    + Add
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </main>
       </div>
 
       {/* ── SIDE PANEL ── */}
       {selectedProject && (
         <>
-          <div className="overlay" onClick={() => setSelectedProject(null)} />
-          <div className="panel">
-            <div style={{ padding: "18px 18px 0", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: ".01em" }}>{selectedProject.name || "Untitled"}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 2 }}>{selectedProject.location || "—"} · {selectedProject.asset_type}</div>
+          <div className="side-panel-overlay" onClick={() => setSelectedProject(null)} />
+          <aside className="side-panel">
+            <div className="side-panel__head">
+              <div className="side-panel__title-row">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="side-panel__title">{selectedProject.name || "Untitled"}</div>
+                  <div className="side-panel__sub">
+                    {selectedProject.location || "—"} · {ASSET_LABEL[selectedProject.asset_type] || selectedProject.asset_type}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button className="btn-ghost" style={{ fontSize: 10, padding: "4px 9px" }} onClick={() => openProject(selectedProject)}>Open ↗</button>
-                  <button onClick={() => setSelectedProject(null)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 22, lineHeight: 1, padding: "0 2px" }}>×</button>
+                <div style={{ display: "flex", gap: "var(--val-s-2)", flexShrink: 0 }}>
+                  <button className="val-btn val-btn--secondary val-btn--sm" onClick={() => openProject(selectedProject)}>Open ↗</button>
+                  <button className="side-panel__close" onClick={() => setSelectedProject(null)}>×</button>
                 </div>
               </div>
-              <div style={{ display: "flex", overflowX: "auto", marginTop: 12 }}>
+              <div className="side-panel__tabs">
                 {(["tasks", "notes", "activity"] as const).map(tab => (
-                  <button key={tab} className={`panel-tab ${panelTab === tab ? "active" : ""}`} onClick={() => setPanelTab(tab)}>
-                    {tab === "tasks" ? `Tasks (${(tasks[selectedProject.id] || []).filter(t => !t.completed).length})` : tab === "notes" ? `Notes (${(notes[selectedProject.id] || []).length})` : "Activity"}
+                  <button key={tab}
+                    className={`side-panel__tab ${panelTab === tab ? "side-panel__tab--active" : ""}`}
+                    onClick={() => setPanelTab(tab)}>
+                    {tab === "tasks"
+                      ? `Tasks (${(tasks[selectedProject.id] || []).filter(t => !t.completed).length})`
+                      : tab === "notes"
+                        ? `Notes (${(notes[selectedProject.id] || []).length})`
+                        : "Activity"}
                   </button>
                 ))}
               </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+
+            <div className="side-panel__body">
               {panelTab === "tasks" && (
-                <div>
-                  <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 11, padding: 14, marginBottom: 18, boxShadow: "var(--shadow-panel)" }}>
-                    <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 600, marginBottom: 10 }}>New Task</div>
-                    <textarea className="inp" placeholder="Task description…" value={newTask.description}
+                <>
+                  <div className="side-panel__form">
+                    <div className="val-label">New Task</div>
+                    <textarea
+                      className="side-panel__textarea"
+                      placeholder="Task description…"
+                      value={newTask.description}
                       onChange={e => setNewTask(p => ({ ...p, description: e.target.value }))}
-                      style={{ resize: "none", height: 64, marginBottom: 8, fontFamily: "var(--font-body)" }} />
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                      style={{ height: 64 }} />
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--val-s-2)" }}>
                       <div>
-                        <div style={{ fontSize: 10, color: "var(--text-d)", marginBottom: 3, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase" }}>Due date</div>
-                        <input className="inp" type="datetime-local" value={newTask.due_at} onChange={e => setNewTask(p => ({ ...p, due_at: e.target.value }))} style={{ fontSize: 11, colorScheme: theme as any }} />
+                        <div className="val-label">Due</div>
+                        <input
+                          className="val-input"
+                          type="datetime-local"
+                          value={newTask.due_at}
+                          onChange={e => setNewTask(p => ({ ...p, due_at: e.target.value }))}
+                          style={{ fontSize: "var(--val-size-12)", colorScheme: theme as any }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, color: "var(--text-d)", marginBottom: 3, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase" }}>Priority</div>
-                        <select className="inp" value={newTask.priority} onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))} style={{ fontSize: 11, cursor: "pointer" }}>
-                          <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+                        <div className="val-label">Priority</div>
+                        <select
+                          className="val-input"
+                          value={newTask.priority}
+                          onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))}
+                          style={{ fontSize: "var(--val-size-12)", cursor: "pointer" }}>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
                         </select>
                       </div>
                     </div>
-                    <button style={{ width: "100%", background: "var(--gold)", color: theme === "light" ? "#faf8f3" : "#06070a", border: "none", borderRadius: 8, padding: "9px", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: !newTask.description.trim() || savingTask ? .6 : 1, transition: "background .2s" }}
-                      onClick={addTask} disabled={!newTask.description.trim() || savingTask}>
+                    <button
+                      className="val-btn val-btn--primary"
+                      onClick={addTask}
+                      disabled={!newTask.description.trim() || savingTask}
+                      style={{ width: "100%" }}>
                       {savingTask ? "Adding…" : "+ Add Task"}
                     </button>
                   </div>
-                  {(tasks[selectedProject.id] || []).length === 0
-                    ? <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-d)", fontSize: 13 }}>No tasks yet</div>
-                    : <>
+
+                  {(tasks[selectedProject.id] || []).length === 0 ? (
+                    <div className="side-panel__empty">No tasks yet</div>
+                  ) : (
+                    <>
                       {(tasks[selectedProject.id] || []).filter(t => !t.completed).map(task => {
-                        const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
                         const overdue = task.due_at && new Date(task.due_at) < new Date();
+                        const priMod = (task.priority as string) || "medium";
                         return (
                           <div key={task.id} className="task-item">
-                            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                              <button onClick={() => toggleTask(task)} style={{ width: 17, height: 17, borderRadius: 5, border: "1.5px solid var(--border-m)", background: "none", cursor: "pointer", flexShrink: 0, marginTop: 2, transition: "border-color .15s" }}
-                                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--green)")}
-                                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-m)")} />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, marginBottom: 6, lineHeight: 1.4 }}>{task.description}</div>
-                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                                  <span className="priority-badge" style={{ background: p.bg, color: p.color }}>{p.label}</span>
-                                  {task.due_at && <span style={{ fontSize: 10, color: overdue ? "var(--red)" : "var(--text-d)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" as any }}>{overdue ? "⚠ " : ""}{fmtDateTime(task.due_at)}</span>}
-                                </div>
+                            <button className="task-item__check" onClick={() => toggleTask(task)} aria-label="Complete" />
+                            <div className="task-item__body">
+                              <div className="task-item__desc">{task.description}</div>
+                              <div className="task-item__meta">
+                                <span className={`pri-chip pri-chip--${priMod}`}>{PRIORITY_LABEL[priMod] || priMod}</span>
+                                {task.due_at && (
+                                  <span className={`task-item__due ${overdue ? "task-item__due--overdue" : ""}`}>
+                                    {overdue ? "⚠ " : ""}{fmtDateTime(task.due_at)}
+                                  </span>
+                                )}
                               </div>
-                              <button onClick={() => deleteTask(task)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 14, padding: 0, flexShrink: 0, transition: "color .15s" }}
-                                onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
-                                onMouseLeave={e => (e.currentTarget.style.color = "var(--text-d)")}>×</button>
                             </div>
+                            <button className="task-item__delete" onClick={() => deleteTask(task)}>×</button>
                           </div>
                         );
                       })}
-                      {(tasks[selectedProject.id] || []).filter(t => t.completed).length > 0 && <>
-                        <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 600, margin: "14px 0 8px" }}>Completed</div>
-                        {(tasks[selectedProject.id] || []).filter(t => t.completed).map(task => (
-                          <div key={task.id} className="task-item done">
-                            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                              <button onClick={() => toggleTask(task)} style={{ width: 17, height: 17, borderRadius: 5, border: "1.5px solid var(--green)", background: "var(--green)", cursor: "pointer", flexShrink: 0, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <span style={{ color: theme === "light" ? "#faf8f3" : "#06070a", fontSize: 9, fontWeight: 700 }}>✓</span>
-                              </button>
-                              <div style={{ flex: 1, textDecoration: "line-through", fontSize: 13, color: "var(--text-d)" }}>{task.description}</div>
-                              <button onClick={() => deleteTask(task)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
+
+                      {(tasks[selectedProject.id] || []).filter(t => t.completed).length > 0 && (
+                        <>
+                          <div className="side-panel__section-title">Completed</div>
+                          {(tasks[selectedProject.id] || []).filter(t => t.completed).map(task => (
+                            <div key={task.id} className="task-item task-item--done">
+                              <button className="task-item__check task-item__check--checked" onClick={() => toggleTask(task)} aria-label="Reopen" />
+                              <div className="task-item__body">
+                                <div className="task-item__desc">{task.description}</div>
+                              </div>
+                              <button className="task-item__delete" onClick={() => deleteTask(task)}>×</button>
                             </div>
-                          </div>
-                        ))}
-                      </>}
+                          ))}
+                        </>
+                      )}
                     </>
-                  }
-                </div>
+                  )}
+                </>
               )}
+
               {panelTab === "notes" && (
-                <div>
-                  <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 11, padding: 14, marginBottom: 18, boxShadow: "var(--shadow-panel)" }}>
-                    <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 600, marginBottom: 8 }}>New Note</div>
-                    <textarea className="inp" placeholder="Add a note…" value={newNote} onChange={e => setNewNote(e.target.value)}
-                      style={{ resize: "none", height: 80, marginBottom: 8, fontFamily: "var(--font-body)", lineHeight: 1.6 }} />
-                    <button style={{ width: "100%", background: "var(--gold)", color: theme === "light" ? "#faf8f3" : "#06070a", border: "none", borderRadius: 8, padding: "9px", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: !newNote.trim() || savingNote ? .6 : 1, transition: "background .2s" }}
-                      onClick={addNote} disabled={!newNote.trim() || savingNote}>{savingNote ? "Saving…" : "+ Add Note"}</button>
+                <>
+                  <div className="side-panel__form">
+                    <div className="val-label">New Note</div>
+                    <textarea
+                      className="side-panel__textarea"
+                      placeholder="Add a note…"
+                      value={newNote}
+                      onChange={e => setNewNote(e.target.value)}
+                      style={{ height: 96, lineHeight: "var(--val-lh-loose)" }} />
+                    <button
+                      className="val-btn val-btn--primary"
+                      onClick={addNote}
+                      disabled={!newNote.trim() || savingNote}
+                      style={{ width: "100%" }}>
+                      {savingNote ? "Saving…" : "+ Add Note"}
+                    </button>
                   </div>
-                  {(notes[selectedProject.id] || []).length === 0
-                    ? <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-d)", fontSize: 13 }}>No notes yet</div>
-                    : (notes[selectedProject.id] || []).map(note => (
+
+                  {(notes[selectedProject.id] || []).length === 0 ? (
+                    <div className="side-panel__empty">No notes yet</div>
+                  ) : (
+                    (notes[selectedProject.id] || []).map(note => (
                       <div key={note.id} className="note-item">
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, color: "var(--text-d)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" as any, letterSpacing: ".04em" }}>{fmtDate(note.created_at)}</span>
-                          <button onClick={() => deleteNote(note)} style={{ background: "none", border: "none", color: "var(--text-d)", cursor: "pointer", fontSize: 13, padding: 0, transition: "color .15s" }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "var(--text-d)")}>×</button>
+                        <div className="note-item__head">
+                          <span className="note-item__date">{fmtDate(note.created_at)}</span>
+                          <button className="task-item__delete" onClick={() => deleteNote(note)}>×</button>
                         </div>
-                        <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{note.body}</div>
+                        <div className="note-item__body">{note.body}</div>
                       </div>
                     ))
-                  }
-                </div>
+                  )}
+                </>
               )}
+
               {panelTab === "activity" && (
-                <div>
-                  {activity.filter(a => a.project_id === selectedProject.id).length === 0
-                    ? <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-d)", fontSize: 13 }}>No activity yet</div>
-                    : activity.filter(a => a.project_id === selectedProject.id).map(act => (
+                <>
+                  {activity.filter(a => a.project_id === selectedProject.id).length === 0 ? (
+                    <div className="side-panel__empty">No activity yet</div>
+                  ) : (
+                    activity.filter(a => a.project_id === selectedProject.id).map(act => (
                       <div key={act.id} className="activity-row">
-                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--bg3)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11 }}>
-                          {act.action.startsWith("Moved") ? "→" : act.action.startsWith("Task completed") ? "✓" : act.action.startsWith("Task added") ? "✚" : "📝"}
+                        <div className="activity-row__icon">
+                          {act.action.startsWith("Moved") ? "→"
+                            : act.action.startsWith("Task completed") ? "✓"
+                            : act.action.startsWith("Task added") ? "✚"
+                            : "📝"}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, marginBottom: 2, lineHeight: 1.4 }}>{act.action}</div>
-                          {act.meta?.preview && <div style={{ fontSize: 11, color: "var(--text-d)", fontStyle: "italic", lineHeight: 1.4 }}>"{act.meta.preview}{act.meta.preview?.length >= 60 ? "…" : ""}"</div>}
-                          <div style={{ fontSize: 10, color: "var(--text-d)", fontFamily: "var(--font-mono)", marginTop: 3, fontVariantNumeric: "tabular-nums" as any }}>{fmtDateTime(act.created_at)}</div>
+                        <div className="activity-row__body">
+                          <div className="activity-row__action">{act.action}</div>
+                          {act.meta?.preview && (
+                            <div className="activity-row__preview">
+                              "{act.meta.preview}{act.meta.preview?.length >= 60 ? "…" : ""}"
+                            </div>
+                          )}
+                          <div className="activity-row__time">{fmtDateTime(act.created_at)}</div>
                         </div>
                       </div>
                     ))
-                  }
-                </div>
+                  )}
+                </>
               )}
             </div>
-          </div>
+          </aside>
         </>
       )}
-
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="bottom-nav">
-        <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Portfolio
-        </button>
-        <button className="bottom-nav-item active">
-          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-          Pipeline
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/workspace")}>
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          Workspace
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
-          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          Tasks
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/notes")}>
-          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Notes
-        </button>
-      </nav>
     </div>
   );
 }
