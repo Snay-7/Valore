@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 
 // ═══════════════════════════════════════════════════════════════════════
-// VALORA PIPELINE v6 — Drop-in single-file page
+// VALORA PIPELINE v7 — Drop-in single-file page, defensive theme sync
 //
 // Contains the full Valora design system INLINE:
 //   • tokens.css (dark + light themes via data-theme)
@@ -1321,15 +1321,69 @@ const PRIORITY_LABEL: Record<string, string> = { low: "Low", medium: "Medium", h
 export default function PipelinePage() {
   const router = useRouter();
 
-  // ── Theme (data-theme on <html>, localStorage key 'val-theme') ──
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("val-theme") || "dark") as "dark" | "light";
+  // ── Theme — defensive sync across every mechanism the app might use ──
+  //
+  // Different pages in the app historically used different theme mechanisms
+  // (body.light class; data-theme attribute; various localStorage keys).
+  // Pipeline detects whichever signal is present, and writes to ALL of them
+  // on toggle so every page stays in sync regardless of which one it reads.
+  const detectTheme = (): "dark" | "light" => {
+    if (typeof document === "undefined") return "dark";
+    // 1. body.light class (dashboard's live signal)
+    if (document.body && document.body.classList.contains("light")) return "light";
+    // 2. <html data-theme="...">
+    const htmlTheme = document.documentElement.getAttribute("data-theme");
+    if (htmlTheme === "light" || htmlTheme === "dark") return htmlTheme;
+    // 3. localStorage — try every key the app might use
+    try {
+      for (const key of ["valora-theme", "val-theme", "theme"]) {
+        const v = localStorage.getItem(key);
+        if (v === "light" || v === "dark") return v;
+      }
+    } catch {}
     return "dark";
-  });
+  };
+  const applyTheme = (t: "dark" | "light") => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("data-theme", t);
+    document.body.classList.toggle("light", t === "light");
+    try { localStorage.setItem("valora-theme", t); } catch {}
+    try { localStorage.setItem("val-theme", t); } catch {}
+  };
+
+  const [theme, setTheme] = useState<"dark" | "light">(() => detectTheme());
+  useEffect(() => { applyTheme(theme); }, [theme]);
+
+  // Watch for theme changes from anywhere else — storage events (other tabs),
+  // body.light flipped by dashboard, data-theme attribute changed on html,
+  // focus / visibility returning to the pipeline tab.
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("val-theme", theme);
-  }, [theme]);
+    let disposed = false;
+    const resync = () => {
+      if (disposed) return;
+      const t = detectTheme();
+      setTheme(prev => prev === t ? prev : t);
+    };
+    const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
+
+    const bodyObs = new MutationObserver(resync);
+    bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    const htmlObs = new MutationObserver(resync);
+    htmlObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", resync);
+    document.addEventListener("visibilitychange", resync);
+
+    return () => {
+      disposed = true;
+      bodyObs.disconnect();
+      htmlObs.disconnect();
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", resync);
+      document.removeEventListener("visibilitychange", resync);
+    };
+  }, []);
 
   // ── Data state ──
   const [user, setUser] = useState<any>(null);
@@ -1475,7 +1529,7 @@ export default function PipelinePage() {
   if (loading) return (
     <>
       <style>{VALORA_CSS}</style>
-      <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('val-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()` }} />
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='dark';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()` }} />
       <div className="pipe-loading">
         <div className="pipe-loading__brand">Valora</div>
         <div className="pipe-loading__spinner" />
@@ -1487,7 +1541,7 @@ export default function PipelinePage() {
   return (
     <div className="val-app">
       <style>{VALORA_CSS}</style>
-      <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('val-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()` }} />
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='dark';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()` }} />
 
       {/* ── SIDEBAR ── */}
       <aside className="val-sidebar">
