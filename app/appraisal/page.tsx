@@ -53039,8 +53039,8 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
         </div>
         {/* RIGHT PANEL */}
         <div className="output-panel" style={{padding:20,position:"sticky",top:0,height:"calc(100vh - 102px)",overflowY:"auto",background:"var(--bg1)",display:panelOpen?"block":"none"}}>
-          <div style={{fontFamily:"var(--font-body)",fontSize:18,fontWeight:700,letterSpacing:"-.02em",color:"#F0EEE8",marginBottom:4}}>{data.name||"New Appraisal"}</div>
-          <div style={{fontSize:11,color:"#8B93A5",marginBottom:12}}>{data.location||"No location"} · {assetType} · {data.currency}</div>
+          <div style={{fontFamily:"var(--font-body)",fontSize:18,fontWeight:700,letterSpacing:"-.02em",color:"var(--text)",marginBottom:4}}>{data.name||"New Appraisal"}</div>
+          <div style={{fontSize:11,color:"var(--text-m)",marginBottom:12}}>{data.location||"No location"} · {assetType} · {data.currency}</div>
           {/* ── EQUITY IN — always visible ── */}
           <div style={{background:"var(--bg2)",border:"1px solid rgba(201,168,76,.35)",borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
