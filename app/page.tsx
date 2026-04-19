@@ -423,15 +423,15 @@ function LandingPage({onLogin,onPage}:any){
             <div>
               <div className="chip" style={{marginBottom:24,animation:"fadeUp .5s ease both"}}>
                 <span style={{width:6,height:6,borderRadius:"50%",background:"var(--sage)",display:"inline-block"}}/>
-                Now in beta — free to start
+                AI-powered · Free to start, no card
               </div>
-              <h1 style={{fontSize:"clamp(38px,4.5vw,60px)",fontWeight:700,lineHeight:1.1,letterSpacing:"-.03em",color:"var(--navy)",marginBottom:20,animation:"fadeUp .6s .05s ease both",opacity:0}}>
-                Property development<br/>
-                <span style={{color:"var(--sage)"}}>appraisal that moves</span><br/>
-                as fast as you do.
+              <h1 style={{fontSize:"clamp(38px,4.5vw,60px)",fontWeight:700,lineHeight:1.08,letterSpacing:"-.03em",color:"var(--navy)",marginBottom:20,animation:"fadeUp .6s .05s ease both",opacity:0}}>
+                Know if a deal works<br/>
+                in 5 minutes.<br/>
+                <span style={{color:"var(--sage)"}}>Not 5 hours.</span>
               </h1>
-              <p style={{fontSize:"clamp(15px,1.5vw,18px)",color:"var(--text-m)",lineHeight:1.7,maxWidth:480,marginBottom:36,animation:"fadeUp .6s .12s ease both",opacity:0,fontWeight:500}}>
-                BTR, BTS, Hotel, Flip, Mixed Use, Commercial. Seven models, one platform. From first numbers to investor-ready PDF in minutes.
+              <p style={{fontSize:"clamp(15px,1.5vw,18px)",color:"var(--text-m)",lineHeight:1.7,maxWidth:520,marginBottom:32,animation:"fadeUp .6s .12s ease both",opacity:0,fontWeight:500}}>
+                Seven asset models. <strong style={{color:"var(--navy)",fontWeight:600}}>AI underwriting</strong>, live benchmarks, investor-ready outputs. From first inputs to decision in minutes.
               </p>
               <div className="hero-btns" style={{display:"flex",gap:12,flexWrap:"wrap",animation:"fadeUp .6s .18s ease both",opacity:0}}>
                 <button className="btn-sage" onClick={onLogin} style={{height:46,padding:"0 28px",fontSize:14}}>
@@ -442,13 +442,10 @@ function LandingPage({onLogin,onPage}:any){
                   Book a demo
                 </button>
               </div>
-              <div style={{display:"flex",gap:24,marginTop:32,animation:"fadeUp .6s .24s ease both",opacity:0}}>
-                {[["7","Asset models"],["14-day","Free trial"],["No card","Required"]].map(([n,l])=>(
-                  <div key={l} style={{display:"flex",flexDirection:"column",gap:2}}>
-                    <div style={{fontSize:17,fontWeight:700,color:"var(--navy)",letterSpacing:"-.02em",fontFamily:"var(--mono)",fontVariantNumeric:"tabular-nums"}}>{n}</div>
-                    <div style={{fontSize:11,color:"var(--text-d)",fontWeight:600,letterSpacing:".04em",textTransform:"uppercase"}}>{l}</div>
-                  </div>
-                ))}
+              {/* Micro-proof line — quantified trust signal under the CTAs */}
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,marginTop:22,padding:"7px 14px",background:"var(--sage-bg)",border:"1px solid var(--sage-border)",borderRadius:999,animation:"fadeUp .6s .24s ease both",opacity:0}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style={{fontSize:12,color:"var(--sage)",fontWeight:600,letterSpacing:"-.015em"}}>Used to evaluate £1M–£500M+ opportunities</span>
               </div>
             </div>
             {/* ── HERO MOCKUP ── */}
@@ -532,8 +529,8 @@ function LandingPage({onLogin,onPage}:any){
           <div className="stats-grid reveal" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
             {[
               {n:7,suffix:"",label:"Asset models",sub:"BTR to Industrial"},
+              {n:3,suffix:"",label:"AI tools built-in",sub:"Comps · Sense · URL"},
               {n:45,suffix:"",label:"Sensitivity scenarios",sub:"Per matrix, live"},
-              {n:10,suffix:"",label:"Benchmark curves",sub:"SONIA, SOFR & more"},
               {n:14,suffix:"-day",label:"Free trial",sub:"No card required"},
             ].map(({n,suffix,label,sub})=>(
               <div key={label} className="stat-card">
@@ -544,6 +541,78 @@ function LandingPage({onLogin,onPage}:any){
                 <div style={{fontSize:12,color:"var(--text-d)",marginTop:3,fontWeight:500}}>{sub}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+      {/* ── WHY VALORA (new — the "assumptions" insight, sets up the AI section) ── */}
+      <section style={{padding:"88px 0"}}>
+        <div className="container">
+          <div className="reveal" style={{maxWidth:720,margin:"0 auto",textAlign:"center"}}>
+            <div className="chip" style={{marginBottom:20}}>Why Valora</div>
+            <h2 style={{fontSize:"clamp(28px,3.2vw,44px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12,marginBottom:24}}>
+              Most deals don't fail<br/>because of the asset.<br/>
+              <span style={{color:"var(--sage)"}}>They fail because of the assumptions.</span>
+            </h2>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center",marginBottom:28}}>
+              {["Wrong build cost","Overestimated revenue","Unrealistic timelines"].map(t=>(
+                <div key={t} style={{padding:"8px 16px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)",fontSize:13,color:"var(--text-m)",fontWeight:500,letterSpacing:"-.015em"}}>
+                  {t}
+                </div>
+              ))}
+            </div>
+            <p style={{fontSize:16,color:"var(--text-m)",lineHeight:1.65,fontWeight:500,maxWidth:540,margin:"0 auto"}}>
+              Valora surfaces this in real time — before you commit time or capital.
+            </p>
+          </div>
+        </div>
+      </section>
+      {/* ── AI SECTION (moved BEFORE features — reads as the direct answer to Why Valora above) ── */}
+      <section style={{padding:"96px 0",background:"var(--navy)",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",inset:0,pointerEvents:"none",background:"radial-gradient(ellipse 60% 40% at 20% 30%,rgba(82,196,152,.08) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 85% 70%,rgba(82,196,152,.05) 0%,transparent 55%)"}}/>
+        <div className="container" style={{position:"relative",zIndex:1}}>
+          <div className="reveal" style={{textAlign:"center",maxWidth:640,margin:"0 auto 52px"}}>
+            <div className="chip" style={{marginBottom:16,background:"rgba(82,196,152,.15)",borderColor:"rgba(82,196,152,.35)"}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"var(--sage-l)",display:"inline-block"}}/>
+              AI Intelligence
+            </div>
+            <h2 style={{fontSize:"clamp(30px,3.2vw,44px)",fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF",lineHeight:1.1,marginBottom:18}}>
+              AI that thinks like<br/><span style={{color:"var(--sage-l)"}}>an underwriter.</span>
+            </h2>
+            <p style={{fontSize:16,color:"rgba(246,244,239,.65)",lineHeight:1.65,fontWeight:500,maxWidth:560,margin:"0 auto"}}>
+              Three AI features that replace hours of spreadsheet work — benchmarking, comp analysis and property data extraction happen automatically as you model.
+            </p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18,maxWidth:1040,margin:"0 auto"}} className="features-grid reveal reveal-delay-1">
+            {[
+              {
+                icon:"◎",title:"AI Sense Check",
+                desc:"Benchmarks your assumptions against market data in real time. Flags aggressive yields, stretched LTC, DSCR breaches and unrealistic build costs — exactly what a senior lender will challenge.",
+                tag:"Auto-flag risks",
+              },
+              {
+                icon:"⊛",title:"AI Market Comps",
+                desc:"Pulls rent PSF, NIY, sale comparables and local transaction data for your postcode. Ranks the most relevant comps and explains why — no more manual CoStar digging.",
+                tag:"Comparable evidence",
+              },
+              {
+                icon:"◈",title:"AI URL Import",
+                desc:"Paste a Rightmove, Zoopla, Christie & Co or Savills listing URL. Valora extracts price, size, rooms, brand and address — pre-filling a Flip or Hotel appraisal in under 10 seconds.",
+                tag:"Zero data entry",
+              },
+            ].map(f=>(
+              <div key={f.title} style={{background:"rgba(255,255,255,.035)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:"26px 24px",transition:"all .25s var(--val-ease, cubic-bezier(.16,1,.3,1))",position:"relative"}}
+                onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(82,196,152,.35)";(e.currentTarget as HTMLDivElement).style.transform="translateY(-2px)";}}
+                onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(255,255,255,.08)";(e.currentTarget as HTMLDivElement).style.transform="none";}}
+              >
+                <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:44,height:44,borderRadius:10,background:"rgba(82,196,152,.15)",border:"1px solid rgba(82,196,152,.3)",color:"var(--sage-l)",fontSize:20,marginBottom:16}}>{f.icon}</div>
+                <div style={{display:"inline-block",fontSize:10,fontWeight:700,color:"var(--sage-l)",background:"rgba(82,196,152,.12)",border:"1px solid rgba(82,196,152,.25)",borderRadius:4,padding:"2px 8px",marginBottom:10,letterSpacing:".08em",textTransform:"uppercase"}}>{f.tag}</div>
+                <div style={{fontSize:16,fontWeight:700,color:"#F6F4EF",marginBottom:8,letterSpacing:"-.015em",lineHeight:1.25}}>{f.title}</div>
+                <div style={{fontSize:13,color:"rgba(246,244,239,.62)",lineHeight:1.65,fontWeight:500}}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div className="reveal reveal-delay-2" style={{textAlign:"center",marginTop:44}}>
+            <div style={{fontSize:12,color:"rgba(246,244,239,.42)",fontWeight:500,letterSpacing:".04em"}}>Your data is never used to train AI models.</div>
           </div>
         </div>
       </section>
@@ -568,6 +637,37 @@ function LandingPage({onLogin,onPage}:any){
                 <div style={{fontSize:13,color:"var(--text-m)",lineHeight:1.6,fontWeight:500}}>{f.desc}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+      {/* ── TRADITIONAL VS VALORA (new — classic conversion comparison block) ── */}
+      <section style={{padding:"80px 0"}}>
+        <div className="container">
+          <div className="reveal" style={{maxWidth:520,margin:"0 auto 48px",textAlign:"center"}}>
+            <div className="chip" style={{marginBottom:16}}>The difference</div>
+            <h2 style={{fontSize:"clamp(28px,3vw,40px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12}}>
+              Traditional tools, and<br/><span style={{color:"var(--sage)"}}>the Valora way.</span>
+            </h2>
+          </div>
+          <div className="three-col reveal" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:840,margin:"0 auto"}}>
+            {/* Traditional (muted) */}
+            <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"28px 26px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".12em",marginBottom:20}}>Traditional tools</div>
+              {["Manual modelling","Static outputs","Assumption guessing","Hours of work"].map((t,i,arr)=>(
+                <div key={t} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i===arr.length-1?"none":"1px solid var(--border)",fontSize:14,color:"var(--text-d)",fontWeight:500,letterSpacing:"-.015em"}}>
+                  <span style={{color:"var(--text-d)",fontSize:14,fontWeight:600,flexShrink:0}}>×</span>{t}
+                </div>
+              ))}
+            </div>
+            {/* Valora (green accent) */}
+            <div style={{background:"var(--bg2)",border:"2px solid var(--sage-border)",borderRadius:12,padding:"28px 26px",position:"relative"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--sage)",textTransform:"uppercase",letterSpacing:".12em",marginBottom:20}}>Valora</div>
+              {["Instant analysis","Dynamic scenarios","AI-backed benchmarking","Minutes to clarity"].map((t,i,arr)=>(
+                <div key={t} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:i===arr.length-1?"none":"1px solid var(--border)",fontSize:14,color:"var(--navy)",fontWeight:600,letterSpacing:"-.015em"}}>
+                  <span style={{color:"var(--sage)",fontSize:14,fontWeight:700,flexShrink:0}}>✓</span>{t}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
