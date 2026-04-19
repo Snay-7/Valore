@@ -405,8 +405,8 @@ function LandingPage({onLogin,onPage}:any){
                 </div>
               ))}
             </div>
-            <p style={{fontSize:16,color:"var(--text-m)",lineHeight:1.65,fontWeight:500,maxWidth:540,margin:"0 auto"}}>
-              Valora surfaces this in real time — before you commit time or capital.
+            <p style={{fontSize:16,color:"var(--text-m)",lineHeight:1.65,fontWeight:500,maxWidth:560,margin:"0 auto"}}>
+              Valora surfaces this in real time. <strong style={{color:"var(--navy)",fontWeight:700}}>Know before you commit capital.</strong>
             </p>
           </div>
         </div>
@@ -420,18 +420,21 @@ function LandingPage({onLogin,onPage}:any){
               <span style={{width:6,height:6,borderRadius:"50%",background:"var(--sage-l)",display:"inline-block"}}/>
               AI Intelligence
             </div>
-            <h2 style={{fontSize:"clamp(30px,3.2vw,44px)",fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF",lineHeight:1.1,marginBottom:18}}>
+            <h2 style={{fontSize:"clamp(30px,3.2vw,44px)",fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF",lineHeight:1.1,marginBottom:14}}>
               AI that thinks like<br/><span style={{color:"var(--sage-l)"}}>an underwriter.</span>
             </h2>
+            <div style={{fontSize:15,color:"var(--sage-l)",fontWeight:700,letterSpacing:"-.015em",marginBottom:18}}>
+              Not just automation — decision intelligence.
+            </div>
             <p style={{fontSize:16,color:"rgba(246,244,239,.65)",lineHeight:1.65,fontWeight:500,maxWidth:560,margin:"0 auto"}}>
-              Three AI features that replace hours of spreadsheet work — benchmarking, comp analysis and property data extraction happen automatically as you model.
+              Three AI features that replace hours of spreadsheet work — benchmarking, comp analysis and scenario reasoning happen automatically as you model.
             </p>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18,maxWidth:1040,margin:"0 auto"}} className="features-grid reveal reveal-delay-1">
             {[
               {icon:"◎",title:"AI Sense Check",desc:"Benchmarks your assumptions against market data in real time. Flags aggressive yields, stretched LTC, DSCR breaches and unrealistic build costs — exactly what a senior lender will challenge.",tag:"Auto-flag risks"},
               {icon:"⊛",title:"AI Market Comps",desc:"Pulls rent PSF, NIY, sale comparables and local transaction data for your postcode. Ranks the most relevant comps and explains why — no more manual CoStar digging.",tag:"Comparable evidence"},
-              {icon:"✦",title:"AI Copilot",desc:"Your underwriting analyst, embedded in every deal. Ask questions in plain English, explore scenarios, challenge your assumptions and draft investor summaries — without leaving the model.",tag:"Coming soon"},
+              {icon:"✦",title:"AI Copilot",desc:"Your underwriting partner, embedded in every deal. Ask questions in plain English, challenge assumptions, explore scenarios. From \"why doesn't this deal work?\" to \"what fixes it?\" — Valora answers in real time.",tag:"Coming soon"},
             ].map(f=>(
               <div key={f.title} style={{background:"rgba(255,255,255,.035)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:"26px 24px",transition:"all .25s cubic-bezier(.16,1,.3,1)",position:"relative"}}
                 onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.borderColor="rgba(82,196,152,.35)";(e.currentTarget as HTMLDivElement).style.transform="translateY(-2px)";}}
@@ -454,7 +457,7 @@ function LandingPage({onLogin,onPage}:any){
           <div className="reveal" style={{maxWidth:580,marginBottom:56}}>
             <div className="chip" style={{marginBottom:16}}>What's inside</div>
             <h2 style={{fontSize:"clamp(28px,3vw,42px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12,marginBottom:16}}>
-              Every tool a serious<br/>developer needs.
+              The full institutional stack.<br/><span style={{color:"var(--sage)"}}>Built into one platform.</span>
             </h2>
             <p style={{fontSize:16,color:"var(--text-m)",lineHeight:1.7,fontWeight:500}}>
               Not a simple calculator. A full institutional-grade appraisal engine — the kind that used to cost tens of thousands in consulting fees or proprietary software licences.
@@ -555,7 +558,7 @@ function LandingPage({onLogin,onPage}:any){
           <div className="reveal" style={{textAlign:"center",maxWidth:580,margin:"0 auto 48px"}}>
             <div className="chip" style={{marginBottom:16}}>In their words</div>
             <h2 style={{fontSize:"clamp(28px,3vw,40px)",fontWeight:700,letterSpacing:"-.03em",color:"var(--navy)",lineHeight:1.12}}>
-              Real users. Real deals.
+              Used on real deals — <span style={{color:"var(--sage)"}}>not demo data.</span>
             </h2>
           </div>
           <div className="three-col reveal" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:920,margin:"0 auto"}}>
@@ -583,7 +586,7 @@ function LandingPage({onLogin,onPage}:any){
                 <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(45,122,181,.10)",border:"1px solid rgba(45,122,181,.28)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"var(--blue)",fontWeight:700,letterSpacing:".02em"}}>RM</div>
                 <div>
                   <div style={{fontSize:13,fontWeight:700,color:"var(--navy)",letterSpacing:"-.015em"}}>Rodrigo M.</div>
-                  <div style={{fontSize:11,color:"var(--text-d)",fontWeight:500}}>Investment Principal · Hotel investment firm</div>
+                  <div style={{fontSize:11,color:"var(--text-d)",fontWeight:500}}>Investment Principal · LatAM hotel investor</div>
                 </div>
               </div>
             </div>
