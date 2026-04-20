@@ -8744,13 +8744,23 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
-  // Unlevered: total asset cost out day 1, NOI in each year, gross exit proceeds at end
-  // (ignores capital structure — pure asset-level return)
-  const unleveredDayOne=-(purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+workingCapital+(imAcqFee||0));
+  // ── CANONICAL CASHFLOWS ────────────────────────────────────────────────────
+  // All items that are in totalCost must flow through cfs[] with correct timing so
+  // profit ties to sum(lCfs). Prior bug: VAT, arrangement fee, brokerage fee, exit fee,
+  // interest total, and IM base PA sat in totalCost but were excluded from uCfs[0],
+  // causing unlevered IRR to systematically overstate returns on hotel acquisitions.
+  const _imBasePA=imEnabled?num(String(data.imBasePA??250000)):0;
+  const _annualOpex=supportingCosts+operatorFees+_imBasePA;
+  // Day-1 capital — EVERYTHING paid upfront (exit fee flows at exit; interest annualised)
+  const _day1Out=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+vatAdv+arrangementFee+brokerageFee+imAcqFee+workingCapital;
+  // Exit = gross exit value − disposal costs − exit fee
+  const _exitNetOfFees=netExitProceeds-exitFee;
+
+  // Unlevered (asset-level): day-1 out + NOI less opex per year + exit net of fees
   const uCfs=[
-    unleveredDayOne,
-    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees),
-    exitValue+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees),
+    -_day1Out,
+    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-_annualOpex),
+    _exitNetOfFees+(yearRevenue[holdYears-1].noi-_annualOpex),
   ];
 
 
@@ -9264,12 +9274,13 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
 
 
-  // Levered: equity out day 1, NOI minus annual interest each year, net exit after loan repayment at end
-  // equity = totalCost - loanAmount (what investor actually puts in)
+  // Levered: day-1 out net of loan proceeds, NOI minus opex minus annual interest each year,
+  // exit net of fees and loan repayment.
+  // sum(lCfs) = accountingProfit by construction (ties to MOIC via equity × (moic-1)).
   const lCfs=[
-    -equity,
-    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-supportingCosts-operatorFees-annualInterest),
-    (netExitProceeds-loanAmount)+(yearRevenue[holdYears-1].noi-supportingCosts-operatorFees-annualInterest),
+    -(_day1Out-loanAmount),
+    ...yearRevenue.slice(0,holdYears-1).map(y=>y.noi-_annualOpex-annualInterest),
+    (_exitNetOfFees-loanAmount)+(yearRevenue[holdYears-1].noi-_annualOpex-annualInterest),
   ];
 
 
@@ -12902,20 +12913,22 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profit=gdv-totalCost;
     const poc=totalCost>0?profit/totalCost:0;
     const margin=gdv>0?profit/gdv:0;
-    const equity=Math.max(0,totalCost-fin.loanAmount);
+    // Equity definition: sell costs (agent fees + marketing) are paid from sale proceeds at exit,
+    // not upfront, so day-1 equity = totalCost − loanAmount − sellCosts.
+    // Prior bug: MOIC used one equity (incl. sellCosts) while lCfs used another (excl. sellCosts),
+    // causing Equity Multiple and Levered IRR to derive from different capital bases.
+    const equity=Math.max(0,totalCost-fin.loanAmount-sellCosts);
     const moic=equity>0?(equity+profit)/equity:0;
     const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
-    // IRR equity: sell costs (agent + marketing) are paid from sale proceeds, not upfront
-    // So equity deployed for IRR = totalCost - loanAmount - sellCosts
-    const irrEquity=Math.max(0,totalCost-fin.loanAmount-sellCosts);
-    const equityRatio=totalCost>0?equity/totalCost:1;
+    // Equity ratio for the lCfs draws — now uses the SAME equity figure as MOIC
+    const equityRatio=(equity+fin.loanAmount)>0?equity/(equity+fin.loanAmount):0;
     const netSalesPm=(gdv-sellCosts)/absMonths;
     const loanRepayPm=fin.peakLoanBalance/absMonths;
     const uCfs:number[]=Array(totalMonths).fill(0);
     const lCfs:number[]=Array(totalMonths).fill(0);
     uCfs[0]-=landCost+sdlt+fin.arrangementFee;
-    lCfs[0]-=(landCost+sdlt)*(irrEquity/(irrEquity+fin.loanAmount+sellCosts||1))+fin.arrangementFee;
-    for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*(irrEquity/(irrEquity+fin.loanAmount+sellCosts||1))+(fin.monthlyInterestArr[m]??0);}
+    lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
+    for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);}
     for(let m=0;m<absMonths;m++){const idx=buildMonths+m;const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);uCfs[idx]+=netSalesPm;lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;}
     const rawIrr=calcIRR(uCfs);
     const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
@@ -12931,10 +12944,15 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const noiMode=data.noiMode||"normalised";
     const actualNoiInput=num(String(data.actualNoi||0));
     const normalisedEbitda=hr.totalEbitda;
-    const ffeReserveNorm=normalisedEbitda*0.03;
-    const normalisedNoi=Math.max(0,normalisedEbitda-ffeReserveNorm);
-    // In actual mode: user inputs NOI directly; EBITDA back-calculated (NOI / 0.97)
-    const ebitda=noiMode==="actual"&&actualNoiInput>0?actualNoiInput/0.97:normalisedEbitda;
+    // UNIFIED FF&E convention — % of revenue (industry standard for hotel underwriting).
+    // Prior bug: normalisedNoi used 3% of EBITDA; exitNOI/hotelNOI used 3% of revenue;
+    // actualNoi back-calculated EBITDA via /0.97 (implying 3% of EBITDA). Three conventions
+    // in one function caused NOI and DSCR to drift between normalised and actual modes.
+    const ffePctUnified=num(String(data.ffePct||3))/100;
+    const ffeReserveRev=hr.totalRev*ffePctUnified;
+    const normalisedNoi=Math.max(0,normalisedEbitda-ffeReserveRev);
+    // Actual-NOI mode: user supplies NOI directly; EBITDA = NOI + FF&E reserve (on revenue)
+    const ebitda=noiMode==="actual"&&actualNoiInput>0?actualNoiInput+ffeReserveRev:normalisedEbitda;
     const actualNoi=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:normalisedNoi;
     const revenuePa=hr.totalRev;
     const stabilisedCapRate=num(String(data.stabilisedCapRate))/100;
@@ -13144,14 +13162,20 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       refurbNew=newAreaSqft*nwCostPsf;
       refurb=refurbExisting+refurbNew;
     } else {
-      // Legacy flat-budget / psf mode
-      const propertySqft=num(String(data.propertySqft||0));
-      const refurbPsf=num(String(data.refurbPsf||0));
-      refurb=propertySqft>0&&refurbPsf>0?propertySqft*refurbPsf:num(String(data.refurbBudget||0));
-      totalArea=propertySqft;
-      existingAreaSqft=propertySqft;
+      // Legacy flat-budget / psf mode — convert sqm inputs to sqft internally so
+      // downstream math is always in sqft. Prior bug: sqm mode without Area Model
+      // treated raw sqm inputs as sqft, producing ~10.76× area/price errors.
+      const rawArea=num(String(data.propertySqft||0));
+      const propertySqftInternal=unitSys==="sqm"?rawArea*SQM_TO_SQFT:rawArea;
+      const rawRefurbPsf=num(String(data.refurbPsf||0));
+      const refurbPsfInternal=unitSys==="sqm"?rawRefurbPsf/SQM_TO_SQFT:rawRefurbPsf;
+      refurb=propertySqftInternal>0&&refurbPsfInternal>0
+        ?propertySqftInternal*refurbPsfInternal
+        :num(String(data.refurbBudget||0));
+      totalArea=propertySqftInternal;
+      existingAreaSqft=propertySqftInternal;
     }
-    const propertySqft=useAreaModel?totalArea:num(String(data.propertySqft||0));
+    const propertySqft=totalArea; // always sqft now (both branches)
 
 
 
