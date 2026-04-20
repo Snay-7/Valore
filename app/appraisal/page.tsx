@@ -12520,7 +12520,9 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
 
   zones.forEach((z:any)=>{
     const isResidential=z.type==="residential"||!z.type;
-    const units=num(String(z.units||0));
+    // Default units to 1 to match Simple engine (line 14151) and UI display (line 38791).
+    // Legacy zones may be missing z.units entirely; ||1 preserves GDV continuity.
+    const units=num(String(z.units||1));
     const sizeSqft=num(String(z.sizeSqft||0));
     const buildCostPsf=num(String(z.buildCostPsf||0));
     const zoneBuildCost=units*sizeSqft*buildCostPsf;
@@ -12602,7 +12604,7 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   const vatRaw=totalBuildCost*(num(String(data.vatPct||0))/100);
   const vat=isRecoverableVatMUA?0:vatRaw;
   // CIL — new-build floorspace only. Uses total zone sqft as approximation (zone-level CIL exempt flags handled in simple engine).
-  const zoneGIA=zones.reduce((s:number,z:any)=>s+num(String(z.units||0))*num(String(z.sizeSqft||0)),0);
+  const zoneGIA=zones.reduce((s:number,z:any)=>s+num(String(z.units||1))*num(String(z.sizeSqft||0)),0);
   const cil=num(String(data.cilPsf||0))*zoneGIA;
   // Section 106 is a hard cash obligation — NEVER classed as recoverable. Flows into total cost always.
   const s106=num(String(data.s106||0));
@@ -12653,10 +12655,10 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
   // Parking excluded from GIA denominator — cost/sqft should be based on saleable/let floorspace only.
   const totalSqftAdvanced=zones.reduce((s:number,z:any)=>{
     if((z.type||"").toLowerCase()==="parking") return s;
-    return s+num(String(z.units||0))*num(String(z.sizeSqft||0));
+    return s+num(String(z.units||1))*num(String(z.sizeSqft||0));
   },0);
   const zoneResultsForDisplay=zones.map((z:any)=>{
-    const zUnits=num(String(z.units||0));
+    const zUnits=num(String(z.units||1));
     const sizeSqft=num(String(z.sizeSqft||0));
     const zoneTotalSqft=zUnits*sizeSqft;
     const buildCostPsf=num(String(z.buildCostPsf||0));
@@ -28515,7 +28517,14 @@ function AppraisalPage(){
       if(bridgingRate>1.2)flags.push({severity:"warning",field:"Bridging Rate",message:`${bridgingRate}%pm is above typical bridging rates.`,benchmark:"Typical bridging: 0.6–1.0%pm"});
       if(data.flipCapStructure==="bridge_refi"&&(data.holdOccupancy||"vacant")==="vacant"&&(r.netCashflowPm||0)<0){
         const totalDrain=Math.abs((r.netCashflowPm||0)*num(String(data.refiTermMonths||24)));
-        flags.push({severity:"warning",field:"Vacant hold",message:`Property is vacant during hold — negative cashflow of ${currSym}${Math.round(Math.abs(r.netCashflowPm||0))}/mo. Total equity drain: ${currSym}${Math.round(totalDrain)}.`,benchmark:"Consider letting during hold to offset mortgage payments"});
+        flags.push({severity:"warning",field:"Vacant hold",message:`Property is vacant during hold — DSCR shows as "N/A" because there is no rental income to cover refi interest. Negative cashflow of ${currSym}${Math.round(Math.abs(r.netCashflowPm||0))}/mo, total equity drain over hold: ${currSym}${Math.round(totalDrain)}.`,benchmark:"Lenders prefer tenanted holds (DSCR ≥ 1.25×) — vacant refi holds are higher-risk and may attract pricing premium or LTV haircut"});
+      }
+      if(data.flipCapStructure==="bridge_refi"&&(data.holdOccupancy||"vacant")==="tenanted"&&isFinite(r.dscr)&&r.dscr>0){
+        if(r.dscr<1.25)flags.push({severity:"error",field:"DSCR / ICR",message:`DSCR of ${r.dscr.toFixed(2)}× is below the 1.25× lender covenant minimum — refi may not be approvable at this rent level.`,benchmark:"Most BTL/refi lenders require DSCR ≥ 1.25× (stress-tested: 1.35–1.50×)"});
+        else if(r.dscr<1.50)flags.push({severity:"warning",field:"DSCR / ICR",message:`DSCR of ${r.dscr.toFixed(2)}× is thin — may fail lender stress tests.`,benchmark:"Stress-tested DSCR: 1.35–1.50× typical"});
+      }
+      if(data.flipMode==="sell"&&isFinite(r.dscr)&&r.dscr>0&&r.dscr<1.5){
+        flags.push({severity:"warning",field:"ICR (Bridge)",message:`Bridge ICR of ${r.dscr.toFixed(2)}× is thin — gross profit barely covers bridging interest. Little margin for cost overruns or sale delays.`,benchmark:"Bridge lenders typically look for ICR ≥ 1.75× to absorb programme risk"});
       }
       if(data.flipCapStructure==="bridge_refi"&&(r.cashOutRefi||0)<-500){
         flags.push({severity:"warning",field:"Under-refinancing",message:`Refi loan is ${currSym}${Math.round(Math.abs(r.cashOutRefi||0))} short of the bridge balance — you will need to inject this as additional equity at refinance.`,benchmark:"Increase refi LTV or reduce purchase price to close the gap"});
@@ -49207,8 +49216,8 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
 
 
-                  // Derive BTS units from BTR units
-                  // Priority: 1) Manual psf input  2) Yield capitalisation  3) Defaults
+                  // Derive BTS units based on current strategy
+                  // Priority: 1) Manual psf input  2) Yield capitalisation  3) Live BTS units  4) Defaults
                   const manualPsf=num(strategyPsf);
                   const btsUnitsFromBTR=(assetType==="BTR"&&(data.units||[]).length>0)
                     ?(data.units||[]).map((u:any)=>{
@@ -49223,7 +49232,24 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                         }
                         return{type:u.type.replace(" OMR","").replace(" DMR",""),count:u.count,salePricePsf:Math.round(salePricePsf),size:u.size};
                       })
+                    :(assetType==="BTS"&&(data.units||[]).length>0)
+                    ?(data.units||[]).map((u:any)=>({
+                        type:u.type,
+                        count:num(String(u.count)),
+                        size:num(String(u.size)),
+                        salePricePsf:manualPsf>0?manualPsf:num(String(u.salePricePsf||0)),
+                      }))
                     :DEFAULTS.BTS.units;
+                  // Derive BTR units when current strategy is BTS
+                  // Convert sale price → implied rent at selected yield
+                  const btrUnitsFromBTS=(assetType==="BTS"&&(data.units||[]).length>0)
+                    ?(data.units||[]).map((u:any)=>{
+                        const salePricePsf=num(String(u.salePricePsf||0));
+                        const annualRentPsf=salePricePsf*(strategyYield/100);
+                        const rentPcm=Math.round((annualRentPsf*num(String(u.size||0)))/12);
+                        return{type:u.type,count:num(String(u.count)),size:num(String(u.size)),rentPcm};
+                      })
+                    :null;
 
 
 
@@ -50257,24 +50283,30 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                       desc:"Income-producing, exit at stabilised yield",
                       data:{
                         ...(assetType==="BTR"?data:DEFAULTS.BTR),
+                        // When current strategy is BTS, use the user's own unit mix re-expressed as rental units
+                        ...(assetType==="BTS"&&btrUnitsFromBTS?{units:btrUnitsFromBTS}:{}),
                         landCost:sharedLand, buildCostPsf:sharedBuildPsf||285, siteAreaSqft:sharedSite||195000,
                         ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
                         professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
                         benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                        programmMonths:num(String(data.programmMonths||36)),
+                        // Preserve user's programme when BTS is current; otherwise sensible default
+                        programmMonths:assetType==="BTS"?num(String(data.programmMonths||36)):num(String(data.programmMonths||36)),
                         stabilisationMonths:num(String(data.stabilisationMonths||12)),
                       }
                     },
                     {
                       key:"BTS", label:"Build to Sell", color:"var(--blue)", icon:"◎",
                       desc:`Sale price derived from rent at ${strategyYield}% yield`,
-                      data:{...DEFAULTS.BTS,
+                      data:{
+                        ...(assetType==="BTS"?data:DEFAULTS.BTS),
                         units:btsUnitsFromBTR,
                         landCost:sharedLand, buildCostPsf:btsBuildPsf, siteAreaSqft:btsSiteArea,
                         ltc:sharedLTC, marginOverBenchmark:sharedMargin, arrangementFeePct:sharedArrangement,
                         professionalFeesPct:sharedProfFees, contingencyPct:sharedContingency,
                         benchmarkRate:sharedBenchmarkRate, currency:data.currency,
-                        programmMonths:30, absorptionMonths:18,
+                        // When BTS is current, respect user's programme/absorption; otherwise sensible defaults
+                        programmMonths:assetType==="BTS"?num(String(data.programmMonths||30)):30,
+                        absorptionMonths:assetType==="BTS"?num(String(data.absorptionMonths||18)):18,
                       }
                     },
                   ];
@@ -52425,7 +52457,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                       </div>
                       <div style={{marginTop:10,fontSize:10,color:"var(--text-d)",display:"flex",alignItems:"center",gap:6}}>
                         <span style={{color:"var(--amber)"}}>◆</span>
-                        Strategy comparison uses indicative defaults for each model. Numbers are directional — not a substitute for a full appraisal per strategy.
+                        Your current strategy uses your live inputs. The alternate strategy translates your units to the other model (rent ↔ sale price at {strategyYield}% yield) — directional, always verify with a full appraisal before committing.
                       </div>
                     </div>
                   );
