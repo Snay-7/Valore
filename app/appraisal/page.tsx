@@ -12504,8 +12504,6 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
   // Exit — capitalise NOI and deduct purchaser's costs so GDV is the institutional transferable value
   const niy=num(String(data.niy||5.5))/100;
   const stabilisedNOI=yearlyNOI[holdYears-1]||yearlyNOI[0]||0;
-  const noiMode=data.noiMode||"normalised";
-  const actualNoiInput=num(String(data.actualNoi||0));
   const exitNOI=stabilisedNOI;
   const commPcPct=resolvePurchasersCostsPct(null,data,"commercial");
   const exitValue=calcNetCapitalValue(exitNOI,niy,commPcPct);
@@ -12551,7 +12549,7 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     equity,totalCost,landCost,sdlt,buildCost,profFees,contingency,vat,cil,s106,
     totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
     interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
-    totalErv,totalPassing,stabilisedNOI,exitNOI,noiMode,totalHoldNOI,
+    totalErv,totalPassing,stabilisedNOI,exitNOI,totalHoldNOI,
     yearlyNOI,unitYearData,holdYears,
     avgWault:units.length>0?units.reduce((s:number,u:any)=>{const a=num(String(u.areaSqm||0));return s+num(String(u.wault??5))*(a/Math.max(totalAreaNative,1));},0):0,
     paybackMonth,uCfs,lCfs,buildMonths,stabMonths,totalMonths,
@@ -12810,7 +12808,6 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
     interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
     stabilisedNOI,totalHoldNOI,yearlyNOI,zoneYearData,holdYears,
     paybackMonth,uCfs,lCfs,buildMonths,totalMonths,
-    noiMode:data.noiMode||"normalised",
     niy:num(String(data.niy||5))/100,
     financeRate:annualRate,
     rlv:exitValue*(1-0.20)-totalBC-fin.totalFinanceCost-sdlt,
@@ -14842,14 +14839,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // ── Scheme totals ────────────────────────────────────────────────────────
     const totalBuildCost=zoneResults.reduce((s:number,z:any)=>s+z.totalBuildCost,0);
     const normalisedGDV=zoneResults.reduce((s:number,z:any)=>s+z.gdvZone,0);
-    const noiMode=data.noiMode||"normalised";
-    const actualNoiInput=num(String(data.actualNoi||0));
-    // In actual mode: user supplies real blended NOI — derive GDV using commercial yield from first commercial zone
-    const blendedExitYield=zoneResults.length>0
-      ?(zoneResults.reduce((s:number,z:any)=>s+(z.exitYield||0)*z.gdvZone,0)/Math.max(normalisedGDV,1))
-      :0.05;
-    const effectiveGDV=normalisedGDV;
-    const totalGDV=effectiveGDV;
+    const totalGDV=normalisedGDV;
     const normalisedNoi=normalisedGDV;
     // Exclude parking from GIA denominator so £/sqft metrics reflect saleable / let floorspace
     const totalSqft=zoneResults.reduce((s:number,z:any)=>((z.type||"").toLowerCase()==="parking"?s:s+z.totalSqft),0);
@@ -15859,8 +15849,6 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const niy=num(String(data.niy||5.5))/100;
     const equivalentYield=num(String(data.equivalentYield||5.75))/100;
     const vpValuePsm=num(String(data.vpValuePsm||0));
-    const noiMode=data.noiMode||"normalised";
-    const actualNoiInput=num(String(data.actualNoi||0));
     const effectiveNoi=totalNetPassing;
     const normalisedNoi=totalNetPassing;
     let gdv=0;
@@ -16587,7 +16575,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
     return{
-      totalAreaSqm,totalAreaSqft,buildCost,devCost,vat,cil,s106,normalisedNoi,noiMode,effectiveNoi,
+      totalAreaSqm,totalAreaSqft,buildCost,devCost,vat,cil,s106,normalisedNoi,effectiveNoi,
       totalErv,totalPassing,totalNetPassing,totalRentFreeCost,avgWault,
       reversionaryPct,projectedErv,rentReviewType,reviewMultiplier,
       gdv,exitMethod,niy,equivalentYield,vpValuePsm,
@@ -16648,8 +16636,6 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const niy=num(String(data.niy||5.0))/100;
     const equivalentYield=num(String(data.equivalentYield||5.25))/100;
     const vpValuePsm=num(String(data.vpValuePsm||0));
-    const noiMode=data.noiMode||"normalised";
-    const actualNoiInput=num(String(data.actualNoi||0));
     const effectiveNoi=totalNetPassing;
     const normalisedNoi=totalNetPassing;
     let gdv=0;
@@ -16712,7 +16698,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
         profit:mProfit,
       };
     }));
-    return{totalAreaSqm,totalAreaSqft,totalAreaNative,buildCost,devCost,vat,cil,s106,normalisedNoi,noiMode,effectiveNoi,
+    return{totalAreaSqm,totalAreaSqft,totalAreaNative,buildCost,devCost,vat,cil,s106,normalisedNoi,effectiveNoi,
       totalErv,totalPassing,totalNetPassing,totalRentFreeCost,avgWault,
       gdv,exitMethod,niy,equivalentYield,vpValuePsm,landCost,sdlt,profFees,contingency,
       totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,
@@ -29474,7 +29460,7 @@ ${data.imEnabled?`- Investment Manager: Yes (Acq fee ${fmt(hotelAdv.imAcqFee,cur
 :assetType==="BTR"?`- Exit Yield: ${data.exitYield}%\n- Gross NOI pa: ${fmt(r.noi,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Total Units: ${r.totalUnits}`
 :assetType==="Hotel"?`- ADR (USE THIS EXACT FIGURE): ${currencySymbol}${data.adr||0}\n- Occupancy (USE THIS EXACT FIGURE): ${data.occupancy||0}%\n- RevPAR (computed ADR × Occupancy): ${fmt(r.revpar,currSym)}\n- Star Rating: ${data.starRating||4}-Star\n- EBITDA pa: ${fmt(r.ebitda,currSym)}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":fmtX(r.dscr)}\n- Rooms: ${data.rooms}`
 :assetType==="Flip"?`- Purchase Price: ${fmt(r.purchase||0,currSym)}\n- Sale Price: ${fmt(r.salePrice||0,currSym)}`
-:(assetType==="Commercial"||assetType===("Industrial" as any))?`- Mode: ${commercialMode==="advanced"?"Institutional Advanced":"Simple"}\n- Stabilised NOI pa: ${fmt(r.stabilisedNOI||r.totalNetPassing||r.effectiveNoi||0,currSym)}\n- Exit Method: ${data.exitMethod||"NIY"}\n- Target NIY: ${data.targetNIY||data.niy||0}%\n- NOI Mode: ${data.noiMode||"normalised"}${data.noiMode==="actual"?`\n- Actual NOI Input: ${fmt(num(String(data.actualNoi||0)),currSym)}`:""}\n- Area Unit: ${data.areaUnit||"sqft"}\n- Total Lettable Area: ${(data.units||[]).reduce((s:number,u:any)=>s+num(String(u.area||0)),0).toLocaleString()} ${(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}\n- Units: ${(data.units||[]).length} lettable ${(data.units||[]).length===1?"unit":"units"}${(data.units||[]).length>0?` (${(data.units||[]).slice(0,4).map((u:any)=>`${u.label||u.type||"Unit"}: ${currSym}${u.erv||0} ERV/${(data.areaUnit||"sqft")==="sqft"?"psf":"psm"}`).join(", ")}${(data.units||[]).length>4?"...":""})`:""}\n- WAULT: ${r.wault?`${r.wault.toFixed(1)} yrs`:"—"}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
+:(assetType==="Commercial"||assetType===("Industrial" as any))?`- Mode: ${commercialMode==="advanced"?"Institutional Advanced":"Simple"}\n- Stabilised NOI pa: ${fmt(r.stabilisedNOI||r.totalNetPassing||r.effectiveNoi||0,currSym)}\n- Exit Method: ${data.exitMethod||"NIY"}\n- Target NIY: ${data.targetNIY||data.niy||0}%\n- Area Unit: ${data.areaUnit||"sqft"}\n- Total Lettable Area: ${(data.units||[]).reduce((s:number,u:any)=>s+num(String(u.area||0)),0).toLocaleString()} ${(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}\n- Units: ${(data.units||[]).length} lettable ${(data.units||[]).length===1?"unit":"units"}${(data.units||[]).length>0?` (${(data.units||[]).slice(0,4).map((u:any)=>`${u.label||u.type||"Unit"}: ${currSym}${u.erv||0} ERV/${(data.areaUnit||"sqft")==="sqft"?"psf":"psm"}`).join(", ")}${(data.units||[]).length>4?"...":""})`:""}\n- WAULT: ${r.wault?`${r.wault.toFixed(1)} yrs`:"—"}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
 :assetType==="MixedUse"?`- Mode: ${mixedUseMode==="advanced"?"Institutional Advanced (year-by-year)":"Simple (blended exit)"}\n- Hold Period: ${mixedUseMode==="advanced"?`${r.holdYears||data.holdYears||5} years ${(r.holdYears||data.holdYears||5)>=3?"(LONG-HOLD BTR STRATEGY)":"(build-to-sell at stabilisation)"}`:"N/A (Simple mode — build and exit at completion)"}\n- Total GDV: ${fmt(r.totalGDV||0,currSym)}\n- Blended Exit Yield: ${data.exitYield||"—"}%\n- Zones: ${(data.zones||[]).length} total (${(data.zones||[]).filter((z:any)=>z.type==="residential").length} residential, ${(data.zones||[]).filter((z:any)=>z.type==="commercial").length} commercial)\n- Zone Breakdown: ${(data.zones||[]).slice(0,6).map((z:any)=>`${z.label||z.type} (${z.type}, exit: ${z.exitStrategy||"sell"})`).join("; ")}\n- DSCR: ${r.dscr>=999?"N/A (All Equity)":isFinite(r.dscr)?fmtX(r.dscr):"N/A"}`
 :""}
 
