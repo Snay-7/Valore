@@ -6161,7 +6161,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   // In Actual NOI mode, capitalise user-supplied NOI directly
   const _advNoiMode=data.noiMode||"normalised";
   const _advActualNoi=num(String(data.actualNoi||0));
-  const _exitNOI=_advNoiMode==="actual"&&_advActualNoi>0?_advActualNoi:stabilisedNOI;
+  const _exitNOI=stabilisedNOI;
   const exitValue=exitCapRate>0?_exitNOI/exitCapRate:0;
   const exitValuePerKey=rooms>0?exitValue/rooms:0;
   const disposalCosts=exitValue*disposalCostPct;
@@ -12506,7 +12506,7 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
   const stabilisedNOI=yearlyNOI[holdYears-1]||yearlyNOI[0]||0;
   const noiMode=data.noiMode||"normalised";
   const actualNoiInput=num(String(data.actualNoi||0));
-  const exitNOI=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:stabilisedNOI;
+  const exitNOI=stabilisedNOI;
   const commPcPct=resolvePurchasersCostsPct(null,data,"commercial");
   const exitValue=calcNetCapitalValue(exitNOI,niy,commPcPct);
   const totalHoldNOI=yearlyNOI.reduce((s,n)=>s+n,0);
@@ -14848,9 +14848,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const blendedExitYield=zoneResults.length>0
       ?(zoneResults.reduce((s:number,z:any)=>s+(z.exitYield||0)*z.gdvZone,0)/Math.max(normalisedGDV,1))
       :0.05;
-    const effectiveGDV=noiMode==="actual"&&actualNoiInput>0
-      ?(blendedExitYield>0?actualNoiInput/blendedExitYield:normalisedGDV)
-      :normalisedGDV;
+    const effectiveGDV=normalisedGDV;
     const totalGDV=effectiveGDV;
     const normalisedNoi=normalisedGDV;
     // Exclude parking from GIA denominator so £/sqft metrics reflect saleable / let floorspace
@@ -15863,7 +15861,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const vpValuePsm=num(String(data.vpValuePsm||0));
     const noiMode=data.noiMode||"normalised";
     const actualNoiInput=num(String(data.actualNoi||0));
-    const effectiveNoi=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:totalNetPassing;
+    const effectiveNoi=totalNetPassing;
     const normalisedNoi=totalNetPassing;
     let gdv=0;
     if(exitMethod==="investment"){
@@ -16652,7 +16650,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const vpValuePsm=num(String(data.vpValuePsm||0));
     const noiMode=data.noiMode||"normalised";
     const actualNoiInput=num(String(data.actualNoi||0));
-    const effectiveNoi=noiMode==="actual"&&actualNoiInput>0?actualNoiInput:totalNetPassing;
+    const effectiveNoi=totalNetPassing;
     const normalisedNoi=totalNetPassing;
     let gdv=0;
     if(exitMethod==="investment"){gdv=niy>0?effectiveNoi/niy:0;}
@@ -38957,34 +38955,6 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             {/* ─── MIXED USE — ZONES TAB ──────────────────────────────────────────── */}
             {activeTab==="zones"&&assetType==="MixedUse"&&(
               <div>
-                {/* ── NOI Mode Toggle ─────────────────────────────── */}
-                <div style={{marginBottom:20,padding:"14px 16px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10}}>
-                  <div style={{fontSize:11,fontWeight:600,color:"var(--text-m)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>NOI Underwriting Mode</div>
-                  <div style={{display:"flex",gap:8,marginBottom:10}}>
-                    {([{key:"normalised",label:"Normalised",desc:"Model derives GDV from zone assumptions (resi units + commercial yield)"},{key:"actual",label:"Actual NOI",desc:"Input blended operating NOI — model capitalises at blended zone exit yield"}] as const).map(opt=>(
-                      <button key={opt.key} onClick={()=>set("noiMode",opt.key)}
-                        style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1px solid ${(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.noiMode||"normalised")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"left",transition:"all .2s"}}>
-                        <div style={{fontSize:12,fontWeight:600,color:(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--text)",marginBottom:3}}>{opt.label}</div>
-                        <div style={{fontSize:10,color:"var(--text-d)"}}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                  {(data.noiMode||"normalised")==="actual"&&(
-                    <div className="inp-row">
-                      <div className="inp-group">
-                        <label className="inp-label">Actual Blended NOI ({currencySymbol} pa)</label>
-                        <input className="inp" type="number" value={data.actualNoi??""} onChange={e=>set("actualNoi",e.target.value)} placeholder="e.g. 8000000"/>
-                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:4}}>Capitalised at blended zone exit yield. Normalised GDV (model): {fmt(r.normalisedGDV||r.totalGDV||0,currencySymbol)}</div>
-                      </div>
-                      <div className="inp-group">
-                        <label className="inp-label">Gap vs Normalised GDV</label>
-                        <div style={{padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:13,fontFamily:"var(--font-mono)",color:(r.totalGDV||0)>(r.normalisedGDV||0)?"var(--green)":"var(--amber)"}}>
-                          {r.normalisedGDV?`${(r.totalGDV||0)>(r.normalisedGDV||0)?"+":""}${currencySymbol}${Math.abs(Math.round((r.totalGDV||0)-(r.normalisedGDV||0))).toLocaleString()} (${((((r.totalGDV||0)-(r.normalisedGDV||0))/(r.normalisedGDV||1))*100).toFixed(1)}%)`:"—"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
                 <div className="section-title">Zone Configuration</div>
                 <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>Each zone has its own use type, size, cost and exit strategy. Active zones (already trading) offset carry costs during the build programme.</div>
                 {(data.zones||[]).map((z:any,zi:number)=>{
@@ -40243,36 +40213,6 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             ══════════════════════════════════════════════════════════════ */}
             {activeTab==="revenue"&&assetType==="Commercial"&&(
               <div>
-                {/* ── NOI Mode Toggle ─────────────────────────────── */}
-                <div style={{marginBottom:20,padding:"14px 16px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10}}>
-                  <div style={{fontSize:11,fontWeight:600,color:"var(--text-m)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>NOI Underwriting Mode</div>
-                  <div style={{display:"flex",gap:8,marginBottom:10}}>
-                    {([{key:"normalised",label:"Normalised",desc:"Model derives NOI from unit rents, void and income assumptions"},{key:"actual",label:"Actual NOI",desc:"Input your real operating NOI — model capitalises at exit yield"}] as const).map(opt=>(
-                      <button key={opt.key} onClick={()=>set("noiMode",opt.key)}
-                        style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1px solid ${(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.noiMode||"normalised")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"left",transition:"all .2s"}}>
-                        <div style={{fontSize:12,fontWeight:600,color:(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--text)",marginBottom:3}}>{opt.label}</div>
-                        <div style={{fontSize:10,color:"var(--text-d)"}}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                  {(data.noiMode||"normalised")==="actual"&&(
-                    <div className="inp-row">
-                      <div className="inp-group">
-                        <label className="inp-label">Actual NOI ({currencySymbol} pa)</label>
-                        <input className="inp" type="number" value={data.actualNoi??""} onChange={e=>set("actualNoi",e.target.value)} placeholder="e.g. 5000000"/>
-                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:4}}>Your real operating NOI — model capitalises at exit yield to derive GDV. Normalised (model-derived): {fmt(r.normalisedNoi||r.totalNetPassing||0,currencySymbol)}</div>
-                      </div>
-                      <div className="inp-group">
-                        <label className="inp-label">Gap vs Normalised</label>
-                        <div style={{padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:13,fontFamily:"var(--font-mono)",color:num(String(data.actualNoi||0))>(r.normalisedNoi||r.totalNetPassing||0)?"var(--green)":"var(--amber)"}}>
-                          {(r.normalisedNoi||r.totalNetPassing)
-                            ?`${num(String(data.actualNoi||0))>(r.normalisedNoi||r.totalNetPassing||0)?"+":""}${currencySymbol}${Math.abs(Math.round(num(String(data.actualNoi||0))-(r.normalisedNoi||r.totalNetPassing||0))).toLocaleString()} (${(((num(String(data.actualNoi||0))-(r.normalisedNoi||r.totalNetPassing||0))/(r.normalisedNoi||r.totalNetPassing||1))*100).toFixed(1)}%)`
-                            :"—"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
                 <div className="section-title">Lettable Units</div>
                 <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
                   Add each lettable unit or floor. ERV and passing rent are <strong style={{color:"var(--text-m)"}}>per {(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"} per year</strong>. Area in {(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}.
@@ -42428,36 +42368,6 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
             ══════════════════════════════════════════════════════════════ */}
             {activeTab==="revenue"&&assetType==="Industrial"&&(
               <div>
-                {/* ── NOI Mode Toggle ─────────────────────────────── */}
-                <div style={{marginBottom:20,padding:"14px 16px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10}}>
-                  <div style={{fontSize:11,fontWeight:600,color:"var(--text-m)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>NOI Underwriting Mode</div>
-                  <div style={{display:"flex",gap:8,marginBottom:10}}>
-                    {([{key:"normalised",label:"Normalised",desc:"Model derives NOI from unit rents, void and income assumptions"},{key:"actual",label:"Actual NOI",desc:"Input your real operating NOI — model capitalises at exit yield"}] as const).map(opt=>(
-                      <button key={opt.key} onClick={()=>set("noiMode",opt.key)}
-                        style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1px solid ${(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--border)"}`,background:(data.noiMode||"normalised")===opt.key?"var(--gold-bg)":"var(--bg3)",cursor:"pointer",textAlign:"left",transition:"all .2s"}}>
-                        <div style={{fontSize:12,fontWeight:600,color:(data.noiMode||"normalised")===opt.key?"var(--gold)":"var(--text)",marginBottom:3}}>{opt.label}</div>
-                        <div style={{fontSize:10,color:"var(--text-d)"}}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                  {(data.noiMode||"normalised")==="actual"&&(
-                    <div className="inp-row">
-                      <div className="inp-group">
-                        <label className="inp-label">Actual NOI ({currencySymbol} pa)</label>
-                        <input className="inp" type="number" value={data.actualNoi??""} onChange={e=>set("actualNoi",e.target.value)} placeholder="e.g. 5000000"/>
-                        <div style={{fontSize:10,color:"var(--text-d)",marginTop:4}}>Your real operating NOI — model capitalises at exit yield to derive GDV. Normalised (model-derived): {fmt(r.normalisedNoi||r.totalNetPassing||0,currencySymbol)}</div>
-                      </div>
-                      <div className="inp-group">
-                        <label className="inp-label">Gap vs Normalised</label>
-                        <div style={{padding:"8px 12px",background:"var(--bg3)",borderRadius:6,fontSize:13,fontFamily:"var(--font-mono)",color:num(String(data.actualNoi||0))>(r.normalisedNoi||r.totalNetPassing||0)?"var(--green)":"var(--amber)"}}>
-                          {(r.normalisedNoi||r.totalNetPassing)
-                            ?`${num(String(data.actualNoi||0))>(r.normalisedNoi||r.totalNetPassing||0)?"+":""}${currencySymbol}${Math.abs(Math.round(num(String(data.actualNoi||0))-(r.normalisedNoi||r.totalNetPassing||0))).toLocaleString()} (${(((num(String(data.actualNoi||0))-(r.normalisedNoi||r.totalNetPassing||0))/(r.normalisedNoi||r.totalNetPassing||1))*100).toFixed(1)}%)`
-                            :"—"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
                 <div className="section-title">Industrial Units</div>
                 <div style={{fontSize:12,color:"var(--text-d)",marginBottom:16}}>
                   Add each lettable unit or floor. ERV and passing rent are <strong style={{color:"var(--text-m)"}}>per {(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"} per year</strong>. Area in {(data.areaUnit||"sqft")==="sqft"?"sq ft":"sq m"}.
