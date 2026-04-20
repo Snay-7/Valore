@@ -13882,187 +13882,212 @@ function calcAll(assetType:string,data:any):Record<string,any>{
 
 
 
-    // ── Total costs & profit ──────────────────────────────────────────────────
+    // ── Total costs (for cost-stack display) ──────────────────────────────────
+    // Development-phase finance only. Refi interest during hold flows through the monthly
+    // cashflow (operating expense) — NOT totalCost. Counting both double-subtracts it.
     const totalFinanceCost=flipMode==="hold"
-      ?bridgingInterest+arrangementFee+refiArrangement+(refiInterestPm*refiMonths)
+      ?bridgingInterest+arrangementFee+refiArrangement
       :bridgingInterest+arrangementFee;
     const totalCost=purchase+sdlt+refurb+profFees+contingency+other+vat+s106+totalFinanceCost;
     const agentFees=salePrice*(num(String(data.agentFeePct||1.5))/100);
     const netProceeds=salePrice-agentFees;
-    // equityIn: gross equity deployed, net of initial bridging loan drawn.
-    // If cash-out refi returns capital, netEquityDeployed is lower — reflects true capital at risk.
-    const equityIn=purchase+sdlt+refurb+profFees+contingency+other+vat+s106+bridgingInterest+arrangementFee+(flipMode==="hold"?refiArrangement:0)-loanAmount;
-    // Net equity actually at risk after refi cash-out (can be reduced if refi > bridge balance)
-    const netEquityDeployed=flipMode==="hold"?Math.max(0,equityIn-Math.max(0,cashOutRefi)):equityIn;
-    const equity=Math.max(0,equityIn);
-    // Accounting profit = sale - all costs (matches how developers report deals)
-    // This includes finance cost only once (as a cost item), not in equity
-    const profit=flipMode==="hold"
-      // profit = exit proceeds (net of refi loan) + hold cashflows - net equity deployed
-      // cash-out at refi is NOT profit (it's return of capital), so we use equityIn not netEquityDeployed here
-      ?(netProceeds-refiLoan)+(netCashflowPm*refiMonths)-equityIn
-      :netProceeds-totalCost;
-    const roi=totalCost>0?profit/totalCost:0;
-    const roiEquity=equity>0?profit/equity:0;
-    // MOIC must be CASHFLOW-BASED to reconcile with IRR (same mathematical framework).
-    // Build-once canonical: equity deployed at M0 + hold cashflows + exit proceeds.
-    // If we use the profit formula above (accounting view), MOIC would diverge from IRR.
-    // Cashflow profit = sum of all cashflows (net of equity injection & loan repayment).
-    // This is what the IRR sees, so MOIC derived from this will tie out to IRR time-adjusted.
-    const _cashflowFinalCf=flipMode==="hold"?(netProceeds-refiLoan):(netProceeds-peakLoanBalance);
-    const _cashflowHoldIncome=flipMode==="hold"?netCashflowPm*refiMonths:0;
-    // cashOutRefi only meaningful in hold mode (it represents cash returned to investor at refi event)
-    // In sell mode, cashOutRefi is a stale/leaked value and must be excluded
-    const _cashflowCashOut=flipMode==="hold"?Math.max(0,cashOutRefi):0;
-    const _cashflowTotalReturn=_cashflowFinalCf+_cashflowHoldIncome+_cashflowCashOut;
-    const _cashflowProfit=_cashflowTotalReturn-(flipMode==="hold"?netEquityDeployed:equity);
-    // MOIC on actual cash deployed: (capital returned) / (capital deployed) — ties with IRR
-    const moic=netEquityDeployed>0?(netEquityDeployed+_cashflowProfit)/netEquityDeployed:equity>0?(equity+_cashflowProfit)/equity:0;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // ── IRR cashflows ─────────────────────────────────────────────────────────
-    let cfs:number[];
+    // ── CANONICAL CASHFLOW ─────────────────────────────────────────────────────
+    // All return metrics (Profit, Equity In, MOIC, IRR, Payback) derive from ONE monthly
+    // cashflow array built from REAL cash events. This fixes the prior "Bug 1" family:
+    //   - bridgingInterest is no longer double-counted (it accumulates into peakLoanBalance
+    //     which is repaid at exit — it must NOT also sit inside day-0 equity)
+    //   - refi-month first-month-of-hold-income double-count is removed
+    //   - Math.max(0, equityIn) no longer discards signal on cash-out / negative-equity deals
+    //
+    // Layout:
+    //   M0:   -(purchase + sdlt + arrangementFee + profFees + other + vat + s106 + day-1 refiArr)
+    //         + landLoan (bridging loan against land drawn day 1)
+    //   M1..Mbridge: refurb draw + contingency draw (equity share = cost minus build-loan tranche)
+    //   Mbridge (SELL mode): sellMonths of zero then exit: +netProceeds − peakLoanBalance
+    //   Mbridge (HOLD mode): +cashOutRefi at refi event, then leaseUp/stab/hold months of
+    //                        net cashflow, then exit: +netProceeds − refiLoan
+    // ──────────────────────────────────────────────────────────────────────────
+    const bM=Math.max(1,Math.round(bridgingMonths));
+    const sM=Math.max(0,Math.round(sellMonths));
+    const rfM=Math.max(0,Math.round(refiMonths));
+    const leaseUpMonths=flipMode==="hold"?Math.max(0,Math.round(num(String(data.leaseUpMonths||0)))):0;
+    const stabMonths=flipMode==="hold"?Math.max(0,Math.round(num(String(data.stabilisationMonths||0)))):0;
+    const refurbPerMonth=refurb/bM;
+    const contingencyPerMonth=contingency/bM;
+    const buildLoanPerMonth=buildLoan/bM;
+    const day0Equity=purchase+sdlt+arrangementFee+profFees+other+vat+s106+(flipMode==="hold"?refiArrangement:0)-landLoan;
+    const monthlyRefurbEquity=refurbPerMonth+contingencyPerMonth-buildLoanPerMonth;
+
+    const cfs:number[]=[];
+    cfs.push(-day0Equity);
+    for(let m=1;m<=bM;m++) cfs.push(-monthlyRefurbEquity);
     if(flipMode==="hold"){
-      // Bridge phase: equity out day 0, zeros during refurb
-      // Refi month: cashOut inflow (positive = money back, negative = top-up injection)
-      // Hold phase: monthly net cashflow
-      // Exit month: net proceeds after repaying refi loan
-      const bridgeZeros=Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0);
-      // At refi month: cashOutRefi is cash returned (or injected if negative)
-      const refiMonthCf=cashOutRefi+netCashflowPm; // cash-out + first month of hold income
-      cfs=[-equity,...bridgeZeros,refiMonthCf,...Array(Math.max(0,Math.round(refiMonths)-1)).fill(netCashflowPm),netCashflowPm+(netProceeds-refiLoan)];
+      // Refi event: cashOutRefi = refiLoan − peakLoanBalance (positive = cash back, negative = top-up)
+      cfs.push(cashOutRefi);
+      // Lease-up: refi interest + opex accrue, no rent
+      for(let m=0;m<leaseUpMonths;m++) cfs.push(-refiInterestPm-monthlyOpex);
+      // Stabilisation: rent ramps from 0 to full
+      for(let m=0;m<stabMonths;m++){
+        const occ=(m+1)/stabMonths;
+        cfs.push(netRentPm*occ-refiInterestPm-monthlyOpex);
+      }
+      // Stabilised hold phase
+      const holdPhaseMonths=Math.max(0,rfM-leaseUpMonths-stabMonths);
+      for(let m=0;m<holdPhaseMonths;m++) cfs.push(netCashflowPm);
+      // Exit: repay refi loan, take sale proceeds
+      cfs.push(netProceeds-refiLoan);
     } else {
-      // Sell mode: construction phase (zeros), then sell period (zeros), proceeds at end
-      const constructZeros=Array(Math.max(0,Math.round(bridgingMonths)-1)).fill(0);
-      const sellZeros=Array(Math.max(0,Math.round(sellMonths))).fill(0);
-      cfs=[-equity,...constructZeros,...sellZeros,netProceeds-peakLoanBalance];
+      // Sell mode: marketing + absorption period
+      for(let m=0;m<sM;m++) cfs.push(0);
+      // Exit: repay peak bridge balance (includes rolled interest)
+      cfs.push(netProceeds-peakLoanBalance);
     }
+
+    // ── Derive ALL metrics from cfs[] ──────────────────────────────────────────
+    // netEquityDeployed = peak cumulative capital at risk (= −min of running cumulative)
+    let cumRun=0,cumMin=0;
+    for(const cf of cfs){cumRun+=cf;if(cumRun<cumMin)cumMin=cumRun;}
+    const netEquityDeployed=Math.max(0,-cumMin);
+    // Profit = sum of all cashflows (net of equity in, capital returned)
+    const profit=cfs.reduce((s,cf)=>s+cf,0);
+    // Equity In for display = peak equity deployed
+    const equityIn=netEquityDeployed;
+    const equity=netEquityDeployed;
+    // MOIC on net equity deployed: (equity + profit) / equity — ties to IRR by construction
+    const moic=netEquityDeployed>0?(netEquityDeployed+profit)/netEquityDeployed:0;
+    // ROI on total cost (traditional developer view — uses accounting totalCost)
+    const roi=totalCost>0?profit/totalCost:0;
+    const roiEquity=netEquityDeployed>0?profit/netEquityDeployed:0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ── IRR from canonical cfs[] ──────────────────────────────────────────────
     const irr=Math.pow(1+calcIRR(cfs),12)-1;
     const paybackMonth=calcPaybackMonth(cfs);
     const grossYield=salePrice>0?(rentPcm*12)/salePrice:0;
@@ -14077,7 +14102,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       profFees,contingency,other,vat,s106,totalFinanceCost,
       loanAmount,peakLoanBalance,bridgingInterest,arrangementFee,
       refiLoan,refiInterestPm,refiArrangement,netCashflowPm,netRentPm,cashOutRefi,netEquityDeployed,
-      totalCost,salePrice,agentFees,netProceeds,profit,profitAccounting:profit,profitCash:_cashflowProfit,roi,roiEquity,moic,irr,equity,
+      totalCost,salePrice,agentFees,netProceeds,profit,profitAccounting:profit,profitCash:profit,roi,roiEquity,moic,irr,equity,
       paybackMonth,financeRate:bridgingRatePm*12,grossYield,netYield,flipMode,
       bridgingMonths,sellMonths,refiMonths,totalHoldMonths,dscr,
       propertySqft,existingAreaSqft,newAreaSqft,totalArea,
@@ -25186,7 +25211,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         const bgC=diff>20?[252,235,235]:diff>5?[250,238,218]:[225,242,234];
         if(bgC&&bgC.length===3){doc.setFillColor(...bgC as any);doc.roundedRect(M,sp,W-M*2,22,2,2,"F");}
         doc.setTextColor(...posC);doc.setFontSize(8);doc.setFont("helvetica","bold");
-        doc.text(`Your ADR: ${currencySymbol}${myADR}   Market Avg (${data.starRating||4}★): ${currencySymbol}${mktAvg}   Variance: ${diff>0?"+":""}${diff.toFixed(1)}%`,M+5,sp+9);
+        doc.text(`Your ADR: ${currencySymbol}${myADR}   Market Avg (${data.starRating||4} Star): ${currencySymbol}${mktAvg}   Variance: ${diff>0?"+":""}${diff.toFixed(1)}%`,M+5,sp+9);
         if(hotelComps.assessment_note){
           // Override with correct ADR from deal data to prevent AI hallucination
           const correctADR=num(String(data.adr||0));
@@ -25292,7 +25317,15 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-    lPos=hSection(lPos,"P&L Summary");
+    // Narrow-column section header so Per Key Metrics on the right doesn't
+    // overlap P&L Summary on the left (prior bug produced "PP&ERL SKUEMY MMAERTYRICS").
+    const drawColHeader=(y:number,label:string,x:number,w:number)=>{
+      doc.setFillColor(37,45,63);doc.rect(x,y,w,6,"F");
+      doc.setTextColor(160,200,180);doc.setFontSize(6);doc.setFont("helvetica","bold");
+      doc.text(label.toUpperCase(),x+3,y+4);
+      return y+9;
+    };
+    lPos=drawColHeader(lPos,"P&L Summary",M,halfW);
     [[`Total Revenue pa`,fmt(hr.revenuePa||r.revenuePa||0,currencySymbol),grey],
      [`EBITDA pa`,fmt(hr.ebitda||0,currencySymbol),green],
      [`FF&E Reserve pa`,fmt(hr.ffePa||hr.ffe||r.ffe||0,currencySymbol),amber],
@@ -25320,20 +25353,38 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-    rPos=hSection(rPos,"Per Key Metrics");
-    [[`Purchase / Key`,fmt(hr.pricePerKey||0,currencySymbol),white],
-     [`CapEx / Key`,fmt(hr.capexPerKey||0,currencySymbol),amber],
-     [`Exit Value / Key`,fmt(hr.exitValuePerKey||0,currencySymbol),green],
-     [`EBITDA / Key`,fmt(hr.ebitdaPerKey||0,currencySymbol),green],
-     [`NOI / Key`,fmt(hr.noiPerKey||0,currencySymbol),green],
-     [`Entry Yield (NOI)`,fmtPct(hr.entryYieldNOI||0),white],
-     [`Entry Yield (EBITDA)`,fmtPct(hr.entryYieldEBITDA||0),white],
-     [`NOI Conversion`,fmtPct(hr.noiConversion||0),white],
+    // In Simple-mode deals hotelAdv is null and hr.pricePerKey etc. are undefined.
+    // Fall back to computing per-key from the Simple-mode headline figures so
+    // the right column shows real values (prior bug: all rows rendered as £0 / 0.0%).
+    const _rooms=Number(data.rooms)||0;
+    const _purchase=Number(data.purchasePrice)||0;
+    const _capexBudget=Number(data.capexBudget)||0;
+    const _exitVal=hr.exitValue||r.exitValue||0;
+    const _ebitdaVal=hr.ebitda||r.ebitda||0;
+    const _noiVal=hr.noi||r.noi||0;
+    const _revVal=hr.revenuePa||r.revenuePa||0;
+    const _pricePerKey=hr.pricePerKey||(_rooms>0?_purchase/_rooms:0);
+    const _capexPerKey=hr.capexPerKey||(_rooms>0?_capexBudget/_rooms:0);
+    const _exitPerKey=hr.exitValuePerKey||(_rooms>0?_exitVal/_rooms:0);
+    const _ebitdaPerKey=hr.ebitdaPerKey||(_rooms>0?_ebitdaVal/_rooms:0);
+    const _noiPerKey=hr.noiPerKey||(_rooms>0?_noiVal/_rooms:0);
+    const _entryNOI=hr.entryYieldNOI||(_purchase>0?_noiVal/_purchase:0);
+    const _entryEBITDA=hr.entryYieldEBITDA||(_purchase>0?_ebitdaVal/_purchase:0);
+    const _noiConv=hr.noiConversion||(_revVal>0?_noiVal/_revVal:0);
+    const _rxKey=M+halfW+10;
+    rPos=drawColHeader(rPos,"Per Key Metrics",_rxKey,halfW);
+    [[`Purchase / Key`,fmt(_pricePerKey,currencySymbol),white],
+     [`CapEx / Key`,fmt(_capexPerKey,currencySymbol),amber],
+     [`Exit Value / Key`,fmt(_exitPerKey,currencySymbol),green],
+     [`EBITDA / Key`,fmt(_ebitdaPerKey,currencySymbol),green],
+     [`NOI / Key`,fmt(_noiPerKey,currencySymbol),green],
+     [`Entry Yield (NOI)`,fmtPct(_entryNOI),white],
+     [`Entry Yield (EBITDA)`,fmtPct(_entryEBITDA),white],
+     [`NOI Conversion`,fmtPct(_noiConv),white],
     ].forEach(([l,v,c]:any)=>{
-      const rx=M+halfW+10;
-      doc.setTextColor(...grey);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(l,rx+3,rPos);
+      doc.setTextColor(...grey);doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.text(l,_rxKey+3,rPos);
       doc.setTextColor(...c);doc.setFont("helvetica","bold");doc.text(v,W-M,rPos,{align:"right"});
-      doc.setFillColor(220,222,226);doc.rect(rx,rPos+2,halfW,0.12,"F");rPos+=8;
+      doc.setFillColor(220,222,226);doc.rect(_rxKey,rPos+2,halfW,0.12,"F");rPos+=8;
     });
 
 
@@ -25489,13 +25540,16 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
     sp=hSection(sp,"Sensitivity: Exit Cap Rate × ADR Shift (Profit on Cost)");
-    // Re-run full calc for each cell (mirrors live display) to include hold-period NOI, not just exit delta
+    // Re-run full calc for each cell. ADR shift must flow through to EBITDA/NOI — so we
+    // force normalised-NOI mode here even if the headline uses Actual NOI (otherwise
+    // the exit NOI is frozen to the user's actualNoi input and the matrix shows
+    // identical values across ADR columns).
     const capRates3=[-1.0,-0.5,0,0.5,1.0].map(d=>Number(data.exitCapRate||6)+d); // percent
     const adrShifts3=[-0.10,-0.05,0,0.05,0.10];
     const baseAdr3=Number(data.adr||0);
     const sm3=capRates3.map(cap=>adrShifts3.map(adrS=>{
       const newAdr=baseAdr3*(1+adrS);
-      const modData={...data,exitCapRate:cap,adr:newAdr,yearAdr:null,yearOcc:null};
+      const modData={...data,exitCapRate:cap,adr:newAdr,yearAdr:null,yearOcc:null,noiMode:"normalised",actualNoi:0};
       const res:any=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
       return res?.poc??0;
     }));
