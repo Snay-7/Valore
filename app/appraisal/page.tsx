@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic'
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -12532,12 +12532,13 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
       // Residential zone — sell or hold
       const exitStrategy=z.exitStrategy||"sell";
       if(exitStrategy==="sell"){
-        // Sales revenue in year 1 (absorption)
+        // Sales revenue — goes into exit value ONLY.
+        // Do NOT push to yearlyNOI (that's for hold income during holdYears).
+        // Prior bug: this line double-counted sales revenue as hold NOI, inflating profit.
         const salePricePsf=num(String(z.salePricePsf||0));
         const saleRevenue=units*sizeSqft*salePricePsf;
         const agentFee=saleRevenue*0.015;
         totalGDV+=saleRevenue-agentFee;
-        yearlyNOI[0]+=(saleRevenue-agentFee);
       } else {
         // BTR hold — rental income each year
         // Net-to-gross via resolveOpexPct (default 25% BTR opex — mgmt + voids + repairs + SC).
