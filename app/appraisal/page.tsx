@@ -320,6 +320,65 @@ const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>1000?"—":`${n.toFi
 const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
 const irrCol=(irr:number)=>irr>=0.15?"var(--green)":irr>=0.08?"var(--amber)":"var(--red)";
 // ─────────────────────────────────────────────────────────────────────────────
+// Sensitivity matrix — multi-metric cells + user-selectable display metric
+// Each cell stores all 4 metrics so the picker can switch view instantly.
+// ─────────────────────────────────────────────────────────────────────────────
+type SensMetric="poc"|"irr"|"moic"|"profit";
+type SensCell={poc:number;irr:number;moic:number;profit:number};
+function toSensCell(res:any):SensCell{
+  return{
+    poc:(res.poc??res.roi??0) as number,
+    irr:(res.irr??0) as number,
+    moic:(res.moic??0) as number,
+    profit:(res.profit??0) as number,
+  };
+}
+function sensCellClass(value:number,metric:SensMetric):string{
+  switch(metric){
+    case"irr":    return value>=0.15?"cell-g":value>=0.08?"cell-a":"cell-r";
+    case"moic":   return value>=2.0 ?"cell-g":value>=1.5 ?"cell-a":"cell-r";
+    case"profit": return value>0    ?"cell-g":value===0  ?"cell-a":"cell-r";
+    case"poc":
+    default:      return value>=0.20?"cell-g":value>=0.10?"cell-a":"cell-r";
+  }
+}
+function fmtSensCell(value:number,metric:SensMetric,currencySymbol:string="£"):string{
+  switch(metric){
+    case"moic":   return fmtX(value);
+    case"profit": return fmt(value,currencySymbol);
+    case"irr":
+    case"poc":
+    default:      return fmtPct(value);
+  }
+}
+function sensMetricLabel(metric:SensMetric):string{
+  switch(metric){
+    case"irr":    return "IRR";
+    case"moic":   return "Equity Multiple";
+    case"profit": return "Profit";
+    case"poc":
+    default:      return "Profit on Cost";
+  }
+}
+function sensMetricShort(metric:SensMetric):string{
+  switch(metric){
+    case"irr":    return "IRR";
+    case"moic":   return "MOIC";
+    case"profit": return "Profit";
+    case"poc":
+    default:      return "PoC";
+  }
+}
+function sensLegend(metric:SensMetric):[string,string][]{
+  switch(metric){
+    case"irr":    return [["rgba(61,220,132,.15)","≥ 15%"],["rgba(240,164,41,.12)","8–15%"],["rgba(244,100,95,.12)","< 8%"]];
+    case"moic":   return [["rgba(61,220,132,.15)","≥ 2.0×"],["rgba(240,164,41,.12)","1.5–2.0×"],["rgba(244,100,95,.12)","< 1.5×"]];
+    case"profit": return [["rgba(61,220,132,.15)","Positive"],["rgba(240,164,41,.12)","Break-even"],["rgba(244,100,95,.12)","Loss"]];
+    case"poc":
+    default:      return [["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]];
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 // Valuation & operating-cost defaults — shared across every hold-model engine so
 // net-to-gross, purchaser's costs and profit definitions are applied consistently
 // across Mixed Use, Commercial, BTR and Hotel. Override per-zone or per-deal via
@@ -12495,13 +12554,24 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     sensMatrix:(()=>{
       // Sensitivity uses the same net-of-purchaser's-costs basis as the headline
       // so the centre cell reconciles to the headline PoC.
+      // Returns SensCell[][] so UI metric picker can switch view without recomputing.
       const niySteps=[niy*0.9,niy*0.95,niy,niy*1.05,niy*1.10];
       const ervSteps=[0.9,0.95,1,1.05,1.10];
+      // Snapshot cashflow without exit so we can substitute per-cell exit values for IRR
+      const baseUCfs=[...uCfs];baseUCfs[totalMonths-1]-=exitValue;
       return niySteps.map((n:number)=>ervSteps.map((e:number)=>{
         const adjNOI=exitNOI*e;
         const adjExit=calcNetCapitalValue(adjNOI,n,commPcPct);
         const adjProfit=adjExit-totalCost+totalHoldNOI;
-        return totalCost>0?adjProfit/totalCost:0;
+        const adjCfs=[...baseUCfs];adjCfs[totalMonths-1]+=adjExit;
+        const rawIrr=calcIRR(adjCfs);
+        const adjIrr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
+        return{
+          poc:totalCost>0?adjProfit/totalCost:0,
+          irr:adjIrr,
+          moic:equity>0?(equity+adjProfit)/equity:0,
+          profit:adjProfit,
+        } as SensCell;
       }));
     })(),
   };
@@ -16324,10 +16394,22 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     // Base income = totalNetPassing so base case matches returns summary exactly
     const niySteps=[-0.5,-0.25,0,0.25,0.5].map(d=>niy*100+d);
     const rentSteps=[-10,-5,0,5,10];
-    const sensMatrix=niySteps.map(n=>rentSteps.map(e=>{
+    // Build SensCell[][] so UI can switch metric (poc/irr/moic/profit) without recomputing.
+    // Snapshot uCfs without exit so we can substitute per-cell exit values for IRR.
+    const baseUCfs=[...uCfs];baseUCfs[totalMonths-1]-=gdv;
+    const sensMatrix:SensCell[][]=niySteps.map(n=>rentSteps.map(e=>{
       const mNoi=totalNetPassing*(1+e/100);
       const mGdv=(n/100)>0?mNoi/(n/100):0;
-      return totalCost>0?(mGdv-totalCost)/totalCost:0;
+      const mProfit=mGdv-totalCost;
+      const adjCfs=[...baseUCfs];adjCfs[totalMonths-1]+=mGdv;
+      const rawIrr2=calcIRR(adjCfs);
+      const mIrr=isFinite(rawIrr2)&&rawIrr2>-1?Math.pow(1+rawIrr2,12)-1:0;
+      return{
+        poc:totalCost>0?mProfit/totalCost:0,
+        irr:mIrr,
+        moic:equity>0?(equity+mProfit)/equity:0,
+        profit:mProfit,
+      };
     }));
 
 
@@ -16566,10 +16648,22 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const paybackMonth=calcPaybackMonth(uCfs);
     const niySteps=[-0.5,-0.25,0,0.25,0.5].map(d=>niy*100+d);
     const rentSteps=[-10,-5,0,5,10];
-    const sensMatrix=niySteps.map(n=>rentSteps.map(e=>{
+    // Build SensCell[][] so UI can switch metric (poc/irr/moic/profit) without recomputing.
+    // Snapshot uCfs without exit so we can substitute per-cell exit values for IRR.
+    const baseUCfs=[...uCfs];baseUCfs[totalMonths-1]-=gdv;
+    const sensMatrix:SensCell[][]=niySteps.map(n=>rentSteps.map(e=>{
       const mNoi=totalNetPassing*(1+e/100);
       const mGdv=(n/100)>0?mNoi/(n/100):0;
-      return totalCost>0?(mGdv-totalCost)/totalCost:0;
+      const mProfit=mGdv-totalCost;
+      const adjCfs=[...baseUCfs];adjCfs[totalMonths-1]+=mGdv;
+      const rawIrr2=calcIRR(adjCfs);
+      const mIrr=isFinite(rawIrr2)&&rawIrr2>-1?Math.pow(1+rawIrr2,12)-1:0;
+      return{
+        poc:totalCost>0?mProfit/totalCost:0,
+        irr:mIrr,
+        moic:equity>0?(equity+mProfit)/equity:0,
+        profit:mProfit,
+      };
     }));
     return{totalAreaSqm,totalAreaSqft,totalAreaNative,buildCost,devCost,vat,cil,s106,normalisedNoi,noiMode,effectiveNoi,
       totalErv,totalPassing,totalNetPassing,totalRentFreeCost,avgWault,
@@ -27145,6 +27239,8 @@ function AppraisalPage(){
   const[brochureError,setBrochureError]=useState<string|null>(null);
   const[downloadingBrochure,setDownloadingBrochure]=useState(false);
   const[senseResult,setSenseResult]=useState<{overall:string;summary:string;flags:{severity:string;field:string;message:string;benchmark:string}[]}|null>(null);
+  // Sensitivity matrix display metric — user-selectable picker above each matrix
+  const[sensMetric,setSensMetric]=useState<SensMetric>("poc");
   const[senseRunning,setSenseRunning]=useState(false);
   const[hotelComps,setHotelComps]=useState<any>(null);
   const[commercialComps,setCommercialComps]=useState<any>(null);
@@ -27253,13 +27349,13 @@ function AppraisalPage(){
   const advR=isCommercialAdv?commercialAdv:isMixedUseAdv?mixedUseAdv:null;
   // When in Hotel Advanced mode, r points to hotelAdv so all UI (Returns Summary, sidebar, sensitivity) reads one consistent calc
   const r=(assetType==="Hotel"&&hotelMode==="advanced"&&hotelAdv?hotelAdv:(assetType==="Commercial"||assetType==="Industrial")&&commercialMode==="advanced"&&commercialAdv?commercialAdv:assetType==="MixedUse"&&mixedUseMode==="advanced"&&mixedUseAdv?mixedUseAdv:results) as any;
-  const sensitivity=useCallback(()=>{
+  const sensitivity=useCallback(():SensCell[][]|null=>{
     if(assetType==="BTR"){
       const yields=[-0.5,-0.25,0,0.25,0.5].map(d=>num(String(data.exitYield))+d);
       const rentMults=[-0.10,-0.05,0,0.05,0.10].map(d=>1+d);
       return yields.map(y=>rentMults.map(rf=>{
         const modData={...data,exitYield:y,units:(data.units||[]).map((u:any)=>({...u,rentPcm:num(String(u.rentPcm))*rf}))};
-        return calcAll("BTR",modData).poc??0;
+        return toSensCell(calcAll("BTR",modData));
       }));
     }
     if(assetType==="BTS"){
@@ -27267,7 +27363,7 @@ function AppraisalPage(){
       const buildMults=[0.90,0.95,1,1.05,1.10];
       return saleMults.map(sm=>buildMults.map(bm=>{
         const modData={...data,buildCostPsf:num(String(data.buildCostPsf||0))*bm,units:(data.units||[]).map((u:any)=>({...u,salePricePsf:num(String(u.salePricePsf||0))*sm}))};
-        return calcAll("BTS",modData).poc??0;
+        return toSensCell(calcAll("BTS",modData));
       }));
     }
     return null;
@@ -39439,24 +39535,30 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   const gdvSteps=[1.10,1.05,1,0.95,0.90];
                   const costSteps=[0.90,0.95,1,1.05,1.10];
                   const useAdvancedEngine=mixedUseMode==="advanced";
-                  const muSens=gdvSteps.map(gs=>costSteps.map(cs=>{
+                  // Compute all 4 metrics per cell so the metric picker can switch instantly.
+                  const muSens:SensCell[][]=gdvSteps.map(gs=>costSteps.map(cs=>{
                     const modZones=(data.zones||[]).map((z:any)=>({...z,salePricePsf:num(String(z.salePricePsf||0))*gs,rentPcm:num(String(z.rentPcm||0))*gs,buildCostPsf:num(String(z.buildCostPsf||0))*cs}));
                     const res=useAdvancedEngine
                       ?calcMixedUseAdvanced({...data,zones:modZones})
                       :calcAll("MixedUse",{...data,zones:modZones});
-                    return res.poc??0;
+                    return toSensCell(res);
                   }));
                   return(
                     <div style={{marginTop:24,marginBottom:28}}>
-                      <div className="section-title">Sensitivity — Profit on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = GDV scenarios · <span style={{fontWeight:500}}>Columns</span> = Total cost scenarios. Each cell shows Profit on Cost %.</div>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:10}}>
+                        <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                        <div style={{display:"flex",gap:4}}>
+                          {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                            <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = GDV scenarios · <span style={{fontWeight:500}}>Columns</span> = Total cost scenarios. Each cell shows {sensMetricLabel(sensMetric)}.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/>
-                          <span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/>
-                          <span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/>
-                          <span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
+                        {sensLegend(sensMetric).map(([bg,l])=>(
+                          <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>
+                            <span style={{fontSize:9,color:"var(--text-d)"}}>{l}</span></div>
+                        ))}
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/>
                           <span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
@@ -39464,12 +39566,13 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                         <div style={{display:"grid",gridTemplateColumns:"72px repeat(5,1fr)",gap:4,fontSize:10,minWidth:380}}>
                           <div/>
                           {["-10%","-5%","Base","+5%","+10%"].map(h=>(<div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>))}
-                          {muSens.map((row:number[],si:number)=>(
+                          {muSens.map((row:SensCell[],si:number)=>(
                             <React.Fragment key={si}>
                               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{["+10%","+5%","Base","-5%","-10%"][si]} GDV</div>
-                              {row.map((poc:number,ri:number)=>(
-                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                              ))}
+                              {row.map((cell:SensCell,ri:number)=>{
+                                const v=cell[sensMetric];
+                                return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${si===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                              })}
                             </React.Fragment>
                           ))}
                         </div>
@@ -41858,35 +41961,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {/* Sensitivity matrix: NIY rows × ERV shift cols */}
                 {(r.sensMatrix||[]).length>0&&(
                   <div style={{marginBottom:28}}>
-                    <div className="section-title">Sensitivity — Profit on Cost %</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:10}}>
+                      <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                      <div style={{display:"flex",gap:4}}>
+                        {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                          <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                        ))}
+                      </div>
+                    </div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
                     <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
+                      {sensLegend(sensMetric).map(([bg,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/><span style={{fontSize:9,color:"var(--text-d)"}}>{l}</span></div>
+                      ))}
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                     </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,minWidth:380}}>
                         <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",display:"flex",alignItems:"flex-end",paddingBottom:4}}>NIY ↕</div>
                         {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontSize:10}}>{h}</div>)}
-                        {(r.sensMatrix||[]).map((row:number[],si:number)=>{
+                        {(r.sensMatrix||[]).map((row:SensCell[],si:number)=>{
                           const niyVal=((r.niy||0.055)*100+[-0.5,-0.25,0,0.25,0.5][si]).toFixed(2);
                           return(
                             <React.Fragment key={si}>
                               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)",fontFamily:"var(--font-mono)",fontSize:10}}>{niyVal}%</div>
-                              {row.map((poc:number,ri:number)=>(
-                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                              ))}
+                              {row.map((cell:SensCell,ri:number)=>{
+                                const v=cell[sensMetric];
+                                return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${si===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                              })}
                             </React.Fragment>
                           );
                         })}
                       </div>
-                    </div>
-                    <div style={{display:"flex",gap:16,marginTop:10}}>
-                      {([["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]] as [string,string][]).map(([bg,l])=>(
-                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
-                      ))}
                     </div>
                   </div>
                 )}
@@ -43899,35 +44005,38 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {/* Sensitivity matrix: NIY rows × ERV shift cols */}
                 {(r.sensMatrix||[]).length>0&&(
                   <div style={{marginBottom:28}}>
-                    <div className="section-title">Sensitivity — Profit on Cost %</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:10}}>
+                      <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                      <div style={{display:"flex",gap:4}}>
+                        {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                          <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                        ))}
+                      </div>
+                    </div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit yield (NIY) · <span style={{fontWeight:500}}>Columns</span> = Rent scenarios. Lower yield = higher exit value.</div>
                     <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;20% PoC)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (10–20%)</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;10% PoC)</span></div>
+                      {sensLegend(sensMetric).map(([bg,l])=>(
+                        <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/><span style={{fontSize:9,color:"var(--text-d)"}}>{l}</span></div>
+                      ))}
                       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                     </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"70px repeat(5,1fr)",gap:4,minWidth:380}}>
                         <div style={{fontSize:9,color:"var(--text-d)",textTransform:"uppercase",display:"flex",alignItems:"flex-end",paddingBottom:4}}>NIY ↕</div>
                         {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontSize:10}}>{h}</div>)}
-                        {(r.sensMatrix||[]).map((row:number[],si:number)=>{
+                        {(r.sensMatrix||[]).map((row:SensCell[],si:number)=>{
                           const niyVal=((r.niy||0.055)*100+[-0.5,-0.25,0,0.25,0.5][si]).toFixed(2);
                           return(
                             <React.Fragment key={si}>
                               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)",fontFamily:"var(--font-mono)",fontSize:10}}>{niyVal}%</div>
-                              {row.map((poc:number,ri:number)=>(
-                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                              ))}
+                              {row.map((cell:SensCell,ri:number)=>{
+                                const v=cell[sensMetric];
+                                return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${si===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                              })}
                             </React.Fragment>
                           );
                         })}
                       </div>
-                    </div>
-                    <div style={{display:"flex",gap:16,marginTop:10}}>
-                      {([["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]] as [string,string][]).map(([bg,l])=>(
-                        <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
-                      ))}
                     </div>
                   </div>
                 )}
@@ -47538,37 +47647,40 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 </div>
                 {/* ── FLIP SENSITIVITY MATRIX — sale price % × refurb cost % → profit on cost ── */}
                 {assetType==="Flip"&&(()=>{
-                  const baseSalePrice=r.salePrice||0;
-                  const baseRefurb=r.refurb||0;
                   const salePctSteps=[10,5,0,-5,-10];
                   const refurbPctSteps=[-10,-5,0,5,10];
                   // Build 5×5 matrix: rows = sale price % (top=best), cols = refurb cost % (left=cheapest)
-                  const flipSensMatrix=salePctSteps.map(sp=>{
-                    const modSalePrice=baseSalePrice*(1+sp/100);
+                  // Uses the real Flip engine per-cell so all metrics (PoC, IRR, MOIC, Profit) reconcile exactly.
+                  const baseSalePsf=num(String(data.salePricePsf||0));
+                  const baseSaleFlat=num(String(data.salePrice||0));
+                  const flipSensMatrix:SensCell[][]=salePctSteps.map(sp=>{
                     return refurbPctSteps.map(rp=>{
-                      const modRefurb=baseRefurb*(1+rp/100);
-                      // Rebuild key numbers with modified sale price + refurb
-                      const modProfFees=modRefurb*(num(String(data.professionalFeesPct))/100);
-                      const modContingency=modRefurb*(num(String(data.contingencyPct))/100);
-                      const purchase=r.purchase||0;
-                      const sdlt=r.sdlt||0;
-                      const other=num(String(data.otherCosts));
-                      const totalFinanceCost=r.totalFinanceCost||0;
-                      const modTotalCost=purchase+sdlt+modRefurb+modProfFees+modContingency+other+totalFinanceCost;
-                      const agentFees=modSalePrice*(num(String(data.agentFeePct||1.5))/100);
-                      const modNetProceeds=modSalePrice-agentFees;
-                      const modProfit=modNetProceeds-modTotalCost;
-                      return modTotalCost>0?modProfit/modTotalCost:0;
+                      const modData={...data,
+                        salePricePsf:baseSalePsf*(1+sp/100),
+                        salePrice:baseSaleFlat*(1+sp/100),
+                        refurbBudget:num(String(data.refurbBudget||0))*(1+rp/100),
+                        refurbPsf:num(String(data.refurbPsf||0))*(1+rp/100),
+                        existingCostPsf:num(String(data.existingCostPsf||0))*(1+rp/100),
+                        newCostPsf:num(String(data.newCostPsf||0))*(1+rp/100),
+                      };
+                      return toSensCell(calcAll("Flip",modData));
                     });
                   });
                   return(
                     <div style={{marginBottom:28}}>
-                      <div className="section-title">Sensitivity — Profit on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Sale price scenarios · <span style={{fontWeight:500}}>Columns</span> = Refurb cost scenarios. Each cell shows ROI on Cost %.</div>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:10}}>
+                        <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                        <div style={{display:"flex",gap:4}}>
+                          {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                            <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Sale price scenarios · <span style={{fontWeight:500}}>Columns</span> = Refurb cost scenarios. Each cell shows {sensMetricLabel(sensMetric)}.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Marginal (5–15%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;5%)</span></div>
+                        {sensLegend(sensMetric).map(([bg,l])=>(
+                          <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/><span style={{fontSize:9,color:"var(--text-d)"}}>{l}</span></div>
+                        ))}
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
                       <div className="sens-wrap">
@@ -47577,68 +47689,66 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                           {refurbPctSteps.map(rp=>(
                             <div key={rp} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontFamily:"var(--font-mono)"}}>{rp>0?"+":""}{rp}%</div>
                           ))}
-                          {flipSensMatrix.map((row:number[],si:number)=>(
+                          {flipSensMatrix.map((row:SensCell[],si:number)=>(
                             <React.Fragment key={si}>
                               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)",fontFamily:"var(--font-mono)"}}>{salePctSteps[si]>0?"+":""}{salePctSteps[si]}%</div>
-                              {row.map((poc:number,ri:number)=>(
-                                <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${si===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                              ))}
+                              {row.map((cell:SensCell,ri:number)=>{
+                                const v=cell[sensMetric];
+                                return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${si===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                              })}
                             </React.Fragment>
                           ))}
                         </div>
                       </div>
-                      <div style={{display:"flex",gap:16,marginTop:12,flexWrap:"wrap"}}>
-                        {([["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]] as [string,string][]).map(([bg,l])=>(
-                          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
-                        ))}
-                        <div style={{marginLeft:"auto",fontSize:10,color:"var(--text-d)"}}>Finance costs held constant</div>
-                      </div>
+                      <div style={{fontSize:10,color:"var(--text-d)",marginTop:8}}>Finance costs recomputed per scenario for accuracy.</div>
                     </div>
                   );
                 })()}
                 {assetType==="Hotel"&&(()=>{
                   // Hotel sensitivity: exit cap rate (rows) × ADR absolute amount (columns)
+                  // Stores all 4 metrics per cell so the picker switches instantly.
                   const baseCapRate=num(String(data.exitCapRate||6.5));
                   const baseADR=num(String(data.adr||180));
-                  // ADR steps: ±£20 and ±£10 around base (absolute £ values, not %)
-                  const adrStep=Math.round(baseADR*0.1/5)*5||10; // ~10% rounded to nearest £5
+                  const adrStep=Math.round(baseADR*0.1/5)*5||10;
                   const adrValues=[-2,-1,0,1,2].map(d=>Math.round(baseADR+d*adrStep));
                   const capRates=[-0.5,-0.25,0,0.25,0.5].map(d=>baseCapRate+d);
-                  const hotelSensMatrix=capRates.map(cr=>adrValues.map(adr=>{
+                  const hotelSensMatrix:SensCell[][]=capRates.map(cr=>adrValues.map(adr=>{
                     const modData={...data,exitCapRate:cr,adr,yearAdr:null,yearOcc:null};
-                    // Use the appropriate calc engine — advanced if in advanced mode
                     const res=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
-                    return res.poc??0;
+                    return toSensCell(res);
                   }));
                   return(
                     <div style={{marginBottom:28}}>
-                      <div className="section-title">Sensitivity — Return on Cost %</div>
-                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows Return on Cost %. Lower cap rate = higher exit value.</div>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:10}}>
+                        <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                        <div style={{display:"flex",gap:4}}>
+                          {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                            <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text-d)",marginBottom:8}}><span style={{fontWeight:500}}>Rows</span> = Exit cap rate · <span style={{fontWeight:500}}>Columns</span> = ADR scenarios. Each cell shows {sensMetricLabel(sensMetric)}. Lower cap rate = higher exit value.</div>
                       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--green)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Strong (&gt;15% PoC)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--amber)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Solid (8–15%)</span></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:"var(--red)",opacity:.7}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Weak (&lt;8%)</span></div>
+                        {sensLegend(sensMetric).map(([bg,l])=>(
+                          <div key={l} style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/><span style={{fontSize:9,color:"var(--text-d)"}}>{l}</span></div>
+                        ))}
                         <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,borderRadius:2,border:"1px solid var(--gold)",background:"transparent"}}/><span style={{fontSize:9,color:"var(--text-d)"}}>Base case</span></div>
                       </div>
                       <div className="sens-wrap">
                         <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                           <div/>
                           {adrValues.map(adr=><div key={adr} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",fontFamily:"var(--font-mono)"}}>{currencySymbol}{adr}</div>)}
-                          {hotelSensMatrix.map((row:number[],yi:number)=>{
+                          {hotelSensMatrix.map((row:SensCell[],yi:number)=>{
                             const capVal=capRates[yi];
                             return(<React.Fragment key={yi}>
                               <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{capVal.toFixed(2)}%</div>
-                              {row.map((poc:number,ri:number)=>(
-                                <div key={ri} className={`sens-cell ${poc>0.15?"cell-g":poc>0.08?"cell-a":"cell-r"} ${yi===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                              ))}
+                              {row.map((cell:SensCell,ri:number)=>{
+                                const v=cell[sensMetric];
+                                return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${yi===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                              })}
                             </React.Fragment>);
                           })}
                         </div>
-                      </div>
-                      <div style={{display:"flex",gap:16,marginTop:12}}>
-                        {[["rgba(61,220,132,.15)","> 15%"],["rgba(240,164,41,.12)","8–15%"],["rgba(244,100,95,.12)","< 8%"]].map(([bg,l])=>(
-                          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
-                        ))}
                       </div>
                     </div>
                   );
@@ -48157,29 +48267,37 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
 
                                 {(assetType==="BTR"||assetType==="BTS")&&sensMatrix&&(
                   <div style={{marginBottom:28}}>
-                    <div className="section-title">Sensitivity — Profit on Cost %</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:10}}>
+                      <div className="section-title" style={{margin:0,border:"none",padding:0}}>Sensitivity — {sensMetricLabel(sensMetric)}</div>
+                      <div style={{display:"flex",gap:4}}>
+                        {(["poc","irr","moic","profit"] as SensMetric[]).map(m=>(
+                          <button key={m} onClick={()=>setSensMetric(m)} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${sensMetric===m?"var(--gold)":"var(--border)"}`,background:sensMetric===m?"var(--gold-bg)":"transparent",color:sensMetric===m?"var(--gold)":"var(--text-d)",fontSize:11,cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:sensMetric===m?600:400,transition:"all .15s"}}>{sensMetricShort(m)}</button>
+                        ))}
+                      </div>
+                    </div>
                     <div style={{fontSize:11,color:"var(--text-d)",marginBottom:12}}>
                       {assetType==="BTS"?"Sale price psf (rows) × build cost psf (columns)":"Exit yield (rows) × rent shift (columns)"}
                     </div>
                     <div className="sens-wrap">
                       <div style={{display:"grid",gridTemplateColumns:"80px repeat(5,1fr)",gap:4,fontSize:10,minWidth:400}}>
                         <div/>
-                        {(assetType==="BTS"?["-10%","-5%","Base","+5%","+10%"]:["-10%","-5%","Base","+5%","+10%"]).map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
-                        {sensMatrix.map((row:number[],yi:number)=>{
+                        {["-10%","-5%","Base","+5%","+10%"].map(h=><div key={h} style={{textAlign:"center",color:"var(--text-d)",padding:"4px",textTransform:"uppercase",letterSpacing:".06em"}}>{h}</div>)}
+                        {sensMatrix.map((row:SensCell[],yi:number)=>{
                           const rowLabel=assetType==="BTS"
                             ?["+10%","+5%","Base","-5%","-10%"][yi]+" sale"
                             :(num(String(data.exitYield))+[-0.5,-0.25,0,0.25,0.5][yi]).toFixed(2)+"%";
                           return(<React.Fragment key={yi}>
                             <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6,color:"var(--text-d)"}}>{rowLabel}</div>
-                            {row.map((poc:number,ri:number)=>(
-                              <div key={ri} className={`sens-cell ${poc>0.20?"cell-g":poc>0.10?"cell-a":"cell-r"} ${yi===2&&ri===2?"cell-base":""}`}>{(poc*100).toFixed(1)}%</div>
-                            ))}
+                            {row.map((cell:SensCell,ri:number)=>{
+                              const v=cell[sensMetric];
+                              return(<div key={ri} className={`sens-cell ${sensCellClass(v,sensMetric)} ${yi===2&&ri===2?"cell-base":""}`}>{fmtSensCell(v,sensMetric,currencySymbol)}</div>);
+                            })}
                           </React.Fragment>);
                         })}
                       </div>
                     </div>
                     <div style={{display:"flex",gap:16,marginTop:12}}>
-                      {[["rgba(61,220,132,.15)","> 20%"],["rgba(240,164,41,.12)","10–20%"],["rgba(244,100,95,.12)","< 10%"]].map(([bg,l])=>(
+                      {sensLegend(sensMetric).map(([bg,l])=>(
                         <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"var(--text-d)"}}><div style={{width:10,height:10,borderRadius:2,background:bg}}/>{l}</div>
                       ))}
                     </div>
