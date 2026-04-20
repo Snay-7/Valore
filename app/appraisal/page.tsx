@@ -235,6 +235,12 @@ function calcSDLT(price:number,mode:'auto'|'manual'|'none',txType:'residential'|
   return Math.round(sdlt);
 }
 function calcIRR(cashflows:number[]):number{
+  // Guard: IRR is undefined for empty, all-zero, all-positive, or all-negative cashflows.
+  // Without this guard, the bisection fallback can return absurd results (e.g. 450%) for pathological inputs.
+  if(!cashflows||cashflows.length<2)return 0;
+  if(cashflows.every(c=>c===0))return 0;
+  if(!cashflows.some(c=>c<0))return 0; // no capital outflow → no meaningful IRR
+  if(!cashflows.some(c=>c>0))return 0; // no capital return → complete loss
   const npv=(rate:number)=>cashflows.reduce((s,cf,t)=>s+cf/Math.pow(1+rate,t),0);
   let lo=-0.999,hi=10.0;
   if(npv(lo)*npv(hi)>0){
@@ -6615,7 +6621,7 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised)
   const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+vatAdv+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
-  const equity=totalCost-loanAmount;
+  const equity=Math.max(0,totalCost-loanAmount);
   // Profit: exit proceeds + NOI during hold (net of opex) minus total investment
   const netNOI=totalNOI-(supportingCosts+operatorFees)*holdYears;
   const profit=netExitProceeds+netNOI-totalCost;
@@ -12370,8 +12376,8 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     const areaNative=num(String(u.areaSqm||0));
     const erv=num(String(u.erv||0));
     const passingRent=num(String(u.passingRent||0));
-    const wault=num(String(u.wault||0));
-    const voidPct=num(String(u.voidPct||0))/100;
+    const wault=num(String(u.wault??5));
+    const voidPct=num(String(u.voidPct??5))/100;
     const rentFreeMonths=num(String(u.rentFreeMonths||0));
     const reviewType=u.rentReviewType||data.rentReviewType||"fixed";
     const reviewPct=num(String(u.rentReviewPct??data.rentReviewPct??3))/100;
@@ -12477,7 +12483,7 @@ function calcCommercialAdvanced(data:any):Record<string,any>{
     interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,
     totalErv,totalPassing,stabilisedNOI,exitNOI,noiMode,totalHoldNOI,
     yearlyNOI,unitYearData,holdYears,
-    avgWault:units.length>0?units.reduce((s:number,u:any)=>{const a=num(String(u.areaSqm||0));return s+num(String(u.wault||0))*(a/Math.max(totalAreaNative,1));},0):0,
+    avgWault:units.length>0?units.reduce((s:number,u:any)=>{const a=num(String(u.areaSqm||0));return s+num(String(u.wault??5))*(a/Math.max(totalAreaNative,1));},0):0,
     paybackMonth,uCfs,lCfs,buildMonths,stabMonths,totalMonths,
     totalAreaSqm,totalAreaNative,
     totalAreaSqft:isSqft?totalAreaNative:totalAreaNative*10.7639,
@@ -12537,7 +12543,8 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
         // Prior bug: this line double-counted sales revenue as hold NOI, inflating profit.
         const salePricePsf=num(String(z.salePricePsf||0));
         const saleRevenue=units*sizeSqft*salePricePsf;
-        const agentFee=saleRevenue*0.015;
+        const agentFeePct=num(String(data.agentFeePct??1.5))/100;
+        const agentFee=saleRevenue*agentFeePct;
         totalGDV+=saleRevenue-agentFee;
       } else {
         // BTR hold — rental income each year
@@ -12671,7 +12678,8 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
     if(isResidential&&exitStrategy==="sell"){
       const salePricePsf=num(String(z.salePricePsf||0));
       const saleRevenue=zUnits*sizeSqft*salePricePsf;
-      gdvZone=saleRevenue*(1-0.015); // net of 1.5% agent fee — matches main calc
+      const agentFeePctDisp=num(String(data.agentFeePct??1.5))/100;
+      gdvZone=saleRevenue*(1-agentFeePctDisp); // net of user's agent fee — matches main calc
     } else if(isResidential){
       const rentPcm=num(String(z.rentPcm||0));
       const grossRentPa=zUnits*rentPcm*12;
@@ -12766,7 +12774,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const profit=gdv-totalCost;
     const poc=totalCost>0?profit/totalCost:0;
     const yoc=totalCost>0?noi/totalCost:0;
-    const rlv=gdv/1.20-devCost-fin.totalFinanceCost-sdlt;
+    // RLV uses profit-on-GDV (20%) convention — matches Commercial, Industrial, MixedUse
+    const rlv=gdv*(1-0.20)-devCost-fin.totalFinanceCost-sdlt;
     const annualDebtService=fin.peakLoanBalance*annualRate;
     const dscr=annualDebtService>0?noi/annualDebtService:Infinity;
     const equity=Math.max(0,totalCost-fin.loanAmount);
@@ -14011,7 +14020,7 @@ function calcAll(assetType:string,data:any):Record<string,any>{
   if(assetType==="MixedUse"){
     const zones:any[]=(data.zones||[]);
     const landCost=num(String(data.landCost||0));
-    const sdlt=calcSDLT(landCost,data.sdltMode??"auto","mixed",data.sdltOverride??0,data.sdltSurcharge??false);
+    const sdlt=calcSDLT(landCost,data.sdltMode??"auto",data.sdltTransactionType??"mixed",data.sdltOverride??0,data.sdltSurcharge??false);
     const profFeesPct=num(String(data.professionalFeesPct||8))/100;
     const contingencyPct=num(String(data.contingencyPct||5))/100;
     const vatSchemePct=num(String(data.vatPct||0))/100; // scheme-level VAT fallback
@@ -15317,8 +15326,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       const areaSqm=isSqft?areaNative/SQM_TO_SQFT:areaNative;
       const erv=num(String(u.erv||0)); // £/sqft or £/sqm per year
       const passingRent=num(String(u.passingRent||0));
-      const wault=num(String(u.wault||0));
-      const voidPct=num(String(u.voidPct||0))/100;
+      const wault=num(String(u.wault??5));
+      const voidPct=num(String(u.voidPct??5))/100;
       const rentFreeMonths=num(String(u.rentFreeMonths||0));
       const grossErv=areaNative*erv;
       const grossPassing=areaNative*passingRent;
@@ -16490,8 +16499,8 @@ function calcAll(assetType:string,data:any):Record<string,any>{
       const areaNative=num(String(u.areaSqm||0));
       const erv=num(String(u.erv||0));
       const passingRent=num(String(u.passingRent||0));
-      const wault=num(String(u.wault||0));
-      const voidPct=num(String(u.voidPct||0))/100;
+      const wault=num(String(u.wault??5));
+      const voidPct=num(String(u.voidPct??5))/100;
       const rentFreeMonths=num(String(u.rentFreeMonths||0));
       const grossErv=areaNative*erv;
       const grossPassing=areaNative*passingRent;
@@ -16604,12 +16613,12 @@ const DEFAULTS={
     sdltMode:"auto" as const,sdltTransactionType:"mixed" as const,sdltOverride:0,sdltSurcharge:false,
     zones:[
       {id:"z1",label:"Residential",type:"residential",exitStrategy:"sell",status:"new_build",
-       units:10,sizeSqft:700,buildCostPsf:260,salePricePsf:800,rentPcm:0,exitYield:0,vatPct:0,startMonth:0},
+       units:10,sizeSqft:700,buildCostPsf:260,salePricePsf:800,rentPcm:0,exitYield:5,vatPct:0,startMonth:0},
       {id:"z2",label:"Ground Floor Retail",type:"commercial",exitStrategy:"sell",status:"new_build",
        units:1,sizeSqft:1200,buildCostPsf:180,salePricePsf:0,rentPcm:3000,exitYield:6.5,vatPct:20,startMonth:0},
     ],
   },
-  Flip:{assetType:"Flip",vatPct:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,sellMonths:3,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",holdOccupancy:"vacant",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:false,areaModelOn:false,unitSystem:"sqft",existingArea:900,newArea:0,existingCostPsf:95,newCostPsf:180,architectPct:0,structEngPct:0,interiorPct:0,ffeCost:0,otherProfFees:0},
+  Flip:{assetType:"Flip",vatPct:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:9,stabilisationMonths:0,sellMonths:3,purchasePrice:450000,propertySqft:900,refurbBudget:85000,refurbPsf:95,salePrice:620000,salePricePsf:688,agentFeePct:1.5,bridgingRatePct:0.85,bridgingTermMonths:6,flipLTV:75,arrangementFeePct:2.0,professionalFeesPct:2,contingencyPct:10,otherCosts:5000,flipMode:"sell",holdOccupancy:"vacant",refiRatePct:6.0,refiTermMonths:24,refiLTV:75,refiArrangementPct:1.0,rentPcm:2200,voidPct:5,holdOpexPm:200,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true,areaModelOn:false,unitSystem:"sqft",existingArea:900,newArea:0,existingCostPsf:95,newCostPsf:180,architectPct:0,structEngPct:0,interiorPct:0,ffeCost:0,otherProfFees:0},
   Industrial:{assetType:"Industrial",name:"",location:"",currency:"GBP",noiMode:"normalised",actualNoi:0,benchmark:"SONIA",benchmarkRate:3.97,
     programmMonths:12,stabilisationMonths:6,areaUnit:"sqft",
     landCost:3000000,buildCostPsm:85,
