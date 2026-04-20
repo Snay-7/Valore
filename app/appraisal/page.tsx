@@ -21407,7 +21407,7 @@ function RevStream({title,icon,enabled,onToggle,summary,open,onOpen,children}:{t
 
 
 // ─── PDF GENERATORS ───────────────────────────────────────────────────────────
-async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string,btrBtsComps:any=null,flipComps:any=null){
+async function generatePDF(data:any,results:any,assetType:string,currencySymbol:string,userEmail:string,btrBtsComps:any=null,flipComps:any=null,sensMetric:SensMetric="poc"){
   if(!(window as any).jspdf){
     await new Promise<void>((resolve,reject)=>{
       const s=document.createElement("script");
@@ -21757,24 +21757,32 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
   // ── Helper: sensitivity mini-table ────────────────────────────────────────
-  const drawSensTable=(matrix:number[][],rowLabels:string[],colLabels:string[],x:number,y:number,w:number,title:string)=>{
+  // Accepts SensCell[][] (preferred) or legacy number[][] (back-compat).
+  // Cell values picked by sensMetric (passed via the outer PDF function arg).
+  const _cellToCol=(cls:string):[number,number,number]=>cls==="cell-g"?green:cls==="cell-a"?amber:red;
+  const drawSensTable=(matrix:any[][],rowLabels:string[],colLabels:string[],x:number,y:number,w:number,title:string)=>{
     if(!matrix||matrix.length===0)return y;
-    doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text(title,x,y);y+=4;
+    const cells:number[][]=matrix.map(row=>row.map((cell:any)=>{
+      if(cell&&typeof cell==="object"&&"poc" in cell) return cell[sensMetric]||0;
+      return typeof cell==="number"?cell:0;
+    }));
+    const titleFull=title.replace(/Profit on Cost|PoC/i,sensMetricLabel(sensMetric));
+    doc.setTextColor(...gold);doc.setFontSize(7);doc.setFont("helvetica","bold");doc.text(titleFull,x,y);y+=4;
     const cols=colLabels.length+1;const cw=w/cols;const rh=6;
     // Header row
     doc.setFillColor(...bg3);doc.rect(x,y,w,rh,"F");
     doc.setFontSize(5.5);doc.setTextColor(...grey);doc.setFont("helvetica","bold");
     colLabels.forEach((l,i)=>doc.text(l,x+cw*(i+1)+cw/2,y+4,{align:"center"}));
     y+=rh;
-    matrix.forEach((row,ri)=>{
+    cells.forEach((row,ri)=>{
       if(ri%2===0){doc.setFillColor(...bg4);doc.rect(x,y,w,rh,"F");}
       doc.setTextColor(...grey);doc.setFont("helvetica","normal");doc.setFontSize(5.5);doc.text(rowLabels[ri]||"",x+2,y+4);
-      row.forEach((poc,ci)=>{
-        const col=poc>0.20?green:poc>0.10?amber:red;
+      row.forEach((val,ci)=>{
+        const col=_cellToCol(sensCellClass(val,sensMetric));
         const isBase=ri===2&&ci===2;
         if(isBase){doc.setFillColor(...gold);doc.rect(x+cw*(ci+1),y,cw,rh,"F");}
         doc.setTextColor(...(isBase?[26,26,26] as [number,number,number]:col));doc.setFont("helvetica",isBase?"bold":"normal");
-        doc.text(`${(poc*100).toFixed(1)}%`,x+cw*(ci+1)+cw/2,y+4,{align:"center"});
+        doc.text(fmtSensCell(val,sensMetric,currencySymbol),x+cw*(ci+1)+cw/2,y+4,{align:"center"});
       });
       y+=rh;
     });
@@ -23420,17 +23428,21 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
       );
     }
   }else if(assetType==="Flip"){
+    // Compute via real calcAll so all 4 metrics are available — drawSensTable picks sensMetric
     const salePctSteps=[10,5,0,-5,-10];
     const refurbPctSteps=[-10,-5,0,5,10];
-    const flipSens=salePctSteps.map(sp=>refurbPctSteps.map(rp=>{
-      const modSale=(r.salePrice||0)*(1+sp/100);
-      const modRefurb=(r.refurb||0)*(1+rp/100);
-      const modProfFees=modRefurb*(num(String(data.professionalFeesPct))/100);
-      const modCont=modRefurb*(num(String(data.contingencyPct))/100);
-      const modTotal=(r.purchase||0)+(r.sdlt||0)+modRefurb+modProfFees+modCont+(r.other||0)+(r.totalFinanceCost||0);
-      const agentF=modSale*(num(String(data.agentFeePct||1.5))/100);
-      const modProfit=(modSale-agentF)-modTotal;
-      return modTotal>0?modProfit/modTotal:0;
+    const baseSalePsf=num(String(data.salePricePsf||0));
+    const baseSaleFlat=num(String(data.salePrice||0));
+    const flipSens:SensCell[][]=salePctSteps.map(sp=>refurbPctSteps.map(rp=>{
+      const modData={...data,
+        salePricePsf:baseSalePsf*(1+sp/100),
+        salePrice:baseSaleFlat*(1+sp/100),
+        refurbBudget:num(String(data.refurbBudget||0))*(1+rp/100),
+        refurbPsf:num(String(data.refurbPsf||0))*(1+rp/100),
+        existingCostPsf:num(String(data.existingCostPsf||0))*(1+rp/100),
+        newCostPsf:num(String(data.newCostPsf||0))*(1+rp/100),
+      };
+      return toSensCell(calcAll("Flip",modData));
     }));
     py=drawSensTable(flipSens,
       ["+10% sale","+5% sale","Base","-5% sale","-10% sale"],
@@ -24036,7 +24048,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
 
 
-async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[],hotelMode="simple",hotelAdv:any=null,hotelComps:any=null,btrBtsComps:any=null,flipComps:any=null,commercialMode="simple",commercialAdv:any=null,mixedUseMode="simple",mixedUseAdv:any=null,commercialComps:any=null,mixedUseResiComps:any=null,mixedUseComComps:any=null){
+async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbol:string,content:BrochureContent,photos:string[],hotelMode="simple",hotelAdv:any=null,hotelComps:any=null,btrBtsComps:any=null,flipComps:any=null,commercialMode="simple",commercialAdv:any=null,mixedUseMode="simple",mixedUseAdv:any=null,commercialComps:any=null,mixedUseResiComps:any=null,mixedUseComComps:any=null,sensMetric:SensMetric="poc"){
   if(!(window as any).jspdf){
     await new Promise<void>((resolve,reject)=>{
       const s=document.createElement("script");
@@ -25563,44 +25575,51 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-    sp=hSection(sp,"Sensitivity: Exit Cap Rate × ADR Shift (Profit on Cost)");
+    sp=hSection(sp,`Sensitivity: Exit Cap Rate × ADR Shift (${sensMetricLabel(sensMetric)})`);
     // Re-run full calc for each cell. ADR shift must flow through to EBITDA/NOI — so we
-    // force normalised-NOI mode here even if the headline uses Actual NOI (otherwise
-    // the exit NOI is frozen to the user's actualNoi input and the matrix shows
-    // identical values across ADR columns).
+    // force normalised-NOI mode here even if the headline uses Actual NOI.
+    // All 4 metrics computed per cell — user's chosen metric picked at render time.
     const capRates3=[-1.0,-0.5,0,0.5,1.0].map(d=>Number(data.exitCapRate||6)+d); // percent
     const adrShifts3=[-0.10,-0.05,0,0.05,0.10];
     const baseAdr3=Number(data.adr||0);
-    const sm3=capRates3.map(cap=>adrShifts3.map(adrS=>{
+    const sm3Cells:SensCell[][]=capRates3.map(cap=>adrShifts3.map(adrS=>{
       const newAdr=baseAdr3*(1+adrS);
       const modData={...data,exitCapRate:cap,adr:newAdr,yearAdr:null,yearOcc:null,noiMode:"normalised",actualNoi:0};
       const res:any=hotelMode==="advanced"?calcHotelAdvanced(modData):calcAll("Hotel",modData);
-      return res?.poc??0;
+      return toSensCell(res);
     }));
+    const sm3:number[][]=sm3Cells.map(row=>row.map(cell=>cell[sensMetric]||0));
     const sCW3=(W-M*2)/(adrShifts3.length+1);const sRH3=8;
     doc.setFillColor(37,45,63);doc.rect(M,sp,W-M*2,sRH3,"F");
     doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont("helvetica","bold");
     doc.text("Cap Rate",M+3,sp+5);
     adrShifts3.forEach((s,i)=>doc.text(`ADR ${s>0?"+":""}${(s*100).toFixed(0)}%`,M+sCW3*(i+1)+sCW3/2,sp+5,{align:"center"}));
     sp+=sRH3;
+    // Hotel-specific sens — metric-aware colour/format/legend (honours user's picker choice)
+    const hotelCellCol=(val:number):[number,number,number]=>{
+      const cls=sensCellClass(val,sensMetric);
+      return cls==="cell-g"?green:cls==="cell-a"?amber:red;
+    };
     sm3.forEach((row3,ri)=>{
       const isBaseR=ri===2;
       if(ri%2===0&&!isBaseR){doc.setFillColor(248,249,250);doc.rect(M,sp,W-M*2,sRH3,"F");}
       doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica",isBaseR?"bold":"normal");
       doc.text(`${capRates3[ri].toFixed(1)}%`,M+3,sp+5);
-      row3.forEach((poc3,ci)=>{
-        const c3=poc3>0.20?green:poc3>0.10?amber:red;
+      row3.forEach((val,ci)=>{
+        const c3=hotelCellCol(val);
         const isBase3=ri===2&&ci===2;
         if(isBase3){doc.setFillColor(42,138,100);doc.rect(M+sCW3*(ci+1),sp,sCW3,sRH3,"F");}
         doc.setTextColor(...(isBase3?[255,255,255]:c3) as any);
         doc.setFont("helvetica",isBase3?"bold":"normal");doc.setFontSize(6.5);
-        doc.text(`${(poc3*100).toFixed(1)}%`,M+sCW3*(ci+1)+sCW3/2,sp+5,{align:"center"});
+        doc.text(fmtSensCell(val,sensMetric,currencySymbol),M+sCW3*(ci+1)+sCW3/2,sp+5,{align:"center"});
       });
       sp+=sRH3;
     });
-    [[green,">20% PoC"],[amber,"10–20% PoC"],[red,"<10% PoC"],[gold,"Base"]].forEach(([c,l],i)=>{
-      doc.setFillColor(...c as any);doc.roundedRect(M+i*44,sp+3,3,3,0.5,0.5,"F");
-      doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(l as string,M+i*44+5,sp+5.5);
+    const _hotelLegend=sensLegend(sensMetric);
+    const hotelBands:[[number,number,number],string][]=[[green,_hotelLegend[0][1]],[amber,_hotelLegend[1][1]],[red,_hotelLegend[2][1]],[gold,"Base"]];
+    hotelBands.forEach(([c,l],i)=>{
+      doc.setFillColor(...c);doc.roundedRect(M+i*44,sp+3,3,3,0.5,0.5,"F");
+      doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(l,M+i*44+5,sp+5.5);
     });
     sp+=14;
 
@@ -26507,29 +26526,39 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-  // Sensitivity table
-  const drawSens2=(matrix:number[][],rowLbls:string[],colLbls:string[],title:string)=>{
+  // Sensitivity table — accepts SensCell[][] or legacy number[][].
+  // Cell values picked by sensMetric (passed from UI picker via the PDF function arg).
+  const cellClassToColor=(cls:string):[number,number,number]=>cls==="cell-g"?green:cls==="cell-a"?amber:red;
+  const drawSens2=(matrix:any[][],rowLbls:string[],colLbls:string[],title:string)=>{
     if(!matrix||matrix.length===0)return;
-    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(title.toUpperCase(),M,sp);sp+=5;
+    // Normalise matrix to extract the picked metric. If matrix is number[][], treat as PoC for back-compat.
+    const cells:number[][]=matrix.map(row=>row.map((cell:any)=>{
+      if(cell&&typeof cell==="object"&&"poc" in cell) return cell[sensMetric]||0;
+      return typeof cell==="number"?cell:0;
+    }));
+    const titleFull=title.replace(/Profit on Cost|PoC/i,sensMetricLabel(sensMetric));
+    doc.setTextColor(...gold);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text(titleFull.toUpperCase(),M,sp);sp+=5;
     const cols2b=colLbls.length+1;const cw2=( W-M*2)/cols2b;const rh2=7;
     doc.setFillColor(...bg3);doc.rect(M,sp,W-M*2,rh2,"F");
     doc.setFontSize(6);doc.setTextColor(...grey);doc.setFont("helvetica","bold");
     colLbls.forEach((l,i)=>doc.text(l,M+cw2*(i+1)+cw2/2,sp+4.5,{align:"center"}));sp+=rh2;
-    matrix.forEach((row,ri)=>{
+    cells.forEach((row,ri)=>{
       if(ri%2===0){doc.setFillColor(...bg4);doc.rect(M,sp,W-M*2,rh2,"F");}
       doc.setTextColor(...grey);doc.setFont("helvetica","normal");doc.setFontSize(6);doc.text(rowLbls[ri]||"",M+2,sp+4.5);
-      row.forEach((poc,ci)=>{
-        const c=poc>0.20?green:poc>0.10?amber:red;
+      row.forEach((val,ci)=>{
+        const c=cellClassToColor(sensCellClass(val,sensMetric));
         const isBase=ri===2&&ci===2;
         if(isBase){doc.setFillColor(...gold);doc.rect(M+cw2*(ci+1),sp,cw2,rh2,"F");}
         doc.setTextColor(...(isBase?[26,26,26] as [number,number,number]:c));doc.setFont("helvetica",isBase?"bold":"normal");
-        doc.text(`${(poc*100).toFixed(1)}%`,M+cw2*(ci+1)+cw2/2,sp+4.5,{align:"center"});
+        doc.text(fmtSensCell(val,sensMetric,currencySymbol),M+cw2*(ci+1)+cw2/2,sp+4.5,{align:"center"});
       });sp+=rh2;
     });
-    // Legend
+    // Dynamic legend per metric
     sp+=4;
-    [[green,"> 20%"],[amber,"10–20%"],[red,"< 10%"],[gold,"Base"]].forEach(([c,l],i)=>{
-      doc.setFillColor(...(c as [number,number,number]));doc.roundedRect(M+i*40,sp,3,3,0.5,0.5,"F");
+    const legend=sensLegend(sensMetric).map(([_,lbl])=>lbl);
+    const bands:[[number,number,number],string][]=[[green,legend[0]],[amber,legend[1]],[red,legend[2]],[gold,"Base"]];
+    bands.forEach(([c,l],i)=>{
+      doc.setFillColor(...c);doc.roundedRect(M+i*40,sp,3,3,0.5,0.5,"F");
       doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(String(l),M+i*40+5,sp+2.5);
     });sp+=9;
   };
@@ -26609,14 +26638,21 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       );
     }
   }else if(assetType==="Flip"){
+    // Flip sens — compute via real calcAll so all 4 metrics (PoC/IRR/MOIC/Profit) tie to engine.
     const salePctSteps=[10,5,0,-5,-10];
     const refurbPctSteps=[-10,-5,0,5,10];
-    const fs=salePctSteps.map(sp2=>refurbPctSteps.map(rp=>{
-      const mSale=(r.salePrice||0)*(1+sp2/100);const mRefurb=(r.refurb||0)*(1+rp/100);
-      const mPF=mRefurb*(num(String(data.professionalFeesPct))/100);const mC=mRefurb*(num(String(data.contingencyPct))/100);
-      const mT=(r.purchase||0)+(r.sdlt||0)+mRefurb+mPF+mC+(r.other||0)+(r.totalFinanceCost||0);
-      const aF=mSale*(num(String(data.agentFeePct||1.5))/100);
-      return mT>0?(mSale-aF-mT)/mT:0;
+    const baseSalePsf=num(String(data.salePricePsf||0));
+    const baseSaleFlat=num(String(data.salePrice||0));
+    const fs:SensCell[][]=salePctSteps.map(sp2=>refurbPctSteps.map(rp=>{
+      const modData={...data,
+        salePricePsf:baseSalePsf*(1+sp2/100),
+        salePrice:baseSaleFlat*(1+sp2/100),
+        refurbBudget:num(String(data.refurbBudget||0))*(1+rp/100),
+        refurbPsf:num(String(data.refurbPsf||0))*(1+rp/100),
+        existingCostPsf:num(String(data.existingCostPsf||0))*(1+rp/100),
+        newCostPsf:num(String(data.newCostPsf||0))*(1+rp/100),
+      };
+      return toSensCell(calcAll("Flip",modData));
     }));
     drawSens2(fs,["+10% sale","+5% sale","Base","-5% sale","-10% sale"],
       ["-10% refurb","-5% refurb","Base","+5% refurb","+10% refurb"],"Sensitivity: Sale Price × Refurb Cost");
@@ -28872,7 +28908,7 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
   const shareWhatsApp=()=>{if(!liveLink)return;const text=encodeURIComponent(`Valora Appraisal — ${data.name||"Untitled"}: ${liveLink}`);window.open(`https://wa.me/?text=${text}`);};
   const handleGeneratePDF=async()=>{
     setGeneratingPDF(true);
-    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,r,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null);tickChecklist("generated_pdf");}
+    try{const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";await generatePDF(data,r,assetType,currSym,"",(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null,sensMetric);tickChecklist("generated_pdf");}
     catch(e){console.error("PDF error:",e);}
     setGeneratingPDF(false);
   };
@@ -29969,7 +30005,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
     setDownloadingBrochure(true);
     try{
       const currSym={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";
-      await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null,(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null,commercialMode,commercialAdv,mixedUseMode,mixedUseAdv,(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null,assetType==="MixedUse"?muResiComps:null,assetType==="MixedUse"?muComComps:null);
+      await generateBrochurePDF(data,r,assetType,currSym,brochureContent,brochurePhotos,hotelMode,hotelAdv,assetType==="Hotel"?hotelComps:null,(assetType==="BTR"||assetType==="BTS")?btrBtsComps:null,assetType==="Flip"?flipComps:null,commercialMode,commercialAdv,mixedUseMode,mixedUseAdv,(assetType==="Commercial"||assetType==="Industrial")?commercialComps:null,assetType==="MixedUse"?muResiComps:null,assetType==="MixedUse"?muComComps:null,sensMetric);
       tickChecklist("generated_pdf");
     }catch(e:any){
       console.error("Brochure PDF error:",e);
@@ -38986,9 +39022,12 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                             <option value="hold">Hold / retain</option>
                           </select>
                         </div>
+                        {/* Residential-sell still gets Sale Price; residential-hold and commercial skip it */}
                         {(z.type==="residential"&&(z.exitStrategy||"sell")==="sell")&&<div className="inp-group"><label className="inp-label">Sale price (psf)</label><input className="inp" type="number" value={z.salePricePsf||""} onChange={e=>updateZone("salePricePsf",e.target.value)}/></div>}
-                        {(z.type!=="residential"||(z.exitStrategy||"sell")==="hold")&&<div className="inp-group"><label className="inp-label">Rent ({currencySymbol}/unit/mo)</label><input className="inp" type="number" value={z.rentPcm||""} onChange={e=>updateZone("rentPcm",e.target.value)}/></div>}
-                        {(z.type!=="residential"||(z.exitStrategy||"sell")==="hold")&&<div className="inp-group"><label className="inp-label">Exit yield (%)</label><input className="inp" type="number" step="0.25" value={z.exitYield||""} onChange={e=>updateZone("exitYield",e.target.value)}/></div>}
+                        {/* Rent (£/unit/mo) — ALWAYS editable per zone. Drives GDV on hold-exit; flows into hold-period income on sell-exit (for absorption rent or BTR strategy compare). */}
+                        <div className="inp-group"><label className="inp-label">Rent ({currencySymbol}/unit/mo)</label><input className="inp" type="number" value={z.rentPcm||""} onChange={e=>updateZone("rentPcm",e.target.value)}/></div>
+                        {/* Exit yield — ALWAYS editable per zone. Drives GDV for hold-exit and commercial sell-exit; informational for residential sell-exit. */}
+                        <div className="inp-group"><label className="inp-label">Exit yield (%)</label><input className="inp" type="number" step="0.25" value={z.exitYield||""} onChange={e=>updateZone("exitYield",e.target.value)}/></div>
                       </div>
                       <div className="inp-row">
                         <div className="inp-group"><label className="inp-label">{vatLabel(data.currency||"GBP")} on build + fees (%)</label><input className="inp" type="number" step="1" value={z.vatPct??""} onChange={e=>updateZone("vatPct",e.target.value)} placeholder="e.g. 20"/></div>
