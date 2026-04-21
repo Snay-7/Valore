@@ -8286,54 +8286,91 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
 
-  // KPI cards — 6 metrics in 2 rows of 3
+  // KPI cards
   const kpiY=tagY+20;
-  const kpiData=isHotelAdv?[
-    {l:"Exit Value",v:fmt(hotelAdv.exitValue||r.exitValue||0,currencySymbol),c:gold},
-    {l:"EBITDA pa",v:fmt(hotelAdv.ebitda||r.ebitda||0,currencySymbol),c:green},
-    {l:"Return on Cost",v:fmtPct(hotelAdv.poc||r.poc||0),c:(hotelAdv.poc||r.poc||0)>0.15?green:amber},
-    {l:"IRR (Unlevered)",v:fmtPct(hotelAdv.irr||r.irr||0),c:(hotelAdv.irr||r.irr||0)>=0.10?green:amber},
-    {l:"IRR (Levered)",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:(hotelAdv.irrLevered||r.irrLevered||0)>=0.10?blue:amber},
-    {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
-    {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>=999?"N/A (All Equity)":(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
-    {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:amber},
-    ...((()=>{const src={...r,...(hotelAdv||{})};const m=computeDebtMetrics(src,"Hotel");const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push({l:"Debt Yield",v:fmtPct(m.dy),c:dyColour(m.dy)});if(m.ltgdv>0)o.push({l:"LTGDV",v:fmtPct(m.ltgdv),c:ltgdvColour(m.ltgdv)});return o;})()),
-    {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:blue},
-  ]:assetType==="BTR"||assetType==="BTS"?[
-    {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
-    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
-    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
-    {l:"IRR (Unlevered)",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
-    {l:"IRR (Levered)",v:fmtPct(r.irrLevered||0),c:(r.irrLevered||0)>=0.15?green:amber},
-    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
-  ]:assetType==="Flip"?[
-    {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
-    {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
-    ...(r.flipMode==="hold"
-      ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
-      :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
-    ...(r.flipMode==="hold"
-      ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
-      :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
-    {l:"IRR",v:fmtPct(r.irr||0),c:white},
-    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
-  ]:[
-    {l:"GDV / Exit",v:fmt(r.totalGDV||r.gdv||r.exitValue||0,currencySymbol),c:gold},
-    {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
-    {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
-    {l:"IRR",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
-    {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
-    {l:"Equity In",v:fmt(r.equity||0,currencySymbol),c:white},
-  ];
-  const kCols2=3;const kW2=(W-M*2-4)/kCols2;const kH=22;
-  kpiData.forEach(({l,v,c},i)=>{
-    const col=i%kCols2;const row=Math.floor(i/kCols2);
-    const x=M+col*(kW2+2);const y=kpiY+row*(kH+3);
-    doc.setFillColor(...bg2);doc.roundedRect(x,y,kW2,kH,2,2,"F");
-    doc.setDrawColor(...c);doc.setLineWidth(0.4);doc.roundedRect(x,y,kW2,kH,2,2,"S");
-    doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");doc.text(l.toUpperCase(),x+4,y+8);
-    doc.setTextColor(...c);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(String(v),x+4,y+18);
-  });
+  // ── HOTEL: IC-level hero + support layout ────────────────────────────────
+  // Hotel brochure uses a two-tier layout: 4 hero metrics in large cards,
+  // with 5-7 secondary metrics below in a compact row. Other asset types
+  // use the existing flat 3-column grid.
+  if(isHotelAdv){
+    const _debtBits=((()=>{const src={...r,...(hotelAdv||{})};const m=computeDebtMetrics(src,"Hotel");const o:any[]=[];if(m.ln<=0)return o;if(m.dy>0)o.push({l:"Debt Yield",v:fmtPct(m.dy),c:dyColour(m.dy)});if(m.ltgdv>0)o.push({l:"LTGDV",v:fmtPct(m.ltgdv),c:ltgdvColour(m.ltgdv)});return o;})());
+    // Hero tier — 4 cards, full page width, big type
+    const heroKpis=[
+      {l:"Exit Value",v:fmt(hotelAdv.exitValue||r.exitValue||0,currencySymbol),c:gold},
+      {l:"Return on Cost",v:fmtPct(hotelAdv.poc||r.poc||0),c:(hotelAdv.poc||r.poc||0)>0.15?green:amber},
+      {l:"Levered IRR",v:fmtPct(hotelAdv.irrLevered||r.irrLevered||0),c:(hotelAdv.irrLevered||r.irrLevered||0)>=0.10?green:amber},
+      {l:"Equity Multiple",v:fmtX(hotelAdv.moic||r.moic||0),c:gold},
+    ];
+    const heroH=36;
+    const heroW=(W-M*2-3*3)/4;
+    heroKpis.forEach(({l,v,c},i)=>{
+      const x=M+i*(heroW+3);const y=kpiY;
+      doc.setFillColor(...bg2);doc.roundedRect(x,y,heroW,heroH,3,3,"F");
+      doc.setDrawColor(...c);doc.setLineWidth(0.7);doc.roundedRect(x,y,heroW,heroH,3,3,"S");
+      doc.setTextColor(...grey);doc.setFontSize(6);doc.setFont("helvetica","bold");
+      doc.text(l.toUpperCase(),x+5,y+8);
+      doc.setTextColor(...c);doc.setFontSize(20);doc.setFont("helvetica","bold");
+      doc.text(String(v),x+5,y+28);
+    });
+    // Support tier — 6 compact metrics below the hero, one row
+    const supportKpis=[
+      {l:"EBITDA pa",v:fmt(hotelAdv.ebitda||r.ebitda||0,currencySymbol),c:green},
+      {l:"Unlevered IRR",v:fmtPct(hotelAdv.irr||r.irr||0),c:(hotelAdv.irr||r.irr||0)>=0.10?green:amber},
+      {l:"DSCR / ICR",v:(hotelAdv.dscr||r.dscr||0)>=999?"N/A":(hotelAdv.dscr||r.dscr||0)>0?fmtX(hotelAdv.dscr||r.dscr||0):"—",c:(hotelAdv.dscr||r.dscr||0)>=1.25?green:amber},
+      {l:"Equity In",v:fmt(hotelAdv.equity||r.equity||0,currencySymbol),c:white},
+      ..._debtBits.slice(0,1),
+      {l:"RevPAR",v:`${currencySymbol}${Math.round(Number(data.adr||0)*Number(data.occupancy||0)/100)}`,c:blue},
+    ].slice(0,6);
+    const supH=15;
+    const supW=(W-M*2-(supportKpis.length-1)*2)/supportKpis.length;
+    const supY=kpiY+heroH+4;
+    supportKpis.forEach(({l,v,c},i)=>{
+      const x=M+i*(supW+2);const y=supY;
+      doc.setFillColor(...bg2);doc.roundedRect(x,y,supW,supH,2,2,"F");
+      doc.setDrawColor(...c);doc.setLineWidth(0.3);doc.roundedRect(x,y,supW,supH,2,2,"S");
+      doc.setTextColor(...grey);doc.setFontSize(5);doc.setFont("helvetica","normal");
+      doc.text(l.toUpperCase(),x+3,y+5);
+      doc.setTextColor(...c);doc.setFontSize(9.5);doc.setFont("helvetica","bold");
+      doc.text(String(v),x+3,y+12);
+    });
+  } else {
+    // ── NON-HOTEL: existing flat 3-col grid (unchanged) ────────────────────
+    const kpiData=(assetType==="BTR"||assetType==="BTS")?[
+      {l:"GDV",v:fmt(r.gdv||0,currencySymbol),c:gold},
+      {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+      {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+      {l:"IRR (Unlevered)",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
+      {l:"IRR (Levered)",v:fmtPct(r.irrLevered||0),c:(r.irrLevered||0)>=0.15?green:amber},
+      {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+    ]:assetType==="Flip"?[
+      {l:"Purchase Price",v:fmt(r.purchase||0,currencySymbol),c:white},
+      {l:"Total Cost",v:fmt(r.totalCost||0,currencySymbol),c:white},
+      ...(r.flipMode==="hold"
+        ?[{l:"Profit (to Equity)",v:fmt(r.profitCash??r.profit??0,currencySymbol),c:(r.profitCash??r.profit??0)>0?green:red}]
+        :[{l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red}]),
+      ...(r.flipMode==="hold"
+        ?[{l:"Net Yield",v:fmtPct(r.netYield||0),c:(r.netYield||0)>0.05?green:(r.netYield||0)>0.03?amber:red}]
+        :[{l:"ROI on Cost",v:fmtPct(r.roi||0),c:(r.roi||0)>0.15?green:amber}]),
+      {l:"IRR",v:fmtPct(r.irr||0),c:white},
+      {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+    ]:[
+      {l:"GDV / Exit",v:fmt(r.totalGDV||r.gdv||r.exitValue||0,currencySymbol),c:gold},
+      {l:"Profit",v:fmt(r.profit||0,currencySymbol),c:(r.profit||0)>0?green:red},
+      {l:"Profit on Cost",v:fmtPct(r.poc||0),c:(r.poc||0)>0.2?green:(r.poc||0)>0.1?amber:red},
+      {l:"IRR",v:fmtPct(r.irr||0),c:(r.irr||0)>=0.15?green:amber},
+      {l:"Equity Multiple",v:fmtX(r.moic||0),c:gold},
+      {l:"Equity In",v:fmt(r.equity||0,currencySymbol),c:white},
+    ];
+    const kCols2=3;const kW2=(W-M*2-4)/kCols2;const kH=22;
+    kpiData.forEach(({l,v,c},i)=>{
+      const col=i%kCols2;const row=Math.floor(i/kCols2);
+      const x=M+col*(kW2+2);const y=kpiY+row*(kH+3);
+      doc.setFillColor(...bg2);doc.roundedRect(x,y,kW2,kH,2,2,"F");
+      doc.setDrawColor(...c);doc.setLineWidth(0.4);doc.roundedRect(x,y,kW2,kH,2,2,"S");
+      doc.setTextColor(...grey);doc.setFontSize(5.5);doc.setFont("helvetica","normal");doc.text(l.toUpperCase(),x+4,y+8);
+      doc.setTextColor(...c);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(String(v),x+4,y+18);
+    });
+  }
 
 
 
