@@ -14387,8 +14387,8 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                     {hotelRev&&hotelRev.totalRev>0&&(
                       <div style={{display:"flex",gap:12,marginTop:4,paddingTop:10,borderTop:"1px solid var(--bg4)",fontSize:11,fontFamily:"var(--font-mono)",flexWrap:"wrap"}}>
                         <span><span style={{color:"var(--text-d)"}}>Total Revenue: </span><span style={{color:"var(--text)"}}>{fmt(hotelRev.totalRev,currencySymbol)}</span></span>
-                        <span><span style={{color:"var(--text-d)"}}>Total EBITDA: </span><span style={{color:"var(--green)"}}>{fmt(hotelRev.totalEbitda,currencySymbol)}</span></span>
-                        <span><span style={{color:"var(--text-d)"}}>Blended margin: </span><span style={{color:"var(--gold)"}}>{fmtPct(hotelRev.totalEbitda/hotelRev.totalRev)}</span></span>
+                        <span><span style={{color:"var(--text-d)"}}>Department GOP: </span><span style={{color:"var(--green)"}}>{fmt(hotelRev.totalEbitda,currencySymbol)}</span></span>
+                        <span><span style={{color:"var(--text-d)"}}>GOP margin: </span><span style={{color:"var(--gold)"}}>{fmtPct(hotelRev.totalEbitda/hotelRev.totalRev)}</span></span>
                         <span><span style={{color:"var(--text-d)"}}>FF&E Reserve: </span><span style={{color:"var(--amber)"}}>{fmt(hotelRev.totalRev*(num(String(data.ffePct||3))/100),currencySymbol)}</span></span>
                       </div>
                     )}
@@ -15104,7 +15104,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 </RevStream>
                 <div style={{background:"var(--bg2)",border:"1px solid var(--gold-border)",borderRadius:10,padding:16,marginTop:8}}>
                   <div style={{fontSize:10,color:"var(--text-d)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Total P&L Summary</div>
-                  {([["Total Revenue pa",hotelRev?.totalRev||0,"var(--text)"],["Total EBITDA pa",hotelRev?.totalEbitda||0,"var(--green)"]] as any[]).map(([l,v,c])=>(
+                  {([["Total Revenue pa",hotelRev?.totalRev||0,"var(--text)"],["Total Department GOP pa",hotelRev?.totalEbitda||0,"var(--text)"],["EBITDA pa (post-cascade)",r.ebitda||0,"var(--green)"]] as any[]).map(([l,v,c])=>(
                     <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--bg4)",fontSize:13}}>
                       <span style={{color:"var(--text-m)"}}>{l}</span>
                       <span style={{fontFamily:"var(--font-mono)",color:c,fontWeight:600}}>{fmt(v,currencySymbol)}</span>
@@ -31094,13 +31094,23 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Hotel"&&(()=>{
                     const hRev=hotelMode==="advanced"&&r.revenuePa>0?r.revenuePa:hotelRev?.totalRev||0;
-                    const hEbitda=hotelMode==="advanced"?r.ebitda:hotelRev?.totalEbitda||0;
+                    // Always use cascaded EBITDA — engine applies USALI cascade in both Simple and Advanced modes.
+                    const hEbitda=r.ebitda||0;
+                    const hDeptGop=r.departmentGop||hotelRev?.totalEbitda||0;
                     const rooms=num(String(data.rooms));
+                    const showCascade=hotelMode!=="advanced"&&(r.undistributed||0)>0;
                     return([
                       ["RevPAR",fmt(r.revpar||0,currencySymbol),"var(--gold)"],
                       ["Total Revenue pa",fmt(hRev,currencySymbol),"var(--text)"],
-                      ["EBITDA pa",fmt(hEbitda,currencySymbol),"var(--green)"],
-                      ["GOP Margin",hRev>0?fmtPct(hEbitda/hRev):"—","var(--green)"],
+                      // USALI cascade — visible only in Simple mode
+                      ...(showCascade?[
+                        ["Department GOP",fmt(hDeptGop,currencySymbol),"var(--text)"],
+                        [`  − Undistributed (${data.undistributedPct??22}%)`,`−${fmt(r.undistributed||0,currencySymbol)}`,"var(--amber)"],
+                        [`  − Base Mgmt Fee (${data.mgmtFeePct??3}%)`,`−${fmt(r.mgmtFee||0,currencySymbol)}`,"var(--amber)"],
+                        ...(((data.incentiveFeePct??0)>0)?[[`  − Incentive Fee (${data.incentiveFeePct??0}%)`,`−${fmt(r.incentiveFee||0,currencySymbol)}`,"var(--amber)"]]:[]),
+                      ] as any[]:[]),
+                      ["EBITDA",fmt(hEbitda,currencySymbol),"var(--green)"],
+                      ["EBITDA Margin",hRev>0?fmtPct(hEbitda/hRev):"—","var(--green)"],
                       ["EBITDA per Room",rooms>0?fmt(hEbitda/rooms,currencySymbol):"—","var(--text-m)"],
                       ["Stabilised Value",fmt(r.stabilisedValue||0,currencySymbol),"var(--text-m)"],
                       ["Exit Value",fmt(r.exitValue||0,currencySymbol),"var(--gold)"],
@@ -36767,12 +36777,12 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 return out;
               })() as any[]),
               ...(assetType==="Hotel"?[[
-                "GOP Margin",
-                hotelMode==="advanced"&&r.revenuePa>0?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0?fmtPct(hotelRev.totalEbitda/hotelRev.totalRev):"—",
+                "EBITDA Margin",
+                r.revenuePa>0&&r.ebitda?fmtPct(r.ebitda/r.revenuePa):hotelRev&&hotelRev.totalRev>0&&r.ebitda?fmtPct(r.ebitda/hotelRev.totalRev):"—",
                 "var(--green)"
               ],[
                 "EBITDA / Room",
-                hotelMode==="advanced"&&r.ebitda&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):hotelRev&&num(String(data.rooms))>0?fmt(hotelRev.totalEbitda/num(String(data.rooms)),currencySymbol):"—",
+                r.ebitda&&num(String(data.rooms))>0?fmt(r.ebitda/num(String(data.rooms)),currencySymbol):"—",
                 "var(--text-m)"
               ]] as any[]:[]),
               ["Payback",r.paybackMonth&&r.paybackMonth<(r.totalMonths||r.buildMonths||999)?`Month ${r.paybackMonth}`:r.paybackMonth?"Beyond horizon":"—","var(--text-m)"],
@@ -36796,7 +36806,7 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                 </div>
               ))}
               <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:12,marginTop:4}}>
-                <span style={{color:"var(--gold)",fontWeight:600}}>Total EBITDA</span>
+                <span style={{color:"var(--gold)",fontWeight:600}}>Total Department GOP</span>
                 <span style={{fontFamily:"var(--font-mono)",color:"var(--green)",fontWeight:600}}>{fmt(hotelRev.totalEbitda,currencySymbol)}</span>
               </div>
             </div>
