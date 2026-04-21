@@ -8490,9 +8490,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     if(content.executiveSummary){
       sp=hSection(sp,"Investment Thesis");
-      // Full content width minus a small breathing-room gutter — matches splitSafe convention.
-      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-6);
+      // IMPORTANT: set font BEFORE splitTextToSize — jsPDF measures width with current font,
+      // so if we split first and set font second, the lines overflow by the font-size delta.
       doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
+      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-10);
       esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.0;checkPage();});
       sp+=5;
     }
@@ -8500,10 +8501,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       checkPage();
       sp=hSection(sp,"Investment Highlights");
       const highlights=content.dealStrengths.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,6);
+      // Font must be set BEFORE splitTextToSize so width measurement matches render size.
+      doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");
       highlights.forEach((h:string)=>{
-        const hl=doc.splitTextToSize(h,148);
+        const hl=doc.splitTextToSize(h,W-M*2-14);
         const blockH=hl.length*5.2+4;
-        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");}
+        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Executive Summary (cont.)");doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");}
         doc.setFillColor(42,138,100);doc.rect(M,sp-2,1.5,Math.max(hl.length*5.0,4),"F");
         doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");
         hl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.0));
@@ -8515,10 +8518,12 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       checkPage();
       sp=hSection(sp,"Key Risk Factors");
       const risks=content.riskAssessment.split(/(?<=[.!;])\s+/).map((s:string)=>s.trim()).filter((s:string)=>s.length>15).slice(0,4);
+      // Font before split — same fix as Highlights above.
+      doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");
       risks.forEach((h:string)=>{
-        const rl=doc.splitTextToSize(h,148);
+        const rl=doc.splitTextToSize(h,W-M*2-14);
         const blockH=rl.length*5.2+4;
-        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Key Risk Factors (cont.)");}
+        if(sp+blockH>maxY){hPageFooter(pageNum++);sp=newHotelPage("Key Risk Factors (cont.)");doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");}
         doc.setFillColor(192,64,64);doc.rect(M,sp-2,1.5,Math.max(rl.length*5.0,4),"F");
         doc.setTextColor(...white);doc.setFontSize(7.5);doc.setFont("helvetica","normal");
         rl.forEach((l:string,i:number)=>doc.text(l,M+5,sp+i*5.0));
@@ -8529,8 +8534,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(content.marketComparables){
       checkPage();
       sp=hSection(sp,"Market Context");
-      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-6);
+      // Set font before split — prevents mismatched-metric overflow (see Executive Summary note above).
       doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
+      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-10);
       ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.0;checkPage();});
     }
     hPageFooter(pageNum++);
