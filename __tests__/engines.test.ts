@@ -397,34 +397,30 @@ describe("calcPaybackMonth", () => {
 // same inputs on both sides produce EBITDA within a small tolerance.
 // ────────────────────────────────────────────────────────────────────
 describe("Hotel Simple ↔ Advanced reconciliation", () => {
-  it("EBITDA matches within 10% when Simple cascade defaults match Advanced", () => {
-    const base = { ...DEFAULTS.Hotel, holdYears: 5 };
+  it("EBITDA matches within 15% when Simple cascade matches Advanced explicitly", () => {
+    // Cascade is opt-in — when Simple passes explicit values matching Advanced's USALI
+    // defaults, the two engines land within the institutional 15% band.
+    const base = { ...DEFAULTS.Hotel, holdYears: 5, undistributedPct: 22, mgmtFeePct: 3 };
     const simple: any = calcAll("Hotel", base);
     const advanced: any = calcHotelAdvanced(base);
-    // Advanced uses itPct/agPct/smPct/pomPct/utilPct (summing to ~18%) plus
-    // realEstateTaxPct (7.5%) + insurancePct (0.5%) non-operating (total ~26%).
-    // Simple rolls undistributed + non-op into a single `undistributedPct` of 22%.
-    // Both also subtract mgmt fee (2-3%). Within 10% is the institutional band.
     const simpleEbitda = simple.ebitda;
     const advancedEbitda = advanced.stabilisedEBITDA;
     const gapPct = Math.abs(simpleEbitda - advancedEbitda) / Math.max(1, advancedEbitda);
     expect(gapPct).toBeLessThan(0.15);
   });
 
-  it("Simple EBITDA regresses to Department GOP when cascade is zero", () => {
-    // Setting all cascade pcts to 0 restores legacy behaviour (Department GOP = EBITDA).
-    // This is the backward-compat check for users who already have deals saved with no
-    // cascade pcts (which flow through as 0 not undefined after defaults are resolved).
-    const legacy = { ...DEFAULTS.Hotel, undistributedPct: 0, mgmtFeePct: 0, incentiveFeePct: 0 };
-    const r: any = calcAll("Hotel", legacy);
-    const hr = {
-      roomsEbitda: DEFAULTS.Hotel.rooms * 365 * (DEFAULTS.Hotel.occupancy/100) * DEFAULTS.Hotel.adr * (DEFAULTS.Hotel.roomsMarginPct/100),
-      // Only rooms + F&B are enabled by default — spa/gym/meeting all off.
-    };
-    expect(r.ebitda).toBeGreaterThan(hr.roomsEbitda * 0.95); // within 5% of rooms-only
+  it("Simple EBITDA equals Department GOP by default (no cascade applied)", () => {
+    // Cascade is opt-in: with DEFAULTS.Hotel (undistributedPct=0, mgmtFeePct=0),
+    // Simple mode produces pure Department GOP (rooms + F&B margins). This is the
+    // "quick sanity check" behaviour that matches what the tool did pre-cascade.
+    const r: any = calcAll("Hotel", { ...DEFAULTS.Hotel });
+    // Only rooms + F&B are enabled by default — spa/gym/meeting all off.
+    const roomsGop = DEFAULTS.Hotel.rooms * 365 * (DEFAULTS.Hotel.occupancy/100) * DEFAULTS.Hotel.adr * (DEFAULTS.Hotel.roomsMarginPct/100);
+    // EBITDA should be close to rooms GOP + F&B GOP (no deductions applied)
+    expect(r.ebitda).toBeGreaterThan(roomsGop * 0.95);
   });
 
-  it("Simple EBITDA shrinks when cascade pcts increase (sanity)", () => {
+  it("Simple EBITDA shrinks when cascade pcts increase (opt-in sanity)", () => {
     const low = { ...DEFAULTS.Hotel, undistributedPct: 10, mgmtFeePct: 2 };
     const high = { ...DEFAULTS.Hotel, undistributedPct: 30, mgmtFeePct: 5 };
     const lo: any = calcAll("Hotel", low);

@@ -31094,20 +31094,37 @@ ${cf>=0?"+":"-"}${currencySymbol}${Math.abs(Math.round(cf)).toLocaleString()}`}
                   ] as any[]).map(([l,v,c])=><div key={l} className="output-row"><span className="output-label">{l}</span><span className="output-value" style={{color:c}}>{v}</span></div>)}
                   {assetType==="Hotel"&&(()=>{
                     const hRev=hotelMode==="advanced"&&r.revenuePa>0?r.revenuePa:hotelRev?.totalRev||0;
-                    // Always use cascaded EBITDA — engine applies USALI cascade in both Simple and Advanced modes.
                     const hEbitda=r.ebitda||0;
-                    const hDeptGop=r.departmentGop||hotelRev?.totalEbitda||0;
                     const rooms=num(String(data.rooms));
-                    const showCascade=hotelMode!=="advanced"&&(r.undistributed||0)>0;
+                    // ── USALI cascade display — works for BOTH Simple and Advanced ────────────
+                    // Simple: reads from r.departmentGop / r.undistributed / r.mgmtFee (opt-in, user-entered values)
+                    // Advanced: reads from r.yearRevenue[0] fields (per-expense-category from IM & Costs tab)
+                    let deptGop=0,undist=0,mFee=0,incFee=0,nonOp=0;
+                    const y1=r.yearRevenue&&r.yearRevenue[0];
+                    if(hotelMode==="advanced"&&y1){
+                      deptGop=y1.totalEbitda||0;
+                      undist=y1.undistributed||0;
+                      mFee=y1.mgmtFee||0;
+                      nonOp=y1.nonOp||0;
+                    }else{
+                      deptGop=r.departmentGop||hotelRev?.totalEbitda||0;
+                      undist=r.undistributed||0;
+                      mFee=r.mgmtFee||0;
+                      incFee=r.incentiveFee||0;
+                    }
+                    const showCascade=(undist+mFee+incFee+nonOp)>0;
+                    const undistLabel=hotelMode==="advanced"?"  − Undistributed (IT + A&G + Sales + POM + Utilities)":`  − Undistributed (${data.undistributedPct??0}%)`;
+                    const mFeeLabel=hotelMode==="advanced"?"  − Base Mgmt Fee":`  − Base Mgmt Fee (${data.mgmtFeePct??0}%)`;
                     return([
                       ["RevPAR",fmt(r.revpar||0,currencySymbol),"var(--gold)"],
                       ["Total Revenue pa",fmt(hRev,currencySymbol),"var(--text)"],
-                      // USALI cascade — visible only in Simple mode
+                      // USALI cascade — shown when any component is non-zero (opt-in in Simple, always-on in Advanced)
                       ...(showCascade?[
-                        ["Department GOP",fmt(hDeptGop,currencySymbol),"var(--text)"],
-                        [`  − Undistributed (${data.undistributedPct??22}%)`,`−${fmt(r.undistributed||0,currencySymbol)}`,"var(--amber)"],
-                        [`  − Base Mgmt Fee (${data.mgmtFeePct??3}%)`,`−${fmt(r.mgmtFee||0,currencySymbol)}`,"var(--amber)"],
-                        ...(((data.incentiveFeePct??0)>0)?[[`  − Incentive Fee (${data.incentiveFeePct??0}%)`,`−${fmt(r.incentiveFee||0,currencySymbol)}`,"var(--amber)"]]:[]),
+                        ["Department GOP",fmt(deptGop,currencySymbol),"var(--text)"],
+                        ...(undist>0?[[undistLabel,`−${fmt(undist,currencySymbol)}`,"var(--amber)"]]:[]),
+                        ...(mFee>0?[[mFeeLabel,`−${fmt(mFee,currencySymbol)}`,"var(--amber)"]]:[]),
+                        ...(incFee>0?[[`  − Incentive Fee (${data.incentiveFeePct??0}%)`,`−${fmt(incFee,currencySymbol)}`,"var(--amber)"]]:[]),
+                        ...(nonOp>0?[["  − Non-operating (RET + Insurance)",`−${fmt(nonOp,currencySymbol)}`,"var(--amber)"]]:[]),
                       ] as any[]:[]),
                       ["EBITDA",fmt(hEbitda,currencySymbol),"var(--green)"],
                       ["EBITDA Margin",hRev>0?fmtPct(hEbitda/hRev):"—","var(--green)"],
