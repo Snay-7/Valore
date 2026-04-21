@@ -28308,23 +28308,23 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                 {/* Undistributed expenses — Advanced */}
                 <div style={{height:1,background:"var(--border)",margin:"24px 0"}}/>
                 <div className="section-title">Undistributed Expenses</div>
-                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:14}}>As % of total revenue — used in Advanced P&L model</div>
+                <div style={{fontSize:11,color:"var(--text-d)",marginBottom:14}}>As % of total revenue — used in Advanced P&L model. Leave blank to apply USALI mid-range defaults shown in each field.</div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">Info & Telecom (%)</label><input className="inp" type="number" step="0.1" value={data.itPct??""} onChange={e=>set("itPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Admin & General (%)</label><input className="inp" type="number" step="0.1" value={data.agPct??""} onChange={e=>set("agPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Sales & Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.smPct??""} onChange={e=>set("smPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Info & Telecom (%)</label><input className="inp" type="number" step="0.1" placeholder="0.7 (USALI default)" value={data.itPct??""} onChange={e=>set("itPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Admin & General (%)</label><input className="inp" type="number" step="0.1" placeholder="5.0 (USALI default)" value={data.agPct??""} onChange={e=>set("agPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Sales & Marketing (%)</label><input className="inp" type="number" step="0.1" placeholder="8.5 (USALI default)" value={data.smPct??""} onChange={e=>set("smPct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row-3">
-                  <div className="inp-group"><label className="inp-label">POM (%)</label><input className="inp" type="number" step="0.1" value={data.pomPct??""} onChange={e=>set("pomPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Utilities (%)</label><input className="inp" type="number" step="0.1" value={data.utilPct??""} onChange={e=>set("utilPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Mgmt Fee (%)</label><input className="inp" type="number" step="0.1" value={data.mgmtFeePct??""} onChange={e=>set("mgmtFeePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">POM (%)</label><input className="inp" type="number" step="0.1" placeholder="1.8 (USALI default)" value={data.pomPct??""} onChange={e=>set("pomPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Utilities (%)</label><input className="inp" type="number" step="0.1" placeholder="2.2 (USALI default)" value={data.utilPct??""} onChange={e=>set("utilPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Mgmt Fee (%)</label><input className="inp" type="number" step="0.1" placeholder="2.0 (USALI default)" value={data.mgmtFeePct??""} onChange={e=>set("mgmtFeePct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">Real Estate Tax (%)</label><input className="inp" type="number" step="0.1" value={data.realEstateTaxPct??""} onChange={e=>set("realEstateTaxPct",e.target.value)}/></div>
-                  <div className="inp-group"><label className="inp-label">Insurance (%)</label><input className="inp" type="number" step="0.1" value={data.insurancePct??""} onChange={e=>set("insurancePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Real Estate Tax (%)</label><input className="inp" type="number" step="0.1" placeholder="7.5 (USALI default)" value={data.realEstateTaxPct??""} onChange={e=>set("realEstateTaxPct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">Insurance (%)</label><input className="inp" type="number" step="0.1" placeholder="0.5 (USALI default)" value={data.insurancePct??""} onChange={e=>set("insurancePct",e.target.value)}/></div>
                 </div>
                 <div className="inp-row">
-                  <div className="inp-group"><label className="inp-label">FF&E Reserve (% from Yr3)</label><input className="inp" type="number" step="0.5" value={data.ffePct??""} onChange={e=>set("ffePct",e.target.value)}/></div>
+                  <div className="inp-group"><label className="inp-label">FF&E Reserve (% from Yr3)</label><input className="inp" type="number" step="0.5" placeholder="3.0 (industry standard)" value={data.ffePct??""} onChange={e=>set("ffePct",e.target.value)}/></div>
                 </div>
               </div>
             )}

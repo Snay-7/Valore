@@ -443,6 +443,22 @@ describe("Hotel Simple ↔ Advanced reconciliation", () => {
     expect(adv.equity).toBeGreaterThan(0);
   });
 
+  it("Advanced: actual NOI override changes exit value (parity with Simple engine)", () => {
+    // Bug fix regression: previously Advanced ignored noiMode entirely, so toggling
+    // Actual NOI had no effect on exit price. Simple engine respected it; Advanced
+    // did not. Now both engines cap exit at user-supplied NOI when noiMode="actual".
+    const base = { ...DEFAULTS.Hotel, holdYears: 5 };
+    const normalised: any = calcHotelAdvanced({ ...base, noiMode: "normalised", actualNoi: 0 });
+    const actualLow: any = calcHotelAdvanced({ ...base, noiMode: "actual", actualNoi: 100_000 });
+    const actualHigh: any = calcHotelAdvanced({ ...base, noiMode: "actual", actualNoi: 8_000_000 });
+    // Low actual NOI produces a low exit value
+    expect(actualLow.exitValue).toBeLessThan(normalised.exitValue);
+    // High actual NOI produces a high exit value (well above normalised to prove the override works)
+    expect(actualHigh.exitValue).toBeGreaterThan(normalised.exitValue * 2);
+    // DSCR also responds to the NOI override (same lever)
+    expect(actualHigh.dscr).toBeGreaterThan(actualLow.dscr);
+  });
+
   it("Advanced: profit + interestTotal roughly matches netExit + netNOI - totalCost", () => {
     // After the fix, the accounting identity is:
     //   profit = netExitProceeds + netNOI - totalCost - interestTotal

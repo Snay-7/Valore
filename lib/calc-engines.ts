@@ -372,7 +372,13 @@ function calcHotelAdvanced(data:any):Record<string,any>{
 
   // Exit / disposal
   const exitCapRate=num(String(data.exitCapRate??5.75))/100;
-  const _exitNOI=stabilisedNOI;
+  // NOI mode parity with Simple engine: when user supplies actualNoi, use it for
+  // exit capitalisation (lets them override the year-by-year model with a known
+  // operator-supplied stabilised NOI). Prior bug: Advanced ignored noiMode entirely,
+  // so Actual-NOI toggle had no effect on exit price.
+  const noiModeAdv=data.noiMode||"normalised";
+  const actualNoiAdv=num(String(data.actualNoi||0));
+  const _exitNOI=noiModeAdv==="actual"&&actualNoiAdv>0?actualNoiAdv:stabilisedNOI;
   const exitValue=exitCapRate>0?_exitNOI/exitCapRate:0;
   const exitValuePerKey=rooms>0?exitValue/rooms:0;
   const disposalCosts=exitValue*disposalCostPct;
@@ -404,7 +410,9 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const imIncentiveProfit=imEnabled?(num(String(data.imIncentiveProfitPct??10))/100)*Math.max(profit,0):0;
   const imIncentiveSales=imEnabled?(num(String(data.imIncentiveSalesPct??1))/100)*exitValue:0;
 
-  const dscr=interestTotal>0&&holdYears>0?stabilisedNOI/(interestTotal/holdYears):999;
+  // DSCR uses the same NOI that caps exit — actualNoi override if set.
+  const _effectiveNOI=noiModeAdv==="actual"&&actualNoiAdv>0?actualNoiAdv:stabilisedNOI;
+  const dscr=interestTotal>0&&holdYears>0?_effectiveNOI/(interestTotal/holdYears):999;
 
   // IRR cashflow construction
   // One-off fees paid Day 1 (not spread annually)
@@ -470,8 +478,8 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const revenuePa=stabilisedYear.totalRev;
   const ebitda=stabilisedEBITDA;
   const interestCost=interestTotal;
-  const yoc=totalCost>0?stabilisedNOI/totalCost:0;
-  const stabilisedValue=exitCapRate>0?stabilisedNOI/exitCapRate:0;
+  const yoc=totalCost>0?_effectiveNOI/totalCost:0;
+  const stabilisedValue=exitCapRate>0?_effectiveNOI/exitCapRate:0;
 
   return{
     yearRevenue,stabilisedNOI,stabilisedEBITDA,totalNOI,
