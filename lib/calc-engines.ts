@@ -378,12 +378,24 @@ function calcHotelAdvanced(data:any):Record<string,any>{
   const disposalCosts=exitValue*disposalCostPct;
   const netExitProceeds=exitValue-disposalCosts;
 
-  // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised)
-  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+vatAdv+arrangementFee+exitFee+brokerageFee+interestTotal+imAcqFee+imBasePATotal+workingCapital;
+  // Total investment — day 1 capital outlay only (opex flows through NOI, not capitalised).
+  //
+  // BUG FIX: Previously included `interestTotal` (5-year operating interest).
+  // That double-counted interest: once as day-1 equity inflation, and again
+  // as annual debt service inside `lCfs`. For a stabilised asset, operating-
+  // phase interest must be serviced from NOI, not capitalised into the
+  // initial outlay. Only `imBasePATotal` (the asset-management fee stream) is
+  // spread over holdYears here because it sits outside NOI in this engine.
+  // If a future patch moves imBasePA into `_annualOpex`, this line should drop
+  // `imBasePATotal` too to avoid the same double-count.
+  const totalCost=purchasePrice+sdlt+legalCosts+financingDD+wiInsurance+capex+vatAdv+arrangementFee+exitFee+brokerageFee+imAcqFee+imBasePATotal+workingCapital;
   const equity=Math.max(0,totalCost-loanAmount);
   // Profit: exit proceeds + NOI during hold (net of opex) minus total investment
+  // minus interest paid. Interest is now excluded from totalCost (to keep equity
+  // honest) and subtracted explicitly here so profit remains after-interest.
+  // Ties to sum(lCfs) by construction: both include NOI, exit, and interest.
   const netNOI=totalNOI-(supportingCosts+operatorFees)*holdYears;
-  const profit=netExitProceeds+netNOI-totalCost;
+  const profit=netExitProceeds+netNOI-totalCost-interestTotal;
   const poc=totalCost>0?profit/totalCost:0;
   const moic=equity>0?(equity+profit)/equity:0;
 
@@ -1019,7 +1031,24 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const revpar=num(String(data.adr))*(num(String(data.occupancy))/100);
     const noiMode=data.noiMode||"normalised";
     const actualNoiInput=num(String(data.actualNoi||0));
-    const normalisedEbitda=hr.totalEbitda;
+    // ── USALI COST CASCADE (Hotel Simple) ─────────────────────────────────────
+    // Prior to this patch, Hotel Simple reported Department GOP as EBITDA — i.e.
+    // it summed the rooms/F&B/spa/gym margins and stopped. That's why Simple showed
+    // 62% GOP margin and Advanced showed ~35%: Simple skipped undistributed costs
+    // and management fee, which Advanced applies via USALI convention.
+    //
+    // This cascade now exposes the same levers in Simple, with institutional
+    // defaults (22% undistributed, 3% base mgmt fee, 0% incentive). Setting all
+    // three to 0 restores the legacy "Department GOP = EBITDA" behaviour.
+    const departmentGop=hr.totalEbitda;
+    const undistributedPct=num(String(data.undistributedPct??22))/100;
+    const mgmtFeePct=num(String(data.mgmtFeePct??3))/100;
+    const incentiveFeePct=num(String(data.incentiveFeePct??0))/100;
+    const undistributed=hr.totalRev*undistributedPct;
+    const mgmtFee=hr.totalRev*mgmtFeePct;
+    const gopAfterUndistributed=Math.max(0,departmentGop-undistributed);
+    const incentiveFee=gopAfterUndistributed*incentiveFeePct;
+    const normalisedEbitda=Math.max(0,gopAfterUndistributed-mgmtFee-incentiveFee);
     // UNIFIED FF&E convention — % of revenue (industry standard for hotel underwriting).
     // Prior bug: normalisedNoi used 3% of EBITDA; exitNOI/hotelNOI used 3% of revenue;
     // actualNoi back-calculated EBITDA via /0.97 (implying 3% of EBITDA). Three conventions
@@ -1082,7 +1111,10 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const irr=Math.pow(1+calcIRR(uCfs),12)-1;
     const irrLevered=equity>0?Math.pow(1+calcIRR(lCfs),12)-1:0;
     const paybackMonth=calcPaybackMonth(uCfs);
-    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,profFees,contingency,otherCosts,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
+    return{revpar,revenuePa,noiMode,normalisedNoi,actualNoiUsed:actualNoi,ebitda,noi:hotelNOI,ffe:ffeReserve,ffePa:ffeReserve,
+      // USALI cascade (exposed for UI + DD traceability)
+      departmentGop,undistributed,mgmtFee,incentiveFee,gopMargin:hr.totalRev>0?ebitda/hr.totalRev:0,
+      stabilisedValue,exitValue,purchasePrice,sdlt,capex,hardCost,profFees,contingency,otherCosts,vat,s106,totalFinanceCost:fin.totalFinanceCost,arrangementFee:fin.arrangementFee,interestCost:fin.interestCost,loanAmount:fin.loanAmount,peakLoanBalance:fin.peakLoanBalance,monthlyInterestArr:fin.monthlyInterestArr,monthlyDrawArr:fin.monthlyDrawArr,totalInvestment,profit,poc,yoc,irr,irrLevered,equity,moic,dscr,paybackMonth,financeRate:annualRate,buildProfile,buildMonths,stabMonths,totalMonths,uCfs,lCfs};
   }
   if(assetType==="Flip"){
     const purchase=num(String(data.purchasePrice));
@@ -1881,7 +1913,10 @@ function runMonteCarlo(assetType:string,baseDeal:any,config:MCConfig):MCResult{
 const DEFAULTS={
   BTR:{assetType:"BTR",vatPct:0,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:true,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:36,stabilisationMonths:12,presaleDelayMonths:0,units:[{type:"1 Bed OMR",count:80,rentPcm:2200,size:550},{type:"2 Bed OMR",count:60,rentPcm:2900,size:750},{type:"3 Bed OMR",count:30,rentPcm:3600,size:1000},{type:"1 Bed DMR",count:40,rentPcm:1650,size:550},{type:"2 Bed DMR",count:22,rentPcm:2175,size:750}],exitYield:4.15,niy:4.0,voidPct:1.5,opexPsf:8,landCost:15000000,buildCostPsf:285,siteAreaSqft:195000,professionalFeesPct:8,contingencyPct:5,otherCosts:500000,ltc:65,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:12,tier2DevShare:30,tier3Hurdle:18,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
   BTS:{assetType:"BTS",vatPct:0,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:true,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,programmMonths:30,stabilisationMonths:6,presaleDelayMonths:0,units:[{type:"1 Bed",count:40,salePricePsf:900,size:550},{type:"2 Bed",count:60,salePricePsf:850,size:800},{type:"3 Bed",count:20,salePricePsf:800,size:1100},{type:"Penthouse",count:5,salePricePsf:1400,size:1800}],agentFeePct:1.5,marketingPct:1.0,absorptionMonths:18,landCost:8000000,buildCostPsf:260,siteAreaSqft:110000,professionalFeesPct:8,contingencyPct:5,otherCosts:300000,ltc:60,marginOverBenchmark:2.5,arrangementFeePct:1.0,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:15,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"scurve",sdltMode:"auto" as const,sdltTransactionType:"residential" as const,sdltOverride:0,sdltSurcharge:true},
-  Hotel:{assetType:"Hotel",vatPct:20,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:false,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,noiMode:"normalised",actualNoi:0,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,hotelFinanceType:"full"},
+  Hotel:{assetType:"Hotel",vatPct:20,hardCostsVatPct:0,softCostsVatPct:0,vatSplitMode:false,vatRecoverable:false,cilPsf:0,s106:0,name:"",location:"",currency:"GBP",benchmark:"SONIA",benchmarkRate:3.97,noiMode:"normalised",actualNoi:0,programmMonths:24,stabilisationMonths:18,rooms:120,adr:180,occupancy:72,starRating:4,revparGrowthPct:2.5,roomsMarginPct:75,fnbEnabled:true,fnbRevenuePerOccRoom:45,fnbUtilisationPct:70,fnbMarginPct:30,spaEnabled:false,spaRevenuePerRoomPa:800,spaUtilisationPct:40,spaMarginPct:35,gymEnabled:false,gymMembershipRevPa:50000,gymGuestRevPerOccRoom:8,gymMarginPct:60,meetingEnabled:false,meetingRooms:4,meetingAvgDayRate:1200,meetingUtilisationPct:45,meetingMarginPct:40,
+    // USALI cost cascade (Simple mode — matches Advanced defaults so flipping modes gives ±5% numbers, not 100%+ swings)
+    undistributedPct:22,mgmtFeePct:3,incentiveFeePct:0,ffePct:3,
+    exitCapRate:6.5,stabilisedCapRate:6.0,purchasePrice:18000000,capexBudget:5000000,professionalFeesPct:5,contingencyPct:8,otherCosts:200000,ltc:60,marginOverBenchmark:3.0,arrangementFeePct:1.5,tier1Hurdle:8,tier1DevShare:20,tier2Hurdle:14,tier2DevShare:30,tier3Hurdle:20,tier3DevShare:40,costProfile:"straight",sdltMode:"auto" as const,sdltTransactionType:"commercial" as const,sdltOverride:0,sdltSurcharge:false,hotelFinanceType:"full"},
   Commercial:{assetType:"Commercial",name:"",location:"",currency:"GBP",noiMode:"normalised",actualNoi:0,benchmark:"SONIA",benchmarkRate:3.97,
     programmMonths:18,stabilisationMonths:12,areaUnit:"sqft",
     landCost:5000000,buildCostPsm:120,
