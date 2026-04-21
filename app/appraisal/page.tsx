@@ -8216,7 +8216,9 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   // Executive tagline
   const tagY=subtitleY+14;
   if(content.executiveSummary){
-    const tagLines=doc.splitTextToSize(content.executiveSummary.trim(),150);
+    // Cover tagline — match full content width (same as metric cards + hrule below).
+    // Was hardcoded 150mm which wrapped text at ~70% of the page.
+    const tagLines=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2);
     doc.setTextColor(...white);doc.setFontSize(8.5);doc.setFont("helvetica","normal");
     tagLines.slice(0,4).forEach((l:string,i:number)=>doc.text(l,M,tagY+i*5.5));
   }
@@ -8488,7 +8490,8 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
     if(content.executiveSummary){
       sp=hSection(sp,"Investment Thesis");
-      const esL=doc.splitTextToSize(content.executiveSummary.trim(),150);
+      // Full content width minus a small breathing-room gutter — matches splitSafe convention.
+      const esL=doc.splitTextToSize(content.executiveSummary.trim(),W-M*2-6);
       doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
       esL.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.0;checkPage();});
       sp+=5;
@@ -8526,7 +8529,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
     if(content.marketComparables){
       checkPage();
       sp=hSection(sp,"Market Context");
-      const ml=doc.splitTextToSize(content.marketComparables.trim(),150);
+      const ml=doc.splitTextToSize(content.marketComparables.trim(),W-M*2-6);
       doc.setTextColor(...white);doc.setFontSize(8);doc.setFont("helvetica","normal");
       ml.forEach((l:string)=>{doc.text(l,M,sp);sp+=5.0;checkPage();});
     }
@@ -9058,7 +9061,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       sp+=sRH3;
     });
     const _hotelLegend=sensLegend(sensMetric);
-    const hotelBands:[[number,number,number],string][]=[[green,_hotelLegend[0][1]],[amber,_hotelLegend[1][1]],[red,_hotelLegend[2][1]],[gold,"Base"]];
+    // jsPDF's default Helvetica can't render ≥ – × cleanly — substitute ASCII equivalents so
+    // the legend displays properly in the PDF (UI still uses the nice Unicode chars).
+    const _pdfSafe=(s:string)=>s.replace(/≥/g,">=").replace(/–/g,"-").replace(/×/g,"x");
+    const hotelBands:[[number,number,number],string][]=[[green,_pdfSafe(_hotelLegend[0][1])],[amber,_pdfSafe(_hotelLegend[1][1])],[red,_pdfSafe(_hotelLegend[2][1])],[gold,"Base"]];
     hotelBands.forEach(([c,l],i)=>{
       doc.setFillColor(...c);doc.roundedRect(M+i*44,sp+3,3,3,0.5,0.5,"F");
       doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(l,M+i*44+5,sp+5.5);
@@ -9995,9 +10001,10 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
         doc.text(fmtSensCell(val,sensMetric,currencySymbol),M+cw2*(ci+1)+cw2/2,sp+4.5,{align:"center"});
       });sp+=rh2;
     });
-    // Dynamic legend per metric
+    // Dynamic legend per metric — sanitise Unicode (≥ – ×) for jsPDF rendering
     sp+=4;
-    const legend=sensLegend(sensMetric).map(([_,lbl])=>lbl);
+    const _legendPdfSafe=(s:string)=>s.replace(/≥/g,">=").replace(/–/g,"-").replace(/×/g,"x");
+    const legend=sensLegend(sensMetric).map(([_,lbl])=>_legendPdfSafe(lbl));
     const bands:[[number,number,number],string][]=[[green,legend[0]],[amber,legend[1]],[red,legend[2]],[gold,"Base"]];
     bands.forEach(([c,l],i)=>{
       doc.setFillColor(...c);doc.roundedRect(M+i*40,sp,3,3,0.5,0.5,"F");
