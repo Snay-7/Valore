@@ -9075,7 +9075,11 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
       doc.setFillColor(...c);doc.roundedRect(M+i*44,sp+3,3,3,0.5,0.5,"F");
       doc.setTextColor(...grey);doc.setFontSize(5.5);doc.text(l,M+i*44+5,sp+5.5);
     });
-    sp+=14;
+    sp+=10;
+    // Caption — tell the reader this is a user-selected metric, and other lenses are available.
+    doc.setTextColor(120,130,140);doc.setFontSize(6);doc.setFont("helvetica","italic");
+    doc.text(`Metric shown: ${sensMetricLabel(sensMetric)} — alternate institutional lenses (PoC / MOIC / Profit) available on request.`,M,sp+3);
+    sp+=8;
 
 
 
