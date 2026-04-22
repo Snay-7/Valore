@@ -328,7 +328,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── DEMO VIDEO — real product footage, works on desktop + mobile ── */}
+      {/* ── DEMO VIDEO — temporarily hidden, re-encoding pending. Restore by deleting the `false &&` wrapper. ── */}
+      {false && (
       <section style={{ padding: "96px 32px 48px", background: "var(--cream)" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 40 }}>
@@ -366,6 +367,7 @@ export default function Landing() {
           </p>
         </div>
       </section>
+      )}
 
       {/* ── TWO CAPABILITIES ── */}
       <section className="capabilities" id="copilot">
