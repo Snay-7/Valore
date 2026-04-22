@@ -181,10 +181,205 @@ const COMING_SOON_COURSES = [
   { title: "Residential Development Appraisal", level: "Beginner", duration: "30 min", topics: ["GDV calculation", "Profit on Cost", "Sensitivity analysis", "Viability basics"] },
   { title: "Commercial Yield Guide", level: "Advanced", duration: "50 min", topics: ["Sector yield benchmarks", "WAULT impact", "Void analysis", "ERV vs passing rent"] },
 ];
+// ═══════════════════════════════════════════════════════════════════
+// METHODOLOGY — how Valora's calc engine computes each model
+// Uses the same visual components as Benchmarks (tip-box, warn-box,
+// bench-card tables, section-label, mono) to stay on-brand.
+// ═══════════════════════════════════════════════════════════════════
+type MethSub = {
+  heading?: string;
+  body?: string;
+  formula?: string;
+  kv?: { label: string; value: string }[];
+  table?: { headers: string[]; rows: string[][] };
+  note?: string;
+  warn?: string;
+};
+type MethSection = { id: string; label: string; full: string; tldr: string; intro: string; subs: MethSub[] };
+
+const METHODOLOGY: MethSection[] = [
+  {
+    id: "foundation", label: "Foundation", full: "Shared Engine",
+    tldr: "Deterministic building blocks every asset engine sits on top of.",
+    intro: "Every Valora engine reduces to a small set of tested, pure functions. Understanding these lets you trace any number back to first principles — which is exactly what an IC analyst will want to do.",
+    subs: [
+      { heading: "Cashflow conventions — uCfs & lCfs", body: "Every engine emits two cashflow arrays. uCfs (unlevered) is asset-level: what the property generated, before debt. lCfs (levered) is equity-level: what the investor received, net of debt service and loan payoff. The invariant sum(uCfs) \u2248 profit holds for every engine except Hotel (where a documented stabilisation-NOI gap exists)." },
+      { heading: "IRR calculation", body: "Monthly-compounded Newton-Raphson. Pathological inputs (all-zero arrays, negative-only flows, degenerate shapes) are guarded and return 0 rather than NaN or Infinity. Monthly IRR is annualised via (1 + monthlyIRR)\u00b9\u00b2 \u2212 1.", formula: "calcIRR(cashflows)  \u2192  annualised IRR" },
+      { heading: "Drawdown profiles", body: "Construction costs flow over programmMonths in one of two shapes. S-curve models a realistic build ramp; straight-line applies equal slices. S-curve fits development; straight-line fits acquisition + stabilisation.", formula: "buildDrawdownProfile(months, 'scurve' | 'straight')  \u2192  number[]" },
+      { heading: "Finance cost helper", body: "calcFinanceCostMonthly simulates a construction loan drawn monthly per profile. Interest accrues only on the drawn balance (not the full loan), then capitalises into principal at exit. Returns totalFinanceCost, arrangementFee, interestCost, exitFee, peakLoanBalance, and monthly arrays." },
+      { heading: "Jurisdictional defaults", body: "15 currencies shipped with market-standard defaults: purchaser's costs (residential + commercial), opex percentages, DSCR floor, local transfer-tax label. User overrides always take precedence.", note: "Currencies not in the list fall back to GBP. Explicit per-deal overrides via data.opexPct, data.dscrFloor etc. always win." },
+      { heading: "Sensitivity + Monte Carlo + Stress fuzzer", body: "Each sensitivity cell stores all four metrics (poc, irr, moic, profit) so the UI picker switches instantly. Monte Carlo accepts triangular / normal / uniform / fixed distributions with a deterministic PRNG seed. CI runs 3,500 random inputs on every push to ensure no NaN or phantom IRR ever leaks." },
+    ],
+  },
+  {
+    id: "btr-eng", label: "BTR", full: "Build to Rent",
+    tldr: "Ground-up residential, held for rental income, exited at stabilised yield.",
+    intro: "Returns are driven by Net Operating Income capitalised at the exit yield. The strength of the thesis is the spread between yield-on-cost and exit yield.",
+    subs: [
+      { heading: "Revenue & NOI", formula: "grossRentPa = \u03a3(unit.count \u00d7 unit.rentPcm \u00d7 12)\nNOI = grossRent \u00d7 (1 \u2212 voidPct) \u2212 opexPct \u00d7 grossRent\nGDV = NOI \u00f7 exitYield" },
+      { heading: "Cashflow shape", body: "Day 1: Land + SDLT. Months 1 \u2192 programmMonths: Build drawn on profile, interest capitalised. Months programmMonths \u2192 totalMonths: Rent ramps linearly from 0 \u2192 100% during stabilisation. Exit at totalMonths." },
+      { heading: "Residual Land Value", formula: "RLV = GDV \u00d7 0.80 \u2212 devCosts \u2212 financeCosts \u2212 SDLT" },
+      { heading: "What you get back", kv: [
+        { label: "GDV", value: "Institutional exit value at stabilised yield" },
+        { label: "NOI", value: "Stabilised Yr 1 net operating income" },
+        { label: "PoC / YoC", value: "Profit on Cost, Yield on Cost" },
+        { label: "IRR, IRR Levered", value: "Annualised from monthly cashflows" },
+        { label: "DSCR", value: "NOI \u00f7 annual debt service" },
+        { label: "MOIC", value: "(Equity + Profit) \u00f7 Equity" },
+        { label: "RLV", value: "Residual land value at 20% profit-on-GDV" },
+      ] },
+    ],
+  },
+  {
+    id: "bts-eng", label: "BTS", full: "Build to Sell",
+    tldr: "Sold to end-buyers at completion. No hold, no rental income.",
+    intro: "Profit is driven by sale price psf vs development cost. Absorption timing materially affects IRR \u2014 the risk isn't rental, it's price discovery.",
+    subs: [
+      { heading: "Revenue model", formula: "GDV = \u03a3(unit.count \u00d7 unit.size \u00d7 unit.salePricePsf)\n      \u2212 agent fees (1.5% default)\n      \u2212 marketing (1% default)" },
+      { heading: "Absorption timing", body: "Sales close over absorptionMonths from end of construction. 20-unit scheme absorbs in 6\u201312 months, 100-unit in 18\u201324, 200+ in 24\u201348. IRR is highly sensitive to this." },
+      { heading: "How BTS differs from BTR", body: "No NOI, no yield input, no DSCR (there's no income to service debt with post-construction). Profit on Cost and Profit on GDV are the only headline metrics." },
+      { heading: "Break-even sale price", formula: "breakEvenPsf = (totalCost \u00d7 1.20) \u00f7 totalArea" },
+    ],
+  },
+  {
+    id: "hotel-simple-eng", label: "Hotel \u2022 Simple", full: "Hotel \u2014 Simple Engine",
+    tldr: "Quick-view underwriting for refurb-and-flip strategies.",
+    intro: "Designed for 3\u20134 year holds: buy, refurb, stabilise, sell. Simple engine produces institutional output for this narrow use case with a tiny input surface.",
+    subs: [
+      { heading: "Revenue model", formula: "revenue = roomsRev + fnbRev + spaRev + gymRev + meetingRev\n  (each: per-key \u00d7 occupancy \u00d7 365)" },
+      { heading: "USALI cascade \u2014 opt-in", body: "If the user enters undistributedPct, mgmtFeePct, or incentiveFeePct, Simple applies the full USALI cascade to produce institutional EBITDA. Defaults are 0 \u2014 existing deals behave exactly as before.", formula: "Rooms GOP + F&B GOP + ...  =  Department GOP\n  \u2212 Undistributed (undistributedPct \u00d7 revenue)\n  \u2212 Base Mgmt Fee (mgmtFeePct \u00d7 revenue)\n  \u2212 Incentive Fee (incentiveFeePct \u00d7 GOP after undistributed)\n  =  EBITDA\n  \u2212 FF&E Reserve (3% of revenue)\n  =  NOI" },
+      { heading: "Exit capitalisation", formula: "exitValue = (NOI \u00d7 (1 + revparGrowthPct)) \u00f7 exitCapRate" },
+      { heading: "Actual NOI override", body: "noiMode='actual' lets the user plug a known stabilised NOI (e.g. from the operator), bypassing the ADR/occupancy-derived figure. Engine uses it for exit cap, DSCR, and yield-on-cost." },
+      { heading: "Interest handling", body: "Build-phase interest is capitalised into the loan principal. Stabilisation-phase interest is serviced from the ramping EBITDA (correctly applied in levered cashflow, but not currently shown as a line item in Finance Cost Summary).", note: "Simple engine timeline is programmMonths + stabilisationMonths. No separate 'operating hold' phase. For long-term stabilised holds, use Advanced." },
+    ],
+  },
+  {
+    id: "hotel-advanced-eng", label: "Hotel \u2022 Advanced", full: "Hotel \u2014 Advanced Engine",
+    tldr: "Full USALI year-by-year institutional hotel model.",
+    intro: "Designed for stabilised acquisition + operating hold + exit (5+ years). Each year has its own assumptions. Every USALI category is a separate editable input.",
+    subs: [
+      { heading: "Year-by-year revenue", body: "Occupancy and ADR can vary per year via yearOcc / yearAdr, or default to headline. Each year produces its own total revenue, Department GOP, EBITDA, and NOI." },
+      { heading: "Full USALI cost cascade", body: "Every USALI category is exposed as a separate input in IM & Costs. Defaults follow USALI mid-range.", table: { headers: ["Category", "Default", "What it covers"], rows: [
+        ["Info & Telecom", "0.7%", "IT infrastructure, telecom"],
+        ["Admin & General", "5.0%", "Back-office, finance, HR"],
+        ["Sales & Marketing", "8.5%", "Digital, OTA commission, sales"],
+        ["POM", "1.8%", "Property Ops & Maintenance"],
+        ["Utilities", "2.2%", "Energy, water, waste"],
+        ["Base Mgmt Fee", "2.0%", "Operator flat fee on revenue"],
+        ["Real Estate Tax", "7.5%", "UK business rates equivalent"],
+        ["Insurance", "0.5%", "Property + liability"],
+        ["Total when blank", "~28.2%", "Of gross revenue"],
+      ] } },
+      { heading: "Capital structure", kv: [
+        { label: "Single", value: "One LTC loan covering purchase + CapEx" },
+        { label: "Dual", value: "Separate acquisition loan + capex facility at different rates" },
+        { label: "Equity", value: "No debt \u2014 all-equity acquisition" },
+      ] },
+      { heading: "Interest calculation", body: "Total interest is computed as loanAmount \u00d7 (benchmarkRate + marginOverBenchmark) \u00d7 holdYears. This is paid over the hold, serviced from NOI \u2014 not capitalised.", warn: "This differs from Simple mode's build-phase capitalisation. Both are valid but different. See 'Simple \u2194 Advanced' for the comparison." },
+      { heading: "IM (Investment Manager) overlay", body: "Optional layer for deals with external IM \u2014 acquisition fee (one-off), base annual charge, and incentive fees on sales and profit. Activate with imEnabled = true." },
+    ],
+  },
+  {
+    id: "flip-eng", label: "Flip", full: "Residential Flip",
+    tldr: "Individual residential \u2014 three distinct modes with mode-specific metrics.",
+    intro: "One engine, three strategies: sell on completion, hold as BTL, or refinance transitionally. Each mode evaluates success differently.",
+    subs: [
+      { heading: "Mode: Sell", body: "Bridge \u2192 refurb \u2192 sell on completion. Returns two profit figures: profit (accounting, sale \u2212 all costs) and profitCash (to equity after finance). The gap measures cost of leverage." },
+      { heading: "Mode: Hold (BRRR)", body: "Buy, Refurb, Refinance, Rent. No sale exit. Investor extracts value via BTL refinance and rental income over long-term hold. Headline is Profit to Equity \u2014 accounting profit is meaningless here.", note: "For BRRR, evaluate: DSCR \u2265 1.25\u00d7, positive monthly carry, capital released at refi, MOIC > 2\u00d7 over hold. These are BTL metrics, not developer-trader metrics." },
+      { heading: "Mode: Refi", body: "Transitional \u2014 bridge for acquisition/refurb, then refinance to BTL mortgage. Explicitly models rate delta between bridge and BTL. Useful for investors undecided between sell and hold." },
+      { heading: "Bridging math", formula: "peakLoanBalance \u00d7 bridgingRatePct \u00d7 bridgingTermMonths  \u2248  total interest\n  (monthly compound on drawn balance, 0.65\u20131.0% per month = 8\u201312% annualised)" },
+    ],
+  },
+  {
+    id: "commercial-eng", label: "Commercial", full: "Commercial / Office / Industrial",
+    tldr: "Yield-based valuation with WAULT discounting.",
+    intro: "Exit value is net rental income capitalised at sector yield. WAULT (weighted average unexpired lease term) is the single most important discount driver.",
+    subs: [
+      { heading: "Simple vs Advanced", body: "Simple: whole scheme, single ERV + mgmt %. Advanced: individual units with ERV, passing rent, WAULT, void %, rent-free months, rent review type." },
+      { heading: "GDV formula", formula: "GDV = netRent \u00f7 NIY \u00f7 (1 + purchasersCostsPct)" },
+      { heading: "Rent review types", kv: [
+        { label: "Fixed", value: "3% or user-set % every N years" },
+        { label: "OMR", value: "Open Market Rent \u2014 ERV re-caps at review" },
+        { label: "RPI", value: "CPI-linked growth each review period" },
+      ] },
+      { heading: "Exit methods (Advanced)", body: "Either investment exit (NOI \u00d7 1/NIY) or vacant possession exit (area \u00d7 VP psm). Choice drives the entire cashflow shape." },
+    ],
+  },
+  {
+    id: "mixeduse-eng", label: "Mixed Use", full: "Mixed Use Schemes",
+    tldr: "Multi-zone schemes blending residential + commercial.",
+    intro: "Every zone declares type, exit strategy, size, revenue, yield. BTR-style math for residential-hold, BTS-style for residential-sell, Commercial-style for commercial zones. Portfolio IRR sits on top.",
+    subs: [
+      { heading: "Zone structure", body: "zones[] array with { type, exitStrategy, size, revenue, exitYield }. Each zone computed in isolation, then combined into portfolio cashflows." },
+      { heading: "Blended metrics", body: "totalGDV = \u03a3(zone.gdvZone). totalCost sums zone build costs + shared finance. PoC is portfolio-level. IRR is blended via combined cashflows.", warn: "Always stress-test each zone standalone. A strong residential component can mask a failing commercial component. Sub-zone IRR analysis is critical." },
+      { heading: "Affordable housing", body: "London plan typically 35\u201350% affordable. Social rent, shared ownership, and market sale have very different GDVs \u2014 model tenure mix per unit group." },
+    ],
+  },
+  {
+    id: "compare-eng", label: "Simple \u2194 Advanced", full: "Simple vs Advanced \u2014 Hotel",
+    tldr: "Both modes are valid but use different deal conventions.",
+    intro: "Same inputs can produce different exit values, IRRs, and DSCRs \u2014 not because of bugs, but because each mode models a different strategy.",
+    subs: [
+      { heading: "Side-by-side", table: { headers: ["Topic", "Simple", "Advanced"], rows: [
+        ["Timeline", "programmMonths + stabMonths", "holdYears (any)"],
+        ["NOI model", "Steady-state post-stab", "Per-year"],
+        ["USALI cascade", "Optional single pct", "Full USALI by category"],
+        ["Rate input", "Single Mortgage Rate", "Benchmark + Margin"],
+        ["Interest period", "Build phase only", "Full hold"],
+        ["Capital structure", "Single LTC", "Single / Dual / Equity"],
+        ["Non-operating", "In undistributedPct", "Separate RET + Insurance"],
+        ["IM overlay", "\u2014", "Optional"],
+      ] } },
+      { heading: "When Simple is right", body: "Short-hold refurb-and-flip. Quick sanity checks. Early-stage deal evaluation. Deals where Department GOP \u2248 EBITDA is acceptable precision." },
+      { heading: "When Advanced is right", body: "Stabilised acquisitions held 5+ years. IC-ready underwriting with cost transparency. Institutional deals with operator agreements defining per-category USALI." },
+      { heading: "Reconciliation", body: "On identical inputs with explicit cascade pcts matching Advanced's defaults (22% undistributed, 3% mgmt fee), Simple and Advanced EBITDA agree within \u00b115%. CI-enforced.", note: "Seeing >20% gap on the same inputs? Check the cascade pcts and timeline alignment before assuming bug." },
+    ],
+  },
+  {
+    id: "jurisdictions-eng", label: "Jurisdictions", full: "Multi-Currency Defaults",
+    tldr: "15 currencies with market-standard defaults. Overrides always win.",
+    intro: "Every jurisdiction defines purchaser's costs, opex percentages, DSCR floor, and local transfer-tax label. Engine picks them up automatically based on the currency field.",
+    subs: [
+      { heading: "Per-currency defaults", table: { headers: ["Currency", "Resi P.C.", "Comm P.C.", "Opex %", "DSCR"], rows: [
+        ["GBP", "5.75%", "6.75%", "25%", "1.25\u00d7"],
+        ["EUR", "8.00%", "9.50%", "22%", "1.20\u00d7"],
+        ["USD", "3.00%", "4.00%", "30%", "1.25\u00d7"],
+        ["AED", "4.00%", "4.00%", "20%", "1.30\u00d7"],
+        ["SGD", "5.00%", "6.00%", "22%", "1.25\u00d7"],
+        ["AUD", "5.50%", "6.50%", "25%", "1.25\u00d7"],
+        ["CHF", "4.50%", "5.50%", "20%", "1.20\u00d7"],
+        ["INR", "7.00%", "8.00%", "28%", "1.30\u00d7"],
+      ] } },
+      { heading: "Transfer tax labels", body: "Each currency renders its local label: UK 'SDLT', EU 'IMT / ITP', USA 'Transfer Tax', UAE 'DLD Fee', Singapore 'BSD'. User-visible in Cost Stack." },
+    ],
+  },
+  {
+    id: "tests-eng", label: "Testing", full: "What's Protecting the Engine",
+    tldr: "76 tests run on every push. Deploy is blocked on red.",
+    intro: "Every engine change flows through a comprehensive test gate. If anything breaks, CI catches it before users see it.",
+    subs: [
+      { heading: "Test categories", kv: [
+        { label: "IRR guards", value: "Pathological inputs never produce NaN" },
+        { label: "SDLT bands", value: "UK residential bands verified exact" },
+        { label: "Jurisdictions", value: "Profile resolution checked per currency" },
+        { label: "Cashflow recon", value: "sum(cfs) = profit invariant" },
+        { label: "Golden masters", value: "Headline metrics locked per asset" },
+        { label: "Pathological inputs", value: "No crashes on 0s, empty arrays" },
+        { label: "Stress fuzzer", value: "7 assets \u00d7 500 random = 3,500 calls" },
+        { label: "Monte Carlo", value: "Distribution sampling + determinism" },
+        { label: "Hotel reconciliation", value: "Simple \u2194 Advanced alignment" },
+      ] },
+      { heading: "What CI blocks", body: "Any failure turns the push red. Vercel doesn't auto-deploy red commits. Failing tests name the exact engine + metric that regressed, so root cause is immediate." },
+    ],
+  },
+];
 export default function LearnPage() {
   const router = useRouter();
+  const [view, setView] = useState<"benchmarks" | "methodology">("benchmarks");
   const [activeModel, setActiveModel] = useState("btr");
+  const [activeMeth, setActiveMeth] = useState("foundation");
   const bench = BENCHMARKS[activeModel];
+  const meth = METHODOLOGY.find(s => s.id === activeMeth) || METHODOLOGY[0];
   // ── Unified theme sync ──
   useEffect(() => {
     const detectTheme = (): "dark" | "light" => {
@@ -418,30 +613,134 @@ tr:hover td{background:var(--val-bg-panel-2)}
           <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "12px 8px" }} />
           <div style={{ fontSize: 10, color: "rgba(246,244,239,.35)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>Benchmarks</div>
           {MODELS.map(m => (
-            <button key={m.id} className={`nav-item ${activeModel === m.id ? "active" : ""}`} onClick={() => setActiveModel(m.id)}>
+            <button key={m.id} className={`nav-item ${view === "benchmarks" && activeModel === m.id ? "active" : ""}`} onClick={() => { setView("benchmarks"); setActiveModel(m.id); }}>
               {m.label} <span style={{ fontSize: 11, opacity: .5, fontWeight: 400 }}>— {m.full}</span>
+            </button>
+          ))}
+          <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "12px 8px" }} />
+          <div style={{ fontSize: 10, color: "rgba(246,244,239,.35)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>Methodology</div>
+          {METHODOLOGY.map(s => (
+            <button key={s.id} className={`nav-item ${view === "methodology" && activeMeth === s.id ? "active" : ""}`} onClick={() => { setView("methodology"); setActiveMeth(s.id); }}>
+              {s.label} <span style={{ fontSize: 11, opacity: .5, fontWeight: 400 }}>— {s.full}</span>
             </button>
           ))}
         </div>
       </div>
       {/* Main content */}
       <div className="main">
-        {/* Hero */}
-        <div className="hero">
-          <div style={{ fontSize: 11, color: "rgba(246,244,239,.4)", textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 12, fontWeight: 600 }}>Valora Learn</div>
-          <h1 style={{ fontSize: 34, fontWeight: 700, color: "#F6F4EF", letterSpacing: "-.03em", marginBottom: 10, lineHeight: 1.1 }}>Benchmark Reference</h1>
-          <p style={{ fontSize: 14, color: "rgba(246,244,239,.55)", maxWidth: 600, lineHeight: 1.6, marginBottom: 26, fontWeight: 500 }}>
-            Institutional benchmarks for every asset model. Use these when you're unsure about inputs — built from real market data and updated regularly.
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {MODELS.map(m => (
-              <button key={m.id} className={`model-pill ${activeModel === m.id ? "active" : ""}`} onClick={() => setActiveModel(m.id)}>
-                {m.label}
-              </button>
-            ))}
+        {/* Hero — switches between Benchmarks and Methodology contexts */}
+        {view === "benchmarks" ? (
+          <div className="hero">
+            <div style={{ fontSize: 11, color: "rgba(246,244,239,.4)", textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 12, fontWeight: 600 }}>Valora Learn</div>
+            <h1 style={{ fontSize: 34, fontWeight: 700, color: "#F6F4EF", letterSpacing: "-.03em", marginBottom: 10, lineHeight: 1.1 }}>Benchmark Reference</h1>
+            <p style={{ fontSize: 14, color: "rgba(246,244,239,.55)", maxWidth: 600, lineHeight: 1.6, marginBottom: 26, fontWeight: 500 }}>
+              Institutional benchmarks for every asset model. Use these when you're unsure about inputs — built from real market data and updated regularly.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {MODELS.map(m => (
+                <button key={m.id} className={`model-pill ${activeModel === m.id ? "active" : ""}`} onClick={() => { setView("benchmarks"); setActiveModel(m.id); }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="content">
+        ) : (
+          <div className="hero">
+            <div style={{ fontSize: 11, color: "rgba(246,244,239,.4)", textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 12, fontWeight: 600 }}>Valora Learn · Methodology</div>
+            <h1 style={{ fontSize: 34, fontWeight: 700, color: "#F6F4EF", letterSpacing: "-.03em", marginBottom: 10, lineHeight: 1.1 }}>{meth.full}</h1>
+            <p style={{ fontSize: 14, color: "rgba(246,244,239,.55)", maxWidth: 700, lineHeight: 1.6, marginBottom: 26, fontWeight: 500 }}>
+              {meth.tldr}
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {METHODOLOGY.slice(0, 7).map(s => (
+                <button key={s.id} className={`model-pill ${activeMeth === s.id ? "active" : ""}`} onClick={() => { setView("methodology"); setActiveMeth(s.id); }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="content">{view === "methodology" ? (
+          <>
+            <p style={{ fontSize: 14, color: "var(--val-text-mid)", lineHeight: 1.7, marginBottom: 24, fontWeight: 500 }}>{meth.intro}</p>
+            {meth.subs.map((sub, i) => (
+              <div key={i} style={{ marginBottom: 22 }}>
+                {sub.heading && <div className="section-label" style={{ marginTop: 10 }}>{sub.heading}</div>}
+                {sub.body && <p style={{ fontSize: 13.5, color: "var(--val-text-mid)", lineHeight: 1.7, marginBottom: 10, fontWeight: 500, maxWidth: 820 }}>{sub.body}</p>}
+                {sub.formula && (
+                  <div className="tip-box" style={{ fontFamily: "var(--val-font-mono)", fontSize: 12, whiteSpace: "pre-wrap" as const, lineHeight: 1.75 }}>
+                    <span style={{ fontWeight: 600, color: "var(--val-green)", marginRight: 6, fontFamily: "var(--val-font-body)" }}>Formula:</span>
+                    {sub.formula}
+                  </div>
+                )}
+                {sub.kv && (
+                  <div className="bench-card" style={{ marginTop: 6 }}>
+                    <table>
+                      <tbody>
+                        {sub.kv.map((item, j) => (
+                          <tr key={j}>
+                            <td style={{ width: "32%" }}><span className="metric-name" style={{ fontFamily: "var(--val-font-mono)", color: "var(--val-green)" }}>{item.label}</span></td>
+                            <td style={{ fontSize: 13, color: "var(--val-text-mid)" }}>{item.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {sub.table && (
+                  <div className="bench-card" style={{ marginTop: 6 }}>
+                    <table>
+                      <thead><tr>{sub.table.headers.map((h, hi) => <th key={hi}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {sub.table.rows.map((row, ri) => (
+                          <tr key={ri}>
+                            {row.map((cell, ci) => (
+                              <td key={ci} style={{ fontSize: 12.5, color: ci === 1 ? "var(--val-green)" : ci === 0 ? "var(--val-text)" : "var(--val-text-mid)", fontFamily: ci === 1 ? "var(--val-font-mono)" : "inherit", fontWeight: ci === 0 ? 600 : 500 }}>{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {sub.note && (
+                  <div className="tip-box">
+                    <span style={{ fontWeight: 600, color: "var(--val-green)", marginRight: 6 }}>Note:</span>
+                    {sub.note}
+                  </div>
+                )}
+                {sub.warn && (
+                  <div className="warn-box">
+                    <span style={{ fontWeight: 600, color: "var(--val-amber)", marginRight: 6 }}>Watch out:</span>
+                    {sub.warn}
+                  </div>
+                )}
+              </div>
+            ))}
+            {(() => {
+              const idx = METHODOLOGY.findIndex(s => s.id === activeMeth);
+              const prev = idx > 0 ? METHODOLOGY[idx - 1] : null;
+              const next = idx < METHODOLOGY.length - 1 ? METHODOLOGY[idx + 1] : null;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 36, paddingTop: 22, borderTop: "1px solid var(--val-border)" }}>
+                  {prev ? (
+                    <button onClick={() => setActiveMeth(prev.id)} style={{ textAlign: "left", padding: "14px 18px", background: "var(--val-bg-panel)", border: "1px solid var(--val-border)", borderRadius: "var(--val-r-lg)", cursor: "pointer", fontFamily: "inherit" }}>
+                      <div style={{ fontSize: 10, color: "var(--val-text-dim)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 600, marginBottom: 4 }}>← Previous</div>
+                      <div style={{ fontSize: 13, color: "var(--val-text)", fontWeight: 600, letterSpacing: "-.015em" }}>{prev.full}</div>
+                    </button>
+                  ) : <div />}
+                  {next ? (
+                    <button onClick={() => setActiveMeth(next.id)} style={{ textAlign: "right", padding: "14px 18px", background: "var(--val-bg-panel)", border: "1px solid var(--val-border)", borderRadius: "var(--val-r-lg)", cursor: "pointer", fontFamily: "inherit" }}>
+                      <div style={{ fontSize: 10, color: "var(--val-text-dim)", textTransform: "uppercase", letterSpacing: ".1em", fontWeight: 600, marginBottom: 4 }}>Next →</div>
+                      <div style={{ fontSize: 13, color: "var(--val-text)", fontWeight: 600, letterSpacing: "-.015em" }}>{next.full}</div>
+                    </button>
+                  ) : <div />}
+                </div>
+              );
+            })()}
+            <div style={{ height: 40 }} />
+          </>
+        ) : (<>
           {/* Description */}
           <p style={{ fontSize: 14, color: "var(--val-text-mid)", lineHeight: 1.7, marginBottom: 20, fontWeight: 500 }}>{bench.description}</p>
           {/* Key formula */}
@@ -530,7 +829,7 @@ tr:hover td{background:var(--val-bg-panel-2)}
             </div>
           </div>
           <div style={{ height: 60 }} />
-        </div>
+        </>)}</div>
       </div>
     </div>
   );
