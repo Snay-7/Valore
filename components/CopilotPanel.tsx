@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 /* ════════════════════════════════════════════════════════════════════
    VALORA — COPILOT PANEL
@@ -22,6 +23,14 @@ type Message = {
   timestamp: number;
   suggestion?: Suggestion;
   typing?: boolean;
+  quotaExceeded?: boolean;
+};
+
+type QuotaState = {
+  used: number;
+  limit: number;
+  bonus: number;
+  tier: string;
 };
 
 type CopilotPanelProps = {
@@ -213,6 +222,8 @@ export default function CopilotPanel({
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [quota, setQuota] = useState<QuotaState | null>(null);
+  const [showTopup, setShowTopup] = useState(false);
 
   // ── Theme detection (matches the learn/dashboard/pipeline pattern) ──
   useEffect(() => {
@@ -277,22 +288,40 @@ export default function CopilotPanel({
       body.deal = { assetType, data: dealData || {}, metrics: dealMetrics || {} };
     }
 
+    // Grab the current Supabase session token for auth
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
     try {
       const res = await fetch("/api/copilot", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({} as any));
+
+      // Update quota state regardless of success/error — server always returns it when known
+      if (data.quota) setQuota(data.quota);
+
+      if (res.status === 429 || data.error === "quota_exceeded") {
+        // Quota exhausted — render a system-style message with top-up CTAs
         return {
           id: `a-${Date.now()}`,
           role: "assistant",
-          content: `Couldn't reach Copilot: ${err.error || `HTTP ${res.status}`}. Try again in a moment.`,
+          content: String(data.reply || "You've used all your Copilot messages for this period. Top up or upgrade to keep going."),
+          timestamp: Date.now(),
+          quotaExceeded: true,
+        };
+      }
+      if (!res.ok) {
+        return {
+          id: `a-${Date.now()}`,
+          role: "assistant",
+          content: `Couldn't reach Copilot: ${data.error || `HTTP ${res.status}`}. Try again in a moment.`,
           timestamp: Date.now(),
         };
       }
-      const data = await res.json();
       const reply: Message = {
         id: `a-${Date.now()}`,
         role: "assistant",
@@ -313,6 +342,27 @@ export default function CopilotPanel({
         content: `Network error — ${e?.message || "could not reach /api/copilot"}. Retry when you're back online.`,
         timestamp: Date.now(),
       };
+    }
+  };
+
+  // Top-up checkout
+  const handleTopup = async (pack: "50" | "250" | "1000") => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) { alert("Please sign in first."); return; }
+    try {
+      const res = await fetch("/api/topup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ pack }),
+      });
+      const { url, error } = await res.json();
+      if (error) { alert(error); return; }
+      if (url) window.location.href = url;
+    } catch (e: any) {
+      alert(e?.message || "Top-up failed");
     }
   };
 
@@ -495,6 +545,7 @@ export default function CopilotPanel({
             <div style={{ fontSize: 10, color: T.textFaint, letterSpacing: ".04em", marginTop: 4 }}>
               Session-only conversation · clears on refresh
             </div>
+            <UsagePill quota={quota} T={T} onTopup={() => setShowTopup(true)} />
           </div>
         )}
 
@@ -508,7 +559,7 @@ export default function CopilotPanel({
             }}>
               <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
                 {messages.map(msg => (
-                  <MessageBubble key={msg.id} msg={msg} onApply={handleApply} T={T} />
+                  <MessageBubble key={msg.id} msg={msg} onApply={handleApply} onOpenTopup={() => setShowTopup(true)} T={T} />
                 ))}
               </div>
             </div>
@@ -548,6 +599,7 @@ export default function CopilotPanel({
                 <div style={{ fontSize: 10, color: T.textFaint, marginTop: 8, textAlign: "center", letterSpacing: ".02em" }}>
                   Session-only · clears on refresh
                 </div>
+                <UsagePill quota={quota} T={T} onTopup={() => setShowTopup(true)} />
               </div>
             </div>
           </>
@@ -562,6 +614,7 @@ export default function CopilotPanel({
             :global(.valora-copilot-asset-grid) { grid-template-columns: 1fr !important; }
           }
         `}</style>
+        <TopupModal open={showTopup} onClose={() => setShowTopup(false)} onBuy={(p) => { setShowTopup(false); handleTopup(p); }} T={T} />
       </section>
     );
   }
@@ -631,7 +684,7 @@ export default function CopilotPanel({
         display: "flex", flexDirection: "column", gap: 14,
       }}>
         {messages.map(msg => (
-          <MessageBubble key={msg.id} msg={msg} onApply={handleApply} T={T} />
+          <MessageBubble key={msg.id} msg={msg} onApply={handleApply} onOpenTopup={() => setShowTopup(true)} T={T} />
         ))}
       </div>
 
@@ -737,13 +790,100 @@ export default function CopilotPanel({
         <div style={{ fontSize: 10, color: T.textFaint, marginTop: 8, textAlign: "center", letterSpacing: ".02em" }}>
           Session-only. Clears on refresh.
         </div>
+        <UsagePill quota={quota} T={T} onTopup={() => setShowTopup(true)} />
       </div>
+      <TopupModal open={showTopup} onClose={() => setShowTopup(false)} onBuy={(p) => { setShowTopup(false); handleTopup(p); }} T={T} />
     </aside>
   );
 }
 
 /* ── Individual message bubble ─────────────────────────────────── */
-function MessageBubble({ msg, onApply, T }: { msg: Message; onApply: (m: Message) => void; T: typeof DARK_COLORS }) {
+/* ── Usage pill — compact "237 / 300 · +50 bonus" indicator ──────── */
+function UsagePill({ quota, T, onTopup }: { quota: QuotaState | null; T: typeof DARK_COLORS; onTopup: () => void }) {
+  if (!quota) return null;
+  const total = quota.limit + quota.bonus;
+  const pct = total > 0 ? quota.used / total : 0;
+  const colour = pct >= 0.95 ? "#C24844" : pct >= 0.8 ? "#C57E14" : T.textFaint;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 6 }}>
+      <div style={{ fontSize: 10, color: colour, letterSpacing: ".04em", fontWeight: 600 }}>
+        {quota.used} / {quota.limit}{quota.bonus > 0 ? ` · +${quota.bonus} bonus` : ""} messages
+      </div>
+      <button onClick={onTopup} style={{
+        background: "transparent", border: `1px solid ${T.border}`, color: T.textDim,
+        borderRadius: 99, padding: "2px 10px", fontSize: 10, fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit", letterSpacing: ".02em",
+      }}>+ Top up</button>
+    </div>
+  );
+}
+
+/* ── Top-up modal ──────────────────────────────────────────────── */
+function TopupModal({ open, onClose, onBuy, T }: { open: boolean; onClose: () => void; onBuy: (p: "50" | "250" | "1000") => void; T: typeof DARK_COLORS }) {
+  if (!open) return null;
+  const packs: { id: "50" | "250" | "1000"; msgs: number; price: number; badge?: string }[] = [
+    { id: "50",   msgs: 50,   price: 9 },
+    { id: "250",  msgs: 250,  price: 29, badge: "Best value" },
+    { id: "1000", msgs: 1000, price: 89 },
+  ];
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(15,17,21,.55)",
+        backdropFilter: "blur(4px)", zIndex: 500,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: T.bg, border: `1px solid ${T.borderMid}`, borderRadius: 14,
+          padding: 28, maxWidth: 520, width: "100%",
+          boxShadow: "0 20px 60px rgba(0,0,0,.4)",
+          fontFamily: "var(--val-font-body, 'Poppins', system-ui)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.02em", color: T.text }}>Top up Copilot</div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.textDim, fontSize: 22, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ fontSize: 13, color: T.textDim, marginBottom: 20, lineHeight: 1.55 }}>
+          Bonus messages roll over forever — they never expire.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {packs.map(p => (
+            <button key={p.id} onClick={() => onBuy(p.id)} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+              padding: "14px 16px", borderRadius: 10,
+              background: p.badge ? T.greenTint : T.bgSubtle,
+              border: `1px solid ${p.badge ? T.borderAccent : T.border}`,
+              cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+              transition: "all 150ms",
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = T.borderAccent; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = p.badge ? T.borderAccent : T.border; }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-.01em" }}>+{p.msgs} messages</span>
+                  {p.badge && <span style={{ background: T.green, color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 99, letterSpacing: ".08em", textTransform: "uppercase" }}>{p.badge}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: T.textDim }}>One-time · never expires</div>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: T.green, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>${p.price}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: T.textFaint, marginTop: 16, textAlign: "center" }}>
+          Secure payment via Stripe. Need unlimited? <a href="/pricing" style={{ color: T.green, fontWeight: 600 }}>Upgrade to Pro →</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ msg, onApply, onOpenTopup, T }: { msg: Message; onApply: (m: Message) => void; onOpenTopup?: () => void; T: typeof DARK_COLORS }) {
   if (msg.typing) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", alignSelf: "flex-start", background: T.assistantBubbleBg, borderRadius: 10 }}>
@@ -771,6 +911,37 @@ function MessageBubble({ msg, onApply, T }: { msg: Message; onApply: (m: Message
         border: `1px solid ${T.borderAccent}`, borderRadius: 9,
         fontSize: 12, color: T.textMid, lineHeight: 1.55,
       }}>{msg.content}</div>
+    );
+  }
+
+  // Quota-exceeded state — dedicated bubble with top-up + upgrade CTAs
+  if (msg.quotaExceeded) {
+    return (
+      <div style={{
+        padding: "14px 16px",
+        background: "rgba(240,164,41,.08)",
+        border: "1px solid rgba(240,164,41,.35)",
+        borderRadius: 10,
+        fontSize: 12.5, color: T.text, lineHeight: 1.55,
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
+        <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: "#C57E14", fontWeight: 700 }}>Quota reached</div>
+        <div>{msg.content}</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {onOpenTopup && (
+            <button onClick={onOpenTopup} style={{
+              background: T.green, color: "#FFFFFF",
+              border: "none", borderRadius: 7, padding: "8px 14px",
+              fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            }}>Top up messages</button>
+          )}
+          <a href="/pricing" style={{
+            background: "transparent", color: T.text,
+            border: `1px solid ${T.borderMid}`, borderRadius: 7, padding: "8px 14px",
+            fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textDecoration: "none",
+          }}>Upgrade plan →</a>
+        </div>
+      </div>
     );
   }
 
