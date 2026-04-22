@@ -1,3 +1,16 @@
+const { data: usage } = await supabase.from("copilot_usage").select("*").eq("user_id", userId).single();
+const limit = planLimits[tier];
+if ((usage?.messages_used || 0) >= limit + (usage?.messages_bonus || 0)) {
+  return NextResponse.json({ 
+    error: "quota_exceeded",
+    reply: "You've used your Copilot allowance for this month. Top up or upgrade to keep going.",
+    upgradeUrl: "/pricing",
+    topUpUrl: "/pricing#topup"
+  }, { status: 429 });
+}
+// ... call Claude ...
+// On success:
+await supabase.rpc("increment_copilot_usage", { uid: userId });
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 
