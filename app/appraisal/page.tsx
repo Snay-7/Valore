@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calcSDLT, calcIRR, buildDrawdownProfile, calcFinanceCostMonthly, calcPaybackMonth, findBreakEvenYield, findBreakEvenSalePsf, fmt, fmtPct, fmtX, num, irrCol, toSensCell, sensCellClass, fmtSensCell, sensMetricLabel, sensMetricShort, sensLegend, VAL_DEFAULTS, JURISDICTION_PROFILES, getJurisdictionProfile, resolveOpexPct, resolvePurchasersCostsPct, resolveDscrFloor, calcNetCapitalValue, calcHotelRev, calcHotelAdvanced, vatLabel, usesSplitVAT, vatIsRecoverable, vatHelperText, calcCommercialAdvanced, calcMixedUseAdvanced, calcAll, DEFAULTS } from "@/lib/calc-engines";
 import type { AssetType, SensMetric, SensCell } from "@/lib/calc-engines";
+import CopilotPanel from "../../components/CopilotPanel";
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -219,6 +220,16 @@ body.light .cf-row{border-bottom-color:rgba(15,17,21,0.05)}
 }
 @media(max-width:420px){
   .name-inp{display:none !important}
+}
+/* -- Copilot wrapper (appraisal page) -- */
+.copilot-wrapper-appraisal{position:sticky;top:0;height:calc(100vh - 102px);align-self:start;z-index:50;border-right:1px solid var(--border);background:var(--bg1)}
+@media(max-width:900px){
+  .copilot-wrapper-appraisal{display:none !important}
+  .editor-layout-with-copilot{grid-template-columns:1fr 320px !important}
+}
+@media(max-width:720px){
+  .editor-layout-with-copilot{grid-template-columns:1fr !important}
+  .output-panel{display:none !important}
 }
 `;
 // Calc engines live in /lib/calc-engines.ts — imported at the top of this file.
@@ -10945,6 +10956,52 @@ function AppraisalPage(){
     setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);
   },[]);
   const switchAssetType=(type:AssetType)=>{setAssetType(type);setData({...DEFAULTS[type]});setActiveTab("general");setSaved(false);setSaveError(null);setSenseResult(null);setSenseError(null);};
+  // -- Valora Copilot wiring (left-hand assistant panel) --
+  // Merges suggested field updates from Copilot into the current deal.
+  const onCopilotApply = useCallback((payload: Record<string, any>) => {
+    if (!payload || typeof payload !== "object") return;
+    setData((prev: any) => ({ ...prev, ...payload }));
+    setSaved(false); setSaveError(null); setSenseResult(null); setSenseError(null);
+  }, []);
+  // Replaces the current deal with a fresh one parsed from a natural-language
+  // description (e.g. "200-unit BTR in Manchester, 45m cost, 22y hold").
+  const onCopilotCreate = useCallback((payload: Record<string, any>) => {
+    if (!payload || typeof payload !== "object") return;
+    const nextType = (payload.assetType || assetType) as AssetType;
+    const base = { ...(DEFAULTS[nextType] || DEFAULTS.BTR) };
+    const merged = { ...base, ...payload };
+    delete (merged as any).assetType;
+    setAssetType(nextType);
+    setData(merged);
+    setActiveTab(nextType === "MixedUse" ? "zones" : "general");
+    setSaved(false); setSaveError(null); setSenseResult(null); setSenseError(null);
+  }, [assetType]);
+  // Pre-fill from sessionStorage when arriving from dashboard Copilot.
+  // Dashboard writes to `valora:copilotDraft:${projectId}` then navigates
+  // here with `?fromCopilot=1`; we consume the draft once and clear it.
+  const[copilotDraftApplied,setCopilotDraftApplied]=useState(false);
+  useEffect(()=>{
+    if(copilotDraftApplied)return;
+    if(appraisalParam||!projectId||!user)return;
+    if(searchParams.get("fromCopilot")!=="1")return;
+    try{
+      const key=`valora:copilotDraft:${projectId}`;
+      const raw=sessionStorage.getItem(key);
+      if(!raw){setCopilotDraftApplied(true);return;}
+      const draft=JSON.parse(raw);
+      if(draft&&typeof draft==="object"){
+        const nextType=(draft.assetType||assetType) as AssetType;
+        const base={...(DEFAULTS[nextType]||DEFAULTS.BTR)};
+        const merged={...base,...draft};
+        delete (merged as any).assetType;
+        setAssetType(nextType);
+        setData(merged);
+        setActiveTab(nextType==="MixedUse"?"zones":"general");
+      }
+      sessionStorage.removeItem(key);
+    }catch(e){}
+    setCopilotDraftApplied(true);
+  },[projectId,user,appraisalParam,searchParams,copilotDraftApplied,assetType]);
   const updateUnit=(index:number,field:string,value:any)=>{const units=[...data.units];units[index]={...units[index],[field]:value};set("units",units);};
   const addUnit=()=>{const units=[...(data.units||[])];units.push(assetType==="BTS"?{type:"New Type",count:10,salePricePsf:800,size:700}:{type:"New Type",count:10,rentPcm:2000,size:700});set("units",units);};
   const removeUnit=(i:number)=>{set("units",data.units.filter((_:any,idx:number)=>idx!==i));};
@@ -13629,7 +13686,10 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
         )}
         <input className="inp name-inp" value={data.name} onChange={e=>set("name",e.target.value)} placeholder="Name…" style={{padding:"4px 8px",fontSize:12,flexShrink:1,minWidth:0,width:120}}/>
       </div>
-      <div className="editor-layout" style={{display:"grid",gridTemplateColumns:"1fr 320px",minHeight:"calc(100vh - 102px)"}}>
+      <div className="editor-layout editor-layout-with-copilot" style={{display:"grid",gridTemplateColumns:"auto 1fr 320px",minHeight:"calc(100vh - 102px)"}}>
+        <div className="copilot-wrapper-appraisal">
+          <CopilotPanel context="appraisal" dealName={data.name} assetType={assetType} onApply={onCopilotApply} onCreate={onCopilotCreate}/>
+        </div>
         <div className="editor-main" style={{borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
           <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",overflowX:"auto",padding:"0 16px"}}>
             {TABS.map(t=><button key={t} className={`tab ${activeTab===t?"active":""}`} onClick={()=>setActiveTab(t)}>{TAB_LABELS[t]}</button>)}
