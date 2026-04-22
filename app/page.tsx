@@ -98,7 +98,7 @@ button{font-family:inherit;cursor:pointer}
 
 /* ── TRUST STRIP ── */
 .trust-strip{background:var(--navy);color:var(--cream);padding:32px}
-.trust-inner{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:48px;align-items:center}
+.trust-inner{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:48px;align-items:center}
 .trust-stat{text-align:center}
 .trust-stat-num{font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--green-l);letter-spacing:-.02em;line-height:1}
 .trust-stat-lbl{font-size:11px;color:rgba(245,240,225,.6);text-transform:uppercase;letter-spacing:.12em;margin-top:8px;font-weight:500}
@@ -263,8 +263,8 @@ export default function Landing() {
             <a href="/learn">Learn</a>
           </div>
           <div className="nav-cta">
-            <button className="btn btn-ghost btn-sm" onClick={() => router.push("/signin")}>Sign in</button>
-            <button className="btn btn-primary btn-sm" onClick={() => router.push("/signup")}>Start free</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => router.push("/auth")}>Sign in</button>
+            <button className="btn btn-primary btn-sm" onClick={() => router.push("/auth")}>Start free</button>
           </div>
         </div>
       </nav>
@@ -277,7 +277,7 @@ export default function Landing() {
             <h1 className="h1">One sentence. <em>Full underwrite.</em></h1>
             <p className="lede">Describe your deal. Valora&rsquo;s Copilot builds the institutional model — IRR, DSCR, cashflows, sensitivities, and an IC-ready brochure. In seconds, not hours.</p>
             <div className="hero-cta">
-              <button className="btn btn-primary btn-lg" onClick={() => router.push("/signup")}>Start free →</button>
+              <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>Start free →</button>
               <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>Book a demo</button>
             </div>
             <div className="hero-trust">
@@ -324,10 +324,6 @@ export default function Landing() {
           <div className="trust-stat">
             <div className="trust-stat-num">7</div>
             <div className="trust-stat-lbl">Asset classes</div>
-          </div>
-          <div className="trust-stat">
-            <div className="trust-stat-num">3 / 3</div>
-            <div className="trust-stat-lbl">Demo conversion</div>
           </div>
         </div>
       </section>
@@ -466,43 +462,56 @@ export default function Landing() {
         <div className="pricing-header fade-up">
           <div className="eyebrow"><span className="eyebrow-mark">◆</span> Pricing</div>
           <h2 className="h2">Start free. Upgrade when it earns its keep.</h2>
+          <p className="lede" style={{ marginTop: 14 }}>14-day free trial on paid plans. Annual billing saves 20%. No credit card to start.</p>
         </div>
         <div className="pricing-grid">
+          {/* Free */}
           <div className="price-card fade-up">
             <div className="price-tier">Free</div>
-            <div className="price-amount">£0<small> /month</small></div>
+            <div className="price-amount">$0<small> /month</small></div>
+            <div className="small" style={{ marginTop: -6 }}>Forever free</div>
             <ul className="price-feats">
-              <li>3 active deals</li>
-              <li>All asset classes</li>
-              <li>PDF brochure export</li>
-              <li>Copilot (limited)</li>
+              <li>1 full appraisal — all features unlocked</li>
+              <li>All 7 asset models</li>
+              <li>AI Market Comps + sensitivity matrix</li>
+              <li>Investment memorandum PDF</li>
             </ul>
-            <button className="btn btn-ghost" onClick={() => router.push("/signup")}>Start free</button>
+            <button className="btn btn-ghost" onClick={() => router.push("/auth")}>Start free</button>
           </div>
+          {/* Pro */}
           <div className="price-card featured fade-up" style={{ animationDelay: ".08s" }}>
-            <div className="price-tier">Professional</div>
-            <div className="price-amount">£49<small> /month</small></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="price-tier">Pro</div>
+              <span style={{ background: "var(--green)", color: "#fff", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 999, letterSpacing: ".1em", textTransform: "uppercase" }}>Most Popular</span>
+            </div>
+            <div className="price-amount">$119<small> /mo</small></div>
+            <div className="small" style={{ marginTop: -6 }}>Billed annually · $149/mo monthly</div>
             <ul className="price-feats">
-              <li>Unlimited deals</li>
-              <li>Full Copilot (GPT-class)</li>
-              <li>Monte Carlo + stress tests</li>
-              <li>URL import (Rightmove, Christie)</li>
-              <li>Priority support</li>
+              <li>Unlimited appraisals</li>
+              <li>Full Copilot — deal creation + analysis</li>
+              <li>Live investor share links</li>
+              <li>AI Sense Check + Monte Carlo</li>
+              <li>Year-by-year NOI hold model</li>
             </ul>
-            <button className="btn btn-primary" onClick={() => router.push("/pricing")}>Go Professional</button>
+            <button className="btn btn-primary" onClick={() => router.push("/pricing")}>Start 14-day trial</button>
           </div>
+          {/* Enterprise */}
           <div className="price-card fade-up" style={{ animationDelay: ".16s" }}>
             <div className="price-tier">Enterprise</div>
-            <div className="price-amount">Custom</div>
+            <div className="price-amount">$319<small> /mo</small></div>
+            <div className="small" style={{ marginTop: -6 }}>Billed annually · $399/mo monthly</div>
             <ul className="price-feats">
-              <li>Everything in Professional</li>
-              <li>Multi-user firm workspace</li>
-              <li>Custom jurisdictions</li>
-              <li>White-labelled brochures</li>
-              <li>Dedicated onboarding</li>
+              <li>Everything in Pro</li>
+              <li>5 team members included ($75/user after)</li>
+              <li>Shared firm workspace</li>
+              <li>White-labelled PDF exports</li>
+              <li>Dedicated onboarding + SLA</li>
             </ul>
             <button className="btn btn-ghost" onClick={() => window.open(CALENDLY, "_blank")}>Talk to us</button>
           </div>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 32, fontSize: 13, color: "var(--text-d)" }}>
+          Full breakdown on the <a href="/pricing" style={{ color: "var(--green)", fontWeight: 600 }}>pricing page</a> — compare monthly, annual, and feature-by-feature.
         </div>
       </section>
 
@@ -511,7 +520,7 @@ export default function Landing() {
         <h2 className="h2">Stop modelling. Start underwriting.</h2>
         <p>Try Valora free. No credit card. Three deals to see if it earns its place.</p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-dark btn-lg" onClick={() => router.push("/signup")}>Start free →</button>
+          <button className="btn btn-dark btn-lg" onClick={() => router.push("/auth")}>Start free →</button>
           <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>Book a demo</button>
         </div>
       </section>
