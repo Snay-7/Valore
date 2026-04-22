@@ -328,21 +328,15 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── DEMO VIDEO (30s looping, desktop only — hidden on mobile) ── */}
-      <section className="demo-section" style={{ padding: "96px 32px 48px", background: "var(--cream)" }}>
-        <style jsx>{`
-          @media (max-width: 800px) {
-            :global(.demo-section) { display: none !important; }
-          }
-        `}</style>
+      {/* ── DEMO VIDEO — real product footage, works on desktop + mobile ── */}
+      <section style={{ padding: "96px 32px 48px", background: "var(--cream)" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <div className="eyebrow"><span className="eyebrow-mark">◆</span> Watch it work</div>
-            <h2 className="h2">From idea to IC in 30 seconds.</h2>
-            <p className="lede" style={{ marginTop: 14, maxWidth: 620, margin: "14px auto 0" }}>One line → full institutional model. Pre-filled fields, live metrics, IC-ready output. Here's the whole loop.</p>
+            <h2 className="h2">60 seconds. Deal to IC.</h2>
+            <p className="lede" style={{ marginTop: 14, maxWidth: 640, margin: "14px auto 0" }}>One sentence in. Full institutional model, shareable investor link, IC-ready PDF. Recorded live on production.</p>
           </div>
 
-          {/* Desktop: live animated iframe */}
           <div style={{
             position: "relative",
             maxWidth: 1100, margin: "0 auto",
@@ -352,13 +346,18 @@ export default function Landing() {
             background: "var(--navy)",
             aspectRatio: "16 / 9",
           }}>
-            <iframe
-              src="/demo.html"
-              title="Valora Copilot demo"
-              loading="lazy"
-              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-              sandbox="allow-same-origin allow-scripts"
-            />
+            <video
+              src="/copilot-demo.mp4"
+              poster="/copilot-demo-poster.jpg"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }}
+            >
+              Your browser doesn&apos;t support HTML5 video. <a href="/copilot-demo.mp4">Download the demo</a>.
+            </video>
           </div>
 
           <p className="small" style={{ textAlign: "center", marginTop: 18 }}>
