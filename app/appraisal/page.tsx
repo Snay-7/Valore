@@ -10935,6 +10935,10 @@ function AppraisalPage(){
   // When opening a brand-new project (no appraisal yet), initialise assetType from the project row
   useEffect(()=>{
     if(appraisalParam||!projectId||!user)return;
+    // Skip this loader when arriving from the Copilot - the copilot-draft
+    // useEffect below has a richer payload and races with this one;
+    // letting both run would clobber the draft.
+    if(searchParams.get('fromCopilot')==='1')return;
     const loadProject=async()=>{
       const{data:proj}=await supabase.from("projects").select("asset_type,currency,name,location").eq("id",projectId).single();
       if(proj&&proj.asset_type){
