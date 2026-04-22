@@ -328,6 +328,39 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── DEMO VIDEO (30s looping, embedded from /public/demo.html) ── */}
+      <section style={{ padding: "96px 32px 48px", background: "var(--cream)" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div className="eyebrow"><span className="eyebrow-mark">◆</span> Watch it work</div>
+            <h2 className="h2">From idea to IC in 30 seconds.</h2>
+            <p className="lede" style={{ marginTop: 14, maxWidth: 620, margin: "14px auto 0" }}>One line → full institutional model. Pre-filled fields, live metrics, IC-ready output. Here's the whole loop.</p>
+          </div>
+          <div style={{
+            position: "relative",
+            maxWidth: 1100, margin: "0 auto",
+            borderRadius: 18,
+            overflow: "hidden",
+            border: "1px solid var(--border)",
+            boxShadow: "0 40px 100px rgba(15,17,21,.12), 0 2px 6px rgba(15,17,21,.04)",
+            background: "var(--navy)",
+            aspectRatio: "16 / 9",
+          }}>
+            <iframe
+              src="/demo.html"
+              title="Valora Copilot demo"
+              loading="lazy"
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+              sandbox="allow-same-origin allow-scripts"
+            />
+          </div>
+          <p className="small" style={{ textAlign: "center", marginTop: 18 }}>
+            Loops on the page. Try it live →{" "}
+            <a onClick={() => router.push("/auth")} style={{ color: "var(--green)", fontWeight: 600, cursor: "pointer" }}>Start free</a>
+          </p>
+        </div>
+      </section>
+
       {/* ── TWO CAPABILITIES ── */}
       <section className="capabilities" id="copilot">
         <div className="capabilities-header fade-up">
@@ -544,7 +577,7 @@ export default function Landing() {
             <a href="/about">About</a>
             <a href="/blog">Blog</a>
             <a href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a demo</a>
-            <a href="mailto:hello@valoraplatform.com">Contact</a>
+            <a href="mailto:hello@valoraplatform.io">Contact</a>
           </div>
           <div className="footer-col">
             <div className="footer-col-title">Legal</div>
