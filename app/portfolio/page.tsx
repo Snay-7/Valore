@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+export const dynamic = 'force-dynamic';
+import { useEffect, useState, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
@@ -136,7 +137,7 @@ const ASSET_LABELS: Record<string,string> = {BTR:"BTR",BTS:"BTS",Hotel:"Hotel",F
 const CURRENCIES = ["GBP", "USD", "EUR", "AED", "SGD", "AUD"];
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
 const TRASH_DAYS = 3;
-export default function Portfolio() {
+function Portfolio() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialView = searchParams.get("view") === "trash" ? "trash" : "portfolio";
@@ -757,5 +758,17 @@ export default function Portfolio() {
         </button>
       </nav>
     </div>
+  );
+}
+export default function PortfolioPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#0F1115", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 28, height: 28, border: "2px solid rgba(82,196,152,.15)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <Portfolio />
+    </Suspense>
   );
 }
