@@ -34,13 +34,108 @@ type CopilotPanelProps = {
   onNewDeal?: (assetType: string) => void;    // dashboard: user picked asset — navigate
 };
 
-const ASSET_TYPES: { id: string; label: string; desc: string; icon: string }[] = [
-  { id: "BTR",        label: "Build to Rent",    desc: "Residential income, stabilised yield",       icon: "🏢" },
-  { id: "BTS",        label: "Build to Sell",    desc: "Residential for open-market sale",           icon: "🏗️" },
-  { id: "Hotel",      label: "Hotel",            desc: "Acquisition, refurb, operating hold",         icon: "🏨" },
-  { id: "Flip",       label: "Residential Flip", desc: "Buy, refurb, sell / hold / refinance",        icon: "🔨" },
-  { id: "Commercial", label: "Commercial",       desc: "Office, retail, industrial yield deals",      icon: "🏬" },
-  { id: "MixedUse",   label: "Mixed Use",        desc: "Multi-zone: resi + commercial blended",       icon: "🧩" },
+// ── Premium line-SVG asset icons (1.5px stroke, currentColor, architectural) ──
+function AssetIcon({ type, size = 22 }: { type: string; size?: number }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (type) {
+    case "BTR": // Apartment block — 3x3 window grid with entry
+      return (
+        <svg {...common}>
+          <rect x="4" y="2" width="16" height="20" rx="1" />
+          <line x1="8" y1="6" x2="8.01" y2="6" />
+          <line x1="12" y1="6" x2="12.01" y2="6" />
+          <line x1="16" y1="6" x2="16.01" y2="6" />
+          <line x1="8" y1="10" x2="8.01" y2="10" />
+          <line x1="12" y1="10" x2="12.01" y2="10" />
+          <line x1="16" y1="10" x2="16.01" y2="10" />
+          <line x1="8" y1="14" x2="8.01" y2="14" />
+          <line x1="12" y1="14" x2="12.01" y2="14" />
+          <line x1="16" y1="14" x2="16.01" y2="14" />
+          <rect x="10" y="18" width="4" height="4" />
+        </svg>
+      );
+    case "BTS": // Pitched-roof house with door
+      return (
+        <svg {...common}>
+          <path d="M3 11l9-8 9 8" />
+          <path d="M5 9v12h14V9" />
+          <rect x="10" y="14" width="4" height="7" />
+          <line x1="8" y1="13" x2="8.01" y2="13" />
+          <line x1="16" y1="13" x2="16.01" y2="13" />
+        </svg>
+      );
+    case "Hotel": // Classical hotel — columns/entry portico
+      return (
+        <svg {...common}>
+          <path d="M3 21V9l9-6 9 6v12" />
+          <path d="M3 21h18" />
+          <line x1="8" y1="12" x2="8.01" y2="12" />
+          <line x1="12" y1="12" x2="12.01" y2="12" />
+          <line x1="16" y1="12" x2="16.01" y2="12" />
+          <line x1="8" y1="16" x2="8.01" y2="16" />
+          <line x1="16" y1="16" x2="16.01" y2="16" />
+          <path d="M10 21v-4h4v4" />
+        </svg>
+      );
+    case "Flip": // Refresh/cycle — buy, renovate, sell
+      return (
+        <svg {...common}>
+          <path d="M3 12a9 9 0 0114.85-6.85L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 01-14.85 6.85L3 16" />
+          <path d="M3 21v-5h5" />
+        </svg>
+      );
+    case "Commercial": // Office tower — banded floors
+      return (
+        <svg {...common}>
+          <rect x="5" y="3" width="14" height="18" rx="0.5" />
+          <path d="M5 8h14" />
+          <path d="M5 13h14" />
+          <path d="M5 18h14" />
+          <line x1="9" y1="10.5" x2="9.01" y2="10.5" />
+          <line x1="15" y1="10.5" x2="15.01" y2="10.5" />
+          <line x1="9" y1="15.5" x2="9.01" y2="15.5" />
+          <line x1="15" y1="15.5" x2="15.01" y2="15.5" />
+          <rect x="10" y="19" width="4" height="2" />
+        </svg>
+      );
+    case "MixedUse": // Two adjacent buildings — resi + commercial
+      return (
+        <svg {...common}>
+          <path d="M2 21V11l5-3 5 3" />
+          <path d="M12 21V7l5-3 5 3v14" />
+          <path d="M2 21h20" />
+          <line x1="5" y1="14" x2="5.01" y2="14" />
+          <line x1="9" y1="14" x2="9.01" y2="14" />
+          <line x1="15" y1="10" x2="15.01" y2="10" />
+          <line x1="19" y1="10" x2="19.01" y2="10" />
+          <line x1="15" y1="14" x2="15.01" y2="14" />
+          <line x1="19" y1="14" x2="19.01" y2="14" />
+          <line x1="15" y1="18" x2="15.01" y2="18" />
+          <line x1="19" y1="18" x2="19.01" y2="18" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+const ASSET_TYPES: { id: string; label: string; desc: string }[] = [
+  { id: "BTR",        label: "Build to Rent",    desc: "Residential income, stabilised yield"   },
+  { id: "BTS",        label: "Build to Sell",    desc: "Residential for open-market sale"       },
+  { id: "Hotel",      label: "Hotel",            desc: "Acquisition, refurb, operating hold"    },
+  { id: "Flip",       label: "Residential Flip", desc: "Buy, refurb, sell / hold / refinance"   },
+  { id: "Commercial", label: "Commercial",       desc: "Office, retail, industrial yield deals" },
+  { id: "MixedUse",   label: "Mixed Use",        desc: "Multi-zone: resi + commercial blended"  },
 ];
 
 const APPRAISAL_PROMPTS = [
@@ -277,6 +372,214 @@ export default function CopilotPanel({
     }
   };
 
+  // ── DASHBOARD HERO LAYOUT ──
+  // Full-screen ChatGPT/Claude-style first-screen: centered greeting, asset
+  // cards, prominent input. On first message, flips to chat view with input
+  // pinned to the bottom (transcript above, send-area below).
+  if (context === "dashboard") {
+    const hasChat = messages.length > 1;
+    return (
+      <section style={{
+        flex: 1, minHeight: "calc(100vh - 8px)",
+        background: T.bg,
+        color: T.text,
+        fontFamily: "var(--val-font-body, 'Poppins', system-ui)",
+        display: "flex", flexDirection: "column",
+        position: "relative",
+      }}>
+        {/* ── Empty / first-visit state ── */}
+        {!hasChat && (
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: "48px 24px 32px", gap: 28,
+            width: "100%", maxWidth: 780, margin: "0 auto",
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 14,
+                background: T.greenBg, border: `1px solid ${T.borderAccent}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: T.green, fontSize: 26, fontWeight: 700,
+              }}>◆</div>
+              <div>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".18em", color: T.textFaint, fontWeight: 600, marginBottom: 8 }}>
+                  Valora Copilot
+                </div>
+                <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-.025em", color: T.text, lineHeight: 1.15 }}>
+                  {userName ? `Hi ${userName} — what deal are we building?` : `What deal are we building today?`}
+                </div>
+                <div style={{ fontSize: 14, color: T.textDim, marginTop: 10, lineHeight: 1.5 }}>
+                  Pick an asset below, or describe your deal in one line and I&rsquo;ll set it up for you.
+                </div>
+              </div>
+            </div>
+
+            {/* Input (primary CTA) */}
+            <div style={{ width: "100%", maxWidth: 640 }}>
+              <div style={{
+                display: "flex", gap: 8, alignItems: "flex-end",
+                background: T.bgSubtle,
+                border: `1px solid ${T.borderMid}`,
+                borderRadius: 14, padding: "12px 12px 12px 16px",
+                boxShadow: theme === "light" ? "0 1px 3px rgba(15,17,21,0.04)" : "0 1px 3px rgba(0,0,0,0.2)",
+              }}>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Describe your deal — e.g. Hotel in Mayfair, 80 keys, £45m…"
+                  rows={1}
+                  style={{
+                    flex: 1, background: "transparent", border: "none", outline: "none",
+                    color: T.text, fontSize: 15, resize: "none",
+                    fontFamily: "inherit", lineHeight: 1.5, minHeight: 28, maxHeight: 160,
+                  }}
+                />
+                <button onClick={handleSend} disabled={!input.trim() || sending} style={{
+                  background: input.trim() && !sending ? T.green : T.btnSendDisabled,
+                  color: input.trim() && !sending ? "#FFFFFF" : T.btnSendDisabledText,
+                  border: "none", borderRadius: 8, padding: "10px 16px",
+                  fontSize: 14, fontWeight: 700, cursor: input.trim() && !sending ? "pointer" : "not-allowed",
+                  fontFamily: "inherit", transition: "all 150ms",
+                }}>↵ Send</button>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, justifyContent: "center" }}>
+                {DASHBOARD_PROMPTS.map(p => (
+                  <button key={p} onClick={() => handleSuggestedPrompt(p)} style={{
+                    background: "transparent",
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 99, padding: "5px 13px",
+                    color: T.textDim, fontSize: 11.5,
+                    cursor: "pointer", fontFamily: "inherit", transition: "all 150ms",
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = T.borderAccent; e.currentTarget.style.color = T.text; }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textDim; }}
+                  >{p}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", maxWidth: 480, color: T.textFaint }}>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".18em", fontWeight: 600 }}>or pick an asset</div>
+              <div style={{ flex: 1, height: 1, background: T.border }} />
+            </div>
+
+            {/* Asset grid */}
+            <div className="valora-copilot-asset-grid" style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 10, width: "100%",
+            }}>
+              {ASSET_TYPES.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => onNewDeal && onNewDeal(a.id)}
+                  style={{
+                    background: T.bgSubtle,
+                    border: `1px solid ${T.borderMid}`,
+                    borderRadius: 10, padding: "14px 14px",
+                    color: T.textMid,
+                    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    transition: "all 150ms", display: "flex", flexDirection: "column", gap: 5,
+                    minHeight: 92,
+                  }}
+                  onMouseOver={e => {
+                    e.currentTarget.style.background = T.greenTint;
+                    e.currentTarget.style.borderColor = T.borderAccent;
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.background = T.bgSubtle;
+                    e.currentTarget.style.borderColor = T.borderMid;
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={22} /></div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: "-.01em" }}>{a.label}</div>
+                  <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.35 }}>{a.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 10, color: T.textFaint, letterSpacing: ".04em", marginTop: 4 }}>
+              Session-only conversation · clears on refresh
+            </div>
+          </div>
+        )}
+
+        {/* ── Active chat state (post first message) ── */}
+        {hasChat && (
+          <>
+            <div ref={scrollRef} style={{
+              flex: 1, overflowY: "auto",
+              padding: "32px 24px 20px",
+              display: "flex", flexDirection: "column", gap: 16,
+            }}>
+              <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+                {messages.map(msg => (
+                  <MessageBubble key={msg.id} msg={msg} onApply={handleApply} T={T} />
+                ))}
+              </div>
+            </div>
+            <div style={{
+              borderTop: `1px solid ${T.border}`,
+              background: T.bg,
+              padding: "16px 24px 20px",
+            }}>
+              <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
+                <div style={{
+                  display: "flex", gap: 8, alignItems: "flex-end",
+                  background: T.bgSubtle,
+                  border: `1px solid ${T.borderMid}`,
+                  borderRadius: 12, padding: "10px 10px 10px 14px",
+                }}>
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Reply, or describe another deal…"
+                    rows={1}
+                    style={{
+                      flex: 1, background: "transparent", border: "none", outline: "none",
+                      color: T.text, fontSize: 14, resize: "none",
+                      fontFamily: "inherit", lineHeight: 1.5, minHeight: 22, maxHeight: 140,
+                    }}
+                  />
+                  <button onClick={handleSend} disabled={!input.trim() || sending} style={{
+                    background: input.trim() && !sending ? T.green : T.btnSendDisabled,
+                    color: input.trim() && !sending ? "#FFFFFF" : T.btnSendDisabledText,
+                    border: "none", borderRadius: 7, padding: "9px 14px",
+                    fontSize: 13, fontWeight: 700, cursor: input.trim() && !sending ? "pointer" : "not-allowed",
+                    fontFamily: "inherit", transition: "all 150ms",
+                  }}>↵ Send</button>
+                </div>
+                <div style={{ fontSize: 10, color: T.textFaint, marginTop: 8, textAlign: "center", letterSpacing: ".02em" }}>
+                  Session-only · clears on refresh
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Responsive: asset grid collapses 3→2→1 */}
+        <style jsx>{`
+          @media (max-width: 720px) {
+            :global(.valora-copilot-asset-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          }
+          @media (max-width: 460px) {
+            :global(.valora-copilot-asset-grid) { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </section>
+    );
+  }
+
+  // ── APPRAISAL LAYOUT (unchanged: vertical rail + panel) ──
   if (collapsed) {
     return (
       <aside style={{
@@ -371,7 +674,7 @@ export default function CopilotPanel({
                   e.currentTarget.style.borderColor = T.borderMid;
                 }}
               >
-                <div style={{ fontSize: 16 }}>{a.icon}</div>
+                <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={18} /></div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: T.text, letterSpacing: "-.01em" }}>{a.label}</div>
                 <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.3 }}>{a.desc}</div>
               </button>
