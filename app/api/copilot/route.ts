@@ -1,15 +1,29 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * ════════════════════════════════════════════════════════════════════
- * VALORA COPILOT API
+ * VALORA COPILOT API — with quota enforcement + top-up support
  * ════════════════════════════════════════════════════════════════════
  * Two contexts:
  *   • dashboard  — user describes a deal → Claude parses → suggest_create
  *   • appraisal  — user asks/modifies current deal → suggest_edit or text
  *
- * Requires env: ANTHROPIC_API_KEY  (set in Vercel → Settings → Environment)
+ * Auth:
+ *   Client must send the Supabase access token in the Authorization header:
+ *     Authorization: Bearer <access_token>
+ *
+ * Quota:
+ *   Free       — 10 messages / rolling 30 days
+ *   Pro        — 300 messages
+ *   Enterprise — 1500 messages (shared firm pool)
+ *   + messages_bonus (top-up packs) — never expires
+ *
+ * Required env:
+ *   ANTHROPIC_API_KEY
+ *   NEXT_PUBLIC_SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY   ← server-only, do NOT expose to client
  * ════════════════════════════════════════════════════════════════════
  */
 
@@ -17,11 +31,28 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
+const MODEL = "claude-sonnet-4-5";
+
+// Monthly Copilot message allowance per plan tier.
+const PLAN_LIMITS: Record<string, number> = {
+  free: 10,
+  starter: 10,       // legacy tier name, same as free
+  professional: 300,
+  pro: 300,          // alias
+  enterprise: 1500,
+};
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const MODEL = "claude-sonnet-4-5";
+// Service-role client — bypasses RLS, used for usage tracking + RPCs.
+// NEVER ship SUPABASE_SERVICE_ROLE_KEY to the browser.
+const supabaseService = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
 
 // ── Tools ──────────────────────────────────────────────────────────
 const suggestCreateTool: Anthropic.Messages.Tool = {
@@ -31,23 +62,15 @@ const suggestCreateTool: Anthropic.Messages.Tool = {
   input_schema: {
     type: "object",
     properties: {
-      description: {
-        type: "string",
-        description: "One-sentence summary of the deal for the Apply card.",
-      },
+      description: { type: "string", description: "One-sentence summary of the deal for the Apply card." },
       payload: {
         type: "object",
-        description:
-          "Deal data keyed by Valora field names. MUST include assetType.",
+        description: "Deal data keyed by Valora field names. MUST include assetType.",
         properties: {
-          assetType: {
-            type: "string",
-            enum: ["BTR", "BTS", "Hotel", "Flip", "MixedUse", "Commercial", "Industrial"],
-          },
+          assetType: { type: "string", enum: ["BTR", "BTS", "Hotel", "Flip", "MixedUse", "Commercial", "Industrial"] },
           name: { type: "string" },
           location: { type: "string" },
           currency: { type: "string", enum: ["GBP", "USD", "EUR", "AED", "SGD", "AUD"] },
-          // Hotel
           rooms: { type: "number" },
           adr: { type: "number", description: "Average daily rate" },
           occupancy: { type: "number", description: "Occupancy %, 0-100" },
@@ -56,16 +79,13 @@ const suggestCreateTool: Anthropic.Messages.Tool = {
           starRating: { type: "number" },
           holdYears: { type: "number" },
           ltc: { type: "number", description: "Loan-to-cost %, 0-100" },
-          // BTR/BTS
           units: { type: "number" },
           avgUnitSize: { type: "number", description: "sq ft" },
           avgRent: { type: "number", description: "£ per month" },
           avgSalePrice: { type: "number" },
-          // Flip
           refurbBudget: { type: "number" },
           saleValue: { type: "number" },
           holdMonths: { type: "number" },
-          // Commercial
           sqft: { type: "number" },
           rentPerSqft: { type: "number" },
           exitCapRate: { type: "number", description: "%, 0-100" },
@@ -80,18 +100,12 @@ const suggestCreateTool: Anthropic.Messages.Tool = {
 const suggestEditTool: Anthropic.Messages.Tool = {
   name: "suggest_edit",
   description:
-    "Suggest changes to one or more fields in the current appraisal. Call this when the user asks for a scenario ('what if exit cap is 5.5%?') or a direct edit ('change ADR to £200'). Keep the payload narrow — only the fields that need to change.",
+    "Suggest changes to one or more fields in the current appraisal. Call this when the user asks for a scenario or a direct edit. Keep the payload narrow — only the fields that need to change.",
   input_schema: {
     type: "object",
     properties: {
-      description: {
-        type: "string",
-        description: "One-sentence summary of the change for the Apply card.",
-      },
-      payload: {
-        type: "object",
-        description: "Partial deal-data update (only the fields to change).",
-      },
+      description: { type: "string", description: "One-sentence summary of the change for the Apply card." },
+      payload: { type: "object", description: "Partial deal-data update (only the fields to change)." },
     },
     required: ["description", "payload"],
   },
@@ -104,13 +118,11 @@ The user just landed on Valora's dashboard and wants to spin up a new deal. They
 
 Your job:
 1. Parse the description and identify the asset type (BTR, BTS, Hotel, Flip, MixedUse, Commercial, Industrial).
-2. Fill reasonable institutional defaults for any field the user didn't mention, based on the jurisdiction and asset type (e.g. 72% occupancy for mid-scale UK hotels, 5.5% exit cap for Prime London commercial, 60% LTC for hotel dev, etc.).
-3. ALWAYS output a text reply FIRST — 2-4 sentences listing the user's stated inputs plus the key assumptions you filled in (ADR, occupancy, hold period, exit cap, etc.). The user needs to see what defaults you picked BEFORE hitting Apply.
+2. Fill reasonable institutional defaults for any field the user didn't mention, based on the jurisdiction and asset type.
+3. ALWAYS output a text reply FIRST — 2-4 sentences listing the user's stated inputs plus the key assumptions you filled in (ADR, occupancy, hold period, exit cap, etc.).
 4. AFTER the text reply, call the suggest_create tool with a complete payload.
 
-Output format (mandatory):
-   <text reply with assumptions>
-   <suggest_create tool call>
+Output format (mandatory): <text reply with assumptions> then <suggest_create tool call>
 
 Rules:
 - Be terse, institutional, no fluff. No exclamation marks. No emojis.
@@ -120,8 +132,8 @@ Rules:
 
 Example:
 User: "Hotel in Bayswater, 60 keys, 4-star, £18m, 60% LTC"
-Your text reply: "Modelled as a 4-star Bayswater hotel with the spec you gave. I've assumed ADR £175, 72% occupancy (mid-scale Bayswater comp), 5-year hold, and a 6.25% exit cap. Review and tap Apply to open the appraisal."
-Your tool call: suggest_create with assetType=Hotel, rooms=60, purchasePrice=18000000, starRating=4, ltc=60, adr=175, occupancy=72, holdYears=5, exitCapRate=6.25, etc.`;
+Reply: "Modelled as a 4-star Bayswater hotel with the spec you gave. Assumed ADR £175, 72% occupancy, 5-year hold, 6.25% exit cap. Review and tap Apply to open the appraisal."
+Tool: suggest_create with assetType=Hotel, rooms=60, purchasePrice=18000000, starRating=4, ltc=60, adr=175, occupancy=72, holdYears=5, exitCapRate=6.25.`;
 
 const APPRAISAL_SYSTEM = (dealContext: string) => `You are Valora Copilot, the in-deal analyst for an institutional real estate appraisal platform.
 
@@ -129,62 +141,38 @@ The user is working on this deal right now:
 ${dealContext}
 
 Your job:
-1. Answer analytical questions ("why is my IRR low?", "is DSCR healthy?") using the actual numbers above. Explain in 3-5 sentences. Name 2-3 concrete levers.
-2. Run scenarios ("what if exit cap is 5.5%?") — ALWAYS reply with 2-3 sentences explaining the directional impact FIRST, then call suggest_edit with the field change so the user can Apply it.
-3. Direct edits ("change ADR to £200", "increase LTC to 65%") — ALWAYS reply with a 1-sentence confirmation first, then call suggest_edit with the changed field.
-4. If the user describes a completely new deal instead, call suggest_create (also with a preceding text reply).
+1. Answer analytical questions using the actual numbers above. Explain in 3-5 sentences. Name 2-3 concrete levers.
+2. Run scenarios — ALWAYS reply with a 2-3 sentence directional take FIRST, then call suggest_edit.
+3. Direct edits — ALWAYS reply with a 1-sentence confirmation first, then call suggest_edit with just the changed field.
+4. If the user describes a completely new deal instead, call suggest_create (with a preceding text reply).
 
-Output format: text reply FIRST, then the tool call. Never emit a tool call with no accompanying text — the user needs context before clicking Apply.
+Output format: text reply FIRST, then the tool call. Never emit a tool call with no accompanying text.
 
 Rules:
 - Institutional tone. No emojis. No exclamation marks. Terse.
 - Always reference the user's actual numbers, not generic examples.
-- If the user asks for a scenario, pair a brief verbal take with a suggest_edit call.
-- Use UK conventions by default (SONIA, SDLT, £) unless the deal currency says otherwise.`;
+- Use UK conventions (SONIA, SDLT, £) unless the deal currency says otherwise.`;
 
-// ── Helper: compact deal summary for appraisal context ─────────────
-function buildDealContext(deal: {
-  assetType?: string;
-  data?: Record<string, any>;
-  metrics?: Record<string, any>;
-}): string {
+// ── Helpers ────────────────────────────────────────────────────────
+function buildDealContext(deal: { assetType?: string; data?: Record<string, any>; metrics?: Record<string, any> }): string {
   const { assetType, data = {}, metrics = {} } = deal || {};
   const lines: string[] = [];
   lines.push(`Asset type: ${assetType || "unknown"}`);
   if (data.name) lines.push(`Name: ${data.name}`);
   if (data.location) lines.push(`Location: ${data.location}`);
   if (data.currency) lines.push(`Currency: ${data.currency}`);
-
-  // Key input fields — we pick ~15 that most often drive the conversation
-  const keyFields = [
-    "purchasePrice", "capexBudget", "rooms", "adr", "occupancy", "starRating",
-    "holdYears", "holdMonths", "ltc", "ltv", "exitCapRate", "entryYield",
-    "units", "avgUnitSize", "avgRent", "avgSalePrice",
-    "refurbBudget", "saleValue",
-    "sqft", "rentPerSqft",
-  ];
-  const inputs = keyFields
-    .filter((k) => data[k] !== undefined && data[k] !== null && data[k] !== "")
-    .map((k) => `  ${k}: ${data[k]}`);
+  const keyFields = ["purchasePrice", "capexBudget", "rooms", "adr", "occupancy", "starRating", "holdYears", "holdMonths", "ltc", "ltv", "exitCapRate", "entryYield", "units", "avgUnitSize", "avgRent", "avgSalePrice", "refurbBudget", "saleValue", "sqft", "rentPerSqft"];
+  const inputs = keyFields.filter(k => data[k] !== undefined && data[k] !== null && data[k] !== "").map(k => `  ${k}: ${data[k]}`);
   if (inputs.length) lines.push("Inputs:", ...inputs);
-
-  // Metrics (computed results)
   const keyMetrics = ["gdv", "totalCost", "profit", "pocPct", "irrLevered", "irrUnlevered", "moic", "dscr", "debtYield", "equityMultiple", "paybackMonth", "noi", "ebitda", "revpar"];
-  const mets = keyMetrics
-    .filter((k) => metrics[k] !== undefined && metrics[k] !== null)
-    .map((k) => `  ${k}: ${typeof metrics[k] === "number" ? metrics[k].toFixed(4) : metrics[k]}`);
+  const mets = keyMetrics.filter(k => metrics[k] !== undefined && metrics[k] !== null).map(k => `  ${k}: ${typeof metrics[k] === "number" ? metrics[k].toFixed(4) : metrics[k]}`);
   if (mets.length) lines.push("Computed metrics:", ...mets);
-
   return lines.join("\n");
 }
 
-// ── Synthesise a readable reply from a suggestion payload ─────────
-// Used when Claude emits only a tool call without a text block.
 function synthesiseFallbackReply(s: { description: string; payload: Record<string, any> }): string {
   const p = s.payload || {};
   const bits: string[] = [];
-
-  // Money formatter
   const money = (n: number, ccy = p.currency || "GBP") => {
     const sym = ccy === "USD" ? "$" : ccy === "EUR" ? "€" : ccy === "AED" ? "AED " : "£";
     if (!n && n !== 0) return "";
@@ -192,8 +180,6 @@ function synthesiseFallbackReply(s: { description: string; payload: Record<strin
     if (Math.abs(n) >= 1e3) return `${sym}${(n / 1e3).toFixed(0)}k`;
     return `${sym}${n}`;
   };
-
-  // Opening line
   if (p.assetType) {
     const locBit = p.location ? ` in ${p.location}` : "";
     const star = p.starRating ? `${p.starRating}-star ` : "";
@@ -201,8 +187,6 @@ function synthesiseFallbackReply(s: { description: string; payload: Record<strin
   } else {
     bits.push("Scenario applied.");
   }
-
-  // Key spec line
   const spec: string[] = [];
   if (p.rooms) spec.push(`${p.rooms} keys`);
   if (p.units) spec.push(`${p.units} units`);
@@ -215,7 +199,6 @@ function synthesiseFallbackReply(s: { description: string; payload: Record<strin
   if (p.holdYears) spec.push(`${p.holdYears}-yr hold`);
   if (p.holdMonths) spec.push(`${p.holdMonths}-mo hold`);
   if (spec.length) bits.push(spec.join(" · ") + ".");
-
   bits.push("Review and tap Apply to open the appraisal.");
   return bits.join(" ");
 }
@@ -223,80 +206,120 @@ function synthesiseFallbackReply(s: { description: string; payload: Record<strin
 // ── POST handler ───────────────────────────────────────────────────
 export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured on the server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured on the server" }, { status: 500 });
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured on the server" }, { status: 500 });
   }
 
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  // ── 1. Auth: validate the bearer token from the Authorization header ──
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) {
+    return NextResponse.json({ error: "Missing Authorization header" }, { status: 401 });
   }
+  const { data: authData, error: authError } = await supabaseService.auth.getUser(token);
+  if (authError || !authData?.user) {
+    return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+  }
+  const userId = authData.user.id;
+
+  // ── 2. Fetch subscription tier for plan-limit lookup ──
+  const { data: sub } = await supabaseService
+    .from("subscriptions")
+    .select("tier, status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const tier = (sub?.tier || "free").toLowerCase();
+  const limit = PLAN_LIMITS[tier] ?? PLAN_LIMITS.free;
+
+  // ── 3. Fetch current usage ──
+  const { data: usage } = await supabaseService
+    .from("copilot_usage")
+    .select("messages_used, messages_bonus, period_start")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const used = usage?.messages_used || 0;
+  const bonus = usage?.messages_bonus || 0;
+  // Reset used to 0 if period_start is > 30 days old (matches the RPC's behaviour)
+  const effectiveUsed = usage?.period_start && new Date(usage.period_start) < new Date(Date.now() - 30 * 24 * 3600 * 1000)
+    ? 0 : used;
+
+  if (effectiveUsed >= limit + bonus) {
+    return NextResponse.json({
+      error: "quota_exceeded",
+      reply: `You've used all ${limit + bonus} Copilot messages for this period. Top up or upgrade to keep going.`,
+      quota: { used: effectiveUsed, limit, bonus, tier },
+    }, { status: 429 });
+  }
+
+  // ── 4. Parse request body ──
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const context: "dashboard" | "appraisal" = body.context === "appraisal" ? "appraisal" : "dashboard";
   const messages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(body.messages) ? body.messages : [];
   const deal = body.deal || null;
 
-  // Guard — at least one user message
   if (!messages.length || messages[messages.length - 1].role !== "user") {
     return NextResponse.json({ error: "Last message must be from the user" }, { status: 400 });
   }
 
-  const system =
-    context === "dashboard"
-      ? DASHBOARD_SYSTEM
-      : APPRAISAL_SYSTEM(deal ? buildDealContext(deal) : "(no deal data provided)");
+  const system = context === "dashboard"
+    ? DASHBOARD_SYSTEM
+    : APPRAISAL_SYSTEM(deal ? buildDealContext(deal) : "(no deal data provided)");
 
+  // ── 5. Call Claude ──
+  let anthResp: Anthropic.Messages.Message;
   try {
-    const response = await anthropic.messages.create({
+    anthResp = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1024,
       system,
       tools: [suggestCreateTool, suggestEditTool],
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
-
-    let reply = "";
-    let suggestion: { description: string; payload: Record<string, any> } | null = null;
-
-    for (const block of response.content) {
-      if (block.type === "text") {
-        reply += block.text;
-      } else if (block.type === "tool_use") {
-        const input = block.input as any;
-        if (input && input.payload && input.description) {
-          suggestion = {
-            description: String(input.description),
-            payload: input.payload,
-          };
-        }
-      }
-    }
-
-    // Defensive fallback: if Claude skipped the text block but produced a
-    // tool call, synthesise a short summary from the payload so the user
-    // isn't staring at the generic stub.
-    let finalReply = reply.trim();
-    if (!finalReply && suggestion) {
-      finalReply = synthesiseFallbackReply(suggestion);
-    }
-    if (!finalReply) finalReply = "Here's what I'd look at for that.";
-
-    return NextResponse.json({
-      reply: finalReply,
-      suggestion,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
     });
   } catch (err: any) {
-    console.error("Copilot API error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Copilot request failed" },
-      { status: 500 }
-    );
+    console.error("Anthropic API error:", err);
+    return NextResponse.json({ error: err?.message || "Copilot request failed" }, { status: 502 });
   }
+
+  let reply = "";
+  let suggestion: { description: string; payload: Record<string, any> } | null = null;
+  for (const block of anthResp.content) {
+    if (block.type === "text") reply += block.text;
+    else if (block.type === "tool_use") {
+      const input = block.input as any;
+      if (input && input.payload && input.description) {
+        suggestion = { description: String(input.description), payload: input.payload };
+      }
+    }
+  }
+
+  let finalReply = reply.trim();
+  if (!finalReply && suggestion) finalReply = synthesiseFallbackReply(suggestion);
+  if (!finalReply) finalReply = "Here's what I'd look at for that.";
+
+  // ── 6. Increment usage (fire-and-log — don't fail the response if this errors) ──
+  let newUsage = { used: effectiveUsed + 1, limit, bonus, tier };
+  try {
+    const { data: incResult } = await supabaseService.rpc("increment_copilot_usage", { uid: userId });
+    if (Array.isArray(incResult) && incResult[0]) {
+      newUsage = {
+        used: incResult[0].messages_used,
+        bonus: incResult[0].messages_bonus,
+        limit,
+        tier,
+      };
+    }
+  } catch (e) {
+    console.warn("Failed to increment copilot_usage:", e);
+  }
+
+  return NextResponse.json({
+    reply: finalReply,
+    suggestion,
+    quota: newUsage,
+  });
 }
