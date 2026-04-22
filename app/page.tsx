@@ -328,19 +328,28 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── DEMO VIDEO (30s looping, embedded from /public/demo.html) ── */}
+      {/* ── DEMO VIDEO (30s looping on desktop, poster on mobile) ── */}
       <section style={{ padding: "96px 32px 48px", background: "var(--cream)" }}>
+        <style jsx>{`
+          .demo-desktop { display: block; }
+          .demo-mobile  { display: none; }
+          @media (max-width: 800px) {
+            .demo-desktop { display: none; }
+            .demo-mobile  { display: block; }
+          }
+        `}</style>
         <div style={{ maxWidth: 1180, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <div className="eyebrow"><span className="eyebrow-mark">◆</span> Watch it work</div>
             <h2 className="h2">From idea to IC in 30 seconds.</h2>
             <p className="lede" style={{ marginTop: 14, maxWidth: 620, margin: "14px auto 0" }}>One line → full institutional model. Pre-filled fields, live metrics, IC-ready output. Here's the whole loop.</p>
           </div>
-          <div style={{
+
+          {/* Desktop: live animated iframe */}
+          <div className="demo-desktop" style={{
             position: "relative",
             maxWidth: 1100, margin: "0 auto",
-            borderRadius: 18,
-            overflow: "hidden",
+            borderRadius: 18, overflow: "hidden",
             border: "1px solid var(--border)",
             boxShadow: "0 40px 100px rgba(15,17,21,.12), 0 2px 6px rgba(15,17,21,.04)",
             background: "var(--navy)",
@@ -354,8 +363,58 @@ export default function Landing() {
               sandbox="allow-same-origin allow-scripts"
             />
           </div>
+
+          {/* Mobile: static poster + Watch demo CTA (opens /demo.html fullscreen) */}
+          <div className="demo-mobile" style={{
+            position: "relative",
+            maxWidth: 520, margin: "0 auto",
+            borderRadius: 18, overflow: "hidden",
+            border: "1px solid var(--border)",
+            boxShadow: "0 30px 70px rgba(15,17,21,.15)",
+            background: "linear-gradient(135deg, #0F1115 0%, #1A1E26 55%, #242933 100%)",
+            color: "#fff",
+            padding: "40px 28px 32px",
+            textAlign: "center",
+          }}>
+            <div style={{
+              width: 60, height: 60, borderRadius: 15,
+              background: "var(--green)", color: "#fff",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 28, fontWeight: 800, marginBottom: 18,
+              boxShadow: "0 0 40px rgba(109,255,177,.35)",
+            }}>◆</div>
+            <div style={{
+              fontSize: 13, color: "#6DFFB1", fontWeight: 700,
+              letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 14,
+            }}>30s demo</div>
+            <div style={{
+              fontSize: 30, fontWeight: 800, letterSpacing: "-.03em",
+              lineHeight: 1.1, color: "#fff", marginBottom: 12,
+            }}>One sentence.<br/><span style={{ color: "#6DFFB1" }}>Full underwrite.</span></div>
+            <div style={{
+              fontSize: 14, color: "rgba(255,255,255,.65)", lineHeight: 1.5,
+              marginBottom: 24,
+            }}>Watch the Copilot build a full institutional hotel model in 30 seconds.</div>
+            <a
+              href="/demo.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 10,
+                background: "var(--green)", color: "#fff",
+                padding: "14px 26px", borderRadius: 11,
+                fontSize: 15, fontWeight: 800, letterSpacing: ".02em",
+                textDecoration: "none",
+                boxShadow: "0 8px 24px rgba(46,158,114,.4)",
+              }}>▶ Watch the demo</a>
+            <div style={{
+              fontSize: 11, color: "rgba(255,255,255,.4)",
+              letterSpacing: ".08em", marginTop: 20,
+            }}>Best on desktop</div>
+          </div>
+
           <p className="small" style={{ textAlign: "center", marginTop: 18 }}>
-            Loops on the page. Try it live →{" "}
+            Try it live →{" "}
             <a onClick={() => router.push("/auth")} style={{ color: "var(--green)", fontWeight: 600, cursor: "pointer" }}>Start free</a>
           </p>
         </div>
