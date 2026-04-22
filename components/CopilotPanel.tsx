@@ -29,6 +29,8 @@ type CopilotPanelProps = {
   dealName?: string;                          // "Leinster Square Hotel" (appraisal mode)
   assetType?: string;                         // "Hotel" | "BTR" | ...
   userName?: string;                          // "Snayder" — for dashboard greeting
+  dealData?: Record<string, any>;             // appraisal: current form data, sent to /api/copilot
+  dealMetrics?: Record<string, any>;          // appraisal: computed results (irr, moic, ...)
   onApply?: (payload: Record<string, any>) => void;   // edit current deal
   onCreate?: (payload: Record<string, any>) => void;  // create new deal
   onNewDeal?: (assetType: string) => void;    // dashboard: user picked asset — navigate
@@ -202,6 +204,8 @@ export default function CopilotPanel({
   dealName = "this deal",
   assetType = "Hotel",
   userName,
+  dealData,
+  dealMetrics,
   onApply,
   onCreate,
   onNewDeal,
@@ -261,73 +265,56 @@ export default function CopilotPanel({
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Mock reply — will be replaced with real Claude call in step 2
-  const mockReply = (userMsg: string): Promise<Message> => new Promise((resolve) => {
-    setTimeout(() => {
-      const lower = userMsg.toLowerCase();
-      let reply: Message;
+  // Real Claude-backed reply via /api/copilot
+  const fetchReply = async (history: Message[]): Promise<Message> => {
+    // Build the message transcript Claude sees — strip system messages + typing indicators.
+    const transcript = history
+      .filter((m) => (m.role === "user" || m.role === "assistant") && !m.typing && m.content.trim().length > 0)
+      .map((m) => ({ role: m.role, content: m.content }));
 
-      if (lower.includes("irr") && (lower.includes("low") || lower.includes("why"))) {
-        reply = {
+    const body: Record<string, any> = { context, messages: transcript };
+    if (context === "appraisal") {
+      body.deal = { assetType, data: dealData || {}, metrics: dealMetrics || {} };
+    }
+
+    try {
+      const res = await fetch("/api/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return {
           id: `a-${Date.now()}`,
           role: "assistant",
-          content: `Your IRR is compressed by the entry yield spread. Exit cap 6.5% vs entry yield 7.8% = only 130bps of yield compression over a 5-year hold. To hit a 15% IRR target, you'd need exit cap around 5.25% — which is aggressive for Bayswater midscale.\n\nAlternatives: increase ADR by 8-10%, or extend the hold to 7 years.`,
-          timestamp: Date.now(),
-        };
-      } else if (lower.includes("exit cap") || lower.includes("cap rate")) {
-        const match = lower.match(/(\d+(\.\d+)?)\s*%?/);
-        const newRate = match ? parseFloat(match[1]) : 5.75;
-        reply = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: `Exit cap at ${newRate}% changes the picture:\n\n• Exit Value: £27.1m (was £24.8m)\n• IRR (Levered): 17.4% (was 14.2%)\n• PoC: 38.9% (was 35.4%)\n• DSCR: 1.74× (unchanged)\n\nWant me to apply this?`,
-          timestamp: Date.now(),
-          suggestion: {
-            description: `Change exit cap rate to ${newRate}%`,
-            payload: { exitCapRate: newRate },
-          },
-        };
-      } else if (lower.includes("dscr")) {
-        reply = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: `Your DSCR is 1.52×. Institutional minimum is 1.25×, so you have 27bps of headroom before lender covenant risk.\n\nTo push it higher: reduce LTC from 60% → 55%, or grow Y1 NOI by 12%+. The simplest lever is LTC — it also improves equity multiple at exit.`,
-          timestamp: Date.now(),
-        };
-      } else if (lower.includes("create") || lower.includes("hotel in") || lower.includes("btr in") || lower.includes("bts in")) {
-        reply = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: `Parsed your deal. I'll model this as **Advanced Hotel** (5-year hold).\n\n• 58 keys · Bayswater, London\n• ADR £195 · Occupancy 72% · RevPAR £140\n• Purchase £16m · CapEx £2m · LTC 60%\n\nUsing market comps for 4-star Bayswater. Click Apply to create the appraisal.`,
-          timestamp: Date.now(),
-          suggestion: {
-            description: "Create Bayswater Hotel (58 keys, 5-year hold, £16m)",
-            payload: {
-              assetType: "Hotel",
-              name: "Bayswater Hotel",
-              location: "Bayswater, London",
-              rooms: 58,
-              adr: 195,
-              occupancy: 72,
-              purchasePrice: 16000000,
-              capexBudget: 2000000,
-              ltc: 60,
-              holdYears: 5,
-              starRating: 4,
-            },
-          },
-        };
-      } else {
-        reply = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: `Here's what I'd look at for that. (Full Claude integration ships once this UI is approved.)`,
+          content: `Couldn't reach Copilot: ${err.error || `HTTP ${res.status}`}. Try again in a moment.`,
           timestamp: Date.now(),
         };
       }
-      resolve(reply);
-    }, 700);
-  });
+      const data = await res.json();
+      const reply: Message = {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: String(data.reply || "").trim() || "Here's what I'd look at for that.",
+        timestamp: Date.now(),
+      };
+      if (data.suggestion && data.suggestion.payload && data.suggestion.description) {
+        reply.suggestion = {
+          description: String(data.suggestion.description),
+          payload: data.suggestion.payload,
+        };
+      }
+      return reply;
+    } catch (e: any) {
+      return {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: `Network error — ${e?.message || "could not reach /api/copilot"}. Retry when you're back online.`,
+        timestamp: Date.now(),
+      };
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || sending) return;
@@ -337,12 +324,12 @@ export default function CopilotPanel({
       content: input.trim(),
       timestamp: Date.now(),
     };
-    setMessages(m => [...m, userMsg]);
+    // Snapshot history including the new user message, so fetchReply sees it
+    const nextHistory = [...messages, userMsg];
+    setMessages([...nextHistory, { id: "typing", role: "assistant", content: "", timestamp: Date.now(), typing: true }]);
     setInput("");
     setSending(true);
-    // Typing indicator
-    setMessages(m => [...m, { id: "typing", role: "assistant", content: "", timestamp: Date.now(), typing: true }]);
-    const reply = await mockReply(userMsg.content);
+    const reply = await fetchReply(nextHistory);
     setMessages(m => [...m.filter(x => !x.typing), reply]);
     setSending(false);
   };

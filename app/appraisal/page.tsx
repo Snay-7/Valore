@@ -13688,7 +13688,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
       </div>
       <div className="editor-layout editor-layout-with-copilot" style={{display:"grid",gridTemplateColumns:"auto 1fr 320px",minHeight:"calc(100vh - 102px)"}}>
         <div className="copilot-wrapper-appraisal">
-          <CopilotPanel context="appraisal" dealName={data.name} assetType={assetType} onApply={onCopilotApply} onCreate={onCopilotCreate}/>
+          <CopilotPanel context="appraisal" dealName={data.name} assetType={assetType} dealData={data} dealMetrics={r} onApply={onCopilotApply} onCreate={onCopilotCreate}/>
         </div>
         <div className="editor-main" style={{borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column"}}>
           <div style={{background:"var(--bg2)",borderBottom:"1px solid var(--border)",display:"flex",overflowX:"auto",padding:"0 16px"}}>
