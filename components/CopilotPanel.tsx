@@ -251,7 +251,7 @@ export default function CopilotPanel({
           {
             id: "sys-1",
             role: "system",
-            content: `I can see you're modelling ${dealName}. Ask me about this deal — "why is my IRR X%?", "what if exit cap is 5.5%?" — or describe a new deal and I'll build it.`,
+            content: `I can see you're modelling ${(dealName && dealName.trim()) ? `your ${assetType} — ${dealName}` : `this ${assetType} deal`}. Ask me about this deal — "why is my IRR X%?", "what if exit cap is 5.5%?" — or describe a new deal and I'll build it.`,
             timestamp: Date.now(),
           },
         ]
