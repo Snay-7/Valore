@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
+import CopilotPanel from "../../components/CopilotPanel";
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 /* ═══════════════════════════════════════════════════════════════════
-   VALORA — DASHBOARD v2
-   Refreshed with new design system (tokens + component primitives).
-   Drop-in replacement: preserves all data flow, handlers, and routing.
-   Only CSS + typography hierarchy updated.
+   VALORA — DASHBOARD v2 + COPILOT
+   Sidebar left (nav) · Copilot next (onboarding chat) · Main content
+   Copilot handles: asset-click → create new project + navigate.
+   Copilot handles: deal description → create project + stash payload
+                    in sessionStorage → navigate to appraisal.
    ═══════════════════════════════════════════════════════════════════ */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -33,9 +35,6 @@ const CSS = `
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 /* ── LIGHT THEME ── */
-/* Dual selector: responds to EITHER body.light OR html[data-theme="light"] so
-   the dashboard stays consistent with pipeline and any future page regardless
-   of which signal they flip. applyTheme() writes both; this keeps CSS tolerant. */
 body.light,
 :root[data-theme="light"]{
   --bg:#F8F5EE;--bg1:#FFFFFF;--bg2:#FFFFFF;--bg3:#F2EEE4;--bg4:#EAE5D8;--bg5:#D7D0C0;
@@ -48,334 +47,90 @@ body.light,
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 /* ── CARDS ── */
-.card{
-  background:var(--bg2);
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:20px;
-  cursor:pointer;
-  display:flex;flex-direction:column;gap:14px;
-  transition:border-color .2s var(--ease),transform .2s var(--ease);
-  animation:fadeIn .3s var(--ease) both;
-  position:relative;
-}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:14px;transition:border-color .2s var(--ease),transform .2s var(--ease);animation:fadeIn .3s var(--ease) both;position:relative;}
 .card:hover{border-color:var(--border-m);transform:translateY(-1px)}
 .card.trashed{opacity:.55;border-style:dashed}
-/* Metric pills — clean sub-panel instead of loose pills */
-.metrics-panel{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
-  background:var(--bg3);
-  border-radius:8px;
-  padding:12px;
-}
+.metrics-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--bg3);border-radius:8px;padding:12px;}
 .metric-cell{display:flex;flex-direction:column;gap:3px}
-.metric-cell__label{
-  font-size:10px;
-  font-weight:600;
-  color:var(--text-d);
-  text-transform:uppercase;
-  letter-spacing:0.08em;
-}
-.metric-cell__value{
-  font-size:14px;
-  font-weight:700;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:-0.01em;
-}
-/* ── MODAL ── */
-.modal-overlay{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.55);
-  backdrop-filter:blur(4px);
-  display:flex;align-items:center;justify-content:center;
-  z-index:200;
-  animation:fadeIn .15s var(--ease)
-}
-.modal{
-  background:var(--bg2);
-  border:1px solid var(--border-m);
-  border-radius:14px;
-  padding:28px;
-  width:460px;max-width:calc(100vw - 32px);
-  box-shadow:0 20px 60px rgba(0,0,0,0.4);
-}
-/* ── INPUTS ── */
-.inp{
-  width:100%;
-  padding:10px 12px;
-  background:var(--bg3);
-  border:1px solid var(--border);
-  border-radius:8px;
-  color:var(--text);
-  font-family:var(--font-mono);
-  font-size:13px;
-  font-weight:500;
-  outline:none;
-  transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
-}
+.metric-cell__label{font-size:10px;font-weight:600;color:var(--text-d);text-transform:uppercase;letter-spacing:0.08em;}
+.metric-cell__value{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn .15s var(--ease)}
+.modal{background:var(--bg2);border:1px solid var(--border-m);border-radius:14px;padding:28px;width:460px;max-width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.inp{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:500;outline:none;transition:border-color .2s var(--ease),box-shadow .2s var(--ease);}
 .inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg)}
 .inp::placeholder{color:var(--text-d);font-family:var(--font-body);font-weight:400}
-.inp-label{
-  font-size:10px;
-  color:var(--text-d);
-  text-transform:uppercase;
-  letter-spacing:0.12em;
-  font-weight:600;
-  margin-bottom:6px;
-  display:block;
-}
+.inp-label{font-size:10px;color:var(--text-d);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-bottom:6px;display:block;}
 .inp-group{margin-bottom:14px}
 select.inp{cursor:pointer;font-family:var(--font-body)}
-/* ── BUTTONS ── */
-.btn-primary{
-  background:var(--gold);color:var(--bg);
-  border:none;border-radius:8px;
-  padding:10px 20px;
-  font-family:var(--font-body);font-size:13px;font-weight:600;
-  letter-spacing:-0.01em;
-  cursor:pointer;
-  transition:background .2s var(--ease),transform .1s var(--ease);
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-}
+.btn-primary{background:var(--gold);color:var(--bg);border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:-0.01em;cursor:pointer;transition:background .2s var(--ease),transform .1s var(--ease);display:inline-flex;align-items:center;justify-content:center;gap:6px;}
 .btn-primary:hover{background:var(--gold-l)}
 .btn-primary:active{transform:translateY(1px)}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.btn-ghost{
-  background:transparent;color:var(--text-m);
-  border:1px solid var(--border-m);border-radius:8px;
-  padding:9px 18px;
-  font-family:var(--font-body);font-size:13px;font-weight:500;
-  cursor:pointer;
-  transition:all .2s var(--ease);
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-}
+.btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border-m);border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s var(--ease);display:inline-flex;align-items:center;justify-content:center;gap:6px;}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
-.btn-danger{
-  background:transparent;color:var(--red);
-  border:1px solid rgba(244,100,95,.35);border-radius:6px;
-  padding:6px 12px;
-  font-family:var(--font-body);font-size:11px;font-weight:500;
-  cursor:pointer;
-  transition:all .2s var(--ease);
-}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(244,100,95,.35);border-radius:6px;padding:6px 12px;font-family:var(--font-body);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s var(--ease);}
 .btn-danger:hover{background:rgba(244,100,95,.1);border-color:var(--red)}
-.btn-demo{
-  display:flex;align-items:center;gap:8px;
-  background:transparent;color:var(--gold);
-  border:1px solid var(--gold-border);border-radius:8px;
-  padding:9px 14px;
-  font-family:var(--font-body);font-size:12px;font-weight:500;
-  cursor:pointer;
-  transition:all .2s var(--ease);
-  width:100%;
-  margin-bottom:2px;
-}
+.btn-demo{display:flex;align-items:center;gap:8px;background:transparent;color:var(--gold);border:1px solid var(--gold-border);border-radius:8px;padding:9px 14px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s var(--ease);width:100%;margin-bottom:2px;}
 .btn-demo:hover{background:var(--gold-bg);border-color:var(--gold)}
-/* ── MENU / DROPDOWN ── */
-.menu-btn{
-  background:none;border:none;color:var(--text-d);cursor:pointer;
-  padding:6px 10px;border-radius:6px;
-  font-size:16px;line-height:1;
-  transition:all .2s var(--ease);
-  position:relative;z-index:2;
-}
+.menu-btn{background:none;border:none;color:var(--text-d);cursor:pointer;padding:6px 10px;border-radius:6px;font-size:16px;line-height:1;transition:all .2s var(--ease);position:relative;z-index:2;}
 .menu-btn:hover{background:var(--bg4);color:var(--text)}
 .card-menu{position:absolute;top:14px;right:14px;z-index:10}
-.dropdown{
-  position:absolute;top:100%;right:0;
-  background:var(--bg2);border:1px solid var(--border-m);border-radius:8px;
-  padding:4px;min-width:170px;
-  box-shadow:0 8px 24px rgba(0,0,0,.25);
-  animation:fadeIn .12s var(--ease);
-}
-.dropdown-item{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 12px;
-  border-radius:6px;
-  font-size:12px;font-weight:500;
-  cursor:pointer;
-  transition:background .15s var(--ease);
-  width:100%;border:none;background:none;
-  color:var(--text-m);font-family:var(--font-body);
-  text-align:left;
-}
+.dropdown{position:absolute;top:100%;right:0;background:var(--bg2);border:1px solid var(--border-m);border-radius:8px;padding:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.25);animation:fadeIn .12s var(--ease);}
+.dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s var(--ease);width:100%;border:none;background:none;color:var(--text-m);font-family:var(--font-body);text-align:left;}
 .dropdown-item:hover{background:var(--bg4);color:var(--text)}
 .dropdown-item.danger{color:var(--red)}
 .dropdown-item.danger:hover{background:rgba(244,100,95,.1);color:var(--red)}
-/* ── STATS STRIP ── */
-.stats-strip{
-  display:grid;grid-template-columns:repeat(5,1fr);
-  background:var(--bg2);
-  border:1px solid var(--border);
-  border-radius:12px;
-  overflow:hidden;
-  margin-bottom:24px;
-}
-.stat-cell{
-  padding:16px 20px;
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;gap:4px;
-}
+.stats-strip{display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.stat-cell{padding:16px 20px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:4px;}
 .stat-cell:last-child{border-right:none}
-.stat-cell__label{
-  font-size:10px;
-  color:var(--text-d);
-  text-transform:uppercase;
-  letter-spacing:0.12em;
-  font-weight:600;
-}
-.stat-cell__value{
-  font-family:var(--font-display);
-  font-size:22px;
-  font-weight:700;
-  letter-spacing:-0.02em;
-  line-height:1.1;
-  font-variant-numeric:tabular-nums;
-}
-/* ── CARDS GRID ── */
-.cards-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:16px;
-}
-/* ── NAV ── */
-.nav-item{
-  width:100%;
-  display:flex;align-items:center;
-  padding:9px 12px;
-  border-radius:8px;
-  font-size:13px;font-weight:500;
-  color:var(--text-d);
-  background:transparent;
-  border:1px solid transparent;
-  cursor:pointer;
-  font-family:var(--font-body);
-  transition:all .15s var(--ease);
-  text-align:left;
-  margin-bottom:2px;
-  letter-spacing:-0.005em;
-}
+.stat-cell__label{font-size:10px;color:var(--text-d);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;}
+.stat-cell__value{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;font-variant-numeric:tabular-nums;}
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.nav-item{width:100%;display:flex;align-items:center;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-d);background:transparent;border:1px solid transparent;cursor:pointer;font-family:var(--font-body);transition:all .15s var(--ease);text-align:left;margin-bottom:2px;letter-spacing:-0.005em;}
 .nav-item:hover{color:var(--text);background:rgba(255,255,255,0.04)}
-.nav-item.active{
-  color:var(--gold);
-  background:var(--gold-bg);
-  border-color:var(--gold-border);
-  font-weight:600;
-}
+.nav-item.active{color:var(--gold);background:var(--gold-bg);border-color:var(--gold-border);font-weight:600;}
 .nav-item.danger-item{color:var(--text-m)}
 .nav-item.danger-item:hover{color:var(--text);background:var(--bg3)}
-.nav-item.active-danger{
-  color:var(--red);
-  background:rgba(244,100,95,.08);
-  border-color:rgba(244,100,95,.22);
-  font-weight:600;
-}
-/* ── SIDEBAR ── */
+.nav-item.active-danger{color:var(--red);background:rgba(244,100,95,.08);border-color:rgba(244,100,95,.22);font-weight:600;}
+/* ── SIDEBAR — now flows inside the flex row (not position:fixed), so Copilot can sit next to it ── */
 .sidebar{
   width:224px;
   background:var(--bg2);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;
-  position:fixed;top:0;left:0;bottom:0;
-  z-index:100;
+  position:sticky;top:0;height:100vh;
+  z-index:100;flex-shrink:0;
 }
 body.light .sidebar,
 :root[data-theme="light"] .sidebar{background:var(--bg1)}
-/* ── MOBILE ── */
-.bottom-nav{
-  display:none;
-  position:fixed;bottom:0;left:0;right:0;
-  background:var(--bg2);
-  border-top:1px solid var(--border);
-  z-index:100;
-  padding:6px 0 env(safe-area-inset-bottom,12px);
-}
-.bottom-nav-item{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:6px 2px;
-  background:none;border:none;
-  color:var(--text-d);cursor:pointer;
-  font-family:var(--font-body);
-  font-size:9px;letter-spacing:.04em;text-transform:uppercase;
-  transition:color .2s var(--ease);
-}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:100;padding:6px 0 env(safe-area-inset-bottom,12px);}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;background:none;border:none;color:var(--text-d);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.04em;text-transform:uppercase;transition:color .2s var(--ease);}
 .bottom-nav-item.active{color:var(--gold)}
 .bottom-nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.mobile-topbar{
-  display:none;
-  align-items:center;justify-content:space-between;
-  padding:12px 16px;
-  background:var(--bg2);
-  border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:50;
-}
-/* ── BANNERS ── */
-.demo-banner{
-  background:var(--gold-bg);
-  border:1px solid var(--gold-border);
-  border-radius:12px;
-  padding:14px 18px;
-  margin-bottom:20px;
-  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-}
-/* ── FILTER TABS ── */
-.filter-tabs{
-  display:flex;gap:0;
-  margin-bottom:20px;
-  border-bottom:1px solid var(--border);
-  overflow-x:auto;
-}
-.filter-tab{
-  padding:10px 16px;
-  font-size:12px;font-weight:500;
-  background:none;border:none;border-bottom:2px solid transparent;
-  color:var(--text-d);
-  cursor:pointer;
-  font-family:var(--font-body);
-  transition:all .2s var(--ease);
-  white-space:nowrap;flex-shrink:0;
-  letter-spacing:0.05em;text-transform:uppercase;
-  margin-bottom:-1px;
-}
+.mobile-topbar{display:none;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+.demo-banner{background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.filter-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto;}
+.filter-tab{padding:10px 16px;font-size:12px;font-weight:500;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-d);cursor:pointer;font-family:var(--font-body);transition:all .2s var(--ease);white-space:nowrap;flex-shrink:0;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:-1px;}
 .filter-tab:hover{color:var(--text-m)}
 .filter-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:700}
-/* ── TYPE / STATUS PILLS ── */
-.pill{
-  display:inline-flex;align-items:center;
-  font-size:10px;font-weight:600;
-  padding:3px 10px;
-  border-radius:4px;
-  letter-spacing:0.02em;
-}
+.pill{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:3px 10px;border-radius:4px;letter-spacing:0.02em;}
 .pill--type{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-border)}
-.pill--status{
-  background:rgba(148,156,160,.12);
-  color:var(--text-d);
-  border:1px solid var(--border);
-  text-transform:capitalize;
-}
-/* ── PAGE HEADER ── */
-.page-header{
-  display:flex;justify-content:space-between;align-items:flex-start;
-  margin-bottom:24px;gap:16px;
-}
-.page-header h1{
-  font-family:var(--font-display);
-  font-size:34px;font-weight:700;
-  letter-spacing:-0.03em;line-height:1;
-  color:var(--text);
-}
-/* ── RESPONSIVE ── */
+.pill--status{background:rgba(148,156,160,.12);color:var(--text-d);border:1px solid var(--border);text-transform:capitalize;}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:16px;}
+.page-header h1{font-family:var(--font-display);font-size:34px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--text);}
+/* ── COPILOT — hidden on mobile (below 900px) — mobile will get its own /copilot route later ── */
+.copilot-wrapper{flex-shrink:0;position:sticky;top:0;height:100vh;z-index:99}
 @media(max-width:1100px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){
   .stats-strip{grid-template-columns:repeat(3,1fr)}
   .cards-grid{grid-template-columns:repeat(2,1fr)}
+  .copilot-wrapper{display:none}
 }
 @media(max-width:768px){
   .sidebar{display:none}
   .bottom-nav{display:flex}
   .mobile-topbar{display:flex}
-  .main-content{margin-left:0!important;max-width:100vw!important;padding:16px 14px 90px!important}
+  .main-content{padding:16px 14px 90px!important}
   .cards-grid{grid-template-columns:1fr}
   .stats-strip{grid-template-columns:repeat(2,1fr)}
   .stat-cell{border-bottom:1px solid var(--border)}
@@ -400,11 +155,7 @@ const TRASH_DAYS = 3;
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  // ── Theme — unified sync across every mechanism the app uses ──
-  //
-  // Matches app/pipeline/page.tsx so a toggle on EITHER page propagates to the
-  // other via body.light + html[data-theme] + localStorage(valora-theme|val-theme).
-  // Any future page that reads ONE of those signals stays in lockstep too.
+  // ── Theme ──
   const detectTheme = (): "dark" | "light" => {
     if (typeof document === "undefined") return "light";
     if (document.body && document.body.classList.contains("light")) return "light";
@@ -416,7 +167,7 @@ export default function Dashboard() {
         if (v === "light" || v === "dark") return v;
       }
     } catch {}
-    return "light"; // dashboard's historical default
+    return "light";
   };
   const applyTheme = (t: "dark" | "light") => {
     if (typeof document === "undefined") return;
@@ -427,15 +178,9 @@ export default function Dashboard() {
   };
   const [theme, setTheme] = useState<"dark"|"light">(() => detectTheme());
   useEffect(() => { applyTheme(theme); }, [theme]);
-  // Resync if theme changes via: another tab (storage event), another page
-  // flipping body.light, html[data-theme] mutation, or tab-focus return.
   useEffect(() => {
     let disposed = false;
-    const resync = () => {
-      if (disposed) return;
-      const t = detectTheme();
-      setTheme(prev => prev === t ? prev : t);
-    };
+    const resync = () => { if (disposed) return; const t = detectTheme(); setTheme(prev => prev === t ? prev : t); };
     const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
     const bodyObs = new MutationObserver(resync);
     bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
@@ -446,8 +191,7 @@ export default function Dashboard() {
     document.addEventListener("visibilitychange", resync);
     return () => {
       disposed = true;
-      bodyObs.disconnect();
-      htmlObs.disconnect();
+      bodyObs.disconnect(); htmlObs.disconnect();
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", resync);
       document.removeEventListener("visibilitychange", resync);
@@ -497,27 +241,17 @@ export default function Dashboard() {
     const clDismissed = localStorage.getItem("valora_checklist_dismissed");
     if (clDismissed) setChecklistDismissed(true);
     if (user?.id) {
-      supabase
-        .from("profiles")
-        .select("experience_level, role, company")
-        .eq("id", user.id)
-        .single()
-        .then(({ data: profile }) => {
-          if (profile?.role) setUserRole(profile.role);
-          if (profile?.company) setUserCompany(profile.company);
-          if (profile?.experience_level) {
-            setExperienceLevel(profile.experience_level);
-            setOnboardingDone(true);
-            localStorage.setItem("valora_onboarding_done", "true");
-          } else if (!done) {
-            setShowOnboarding(true);
-          } else {
-            setOnboardingDone(true);
-          }
-        });
-    } else if (done) {
-      setOnboardingDone(true);
-    }
+      supabase.from("profiles").select("experience_level, role, company").eq("id", user.id).single().then(({ data: profile }) => {
+        if (profile?.role) setUserRole(profile.role);
+        if (profile?.company) setUserCompany(profile.company);
+        if (profile?.experience_level) {
+          setExperienceLevel(profile.experience_level);
+          setOnboardingDone(true);
+          localStorage.setItem("valora_onboarding_done", "true");
+        } else if (!done) setShowOnboarding(true);
+        else setOnboardingDone(true);
+      });
+    } else if (done) setOnboardingDone(true);
   }, [user]);
   const tickChecklist = (key: string) => {
     setChecklistDone(prev => {
@@ -537,30 +271,19 @@ export default function Dashboard() {
     localStorage.setItem("valora_onboarding_done", "true");
     localStorage.setItem("valora_experience_level", level);
     if (user?.id) {
-      await supabase
-        .from("profiles")
-        .upsert({ id: user.id, experience_level: level, role: userRole, company: userCompany||null, onboarding_completed: true, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
+      await supabase.from("profiles").upsert({ id: user.id, experience_level: level, role: userRole, company: userCompany||null, onboarding_completed: true, updated_at: new Date().toISOString() }).eq("id", user.id);
     }
-    setOnboardingDone(true);
-    setShowOnboarding(false);
+    setOnboardingDone(true); setShowOnboarding(false);
     try {
       const { data: authData } = await supabase.auth.getUser();
       const email = authData?.user?.email;
       if (email) {
         const firstName = (user?.user_metadata?.full_name || email.split("@")[0]).split(" ")[0];
-        fetch("/api/welcome", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, firstName, role: userRole, company: userCompany || null }),
-        }).catch(e => console.warn("Welcome email failed:", e));
+        fetch("/api/welcome", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, firstName, role: userRole, company: userCompany || null }) }).catch(e => console.warn("Welcome email failed:", e));
       }
     } catch(e) { console.warn("Welcome email error:", e); }
   };
-  const dismissVideo = () => {
-    setVideoDismissed(true);
-    localStorage.setItem("valora_video_dismissed", "true");
-  };
+  const dismissVideo = () => { setVideoDismissed(true); localStorage.setItem("valora_video_dismissed", "true"); };
   const isStarter = tier === "starter";
   const activeProjectLimit = isPro ? Infinity : isStarter ? 10 : 3;
   useEffect(() => {
@@ -577,19 +300,13 @@ export default function Dashboard() {
     init();
   }, [router]);
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null);
-    };
+    const handler = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null); };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   const loadProjects = async (userId: string) => {
     setLoading(true);
-    const { data: all } = await supabase
-      .from("projects")
-      .select(`*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`)
-      .eq("created_by", userId)
-      .order("created_at", { ascending: false });
+    const { data: all } = await supabase.from("projects").select(`*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`).eq("created_by", userId).order("created_at", { ascending: false });
     const now = new Date();
     const active: any[] = [], trashed: any[] = [];
     let totalCount = 0;
@@ -616,15 +333,41 @@ export default function Dashboard() {
     setCreating(false);
     tickChecklist("created_appraisal");
   };
+  // ── COPILOT HANDLERS ──────────────────────────────────────────────
+  // User clicked an asset card in Copilot → create project with chosen asset, navigate
+  const onCopilotNewDeal = async (assetType: string) => {
+    if (!user) return;
+    if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
+    const { data: proj, error } = await supabase.from("projects").insert({
+      name: `New ${ASSET_LABELS[assetType] || assetType}`, location: "",
+      asset_type: assetType, currency: "GBP",
+      benchmark_rate: "SONIA", created_by: user.id, firm_id: null,
+    }).select().single();
+    if (proj && !error) { tickChecklist("created_appraisal"); router.push(`/appraisal?project=${proj.id}&fromCopilot=1`); }
+  };
+  // User typed a deal description in Copilot → create project, stash payload, navigate
+  // Appraisal page reads sessionStorage on mount (add that wire-up separately)
+  const onCopilotCreate = async (payload: Record<string, any>) => {
+    if (!user) return;
+    if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; }
+    const { data: proj, error } = await supabase.from("projects").insert({
+      name: payload.name || `New ${ASSET_LABELS[payload.assetType] || payload.assetType || "Deal"}`,
+      location: payload.location || "",
+      asset_type: payload.assetType || "BTR",
+      currency: payload.currency || "GBP",
+      benchmark_rate: "SONIA", created_by: user.id, firm_id: null,
+    }).select().single();
+    if (proj && !error) {
+      try { sessionStorage.setItem(`valora:copilotDraft:${proj.id}`, JSON.stringify(payload)); } catch {}
+      tickChecklist("created_appraisal");
+      router.push(`/appraisal?project=${proj.id}&fromCopilot=1`);
+    }
+  };
   const createFromUrl = async () => {
     if (!urlImport.trim() || !user) return;
     setUrlImporting(true); setUrlImportError(null);
     try {
-      const res = await fetch("/api/urlimport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlImport.trim(), assetType: urlImportType, currency: urlImportCurrency }),
-      });
+      const res = await fetch("/api/urlimport", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: urlImport.trim(), assetType: urlImportType, currency: urlImportCurrency }) });
       const d = await res.json();
       if (d.error) { setUrlImportError(d.error); setUrlImporting(false); return; }
       const projectName = d.name || `${urlImportType} — ${d.location || "Imported"}`;
@@ -647,9 +390,7 @@ export default function Dashboard() {
         if (d.brand) appraisalData.brand = d.brand;
         if (d.address) appraisalData.address = d.address;
       }
-      const { data: appr } = await supabase.from("appraisals").insert({
-        project_id: proj.id, data: appraisalData, status: "draft",
-      }).select().single();
+      const { data: appr } = await supabase.from("appraisals").insert({ project_id: proj.id, data: appraisalData, status: "draft" }).select().single();
       setShowUrlModal(false); setUrlImport(""); setUrlImportError(null);
       if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}`);
       else router.push(`/appraisal?project=${proj.id}`);
@@ -688,6 +429,7 @@ export default function Dashboard() {
   const totalProfit = projects.reduce((s, p) => s + (p.appraisals?.[0]?.profit || 0), 0);
   const avgPoC = (() => { const v = projects.filter(p => p.appraisals?.[0]?.profit_on_cost != null); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
   const avgIRR = (() => { const v = projects.filter(p => p.appraisals?.[0]?.irr_unlevered); return v.length ? v.reduce((s, p) => s + (p.appraisals[0].irr_unlevered || 0), 0) / v.length : 0; })();
+  const userFirstName = user?.email ? user.email.split("@")[0] : undefined;
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0F1115", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
       <span style={{fontFamily:"'Poppins',system-ui,sans-serif",fontSize:22,fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF"}}>Valora</span>
@@ -780,8 +522,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      {/* ── COPILOT — dashboard context, asset cards + deal description ── */}
+      <div className="copilot-wrapper">
+        <CopilotPanel
+          context="dashboard"
+          userName={userFirstName}
+          onNewDeal={onCopilotNewDeal}
+          onCreate={onCopilotCreate}
+        />
+      </div>
       {/* ── MAIN ── */}
-      <div className="main-content" style={{ marginLeft: 224, flex: 1, minWidth: 0, padding: "40px 40px", maxWidth: "calc(100vw - 224px)" }}>
+      <div className="main-content" style={{ flex: 1, minWidth: 0, padding: "40px 40px", overflowX: "hidden" }}>
         {/* Mobile top bar */}
         <div className="mobile-topbar">
           <span style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)"}}>Valora</span>
@@ -882,167 +633,6 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            {/* ── WELCOME MODAL ── */}
-            {showOnboarding && (
-              <div style={{ position:"fixed", inset:0, background:"rgba(15,17,21,.65)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, backdropFilter:"blur(6px)" }}>
-                <div style={{ background:"var(--bg2)", border:"1px solid var(--border-m)", borderRadius:16, padding:"32px", width:480, maxWidth:"calc(100vw - 32px)", position:"relative", animation:"fadeIn .25s var(--ease)" }}>
-                  {onboardingStep === 0 && (
-                    <>
-                      <div style={{ width:48, height:48, borderRadius:12, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                      </div>
-                      <div style={{ fontSize:11, fontWeight:700, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:10 }}>Welcome to Valora</div>
-                      <div style={{ fontSize:24, fontWeight:700, color:"var(--text)", letterSpacing:"-.03em", lineHeight:1.15, marginBottom:10 }}>One quick question.</div>
-                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.6, marginBottom:22, fontWeight: 500 }}>
-                        What best describes your role? We'll send you a tailored guide based on your answer.
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
-                        {[
-                          { key:"developer", label:"Developer / Sponsor", sub:"Ground-up development, acquisitions, value-add" },
-                          { key:"lender", label:"Lender / Debt Fund", sub:"Underwriting loans, credit analysis, DSCR" },
-                          { key:"advisor", label:"Advisor / Investment Manager", sub:"Advisory, fund management, buy/sell-side" },
-                          { key:"surveyor", label:"Surveyor / Valuer", sub:"Residual valuations, RICS appraisals" },
-                          { key:"hotel_investor", label:"Hotel Investor / Operator", sub:"Hotel acquisitions, repositioning, operations" },
-                          { key:"hotel_asset_manager", label:"Hotel Asset Manager", sub:"Asset management, performance monitoring, LP reporting" },
-                        ].map(opt => (
-                          <button key={opt.key} onClick={() => { setUserRole(opt.key); setOnboardingStep(1); }}
-                            style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg3)", cursor:"pointer", textAlign:"left", transition:"all .15s var(--ease)", width:"100%" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--gold)"; (e.currentTarget as HTMLElement).style.background="var(--gold-bg)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--border)"; (e.currentTarget as HTMLElement).style.background="var(--bg3)"; }}>
-                            <span style={{ fontSize:18, color:"var(--gold)", flexShrink:0 }}>◈</span>
-                            <div>
-                              <div style={{ fontSize:13, fontWeight:700, color:"var(--text)", marginBottom:2, letterSpacing: "-.01em" }}>{opt.label}</div>
-                              <div style={{ fontSize:11, color:"var(--text-d)", fontWeight: 500 }}>{opt.sub}</div>
-                            </div>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-d)" strokeWidth="2" strokeLinecap="round" style={{ marginLeft:"auto", flexShrink:0 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ fontSize:11, color:"var(--text-d)", textAlign:"center", fontWeight: 500 }}>You can change this anytime</div>
-                    </>
-                  )}
-                  {onboardingStep === 1 && (
-                    <>
-                      <div style={{ width:48, height:48, borderRadius:12, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                      </div>
-                      <div style={{ fontSize:11, fontWeight:700, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:10 }}>Almost there</div>
-                      <div style={{ fontSize:24, fontWeight:700, color:"var(--text)", letterSpacing:"-.03em", lineHeight:1.15, marginBottom:10 }}>What's your company name?</div>
-                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.6, marginBottom:22, fontWeight: 500 }}>
-                        We'll include it in your personalised welcome guide.
-                      </div>
-                      <input type="text" placeholder="e.g. CBRE, Blackstone, Greystar..." value={userCompany} onChange={e => setUserCompany(e.target.value)}
-                        style={{ width:"100%", padding:"12px 14px", borderRadius:10, border:"1px solid var(--border-m)", background:"var(--bg3)", color:"var(--text)", fontSize:14, fontFamily:"var(--font-body)", fontWeight: 500, outline:"none", boxSizing:"border-box", marginBottom:16 }}
-                        onKeyDown={e => { if(e.key==="Enter") setOnboardingStep(2); }} autoFocus />
-                      <button className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:13 }} onClick={() => setOnboardingStep(2)}>Continue →</button>
-                      <button onClick={() => setOnboardingStep(2)} style={{ width:"100%", background:"none", border:"none", fontSize:12, color:"var(--text-d)", cursor:"pointer", padding:"8px", marginTop:6, fontWeight: 500, fontFamily: "inherit" }}>Skip</button>
-                    </>
-                  )}
-                  {onboardingStep === 2 && (
-                    <>
-                      <div style={{ width:48, height:48, borderRadius:12, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                      </div>
-                      <div style={{ fontSize:11, fontWeight:700, color:"var(--gold)", textTransform:"uppercase", letterSpacing:".14em", marginBottom:10 }}>Welcome to Valora</div>
-                      <div style={{ fontSize:24, fontWeight:700, color:"var(--text)", letterSpacing:"-.03em", lineHeight:1.15, marginBottom:10 }}>Your workspace is ready.</div>
-                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.6, marginBottom:24, fontWeight: 500 }}>
-                        Model your first deal in under 5 minutes. Tell us how you work so we can set the right defaults.
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
-                        {[
-                          { key:"beginner", label:"Just exploring", sub:"New to property appraisal — I want to learn the basics", icon:"◎" },
-                          { key:"intermediate", label:"Experienced investor", sub:"I've run deals before — I need a faster, cleaner model", icon:"◈" },
-                          { key:"professional", label:"Professional underwriter", sub:"Development finance, fund management or advisory", icon:"◉" },
-                        ].map(opt => (
-                          <button key={opt.key} onClick={() => { setOnboardingStep(3); completeOnboarding(opt.key); }}
-                            style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg3)", cursor:"pointer", textAlign:"left", transition:"all .15s var(--ease)", width:"100%" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--gold)"; (e.currentTarget as HTMLElement).style.background="var(--gold-bg)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor="var(--border)"; (e.currentTarget as HTMLElement).style.background="var(--bg3)"; }}>
-                            <span style={{ fontSize:18, color:"var(--gold)", flexShrink:0 }}>{opt.icon}</span>
-                            <div>
-                              <div style={{ fontSize:13, fontWeight:700, color:"var(--text)", marginBottom:2 }}>{opt.label}</div>
-                              <div style={{ fontSize:11, color:"var(--text-d)", fontWeight: 500 }}>{opt.sub}</div>
-                            </div>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-d)" strokeWidth="2" strokeLinecap="round" style={{ marginLeft:"auto", flexShrink:0 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ fontSize:11, color:"var(--text-d)", textAlign:"center", fontWeight: 500 }}>You can change this anytime · No credit card required</div>
-                    </>
-                  )}
-                  {onboardingStep === 3 && (
-                    <>
-                      <div style={{ width:48, height:48, borderRadius:12, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <div style={{ fontSize:24, fontWeight:700, color:"var(--text)", letterSpacing:"-.03em", marginBottom:10 }}>You're all set.</div>
-                      <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.6, marginBottom:24, fontWeight: 500 }}>
-                        Your first appraisal takes about 3 minutes. Pick an asset type and the model does the rest.
-                      </div>
-                      <button className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:13 }} onClick={() => { setShowOnboarding(false); setShowNewModal(true); }}>Model my first deal →</button>
-                      <button onClick={() => setShowOnboarding(false)} style={{ width:"100%", background:"none", border:"none", fontSize:12, color:"var(--text-d)", cursor:"pointer", padding:"10px", marginTop:6, fontWeight: 500, fontFamily: "inherit" }}>Explore the dashboard first</button>
-                      <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:20, paddingTop:20, borderTop:"1px solid var(--border)" }}>
-                        {["3 free appraisals","All 7 models","No credit card"].map(t => (
-                          <div key={t} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"var(--text-d)", fontWeight: 500 }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {t}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-            {/* ── VIDEO MODAL ── */}
-            {showVideoModal && (
-              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}
-                onClick={e => { if (e.target === e.currentTarget) setShowVideoModal(false); }}>
-                <div style={{ position:"relative", width:"90vw", maxWidth:900, borderRadius:12, overflow:"hidden", border:"1px solid var(--gold-border)", boxShadow:"0 40px 80px rgba(0,0,0,.8)" }}>
-                  <button onClick={() => setShowVideoModal(false)} style={{ position:"absolute", top:12, right:12, zIndex:10, background:"rgba(15,17,21,.8)", border:"1px solid var(--border-m)", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"var(--text-m)", fontSize:16 }}>×</button>
-                  <div style={{ background:"var(--bg2)", aspectRatio:"16/9", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <div style={{ textAlign:"center", color:"var(--text-d)" }}>
-                      <div style={{ fontSize:32, marginBottom:12 }}>▶</div>
-                      <div style={{ fontSize:13, fontWeight: 500 }}>Walkthrough video coming soon</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* ── EMPTY STATE ── */}
-            {projects.length === 0 && !videoDismissed && (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 20px", textAlign:"center", animation:"fadeIn .4s var(--ease)" }}>
-                <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:14, padding:"18px 22px", marginBottom:24, width:"100%", maxWidth:480, textAlign:"left", opacity:.6, pointerEvents:"none" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-                    <span className="pill pill--type">BTR</span>
-                    <span style={{ fontSize:13, fontWeight:700, color:"var(--text)" }}>One South Bank Tower</span>
-                    <span style={{ fontSize:11, color:"var(--text-d)", fontWeight: 500 }}>· London SE1</span>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
-                    {[["GDV","£312.4m","var(--accent-gold)"],["IRR","18.2%","var(--green)"],["PoC","22.7%","var(--green)"]].map(([l,v,c])=>(
-                      <div key={l} style={{ background:"var(--bg3)", borderRadius:8, padding:"10px 12px" }}>
-                        <div style={{ fontSize:10, color:"var(--text-d)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:4, fontWeight: 600 }}>{l}</div>
-                        <div style={{ fontSize:15, fontWeight:700, color:c as string, fontVariantNumeric: "tabular-nums" }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ width:56, height:56, borderRadius:14, background:"var(--gold-bg)", border:"1px solid var(--gold-border)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:18 }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                </div>
-                <div style={{ fontSize:24, fontWeight:700, color:"var(--text)", letterSpacing:"-.03em", marginBottom:10 }}>Model your first deal</div>
-                <div style={{ fontSize:14, color:"var(--text-m)", lineHeight:1.65, marginBottom:24, maxWidth:380, fontWeight: 500 }}>
-                  BTR, BTS, Hotel, Flip, Mixed Use, Commercial or Industrial. Pick your deal type and start in 2 minutes.
-                </div>
-                <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center" }}>
-                  <button className="btn-primary" onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Create First Appraisal
-                  </button>
-                  <button className="btn-ghost" onClick={dismissVideo}>Skip for now</button>
-                </div>
-              </div>
-            )}
             {/* Trial banner */}
             {isTrialing && (
               <div style={{ background:"var(--gold-bg)", border:"1px solid var(--gold-border)", borderRadius:12, padding:"14px 18px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
