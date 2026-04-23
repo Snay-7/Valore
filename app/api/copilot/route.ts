@@ -303,6 +303,18 @@ function isListingHostAllowed(hostname: string): boolean {
   return LISTING_HOST_WHITELIST.some(allowed => h === allowed || h.endsWith("." + allowed));
 }
 
+// Dedupe + length-cap regex hit arrays so the final brief stays compact.
+function dedupeShort(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of arr) {
+    const key = s.toLowerCase().replace(/\s+/g, " ").trim();
+    if (key.length > 120) continue;
+    if (!seen.has(key)) { seen.add(key); out.push(s.trim()); }
+  }
+  return out;
+}
+
 // Strip HTML tags, collapse whitespace, and cap length — gives the LLM a tight context block.
 function htmlToSummary(html: string, maxChars = 2000): string {
   // Kill script/style blocks entirely
@@ -396,12 +408,50 @@ async function extractPropertyFromUrl(url: string): Promise<string | null> {
     return ["residence", "house", "apartment", "singlefamilyresidence", "product", "realestatelisting", "accommodation", "place", "offer"].some(k => t.includes(k));
   });
 
-  // Extract price/sqft/bedrooms hints from the body HTML as a fallback (site-agnostic regex sweep).
-  const bodyText = htmlToSummary(html, 8000);
-  const priceHint = bodyText.match(/(?:£|\$|€|AED\s?|S\$)\s?[\d,]+(?:\.\d+)?\s?(?:m|k|million|thousand)?/gi)?.slice(0, 4) || [];
-  const bedsHint = bodyText.match(/(\d+)\s*(?:bed(?:room)?s?)\b/gi)?.slice(0, 3) || [];
-  const bathsHint = bodyText.match(/(\d+)\s*(?:bath(?:room)?s?)\b/gi)?.slice(0, 3) || [];
-  const sqftHint = bodyText.match(/[\d,]+\s*(?:sq\s?ft|sqft|sq\.?\s?ft|square\s?feet|sqm|sq\s?m|m²)/gi)?.slice(0, 3) || [];
+  // Rightmove, Zoopla, Zillow and most modern listing sites hydrate via embedded
+  // JSON blobs inside <script> tags. The stripped body text won't contain price
+  // or bedrooms — so we sweep the RAW HTML including script contents, and we
+  // specifically carve out the known blob shapes below so the regex sweep can
+  // hit them even if the overall HTML exceeds our 600KB cap.
+  const embeddedBlobs: string[] = [];
+  const blobPatterns: RegExp[] = [
+    // Next.js (Rightmove, Zoopla, OnTheMarket, Realtor.com)
+    /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i,
+    // Rightmove specifics
+    /window\.PAGE_MODEL\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/i,
+    /window\.jsonModel\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/i,
+    // Zillow (escaped-JSON payload)
+    /"hdpApolloPreloadedData"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+    // Zoopla / React boot state
+    /__INITIAL_STATE__\s*=\s*({[\s\S]*?})\s*;?\s*(?:<\/script>|,\s*window)/i,
+    // Bayut / PropertyFinder (Apollo state)
+    /__APOLLO_STATE__\s*=\s*({[\s\S]*?})\s*;?\s*<\/script>/i,
+  ];
+  for (const pat of blobPatterns) {
+    const m = html.match(pat);
+    if (m && m[1]) embeddedBlobs.push(m[1].slice(0, 80_000));
+  }
+
+  // Extract price/sqft/bedrooms hints — sweep RAW HTML + embedded blobs so we
+  // catch values inside hydration JSON, not just the rendered text.
+  const sweep = html + "\n" + embeddedBlobs.join("\n");
+  // Prices: currency-prefixed numbers OR JSON "price":12345 patterns
+  const priceRegex = /(?:£|\$|€|AED\s?|S\$|A\$)\s?[\d,]+(?:\.\d+)?(?:\s?(?:m|k|million|thousand))?|"price(?:AsString)?"\s*:\s*"?\d[\d,\.]+"?|"priceActual"\s*:\s*"?\d[\d,\.]+"?/gi;
+  const priceHint = dedupeShort(sweep.match(priceRegex)?.slice(0, 12) || []);
+  // Bedrooms: "X beds/bedrooms" OR JSON "bedrooms":N patterns
+  const bedsRegex = /\b(\d+)\s*(?:bed(?:room)?s?)\b|"(?:numberOfBedrooms|bedrooms|beds)"\s*:\s*"?\d+"?/gi;
+  const bedsHint = dedupeShort(sweep.match(bedsRegex)?.slice(0, 6) || []);
+  const bathsRegex = /\b(\d+)\s*(?:bath(?:room)?s?)\b|"(?:numberOfBathrooms|bathrooms|baths)"\s*:\s*"?\d+"?/gi;
+  const bathsHint = dedupeShort(sweep.match(bathsRegex)?.slice(0, 6) || []);
+  const sqftRegex = /[\d,]+\s*(?:sq\s?ft|sqft|sq\.?\s?ft|square\s?feet|sqm|sq\s?m|m²)|"(?:floorSize|livingArea|size|area)"\s*:\s*"?\d[\d,\.]+"?/gi;
+  const sqftHint = dedupeShort(sweep.match(sqftRegex)?.slice(0, 6) || []);
+  // Address: JSON "displayAddress" or "streetAddress" patterns — Rightmove uses displayAddress
+  const addrRegex = /"(?:displayAddress|streetAddress|address)"\s*:\s*"([^"]{10,120})"/gi;
+  const addrHits: string[] = [];
+  let addrMatch: RegExpExecArray | null;
+  while ((addrMatch = addrRegex.exec(sweep)) && addrHits.length < 4) {
+    if (!addrHits.includes(addrMatch[1])) addrHits.push(addrMatch[1]);
+  }
 
   const parts: string[] = [];
   parts.push(`URL: ${parsed.toString()}`);
@@ -428,13 +478,14 @@ async function extractPropertyFromUrl(url: string): Promise<string | null> {
     if (pbBeds) parts.push(`Bedrooms: ${pbBeds}`);
     if (pbBaths) parts.push(`Bathrooms: ${pbBaths}`);
   }
+  if (addrHits.length) parts.push(`Address hints (from embedded JSON): ${addrHits.join(" · ")}`);
   if (priceHint.length) parts.push(`Price hints: ${priceHint.join(" · ")}`);
   if (bedsHint.length) parts.push(`Bedroom hints: ${bedsHint.join(" · ")}`);
   if (bathsHint.length) parts.push(`Bathroom hints: ${bathsHint.join(" · ")}`);
   if (sqftHint.length) parts.push(`Area hints: ${sqftHint.join(" · ")}`);
 
   const summary = parts.join("\n");
-  return summary.length > 2500 ? summary.slice(0, 2500) + "…" : summary;
+  return summary.length > 3000 ? summary.slice(0, 3000) + "…" : summary;
 }
 
 function synthesiseFallbackReply(s: { description: string; payload: Record<string, any> }): string {
@@ -596,7 +647,10 @@ export async function POST(req: Request) {
   try {
     anthResp = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      // Valuation payloads with 4-6 comparables + drivers + risks + text reply can
+      // easily hit 1500+ tokens; 1024 was getting truncated, which dropped the
+      // tool_use's JSON mid-stream and left the UI with no Apply card.
+      max_tokens: context === "valuation" ? 2800 : 1400,
       system,
       tools: toolSet,
       // Force the Copilot to call suggest_valuation on valuation-context requests
@@ -617,10 +671,25 @@ export async function POST(req: Request) {
     if (block.type === "text") reply += block.text;
     else if (block.type === "tool_use") {
       const input = block.input as any;
-      if (input && input.payload && input.description) {
-        suggestion = { description: String(input.description), payload: input.payload };
+      // Accept partial tool calls — Claude sometimes returns a payload without a
+      // description, or gets truncated mid-description. As long as there's a
+      // payload, we surface it and synthesise a description if missing.
+      if (input && input.payload && typeof input.payload === "object") {
+        const desc = input.description && typeof input.description === "string"
+          ? input.description.trim()
+          : "";
+        suggestion = {
+          description: desc || "Valuation ready — review and tap Apply.",
+          payload: input.payload,
+        };
       }
     }
+  }
+
+  // If the response hit max_tokens mid-stream, Anthropic sets stop_reason to "max_tokens".
+  // The partial tool JSON would then fail capture — log it so we can diagnose.
+  if (anthResp.stop_reason === "max_tokens") {
+    console.warn("Claude response hit max_tokens — payload may be truncated", { context, userId });
   }
 
   let finalReply = reply.trim();
