@@ -424,8 +424,8 @@ function Portfolio() {
         .single();
 
       resetBrochureModal();
-      if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}&fromCopilot=1&fromOm=1`);
-      else router.push(`/appraisal?project=${proj.id}&fromCopilot=1&fromOm=1`);
+      if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}&fromOm=1`);
+      else router.push(`/appraisal?project=${proj.id}&fromOm=1`);
     } catch (e: any) {
       setBrochureError(e?.message || "Failed to create project from brochure.");
       setApplyingBrochure(false);
