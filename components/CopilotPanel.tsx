@@ -340,6 +340,14 @@ export default function CopilotPanel({
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
+  // Auto-grow the input textarea to fit its content (capped at 220px)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 220) + "px";
+  }, [input]);
+
   // Real Claude-backed reply via /api/copilot
   const fetchReply = async (history: Message[]): Promise<Message> => {
     // Build the message transcript Claude sees — strip system messages + typing indicators.
