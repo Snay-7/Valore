@@ -8,20 +8,29 @@ import { createClient } from "@supabase/supabase-js";
  * ════════════════════════════════════════════════════════════════════
  * Drop at: app/api/brochure-upload/route.ts
  * ────────────────────────────────────────────────────────────────────
- * Accepts a PDF offering memorandum (OM) via multipart/form-data and
- * extracts a structured deal payload using Claude Sonnet's native PDF
- * reading — text + visual content (charts, rendered P&Ls, comparables
- * graphics). Returns a payload matching Valora's appraisal field names,
- * plus flags the underwriter needs to verify.
+ * Flow:
+ *   1. Client uploads the PDF directly to Supabase Storage bucket
+ *      "om-uploads" at path {userId}/{ts}-{filename}. This bypasses
+ *      Vercel's 4.5MB serverless body limit — Supabase Storage handles
+ *      files up to 5GB.
+ *   2. Client POSTs JSON { storagePath, filename, context? } to this
+ *      endpoint. The JSON body is tiny (a few hundred bytes).
+ *   3. Server downloads the PDF via service role, base64-encodes it,
+ *      and sends to Claude Sonnet as a native document block. Claude
+ *      reads both text and visual content.
+ *   4. Server returns structured payload + flags + source notes.
  *
  * Usage from the client:
- *   const fd = new FormData();
- *   fd.append("file", pdfFile);
- *   fd.append("context", "Asking price £116m, off-market"); // optional
+ *   // 1. Upload to storage
+ *   const path = `${userId}/${Date.now()}-${file.name}`;
+ *   await supabase.storage.from("om-uploads").upload(path, file);
+ *   // 2. Trigger extraction
  *   fetch("/api/brochure-upload", {
  *     method: "POST",
- *     headers: { Authorization: `Bearer ${session.access_token}` },
- *     body: fd,
+ *     headers: { "Content-Type": "application/json",
+ *                Authorization: `Bearer ${session.access_token}` },
+ *     body: JSON.stringify({ storagePath: path, filename: file.name,
+ *                            context: "Asking £116m, off-market" }),
  *   });
  *
  * Quota: free tier gets 1 extraction (trial), Pro+ unlimited.
@@ -30,6 +39,11 @@ import { createClient } from "@supabase/supabase-js";
  *   ANTHROPIC_API_KEY
  *   NEXT_PUBLIC_SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
+ *
+ * Required Supabase setup:
+ *   - Storage bucket "om-uploads" (not public)
+ *   - RLS policies scoping uploads/reads to auth.uid() in the first
+ *     path segment (see om-storage-migration.sql)
  * ════════════════════════════════════════════════════════════════════
  */
 
@@ -38,7 +52,9 @@ export const maxDuration = 60;   // Claude PDF reads can take 15-30s on long dec
 export const dynamic = "force-dynamic";
 
 const MODEL = "claude-sonnet-4-5";
-const MAX_PDF_BYTES = 10 * 1024 * 1024;  // 10MB — covers 99% of OMs
+const STORAGE_BUCKET = "om-uploads";
+const MAX_PDF_BYTES = 32 * 1024 * 1024;  // 32MB — Claude's PDF input ceiling
+const DELETE_AFTER_EXTRACT = true;       // Tidy up storage once we've used the file
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabaseService = createClient(
@@ -228,36 +244,53 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── 3. Parse multipart body ──
-  let formData: FormData;
-  try { formData = await req.formData(); }
-  catch { return NextResponse.json({ error: "Invalid multipart/form-data body" }, { status: 400 }); }
+  // ── 3. Parse JSON body — expects { storagePath, filename, context? } ──
+  let body: { storagePath?: string; filename?: string; context?: string };
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const file = formData.get("file");
-  const userContext = String(formData.get("context") || "").trim();
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: "No file uploaded — include 'file' in form data" }, { status: 400 });
+  const storagePath = String(body.storagePath || "").trim();
+  const filename = String(body.filename || "").trim() || "brochure.pdf";
+  const userContext = String(body.context || "").trim();
+
+  if (!storagePath) {
+    return NextResponse.json({ error: "Missing storagePath — upload the PDF to Supabase Storage first." }, { status: 400 });
   }
-  if (file.type !== "application/pdf") {
-    return NextResponse.json({ error: `Unsupported file type: ${file.type || "unknown"}. Please upload a PDF.` }, { status: 415 });
+  // Guard: storage path must start with the user's own id (prevents cross-user reads via service role)
+  if (!storagePath.startsWith(`${userId}/`)) {
+    return NextResponse.json({ error: "storagePath must be scoped to your own uploads folder." }, { status: 403 });
   }
-  if (file.size > MAX_PDF_BYTES) {
+
+  // ── 4. Download PDF from Supabase Storage (service role) ──
+  const { data: dl, error: dlErr } = await supabaseService
+    .storage
+    .from(STORAGE_BUCKET)
+    .download(storagePath);
+
+  if (dlErr || !dl) {
     return NextResponse.json({
-      error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max ${MAX_PDF_BYTES / 1024 / 1024}MB.`,
+      error: "Failed to read uploaded brochure from storage",
+      detail: dlErr?.message,
+      hint: "Make sure the PDF finished uploading to Supabase Storage before triggering extraction.",
+    }, { status: 502 });
+  }
+
+  const pdfBuf = Buffer.from(await dl.arrayBuffer());
+  if (pdfBuf.length === 0) {
+    return NextResponse.json({ error: "Stored file is empty." }, { status: 400 });
+  }
+  if (pdfBuf.length > MAX_PDF_BYTES) {
+    return NextResponse.json({
+      error: `File too large (${(pdfBuf.length / 1024 / 1024).toFixed(1)}MB). Max ${MAX_PDF_BYTES / 1024 / 1024}MB for Claude PDF input.`,
     }, { status: 413 });
   }
-  if (file.size === 0) {
-    return NextResponse.json({ error: "Uploaded file is empty." }, { status: 400 });
-  }
-
-  // ── 4. Base64 encode the PDF ──
-  const pdfBuf = Buffer.from(await file.arrayBuffer());
+  const fileSize = pdfBuf.length;
   const pdfBase64 = pdfBuf.toString("base64");
 
   // ── 5. Build the user message: document block + optional context ──
   const contextParts: string[] = [
-    `Filename: ${file.name}`,
-    `File size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+    `Filename: ${filename}`,
+    `File size: ${(fileSize / 1024 / 1024).toFixed(2)}MB`,
   ];
   if (userContext) contextParts.push(`Extra context from the analyst (use this alongside the document):\n"""\n${userContext}\n"""`);
   contextParts.push(
@@ -322,7 +355,7 @@ export async function POST(req: Request) {
     }, { status: 502 });
   }
   if (anthResp.stop_reason === "max_tokens") {
-    console.warn("OM extract hit max_tokens — payload may be partial", { userId, filename: file.name });
+    console.warn("OM extract hit max_tokens — payload may be partial", { userId, filename });
     flags.push({
       severity: "warning",
       message: "Extraction response was truncated — some fields or flags may be missing. Consider re-running with a more focused context message.",
@@ -333,8 +366,8 @@ export async function POST(req: Request) {
   try {
     await supabaseService.from("om_extractions").insert({
       user_id: userId,
-      filename: file.name,
-      file_size: file.size,
+      filename,
+      file_size: fileSize,
       asset_type: payload.assetType || null,
       confidence,
       flag_count: flags.length,
@@ -345,13 +378,19 @@ export async function POST(req: Request) {
     console.warn("Failed to log om_extractions:", e);
   }
 
+  // ── 9. Clean up storage (don't block the response) ──
+  if (DELETE_AFTER_EXTRACT) {
+    supabaseService.storage.from(STORAGE_BUCKET).remove([storagePath])
+      .catch(e => console.warn("Failed to cleanup storage:", e?.message));
+  }
+
   return NextResponse.json({
     description,
     confidence,
     payload,
     flags,
     sourceNotes,
-    filename: file.name,
+    filename,
     elapsedMs,
   });
 }

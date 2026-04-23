@@ -201,7 +201,7 @@ function Portfolio() {
   const [showBrochureModal, setShowBrochureModal] = useState(false);
   const [brochureFile, setBrochureFile] = useState<File | null>(null);
   const [brochureContext, setBrochureContext] = useState("");
-  const [brochureStage, setBrochureStage] = useState<"idle" | "uploading" | "review" | "error">("idle");
+  const [brochureStage, setBrochureStage] = useState<"idle" | "uploading" | "extracting" | "review" | "error">("idle");
   const [brochureError, setBrochureError] = useState<string | null>(null);
   const [brochureResult, setBrochureResult] = useState<{
     description: string; confidence: "high"|"medium"|"low";
@@ -273,8 +273,8 @@ function Portfolio() {
       setBrochureError(`That's a ${f.type || "unknown file type"}. Please upload a PDF.`);
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      setBrochureError(`File is ${(f.size / 1024 / 1024).toFixed(1)}MB. Max 10MB.`);
+    if (f.size > 32 * 1024 * 1024) {
+      setBrochureError(`File is ${(f.size / 1024 / 1024).toFixed(1)}MB. Max 32MB.`);
       return;
     }
     if (f.size === 0) {
@@ -284,29 +284,61 @@ function Portfolio() {
     setBrochureFile(f);
   };
 
+  // Two-step upload flow:
+  //  1. Upload PDF directly to Supabase Storage — bypasses Vercel's 4.5MB serverless body cap.
+  //  2. POST the storage path (tiny JSON) to /api/brochure-upload for extraction.
+  // Progress state swaps from "uploading" (step 1) to "extracting" (step 2) so the user
+  // sees which phase they're in.
   const submitBrochure = async () => {
-    if (!brochureFile) return;
-    setBrochureStage("uploading");
+    if (!brochureFile || !user) return;
     setBrochureError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) { setBrochureError("Please sign in again."); setBrochureStage("error"); return; }
-      const fd = new FormData();
-      fd.append("file", brochureFile);
-      if (brochureContext.trim()) fd.append("context", brochureContext.trim());
+
+      // Step 1: Upload PDF to Supabase Storage under {userId}/{ts}-{filename}.
+      // RLS policies (see om-storage-migration.sql) scope this to the authenticated user.
+      setBrochureStage("uploading");
+      // Strip anything that's not alphanumeric/dot/dash/underscore for a safe key
+      const safeName = brochureFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `${user.id}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase
+        .storage
+        .from("om-uploads")
+        .upload(storagePath, brochureFile, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+      if (uploadErr) {
+        setBrochureError(`Upload failed: ${uploadErr.message}`);
+        setBrochureStage("error");
+        return;
+      }
+
+      // Step 2: Trigger server-side extraction with the storage path.
+      setBrochureStage("extracting");
       const res = await fetch("/api/brochure-upload", {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: fd,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          storagePath,
+          filename: brochureFile.name,
+          context: brochureContext.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 403 && data.error === "om_trial_exhausted") {
           setBrochureError(data.message || "Free trial used. Upgrade to Pro.");
         } else {
-          setBrochureError(data.error || data.hint || "Extraction failed");
+          setBrochureError(data.error || data.detail || data.hint || "Extraction failed");
         }
         setBrochureStage("error");
+        // Best-effort cleanup of the orphaned storage object on extraction failure
+        supabase.storage.from("om-uploads").remove([storagePath]).catch(() => {});
         return;
       }
       setBrochureResult(data);
@@ -872,7 +904,7 @@ function Portfolio() {
                       onChange={e => setBrochureContext(e.target.value)}
                       placeholder={`e.g. "Asking £116m, off-market, broker is Savills"\nOr: "BTR scheme, acquisition price £146m per our NDA call"`}
                       rows={3}
-                      disabled={brochureStage === "uploading"}
+                      disabled={(brochureStage === "uploading" || brochureStage === "extracting")}
                       style={{ fontFamily: "var(--font-body)", fontSize: 12.5, resize: "vertical", minHeight: 60, lineHeight: 1.55 }}
                     />
                     <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>
@@ -880,13 +912,20 @@ function Portfolio() {
                     </div>
                   </div>
 
-                  {/* ── Uploading state ── */}
-                  {brochureStage === "uploading" && (
+                  {/* ── In-flight states ── */}
+                  {((brochureStage === "uploading" || brochureStage === "extracting") || brochureStage === "extracting") && (
                     <div style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 10, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 18, height: 18, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "var(--gold)", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 2 }}>Extracting deal model…</div>
-                        <div style={{ fontSize: 11.5, color: "var(--text-m)", fontWeight: 500 }}>Reading pages · analysing financials · flagging assumptions · typically 15-30 seconds</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 2 }}>
+                          {(brochureStage === "uploading" || brochureStage === "extracting") ? "Uploading brochure…" : "Extracting deal model…"}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-m)", fontWeight: 500 }}>
+                          {(brochureStage === "uploading" || brochureStage === "extracting")
+                            ? "Sending PDF to secure storage · this is the fast step"
+                            : "Reading pages · analysing financials · flagging assumptions · typically 15-30 seconds"
+                          }
+                        </div>
                       </div>
                     </div>
                   )}
@@ -900,11 +939,11 @@ function Portfolio() {
 
                   {/* ── Actions ── */}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={brochureStage === "uploading"} style={{ flex: 1 }}>
+                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={(brochureStage === "uploading" || brochureStage === "extracting")} style={{ flex: 1 }}>
                       Cancel
                     </button>
-                    <button className="btn-primary" onClick={submitBrochure} disabled={!brochureFile || brochureStage === "uploading"} style={{ flex: 2 }}>
-                      {brochureStage === "uploading" ? "Extracting…" : "◈ Extract deal model →"}
+                    <button className="btn-primary" onClick={submitBrochure} disabled={!brochureFile || (brochureStage === "uploading" || brochureStage === "extracting")} style={{ flex: 2 }}>
+                      {brochureStage === "uploading" ? "Uploading…" : brochureStage === "extracting" ? "Extracting…" : "◈ Extract deal model →"}
                     </button>
                   </div>
                 </>
