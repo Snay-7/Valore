@@ -207,7 +207,11 @@ const VALUATION_SYSTEM = `You are Valora Copilot in valuation mode — a cross-b
 
 The user describes a single property (type, location, size, condition) and may paste a listing URL. Your job:
 
-0. URL HANDLING: if the user pastes a listing URL from Rightmove, Zoopla, OnTheMarket, Zillow, Realtor.com, Redfin, Bayut, PropertyFinder, PropertyGuru, 99.co, Immobilienscout24, SeLoger or similar, extract whatever you can from the URL structure (address fragments, property IDs, location slugs) and use it as the primary subject. Do NOT claim to have fetched the live page — say "based on the listing you shared" and caveat if details are sparse.
+0. URL HANDLING: if the user pastes a listing URL from Rightmove, Zoopla, OnTheMarket, Zillow, Realtor.com, Redfin, Bayut, PropertyFinder, PropertyGuru, 99.co, Immobilienscout24, SeLoger or similar, the server may have already fetched the listing and appended a block labelled "[Listing data fetched from URL — use this as ground truth for address, price, sqft, bedrooms]" to the user's message. When that block is present:
+   - Treat the address, price, sqft, and bedroom values in that block as GROUND TRUTH. Copy them verbatim into payload.address / payload.estimatedValue.central / payload.sqft / payload.bedrooms.
+   - The listed price is the ASKING PRICE, not necessarily market value — but anchor your central estimate within ±10% of it unless you have a strong reason otherwise, and explain the delta in valuationDrivers.
+   - You may now confidently say "based on the listing" (not "based on the URL") in the reply.
+   If that block is NOT present (server couldn't reach the site, or the site is not whitelisted), fall back to extracting what you can from the URL structure — address fragments, property IDs, location slugs — and say "based on the listing you shared" while flagging confidence as "low" or "medium".
 
 1. Detect the JURISDICTION from the description or URL domain (UK / US / UAE / Singapore / Germany / France / etc.) and apply its conventions:
    - UK: GBP, £ per sqft, freehold/leasehold, SDLT bands, EPC rating relevance
@@ -276,6 +280,163 @@ function buildDealContext(deal: { assetType?: string; data?: Record<string, any>
   return lines.join("\n");
 }
 
+// ── URL import (SSRF-safe listing fetch) ───────────────────────────
+// Whitelist of hostnames we'll fetch from. Exact suffix match
+// (e.g. "www.rightmove.co.uk" matches "rightmove.co.uk"). Anything else is refused.
+const LISTING_HOST_WHITELIST = [
+  // UK
+  "rightmove.co.uk", "zoopla.co.uk", "onthemarket.com", "primelocation.com", "savills.co.uk", "knightfrank.co.uk", "foxtons.co.uk",
+  // US
+  "zillow.com", "redfin.com", "realtor.com", "trulia.com", "compass.com", "homes.com", "loopnet.com",
+  // UAE
+  "bayut.com", "propertyfinder.ae", "dubizzle.com",
+  // Singapore / APAC
+  "propertyguru.com.sg", "99.co", "edgeprop.sg",
+  // Australia
+  "domain.com.au", "realestate.com.au",
+  // EU
+  "immobilienscout24.de", "immowelt.de", "seloger.com", "leboncoin.fr", "idealista.com", "idealista.it", "idealista.pt", "funda.nl", "immobiliare.it", "fotocasa.es",
+];
+
+function isListingHostAllowed(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^www\./, "");
+  return LISTING_HOST_WHITELIST.some(allowed => h === allowed || h.endsWith("." + allowed));
+}
+
+// Strip HTML tags, collapse whitespace, and cap length — gives the LLM a tight context block.
+function htmlToSummary(html: string, maxChars = 2000): string {
+  // Kill script/style blocks entirely
+  const noScript = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ");
+  const text = noScript.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text.length > maxChars ? text.slice(0, maxChars) + "…" : text;
+}
+
+// Pull meta tags, og tags, and JSON-LD blocks from a listing page.
+// Returns a compact plain-text brief (≤2.5k chars) suitable for appending to the
+// user's prompt. Returns null on any fetch/parse failure — caller falls back to
+// URL-slug extraction inside the Copilot prompt.
+async function extractPropertyFromUrl(url: string): Promise<string | null> {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return null; }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  if (!isListingHostAllowed(parsed.hostname)) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  let html = "";
+  try {
+    const res = await fetch(parsed.toString(), {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        // Realistic UA — many listing sites block naked fetch() calls.
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-GB,en;q=0.9",
+      },
+    });
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return null;
+    // Cap to first ~600KB — listing pages have hero data near the top.
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf.slice(0, 600_000));
+    html = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!html) return null;
+
+  // Extract <title>
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].trim() : "";
+
+  // Extract meta tags we care about
+  const metaPick = (names: string[]): string => {
+    for (const n of names) {
+      const re = new RegExp(`<meta[^>]+(?:name|property)=["']${n}["'][^>]+content=["']([^"']+)["']`, "i");
+      const m = html.match(re);
+      if (m) return m[1].trim();
+      const reAlt = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']${n}["']`, "i");
+      const mAlt = html.match(reAlt);
+      if (mAlt) return mAlt[1].trim();
+    }
+    return "";
+  };
+  const ogTitle = metaPick(["og:title", "twitter:title"]);
+  const ogDesc = metaPick(["og:description", "twitter:description", "description"]);
+  const ogLocale = metaPick(["og:locale"]);
+  const ogSite = metaPick(["og:site_name"]);
+
+  // Extract all JSON-LD blocks and pull Residence / House / Product / RealEstateListing / Offer data.
+  const jsonLdBlocks: any[] = [];
+  const ldRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let ldMatch: RegExpExecArray | null;
+  while ((ldMatch = ldRegex.exec(html)) && jsonLdBlocks.length < 8) {
+    try {
+      const raw = ldMatch[1].trim();
+      const parsedLd = JSON.parse(raw);
+      if (Array.isArray(parsedLd)) jsonLdBlocks.push(...parsedLd);
+      else jsonLdBlocks.push(parsedLd);
+    } catch {
+      // Ignore malformed blocks
+    }
+  }
+
+  // Pick the first block that looks like a property / offer / product.
+  const propBlock = jsonLdBlocks.find((b) => {
+    const t = (b["@type"] || "").toString().toLowerCase();
+    return ["residence", "house", "apartment", "singlefamilyresidence", "product", "realestatelisting", "accommodation", "place", "offer"].some(k => t.includes(k));
+  });
+
+  // Extract price/sqft/bedrooms hints from the body HTML as a fallback (site-agnostic regex sweep).
+  const bodyText = htmlToSummary(html, 8000);
+  const priceHint = bodyText.match(/(?:£|\$|€|AED\s?|S\$)\s?[\d,]+(?:\.\d+)?\s?(?:m|k|million|thousand)?/gi)?.slice(0, 4) || [];
+  const bedsHint = bodyText.match(/(\d+)\s*(?:bed(?:room)?s?)\b/gi)?.slice(0, 3) || [];
+  const bathsHint = bodyText.match(/(\d+)\s*(?:bath(?:room)?s?)\b/gi)?.slice(0, 3) || [];
+  const sqftHint = bodyText.match(/[\d,]+\s*(?:sq\s?ft|sqft|sq\.?\s?ft|square\s?feet|sqm|sq\s?m|m²)/gi)?.slice(0, 3) || [];
+
+  const parts: string[] = [];
+  parts.push(`URL: ${parsed.toString()}`);
+  if (ogSite) parts.push(`Source: ${ogSite}`);
+  if (title) parts.push(`Title: ${title}`);
+  if (ogTitle && ogTitle !== title) parts.push(`OG title: ${ogTitle}`);
+  if (ogDesc) parts.push(`Description: ${ogDesc}`);
+  if (ogLocale) parts.push(`Locale: ${ogLocale}`);
+  if (propBlock) {
+    // Compact JSON-LD summary
+    const pb = propBlock;
+    const pbName = pb.name || pb.headline;
+    const pbAddr = typeof pb.address === "string" ? pb.address : pb.address ? Object.values(pb.address).filter(v => typeof v === "string").join(", ") : "";
+    const pbOffer = pb.offers || pb.offer;
+    const pbPrice = pbOffer?.price || pbOffer?.priceSpecification?.price;
+    const pbCcy = pbOffer?.priceCurrency || pbOffer?.priceSpecification?.priceCurrency;
+    const pbArea = pb.floorSize?.value || pb.floorSize;
+    const pbBeds = pb.numberOfBedrooms || pb.numberOfRooms;
+    const pbBaths = pb.numberOfBathroomsTotal || pb.numberOfBathrooms;
+    if (pbName) parts.push(`Listing name: ${pbName}`);
+    if (pbAddr) parts.push(`Address: ${pbAddr}`);
+    if (pbPrice) parts.push(`Price: ${pbCcy || ""} ${pbPrice}`.trim());
+    if (pbArea) parts.push(`Floor size: ${typeof pbArea === "object" ? JSON.stringify(pbArea) : pbArea}`);
+    if (pbBeds) parts.push(`Bedrooms: ${pbBeds}`);
+    if (pbBaths) parts.push(`Bathrooms: ${pbBaths}`);
+  }
+  if (priceHint.length) parts.push(`Price hints: ${priceHint.join(" · ")}`);
+  if (bedsHint.length) parts.push(`Bedroom hints: ${bedsHint.join(" · ")}`);
+  if (bathsHint.length) parts.push(`Bathroom hints: ${bathsHint.join(" · ")}`);
+  if (sqftHint.length) parts.push(`Area hints: ${sqftHint.join(" · ")}`);
+
+  const summary = parts.join("\n");
+  return summary.length > 2500 ? summary.slice(0, 2500) + "…" : summary;
+}
+
 function synthesiseFallbackReply(s: { description: string; payload: Record<string, any> }): string {
   const p = s.payload || {};
   const bits: string[] = [];
@@ -330,7 +491,22 @@ export async function POST(req: Request) {
   }
   const userId = authData.user.id;
 
-  // ── 2. Fetch subscription tier for plan-limit lookup ──
+  // ── 2. Parse request body (must happen before the valuation gate) ──
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+
+  const context: "dashboard" | "appraisal" | "valuation" =
+    body.context === "appraisal" ? "appraisal"
+    : body.context === "valuation" ? "valuation"
+    : "dashboard";
+  const messages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(body.messages) ? body.messages : [];
+  const deal = body.deal || null;
+
+  if (!messages.length || messages[messages.length - 1].role !== "user") {
+    return NextResponse.json({ error: "Last message must be from the user" }, { status: 400 });
+  }
+
+  // ── 3. Fetch subscription tier for plan-limit lookup ──
   const { data: sub } = await supabaseService
     .from("subscriptions")
     .select("tier, status")
@@ -345,23 +521,23 @@ export async function POST(req: Request) {
   // Valuation: free/starter tier gets 3 valuations as a trial, then the upgrade gate.
   // Pro+ (and trialing) = unlimited.
   const VALUATION_FREE_LIMIT = 3;
-  if (body?.context === "valuation" && !isPaidTier) {
+  if (context === "valuation" && !isPaidTier) {
     const { count: valCount } = await supabaseService
       .from("valuations")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
-    const used = valCount ?? 0;
-    if (used >= VALUATION_FREE_LIMIT) {
+    const valsUsed = valCount ?? 0;
+    if (valsUsed >= VALUATION_FREE_LIMIT) {
       return NextResponse.json({
         error: "valuation_trial_exhausted",
         reply: `You've used all ${VALUATION_FREE_LIMIT} of your free valuations. Upgrade to Pro for unlimited cross-border valuations, shareable reports, and IC-ready PDFs.`,
         upgradeUrl: "/pricing",
-        trial: { used, limit: VALUATION_FREE_LIMIT },
+        trial: { used: valsUsed, limit: VALUATION_FREE_LIMIT },
       }, { status: 403 });
     }
   }
 
-  // ── 3. Fetch current usage ──
+  // ── 4. Fetch current usage ──
   const { data: usage } = await supabaseService
     .from("copilot_usage")
     .select("messages_used, messages_bonus, period_start")
@@ -382,21 +558,7 @@ export async function POST(req: Request) {
     }, { status: 429 });
   }
 
-  // ── 4. Parse request body ──
-  let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-
-  const context: "dashboard" | "appraisal" | "valuation" =
-    body.context === "appraisal" ? "appraisal"
-    : body.context === "valuation" ? "valuation"
-    : "dashboard";
-  const messages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(body.messages) ? body.messages : [];
-  const deal = body.deal || null;
-
-  if (!messages.length || messages[messages.length - 1].role !== "user") {
-    return NextResponse.json({ error: "Last message must be from the user" }, { status: 400 });
-  }
-
+  // ── 5. Build system prompt + toolset ──
   const system = context === "dashboard"
     ? DASHBOARD_SYSTEM
     : context === "valuation"
@@ -407,7 +569,29 @@ export async function POST(req: Request) {
     ? [suggestValuationTool]
     : [suggestCreateTool, suggestEditTool];
 
-  // ── 5. Call Claude ──
+  // ── 5b. Valuation URL import — if the last user message contains a listing URL,
+  // fetch the page server-side and splice a [Listing data] block into the prompt.
+  // Gracefully degrades: if the fetch fails or is blocked by the site, the Copilot
+  // falls back to URL-slug extraction per the VALUATION_SYSTEM instructions.
+  let urlImported: { url: string; chars: number } | null = null;
+  const outgoingMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  if (context === "valuation") {
+    const lastUser = outgoingMessages[outgoingMessages.length - 1];
+    const urlMatch = lastUser.content.match(/https?:\/\/[^\s<>"']+/);
+    if (urlMatch) {
+      try {
+        const extracted = await extractPropertyFromUrl(urlMatch[0]);
+        if (extracted) {
+          urlImported = { url: urlMatch[0], chars: extracted.length };
+          lastUser.content = `${lastUser.content}\n\n[Listing data fetched from URL — use this as ground truth for address, price, sqft, bedrooms]\n${extracted}`;
+        }
+      } catch (e) {
+        console.warn("URL import failed:", e);
+      }
+    }
+  }
+
+  // ── 6. Call Claude ──
   let anthResp: Anthropic.Messages.Message;
   try {
     anthResp = await anthropic.messages.create({
@@ -420,7 +604,7 @@ export async function POST(req: Request) {
       tool_choice: (context === "valuation"
         ? { type: "tool", name: "suggest_valuation" }
         : { type: "auto" }) as Anthropic.Messages.ToolChoice,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      messages: outgoingMessages,
     });
   } catch (err: any) {
     console.error("Anthropic API error:", err);
@@ -443,7 +627,7 @@ export async function POST(req: Request) {
   if (!finalReply && suggestion) finalReply = synthesiseFallbackReply(suggestion);
   if (!finalReply) finalReply = "Here's what I'd look at for that.";
 
-  // ── 6. Increment usage (fire-and-log — don't fail the response if this errors) ──
+  // ── 7. Increment usage (fire-and-log — don't fail the response if this errors) ──
   let newUsage = { used: effectiveUsed + 1, limit, bonus, tier };
   try {
     const { data: incResult } = await supabaseService.rpc("increment_copilot_usage", { uid: userId });
@@ -463,5 +647,6 @@ export async function POST(req: Request) {
     reply: finalReply,
     suggestion,
     quota: newUsage,
+    urlImported,
   });
 }

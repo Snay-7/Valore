@@ -24,6 +24,7 @@ type Message = {
   suggestion?: Suggestion;
   typing?: boolean;
   quotaExceeded?: boolean;
+  urlImported?: { url: string; chars: number } | null;
 };
 
 type QuotaState = {
@@ -150,14 +151,14 @@ function AssetIcon({ type, size = 22 }: { type: string; size?: number }) {
       return null;
   }
 }
-const ASSET_TYPES: { id: string; label: string; desc: string }[] = [
+const ASSET_TYPES: { id: string; label: string; desc: string; pro?: boolean }[] = [
   { id: "BTR",        label: "Build to Rent",    desc: "Residential income, stabilised yield"   },
   { id: "BTS",        label: "Build to Sell",    desc: "Residential for open-market sale"       },
   { id: "Hotel",      label: "Hotel",            desc: "Acquisition, refurb, operating hold"    },
   { id: "Flip",       label: "Residential Flip", desc: "Buy, refurb, sell / hold / refinance"   },
   { id: "Commercial", label: "Commercial",       desc: "Office, retail, industrial yield deals" },
   { id: "MixedUse",   label: "Mixed Use",        desc: "Multi-zone: resi + commercial blended"  },
-  { id: "Valuation",  label: "Valuation",        desc: "Price any property + IC-ready report"   },
+  { id: "Valuation",  label: "Valuation",        desc: "Price any property + IC-ready report",  pro: true },
 ];
 
 const APPRAISAL_PROMPTS = [
@@ -411,6 +412,9 @@ export default function CopilotPanel({
           payload: data.suggestion.payload,
         };
       }
+      if (data.urlImported && data.urlImported.url) {
+        reply.urlImported = data.urlImported;
+      }
       return reply;
     } catch (e: any) {
       return {
@@ -613,7 +617,10 @@ export default function CopilotPanel({
                     e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
-                  <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={22} /></div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={22} /></div>
+                    {a.pro && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".1em", color: T.green, background: T.greenBg, border: `1px solid ${T.borderAccent}`, padding: "2px 7px", borderRadius: 99 }}>PRO</span>}
+                  </div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: "-.01em" }}>{a.label}</div>
                   <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.35 }}>{a.desc}</div>
                 </button>
@@ -793,7 +800,10 @@ export default function CopilotPanel({
                   e.currentTarget.style.borderColor = T.borderMid;
                 }}
               >
-                <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={18} /></div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ color: T.green, display: "inline-flex" }}><AssetIcon type={a.id} size={18} /></div>
+                  {a.pro && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: ".1em", color: T.green, background: T.greenBg, border: `1px solid ${T.borderAccent}`, padding: "1px 6px", borderRadius: 99 }}>PRO</span>}
+                </div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: T.text, letterSpacing: "-.01em" }}>{a.label}</div>
                 <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.3 }}>{a.desc}</div>
               </button>
@@ -1092,6 +1102,27 @@ function MessageBubble({ msg, onApply, onOpenTopup, T }: { msg: Message; onApply
       }}>
         {renderContent(msg.content)}
       </div>
+
+      {/* URL-import confirmation pill (shows when server successfully scraped the listing) */}
+      {!isUser && msg.urlImported && (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 7,
+          padding: "4px 9px", borderRadius: 999,
+          background: "rgba(107, 191, 130, 0.12)",
+          border: "1px solid rgba(107, 191, 130, 0.35)",
+          fontSize: 10.5, fontWeight: 600, color: T.green,
+          letterSpacing: ".02em",
+          maxWidth: "92%",
+        }} title={msg.urlImported.url}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Listing imported · {(() => {
+            try { return new URL(msg.urlImported.url).hostname.replace(/^www\./, ""); }
+            catch { return "source"; }
+          })()}
+        </div>
+      )}
 
       {/* Apply-suggestion card (for assistant messages with a suggestion) */}
       {!isUser && msg.suggestion && (
