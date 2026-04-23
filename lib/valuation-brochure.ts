@@ -307,16 +307,16 @@ export function generateValuationPDF(v: Valuation, opts?: { firmName?: string; p
   }
 
   // Confidence badge (top-right of card)
-  const conf = v.confidence || "medium";
-  const confColor: [number, number, number] = conf === "high" ? GREEN : conf === "low" ? [194, 72, 68] : [197, 126, 20];
-  pdf.setFillColor(...confColor);
-  const confLabel = `${conf.toUpperCase()} CONFIDENCE`;
-  const cW = pdf.getTextWidth(confLabel) + 18;
+  const confP2 = v.confidence || "medium";
+  const confP2Color: [number, number, number] = confP2 === "high" ? GREEN : confP2 === "low" ? [194, 72, 68] : [197, 126, 20];
+  pdf.setFillColor(...confP2Color);
+  const confP2Label = `${confP2.toUpperCase()} CONFIDENCE`;
+  const cW = pdf.getTextWidth(confP2Label) + 18;
   pdf.roundedRect(W - M - 18 - cW, y + 14, cW, 20, 10, 10, "F");
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(8);
   pdf.setFont("helvetica", "bold");
-  pdf.text(confLabel, W - M - 18 - cW + 9, y + 27);
+  pdf.text(confP2Label, W - M - 18 - cW + 9, y + 27);
   y += 140;
 
   // Property details grid
