@@ -261,6 +261,57 @@ button{font-family:inherit;cursor:pointer}
 }
 `;
 
+// Line-SVG persona icons — matches the asset/Copilot icon style (1.5px stroke, currentColor)
+function PersonaIcon({ type, size = 20 }: { type: "Lender" | "Developer" | "Advisor" | "Analyst"; size?: number }) {
+  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (type) {
+    case "Lender":    // Classical bank façade — pediment + columns
+      return (
+        <svg {...common}>
+          <polyline points="3 9 12 3 21 9"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="5" y1="11" x2="5" y2="19"/>
+          <line x1="9" y1="11" x2="9" y2="19"/>
+          <line x1="15" y1="11" x2="15" y2="19"/>
+          <line x1="19" y1="11" x2="19" y2="19"/>
+          <line x1="3" y1="21" x2="21" y2="21"/>
+        </svg>
+      );
+    case "Developer": // Blueprint / architectural compass
+      return (
+        <svg {...common}>
+          <path d="M12 2v4"/>
+          <path d="M12 18v4"/>
+          <path d="M4.93 4.93l2.83 2.83"/>
+          <path d="M16.24 16.24l2.83 2.83"/>
+          <path d="M2 12h4"/>
+          <path d="M18 12h4"/>
+          <path d="M4.93 19.07l2.83-2.83"/>
+          <path d="M16.24 7.76l2.83-2.83"/>
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+      );
+    case "Advisor":   // Two figures — handshake / client work
+      return (
+        <svg {...common}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      );
+    case "Analyst":   // Line chart with trend arrow
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18"/>
+          <polyline points="7 14 11 10 15 13 21 7"/>
+          <polyline points="17 7 21 7 21 11"/>
+        </svg>
+      );
+    default: return null;
+  }
+}
+
 // Line-SVG asset icons (same style as the Copilot)
 function AssetIcon({ type, size = 28 }: { type: string; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -482,7 +533,7 @@ export default function LandingClient() {
         <div className="personas-grid">
           <article className="persona fade-up">
             <div className="persona-head">
-              <div className="persona-icon">🏦</div>
+              <div className="persona-icon"><PersonaIcon type="Lender" /></div>
               <div>
                 <div className="persona-title">For lenders</div>
                 <div className="persona-subtitle">Banks · debt funds · specialist lenders</div>
@@ -497,7 +548,7 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".08s" }}>
             <div className="persona-head">
-              <div className="persona-icon">🏗️</div>
+              <div className="persona-icon"><PersonaIcon type="Developer" /></div>
               <div>
                 <div className="persona-title">For developers</div>
                 <div className="persona-subtitle">Sponsors · operators · owner-occupiers</div>
@@ -512,7 +563,7 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".16s" }}>
             <div className="persona-head">
-              <div className="persona-icon">📋</div>
+              <div className="persona-icon"><PersonaIcon type="Advisor" /></div>
               <div>
                 <div className="persona-title">For advisors &amp; brokers</div>
                 <div className="persona-subtitle">Agents · consultants · BD teams</div>
@@ -527,7 +578,7 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".24s" }}>
             <div className="persona-head">
-              <div className="persona-icon">📈</div>
+              <div className="persona-icon"><PersonaIcon type="Analyst" /></div>
               <div>
                 <div className="persona-title">For PE + family office analysts</div>
                 <div className="persona-subtitle">Deal-desk · underwriting · IC prep</div>
