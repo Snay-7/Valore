@@ -197,12 +197,6 @@ function Portfolio() {
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
   const [hasFirm, setHasFirm] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [urlImport, setUrlImport] = useState("");
-  const [urlImportType, setUrlImportType] = useState<"Flip"|"Hotel">("Flip");
-  const [urlImportCurrency, setUrlImportCurrency] = useState("GBP");
-  const [urlImporting, setUrlImporting] = useState(false);
-  const [urlImportError, setUrlImportError] = useState<string|null>(null);
   const tier = subscription?.tier || "free";
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
   const isTrialing = !!(trialEndsAt && trialEndsAt > new Date());
@@ -259,40 +253,6 @@ function Portfolio() {
     }).select().single();
     if (proj && !error) { setShowNewModal(false); setNewProject({ name: "", location: "", asset_type: "BTR", currency: "GBP" }); router.push(`/appraisal?project=${proj.id}`); }
     setCreating(false);
-  };
-  const createFromUrl = async () => {
-    if (!urlImport.trim() || !user) return;
-    setUrlImporting(true); setUrlImportError(null);
-    try {
-      const res = await fetch("/api/urlimport", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: urlImport.trim(), assetType: urlImportType, currency: urlImportCurrency }) });
-      const d = await res.json();
-      if (d.error) { setUrlImportError(d.error); setUrlImporting(false); return; }
-      const projectName = d.name || `${urlImportType} — ${d.location || "Imported"}`;
-      const { data: proj, error } = await supabase.from("projects").insert({
-        name: projectName, location: d.location || "",
-        asset_type: urlImportType, currency: urlImportCurrency,
-        benchmark_rate: "SONIA", created_by: user.id, firm_id: null,
-      }).select().single();
-      if (!proj || error) { setUrlImportError("Failed to create project"); setUrlImporting(false); return; }
-      const appraisalData: Record<string, any> = { name: projectName, location: d.location || "", currency: urlImportCurrency };
-      if (urlImportType === "Flip") {
-        if (d.purchasePrice) appraisalData.purchasePrice = d.purchasePrice;
-        if (d.propertySqft) appraisalData.propertySqft = d.propertySqft;
-        if (d.address) appraisalData.address = d.address;
-      } else if (urlImportType === "Hotel") {
-        if (d.purchasePrice) appraisalData.purchasePrice = d.purchasePrice;
-        if (d.rooms) appraisalData.rooms = d.rooms;
-        if (d.starRating) appraisalData.starRating = d.starRating;
-        if (d.gfa) appraisalData.gfa = d.gfa;
-        if (d.brand) appraisalData.brand = d.brand;
-        if (d.address) appraisalData.address = d.address;
-      }
-      const { data: appr } = await supabase.from("appraisals").insert({ project_id: proj.id, data: appraisalData, status: "draft" }).select().single();
-      setShowUrlModal(false); setUrlImport(""); setUrlImportError(null);
-      if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}`);
-      else router.push(`/appraisal?project=${proj.id}`);
-    } catch (e: any) { setUrlImportError(e.message || "Failed to import"); }
-    setUrlImporting(false);
   };
   const openProject = (project: any) => {
     const latest = project.appraisals?.[0];
@@ -488,10 +448,6 @@ function Portfolio() {
                   <button className="btn-ghost" onClick={() => router.push("/dashboard")} title="Start a new deal with the Copilot">
                     <span style={{ color: "var(--gold)" }}>◆</span> Copilot
                   </button>
-                  <button className="btn-ghost" onClick={() => setShowUrlModal(true)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                    Import URL
-                  </button>
                   <button className="btn-primary" onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
                     + New Appraisal
                   </button>
@@ -622,69 +578,6 @@ function Portfolio() {
               </div>
             )}
           </>
-        )}
-        {/* ── URL IMPORT MODAL ── */}
-        {showUrlModal && (
-          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowUrlModal(false); setUrlImportError(null); } }}>
-            <div className="modal" style={{ width: 500 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, letterSpacing: "-.02em" }}>Import from URL</div>
-              </div>
-              <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 22, fontWeight: 500, lineHeight: 1.55 }}>
-                Paste a listing URL from Rightmove, Zoopla, Christie &amp; Co, Savills Hotels or similar — Valora will extract the property data and pre-fill your appraisal.
-              </p>
-              <div className="inp-group">
-                <label className="inp-label">Asset Type</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  {(["Flip", "Hotel"] as const).map(t => (
-                    <button key={t} onClick={() => setUrlImportType(t)} style={{
-                      padding: "12px 14px", borderRadius: 10, border: `1px solid ${urlImportType === t ? "var(--gold)" : "var(--border)"}`,
-                      background: urlImportType === t ? "var(--gold-bg)" : "var(--bg3)",
-                      color: urlImportType === t ? "var(--gold)" : "var(--text-m)",
-                      cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: urlImportType === t ? 700 : 500,
-                      transition: "all .2s var(--ease)", textAlign: "left",
-                    }}>
-                      <div style={{ fontSize: 14, marginBottom: 2, fontWeight: 700 }}>{t}</div>
-                      <div style={{ fontSize: 10, color: urlImportType === t ? "var(--gold)" : "var(--text-d)", fontWeight: 500 }}>
-                        {t === "Flip" ? "Residential — Rightmove, Zoopla, Zillow" : "Hotel — Christie & Co, Savills, JLL Hotels"}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="inp-group">
-                <label className="inp-label">Currency</label>
-                <select className="inp" value={urlImportCurrency} onChange={e => setUrlImportCurrency(e.target.value)}>
-                  {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="inp-group">
-                <label className="inp-label">Listing URL</label>
-                <input className="inp"
-                  placeholder={urlImportType === "Flip" ? "https://www.rightmove.co.uk/properties/..." : "https://www.christieandco.com/listing/..."}
-                  value={urlImport} onChange={e => { setUrlImport(e.target.value); setUrlImportError(null); }}
-                  onKeyDown={e => e.key === "Enter" && createFromUrl()} autoFocus
-                  style={{ fontFamily: "var(--font-body)", fontSize: 12 }} />
-              </div>
-              <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 12px", marginBottom: 16, fontSize: 11, color: "var(--text-d)", lineHeight: 1.6, fontWeight: 500 }}>
-                ◆ Valora uses AI to infer property data from the URL pattern. The more detail in the URL, the better the extraction. You can always edit fields after import.
-              </div>
-              {urlImportError && (
-                <div style={{ background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.3)", borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12, color: "var(--red)", fontWeight: 500 }}>
-                  {urlImportError}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-ghost" onClick={() => { setShowUrlModal(false); setUrlImportError(null); setUrlImport(""); }} style={{ flex: 1 }}>Cancel</button>
-                <button className="btn-primary" onClick={createFromUrl} disabled={!urlImport.trim() || urlImporting} style={{ flex: 2 }}>
-                  {urlImporting ? (
-                    <><span style={{ width: 12, height: 12, border: "2px solid rgba(15,17,21,.3)", borderTopColor: "#0F1115", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />Importing…</>
-                  ) : "Import & Open →"}
-                </button>
-              </div>
-            </div>
-          </div>
         )}
         {/* ── NEW PROJECT MODAL ── */}
         {showNewModal && (
