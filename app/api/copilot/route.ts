@@ -337,7 +337,29 @@ export async function POST(req: Request) {
     .eq("user_id", userId)
     .maybeSingle();
   const tier = (sub?.tier || "free").toLowerCase();
+  const status = (sub?.status || "").toLowerCase();
+  const isTrialing = status === "trialing";
+  const isPaidTier = tier === "professional" || tier === "pro" || tier === "enterprise" || isTrialing;
   const limit = PLAN_LIMITS[tier] ?? PLAN_LIMITS.free;
+
+  // Valuation: free/starter tier gets 3 valuations as a trial, then the upgrade gate.
+  // Pro+ (and trialing) = unlimited.
+  const VALUATION_FREE_LIMIT = 3;
+  if (body?.context === "valuation" && !isPaidTier) {
+    const { count: valCount } = await supabaseService
+      .from("valuations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    const used = valCount ?? 0;
+    if (used >= VALUATION_FREE_LIMIT) {
+      return NextResponse.json({
+        error: "valuation_trial_exhausted",
+        reply: `You've used all ${VALUATION_FREE_LIMIT} of your free valuations. Upgrade to Pro for unlimited cross-border valuations, shareable reports, and IC-ready PDFs.`,
+        upgradeUrl: "/pricing",
+        trial: { used, limit: VALUATION_FREE_LIMIT },
+      }, { status: 403 });
+    }
+  }
 
   // ── 3. Fetch current usage ──
   const { data: usage } = await supabaseService

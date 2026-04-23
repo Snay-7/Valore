@@ -123,6 +123,10 @@ export default function ValuationPage() {
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [tierLoading, setTierLoading] = useState(true);
+  const [isPaidTier, setIsPaidTier] = useState(false);
+  const [trialUsed, setTrialUsed] = useState(0);
+  const TRIAL_LIMIT = 3;
   // Theme sync
   useEffect(() => {
     const detect = (): "dark"|"light" => {
@@ -142,12 +146,27 @@ export default function ValuationPage() {
     obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     return () => obs.disconnect();
   }, []);
-  // Auth
+  // Auth + tier check + free-trial valuation count
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/auth"); return; }
       setUser(session.user);
-    });
+      const { data: sub } = await supabase.from("subscriptions").select("tier, status").eq("user_id", session.user.id).maybeSingle();
+      const t = (sub?.tier || "free").toLowerCase();
+      const s = (sub?.status || "").toLowerCase();
+      const paid = t === "professional" || t === "pro" || t === "enterprise" || s === "trialing";
+      setIsPaidTier(paid);
+      if (!paid) {
+        // Count existing valuations against the trial cap
+        const { count } = await supabase
+          .from("valuations")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", session.user.id);
+        setTrialUsed(count ?? 0);
+      }
+      setTierLoading(false);
+    })();
   }, [router]);
   const onApply = async (payload: Record<string, any>) => {
     const v = payload as Valuation;
@@ -169,7 +188,10 @@ export default function ValuationPage() {
           confidence: v.confidence || null,
         };
         const { data, error } = await supabase.from("valuations").insert(row).select("id").single();
-        if (!error && data?.id) setValuationId(data.id);
+        if (!error && data?.id) {
+          setValuationId(data.id);
+          if (!isPaidTier) setTrialUsed(prev => prev + 1);
+        }
       } catch {}
       setSaving(false);
     }
@@ -224,6 +246,72 @@ export default function ValuationPage() {
     setSharing(false);
   };
   if (!user) return null;
+
+  // Trial exhausted — free/starter users who've used all 3 free valuations see the upgrade gate
+  const trialExhausted = !isPaidTier && trialUsed >= TRIAL_LIMIT;
+  if (!tierLoading && trialExhausted) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
+        <style>{CSS}</style>
+        <script dangerouslySetInnerHTML={{__html:`(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var k=['valora-theme','val-theme','theme'];for(var i=0;i<k.length;i++){var v=localStorage.getItem(k[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');else if(document.body)document.body.classList.remove('light');}catch(e){}})()`}}/>
+        <div className="val-nav">
+          <span className="val-logo" onClick={() => router.push("/dashboard")}>Valora</span>
+          <div style={{ width: 1, height: 18, background: "var(--border)" }}/>
+          <button className="val-btn-back" onClick={() => router.push("/dashboard")}>← Dashboard</button>
+          <div style={{ flex: 1 }}/>
+          <div style={{ fontSize: 11, color: "var(--text-d)", letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700 }}>◆ Valuation</div>
+        </div>
+        <div style={{ maxWidth: 720, margin: "80px auto", padding: "0 32px", textAlign: "center" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "var(--gold-bg)", border: "1px solid var(--gold-border)", color: "var(--gold)", fontSize: 11, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", padding: "6px 14px", borderRadius: 999, marginBottom: 22 }}>
+            ◆ Trial used — 3 / 3 valuations
+          </div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 700, letterSpacing: "-.03em", lineHeight: 1.1, color: "var(--text)", marginBottom: 16 }}>
+            You&rsquo;ve used your 3 free valuations.
+          </h1>
+          <p style={{ fontSize: 16, color: "var(--text-d)", lineHeight: 1.55, marginBottom: 36, maxWidth: 560, margin: "0 auto 36px" }}>
+            Upgrade to Pro for unlimited cross-border valuations, shareable investor reports, IC-ready PDFs, and every feature of the underwriting platform.
+          </p>
+          <div style={{ background: "var(--bg1)", border: "1px solid var(--border)", borderRadius: 14, padding: 28, marginBottom: 28, textAlign: "left" }}>
+            <div style={{ fontSize: 11, color: "var(--text-d)", letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700, marginBottom: 14 }}>What Pro unlocks</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                "Unlimited valuations — anywhere in the world",
+                "Unlimited appraisals across all 7 asset classes",
+                "Full Copilot — 300 AI messages / month",
+                "Monte Carlo + stress tests + sensitivity matrices",
+                "Live investor share links (live models, not static)",
+                "IC-ready PDF brochures and valuation reports",
+              ].map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, fontSize: 14, color: "var(--text-m)", fontWeight: 500, lineHeight: 1.5 }}>
+                  <span style={{ color: "var(--green)", fontWeight: 700, fontSize: 15, flexShrink: 0 }}>✓</span>
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => router.push("/pricing")} style={{ background: "var(--green)", color: "var(--bg)", border: "none", borderRadius: 9, padding: "14px 26px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}>
+              See plans →
+            </button>
+            <button onClick={() => router.push("/dashboard")} style={{ background: "transparent", color: "var(--text-m)", border: "1px solid var(--border-m)", borderRadius: 9, padding: "14px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Back to Copilot
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-d)", marginTop: 24, letterSpacing: ".02em" }}>
+            14-day free trial on Pro · cancel anytime
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (tierLoading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <style>{CSS}</style>
+        <div style={{ width: 28, height: 28, border: "2px solid rgba(82,196,152,.15)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+      </div>
+    );
+  }
   const ccy = valuation?.currency || "GBP";
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)" }}>
@@ -247,6 +335,25 @@ export default function ValuationPage() {
           />
         </div>
         <div className="val-main">
+          {/* Trial counter banner — only for free users who still have valuations left */}
+          {!isPaidTier && !tierLoading && trialUsed < TRIAL_LIMIT && (
+            <div style={{
+              maxWidth: 880, margin: "0 auto 24px",
+              background: "var(--gold-bg)", border: "1px solid var(--gold-border)",
+              borderRadius: 10, padding: "12px 18px",
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap",
+            }}>
+              <div style={{ fontSize: 13, color: "var(--gold)", fontWeight: 600, lineHeight: 1.5 }}>
+                <strong style={{ fontWeight: 800 }}>◆ Free trial — {trialUsed} / {TRIAL_LIMIT} valuations used.</strong>
+                {" "}Upgrade to Pro for unlimited valuations + IC-ready PDFs.
+              </div>
+              <button onClick={() => router.push("/pricing")} style={{
+                background: "var(--green)", color: "var(--bg)", border: "none",
+                borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em", flexShrink: 0,
+              }}>See Pro →</button>
+            </div>
+          )}
           {!valuation && (
             <div className="val-empty">
               <div className="val-chip">◆ Valuation Copilot</div>
