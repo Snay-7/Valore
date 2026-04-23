@@ -197,6 +197,20 @@ function Portfolio() {
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
   const [hasFirm, setHasFirm] = useState(false);
+  // ── OM-to-Model upload state ──
+  const [showBrochureModal, setShowBrochureModal] = useState(false);
+  const [brochureFile, setBrochureFile] = useState<File | null>(null);
+  const [brochureContext, setBrochureContext] = useState("");
+  const [brochureStage, setBrochureStage] = useState<"idle" | "uploading" | "review" | "error">("idle");
+  const [brochureError, setBrochureError] = useState<string | null>(null);
+  const [brochureResult, setBrochureResult] = useState<{
+    description: string; confidence: "high"|"medium"|"low";
+    payload: Record<string, any>;
+    flags: Array<{ severity: string; message: string }>;
+    sourceNotes: string; filename: string;
+  } | null>(null);
+  const [applyingBrochure, setApplyingBrochure] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const tier = subscription?.tier || "free";
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
   const isTrialing = !!(trialEndsAt && trialEndsAt > new Date());
@@ -242,6 +256,150 @@ function Portfolio() {
     });
     setProjects(active); setTrashedProjects(trashed); setTotalProjectCount(totalCount); setLoading(false);
   };
+  // ── Brochure upload handlers ──
+  const resetBrochureModal = () => {
+    setShowBrochureModal(false);
+    setBrochureFile(null);
+    setBrochureContext("");
+    setBrochureStage("idle");
+    setBrochureError(null);
+    setBrochureResult(null);
+    setDragOver(false);
+  };
+
+  const validateAndSetFile = (f: File) => {
+    setBrochureError(null);
+    if (f.type !== "application/pdf") {
+      setBrochureError(`That's a ${f.type || "unknown file type"}. Please upload a PDF.`);
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      setBrochureError(`File is ${(f.size / 1024 / 1024).toFixed(1)}MB. Max 10MB.`);
+      return;
+    }
+    if (f.size === 0) {
+      setBrochureError("That file appears to be empty.");
+      return;
+    }
+    setBrochureFile(f);
+  };
+
+  const submitBrochure = async () => {
+    if (!brochureFile) return;
+    setBrochureStage("uploading");
+    setBrochureError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setBrochureError("Please sign in again."); setBrochureStage("error"); return; }
+      const fd = new FormData();
+      fd.append("file", brochureFile);
+      if (brochureContext.trim()) fd.append("context", brochureContext.trim());
+      const res = await fetch("/api/brochure-upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403 && data.error === "om_trial_exhausted") {
+          setBrochureError(data.message || "Free trial used. Upgrade to Pro.");
+        } else {
+          setBrochureError(data.error || data.hint || "Extraction failed");
+        }
+        setBrochureStage("error");
+        return;
+      }
+      setBrochureResult(data);
+      setBrochureStage("review");
+    } catch (e: any) {
+      setBrochureError(e?.message || "Network error — could not upload brochure.");
+      setBrochureStage("error");
+    }
+  };
+
+  // Apply: create project + appraisal from the extracted payload, then route to /appraisal.
+  // Maps the OM extraction payload onto Valora's project + appraisal schema, preserving
+  // every field Claude extracted so the analyst lands on a pre-populated model.
+  const applyBrochure = async () => {
+    if (!brochureResult || !user) return;
+    setApplyingBrochure(true);
+    try {
+      const p = brochureResult.payload;
+      const projectName = p.name || brochureResult.description.split("—")[0]?.trim() || brochureResult.filename.replace(/\.pdf$/i, "");
+      const { data: proj, error: projErr } = await supabase.from("projects").insert({
+        name: projectName,
+        location: p.location || p.address || "",
+        asset_type: p.assetType || "BTR",
+        currency: p.currency || "GBP",
+        benchmark_rate: "SONIA",
+        created_by: user.id,
+        firm_id: null,
+      }).select().single();
+      if (projErr || !proj) throw new Error(projErr?.message || "Failed to create project");
+
+      // Map extracted payload → appraisal data.
+      // Pass through every field Claude extracted; the appraisal form will display
+      // what it recognises and safely ignore anything unfamiliar.
+      const appraisalData: Record<string, any> = {
+        name: projectName,
+        location: p.location || p.address || "",
+        currency: p.currency || "GBP",
+        // Pull over every field regardless of asset type — the appraisal page shows relevant ones
+        ...(p.address && { address: p.address }),
+        ...(p.rooms && { rooms: p.rooms }),
+        ...(p.adr && { adr: p.adr }),
+        ...(p.occupancy && { occupancy: p.occupancy }),
+        ...(p.starRating && { starRating: p.starRating }),
+        ...(p.brand && { brand: p.brand }),
+        ...(p.purchasePrice && { purchasePrice: p.purchasePrice }),
+        ...(p.refurbBudget && { refurbBudget: p.refurbBudget }),
+        ...(p.saleValue && { saleValue: p.saleValue }),
+        ...(p.holdMonths && { holdMonths: p.holdMonths }),
+        ...(p.units && { units: p.units }),
+        ...(p.affordableUnits && { affordableUnits: p.affordableUnits }),
+        ...(p.avgUnitSize && { avgUnitSize: p.avgUnitSize }),
+        ...(p.avgRent && { avgRent: p.avgRent }),
+        ...(p.avgRentPsf && { avgRentPsf: p.avgRentPsf }),
+        ...(p.avgSalePrice && { avgSalePrice: p.avgSalePrice }),
+        ...(p.landCost && { landCost: p.landCost }),
+        ...(p.constructionCost && { constructionCost: p.constructionCost }),
+        ...(p.gdv && { gdv: p.gdv }),
+        ...(p.sqft && { sqft: p.sqft }),
+        ...(p.rentPerSqft && { rentPerSqft: p.rentPerSqft }),
+        ...(p.holdYears && { holdYears: p.holdYears }),
+        ...(p.ltc && { ltc: p.ltc }),
+        ...(p.ltv && { ltv: p.ltv }),
+        ...(p.exitCapRate && { exitCapRate: p.exitCapRate }),
+        ...(p.entryYield && { entryYield: p.entryYield }),
+        ...(p.tenure && { tenure: p.tenure }),
+        ...(p.leaseYearsRemaining && { leaseYearsRemaining: p.leaseYearsRemaining }),
+        ...(p.openingYear && { openingYear: p.openingYear }),
+        ...(p.gia && { gia: p.gia }),
+        ...(p.secondaryUses && { secondaryUses: p.secondaryUses }),
+        ...(p.upsideNotes && { upsideNotes: p.upsideNotes }),
+        // Provenance — so the appraisal knows it came from an OM
+        _source: "om_extraction",
+        _sourceFilename: brochureResult.filename,
+        _sourceConfidence: brochureResult.confidence,
+        _sourceFlags: brochureResult.flags,
+        _sourceNotes: brochureResult.sourceNotes,
+      };
+
+      const { data: appr } = await supabase
+        .from("appraisals")
+        .insert({ project_id: proj.id, data: appraisalData, status: "draft" })
+        .select()
+        .single();
+
+      resetBrochureModal();
+      if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}&fromOm=1`);
+      else router.push(`/appraisal?project=${proj.id}&fromOm=1`);
+    } catch (e: any) {
+      setBrochureError(e?.message || "Failed to create project from brochure.");
+      setApplyingBrochure(false);
+    }
+  };
+
   const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
   const createProject = async () => {
     if (!newProject.name.trim() || !user) return;
@@ -444,9 +602,18 @@ function Portfolio() {
                 )}
               </div>
               <div className="page-header-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button className="btn-ghost" onClick={() => router.push("/dashboard")} title="Start a new deal with the Copilot">
                     <span style={{ color: "var(--gold)" }}>◆</span> Copilot
+                  </button>
+                  <button className="btn-ghost" onClick={() => setShowBrochureModal(true)} title="Upload an offering memorandum PDF — we extract the deal model automatically">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="12" y1="18" x2="12" y2="12"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    Upload Brochure
                   </button>
                   <button className="btn-primary" onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
                     + New Appraisal
@@ -613,6 +780,275 @@ function Portfolio() {
                   {creating ? "Creating…" : "Create & Open →"}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* ── BROCHURE UPLOAD MODAL (OM-to-Model) ── */}
+        {showBrochureModal && (
+          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && brochureStage !== "uploading") resetBrochureModal(); }}>
+            <div className="modal" style={{ width: 640, maxHeight: "88vh", overflow: "auto" }}>
+              {/* ── Header ── */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, letterSpacing: "-.02em" }}>
+                  {brochureStage === "review" ? "Review extracted deal" : "Upload investment brochure"}
+                </div>
+              </div>
+
+              {/* ── Upload + context form (idle / uploading / error) ── */}
+              {brochureStage !== "review" && (
+                <>
+                  <p style={{ fontSize: 12.5, color: "var(--text-d)", marginBottom: 20, fontWeight: 500, lineHeight: 1.55 }}>
+                    Drop an OM, IM, or investment deck. We read text and charts to extract asset type, size, pricing, and financials, then build the model for you.
+                  </p>
+
+                  {/* ── Dropzone ── */}
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) validateAndSetFile(f);
+                    }}
+                    onClick={() => { if (brochureStage === "idle") document.getElementById("brochure-file-input")?.click(); }}
+                    style={{
+                      border: `2px dashed ${dragOver ? "var(--gold)" : brochureFile ? "var(--gold-border)" : "var(--border-m)"}`,
+                      borderRadius: 12,
+                      padding: "28px 20px",
+                      textAlign: "center",
+                      background: dragOver ? "var(--gold-bg)" : brochureFile ? "var(--gold-bg)" : "var(--bg3)",
+                      cursor: brochureStage === "idle" ? "pointer" : "default",
+                      transition: "all .15s var(--ease)",
+                      marginBottom: 14,
+                    }}>
+                    <input id="brochure-file-input" type="file" accept="application/pdf" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); e.target.value = ""; }} />
+                    {brochureFile ? (
+                      <>
+                        <div style={{ fontSize: 32, color: "var(--gold)", marginBottom: 8 }}>◈</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: "-.01em" }}>
+                          {brochureFile.name}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 10, fontWeight: 500 }}>
+                          {(brochureFile.size / 1024 / 1024).toFixed(2)}MB · PDF
+                        </div>
+                        {brochureStage === "idle" && (
+                          <button onClick={e => { e.stopPropagation(); setBrochureFile(null); }}
+                            style={{ background: "transparent", color: "var(--text-d)", border: "1px solid var(--border-m)", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                            Remove
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-d)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10 }}>
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                          <polyline points="17 8 12 3 7 8"/>
+                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: "-.01em" }}>
+                          Drop PDF here, or click to browse
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-d)", fontWeight: 500 }}>
+                          PDF only · max 10MB · OMs, IMs, investment decks
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── Context field ── */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 6, display: "block" }}>
+                      Extra context <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--text-d)", fontWeight: 400, fontSize: 11 }}>(optional — often decisive for pricing)</span>
+                    </label>
+                    <textarea
+                      className="inp"
+                      value={brochureContext}
+                      onChange={e => setBrochureContext(e.target.value)}
+                      placeholder={`e.g. "Asking £116m, off-market, broker is Savills"\nOr: "BTR scheme, acquisition price £146m per our NDA call"`}
+                      rows={3}
+                      disabled={brochureStage === "uploading"}
+                      style={{ fontFamily: "var(--font-body)", fontSize: 12.5, resize: "vertical", minHeight: 60, lineHeight: 1.55 }}
+                    />
+                    <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>
+                      Many OMs leave the asking price out of the deck — add it here and Claude will anchor to it.
+                    </div>
+                  </div>
+
+                  {/* ── Uploading state ── */}
+                  {brochureStage === "uploading" && (
+                    <div style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 10, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 18, height: 18, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "var(--gold)", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 2 }}>Extracting deal model…</div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-m)", fontWeight: 500 }}>Reading pages · analysing financials · flagging assumptions · typically 15-30 seconds</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Error banner ── */}
+                  {brochureError && (
+                    <div style={{ background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.3)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, color: "var(--red)", fontWeight: 500, lineHeight: 1.5 }}>
+                      {brochureError}
+                    </div>
+                  )}
+
+                  {/* ── Actions ── */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={brochureStage === "uploading"} style={{ flex: 1 }}>
+                      Cancel
+                    </button>
+                    <button className="btn-primary" onClick={submitBrochure} disabled={!brochureFile || brochureStage === "uploading"} style={{ flex: 2 }}>
+                      {brochureStage === "uploading" ? "Extracting…" : "◈ Extract deal model →"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ── Review stage ── */}
+              {brochureStage === "review" && brochureResult && (
+                <>
+                  {/* Description + confidence */}
+                  <div style={{ background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{
+                        flexShrink: 0,
+                        fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase",
+                        padding: "3px 8px", borderRadius: 999,
+                        background: brochureResult.confidence === "high" ? "rgba(82,196,152,.12)" : brochureResult.confidence === "medium" ? "rgba(240,164,41,.1)" : "rgba(244,100,95,.08)",
+                        color: brochureResult.confidence === "high" ? "var(--green)" : brochureResult.confidence === "medium" ? "var(--amber)" : "var(--red)",
+                        border: `1px solid ${brochureResult.confidence === "high" ? "var(--gold-border)" : brochureResult.confidence === "medium" ? "rgba(240,164,41,.3)" : "rgba(244,100,95,.25)"}`,
+                      }}>
+                        ● {brochureResult.confidence} confidence
+                      </span>
+                      <div style={{ fontSize: 13.5, color: "var(--text)", fontWeight: 600, lineHeight: 1.45, flex: 1 }}>
+                        {brochureResult.description}
+                      </div>
+                    </div>
+                    {brochureResult.sourceNotes && (
+                      <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, fontWeight: 500, lineHeight: 1.5, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                        <strong style={{ color: "var(--text-m)" }}>Source notes:</strong> {brochureResult.sourceNotes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Extracted fields */}
+                  <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 8 }}>Extracted deal</div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: 10,
+                    background: "var(--bg3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    padding: 14,
+                    marginBottom: 14,
+                  }}>
+                    {(() => {
+                      const p = brochureResult.payload;
+                      const sym = CURRENCY_SYMBOLS[p.currency || "GBP"] || "£";
+                      const money = (n: number) => {
+                        if (!n || !isFinite(n)) return "—";
+                        if (Math.abs(n) >= 1e6) return `${sym}${(n / 1e6).toFixed(2)}m`;
+                        if (Math.abs(n) >= 1e3) return `${sym}${(n / 1e3).toFixed(0)}k`;
+                        return `${sym}${n.toLocaleString()}`;
+                      };
+                      const fields: Array<[string, string | null]> = [
+                        ["Asset type", p.assetType || null],
+                        ["Name", p.name || null],
+                        ["Location", p.location || p.address || null],
+                        ["Currency", p.currency || null],
+                        ["Tenure", p.tenure ? p.tenure.replace(/_/g, " ") : null],
+                        ["Lease yrs", p.leaseYearsRemaining ? String(p.leaseYearsRemaining) : null],
+                        ["Rooms (keys)", p.rooms ? String(p.rooms) : null],
+                        ["ADR", p.adr ? money(p.adr) : null],
+                        ["Occupancy", p.occupancy ? `${p.occupancy}%` : null],
+                        ["Brand", p.brand || null],
+                        ["Star rating", p.starRating ? `${p.starRating}★` : null],
+                        ["Units", p.units ? String(p.units) : null],
+                        ["Affordable", p.affordableUnits ? String(p.affordableUnits) : null],
+                        ["Avg unit size", p.avgUnitSize ? `${p.avgUnitSize.toLocaleString()} sqft` : null],
+                        ["Rent /sqft", p.avgRentPsf ? money(p.avgRentPsf) : null],
+                        ["Purchase price", p.purchasePrice ? money(p.purchasePrice) : null],
+                        ["Land cost", p.landCost ? money(p.landCost) : null],
+                        ["Construction", p.constructionCost ? money(p.constructionCost) : null],
+                        ["GDV", p.gdv ? money(p.gdv) : null],
+                        ["Sqft", p.sqft ? p.sqft.toLocaleString() : null],
+                        ["GIA", p.gia ? `${p.gia.toLocaleString()} sqft` : null],
+                        ["Exit cap", p.exitCapRate ? `${p.exitCapRate}%` : null],
+                        ["Entry yield", p.entryYield ? `${p.entryYield}%` : null],
+                        ["LTC", p.ltc ? `${p.ltc}%` : null],
+                        ["Hold", p.holdYears ? `${p.holdYears}yr` : p.holdMonths ? `${p.holdMonths}mo` : null],
+                        ["Opening year", p.openingYear ? String(p.openingYear) : null],
+                      ].filter(([, v]) => v);
+                      return fields.map(([label, val]) => (
+                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <div style={{ fontSize: 9.5, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600 }}>{label}</div>
+                          <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: "-.01em" }}>{val}</div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+
+                  {/* Secondary uses / upside notes */}
+                  {(brochureResult.payload.secondaryUses || brochureResult.payload.upsideNotes) && (
+                    <div style={{ background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", marginBottom: 14 }}>
+                      {brochureResult.payload.secondaryUses && (
+                        <div style={{ fontSize: 12, color: "var(--text-m)", lineHeight: 1.55, marginBottom: brochureResult.payload.upsideNotes ? 8 : 0 }}>
+                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>Secondary uses:</strong> {brochureResult.payload.secondaryUses}
+                        </div>
+                      )}
+                      {brochureResult.payload.upsideNotes && (
+                        <div style={{ fontSize: 12, color: "var(--text-m)", lineHeight: 1.55 }}>
+                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>Upside:</strong> {brochureResult.payload.upsideNotes}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Flags */}
+                  {brochureResult.flags.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 8 }}>
+                        Flags ({brochureResult.flags.length}) — things to verify
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                        {brochureResult.flags.map((f, i) => {
+                          const color = f.severity === "critical" ? "var(--red)" : f.severity === "warning" ? "var(--amber)" : "var(--blue)";
+                          const bg = f.severity === "critical" ? "rgba(244,100,95,.08)" : f.severity === "warning" ? "rgba(240,164,41,.08)" : "rgba(92,165,220,.08)";
+                          const brd = f.severity === "critical" ? "rgba(244,100,95,.25)" : f.severity === "warning" ? "rgba(240,164,41,.28)" : "rgba(92,165,220,.25)";
+                          return (
+                            <div key={i} style={{ background: bg, border: `1px solid ${brd}`, borderRadius: 8, padding: "10px 12px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color, padding: "2px 7px", borderRadius: 4, border: `1px solid ${brd}`, background: "var(--bg2)" }}>
+                                {f.severity}
+                              </span>
+                              <div style={{ fontSize: 12.5, color: "var(--text-m)", lineHeight: 1.5, fontWeight: 500 }}>{f.message}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Apply / Cancel */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={applyingBrochure} style={{ flex: 1 }}>
+                      Cancel
+                    </button>
+                    <button className="btn-primary" onClick={applyBrochure} disabled={applyingBrochure} style={{ flex: 2 }}>
+                      {applyingBrochure ? "Creating deal…" : "Apply → Open in Appraisal"}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, fontWeight: 500, lineHeight: 1.5 }}>
+                    You can tweak any extracted field on the appraisal page. The flags above will remain visible there until you resolve them.
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
