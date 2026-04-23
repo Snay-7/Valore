@@ -34,7 +34,7 @@ type QuotaState = {
 };
 
 type CopilotPanelProps = {
-  context?: "dashboard" | "appraisal";        // default: "appraisal"
+  context?: "dashboard" | "appraisal" | "valuation";  // default: "appraisal"
   dealName?: string;                          // "Leinster Square Hotel" (appraisal mode)
   assetType?: string;                         // "Hotel" | "BTR" | ...
   userName?: string;                          // "Snayder" — for dashboard greeting
@@ -43,6 +43,7 @@ type CopilotPanelProps = {
   onApply?: (payload: Record<string, any>) => void;   // edit current deal
   onCreate?: (payload: Record<string, any>) => void;  // create new deal
   onNewDeal?: (assetType: string) => void;    // dashboard: user picked asset — navigate
+  onValuation?: () => void;                   // dashboard: user clicked Valuation card — route to /valuation
 };
 
 // ── Premium line-SVG asset icons (1.5px stroke, currentColor, architectural) ──
@@ -136,6 +137,15 @@ function AssetIcon({ type, size = 22 }: { type: string; size?: number }) {
           <line x1="19" y1="18" x2="19.01" y2="18" />
         </svg>
       );
+    case "Valuation": // Magnifier over a price indicator — research + value
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+          <line x1="11" y1="8" x2="11" y2="14"/>
+        </svg>
+      );
     default:
       return null;
   }
@@ -147,6 +157,7 @@ const ASSET_TYPES: { id: string; label: string; desc: string }[] = [
   { id: "Flip",       label: "Residential Flip", desc: "Buy, refurb, sell / hold / refinance"   },
   { id: "Commercial", label: "Commercial",       desc: "Office, retail, industrial yield deals" },
   { id: "MixedUse",   label: "Mixed Use",        desc: "Multi-zone: resi + commercial blended"  },
+  { id: "Valuation",  label: "Valuation",        desc: "Price any property + IC-ready report"   },
 ];
 
 const APPRAISAL_PROMPTS = [
@@ -218,12 +229,65 @@ export default function CopilotPanel({
   onApply,
   onCreate,
   onNewDeal,
+  onValuation,
 }: CopilotPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [quota, setQuota] = useState<QuotaState | null>(null);
   const [showTopup, setShowTopup] = useState(false);
+
+  // ── Voice input (Web Speech API) ──
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const inputBeforeVoiceRef = useRef<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    setVoiceSupported(true);
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = (typeof navigator !== "undefined" && navigator.language) || "en-GB";
+    rec.maxAlternatives = 1;
+    rec.onresult = (e: any) => {
+      let interim = "";
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += chunk;
+        else interim += chunk;
+      }
+      const base = inputBeforeVoiceRef.current;
+      const joined = (base ? base.trimEnd() + " " : "") + (final || interim);
+      setInput(joined);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    return () => { try { rec.stop(); } catch {} };
+  }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) return;
+    if (listening) {
+      try { recognitionRef.current.stop(); } catch {}
+      setListening(false);
+      return;
+    }
+    // Starting: remember what's already in the textarea so we can append
+    inputBeforeVoiceRef.current = input;
+    try {
+      recognitionRef.current.start();
+      setListening(true);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    } catch {
+      setListening(false);
+    }
+  };
 
   // ── Theme detection (matches the learn/dashboard/pipeline pattern) ──
   useEffect(() => {
@@ -474,6 +538,7 @@ export default function CopilotPanel({
                     fontFamily: "inherit", lineHeight: 1.5, minHeight: 28, maxHeight: 160,
                   }}
                 />
+                <MicButton listening={listening} supported={voiceSupported} onToggle={toggleVoice} T={T} />
                 <button onClick={handleSend} disabled={!input.trim() || sending} style={{
                   background: input.trim() && !sending ? T.green : T.btnSendDisabled,
                   color: input.trim() && !sending ? "#FFFFFF" : T.btnSendDisabledText,
@@ -514,7 +579,7 @@ export default function CopilotPanel({
               {ASSET_TYPES.map(a => (
                 <button
                   key={a.id}
-                  onClick={() => onNewDeal && onNewDeal(a.id)}
+                  onClick={() => { if (a.id === "Valuation") { onValuation && onValuation(); } else { onNewDeal && onNewDeal(a.id); } }}
                   style={{
                     background: T.bgSubtle,
                     border: `1px solid ${T.borderMid}`,
@@ -588,6 +653,7 @@ export default function CopilotPanel({
                       fontFamily: "inherit", lineHeight: 1.5, minHeight: 22, maxHeight: 140,
                     }}
                   />
+                  <MicButton listening={listening} supported={voiceSupported} onToggle={toggleVoice} T={T} size="sm" />
                   <button onClick={handleSend} disabled={!input.trim() || sending} style={{
                     background: input.trim() && !sending ? T.green : T.btnSendDisabled,
                     color: input.trim() && !sending ? "#FFFFFF" : T.btnSendDisabledText,
@@ -696,7 +762,7 @@ export default function CopilotPanel({
             {ASSET_TYPES.map(a => (
               <button
                 key={a.id}
-                onClick={() => onNewDeal && onNewDeal(a.id)}
+                onClick={() => { if (a.id === "Valuation") { onValuation && onValuation(); } else { onNewDeal && onNewDeal(a.id); } }}
                 style={{
                   background: T.bgSubtle,
                   border: `1px solid ${T.borderMid}`,
@@ -779,6 +845,7 @@ export default function CopilotPanel({
               fontFamily: "inherit", lineHeight: 1.5, minHeight: 20, maxHeight: 120,
             }}
           />
+          <MicButton listening={listening} supported={voiceSupported} onToggle={toggleVoice} T={T} size="sm" />
           <button onClick={handleSend} disabled={!input.trim() || sending} style={{
             background: input.trim() && !sending ? T.green : T.btnSendDisabled,
             color: input.trim() && !sending ? "#FFFFFF" : T.btnSendDisabledText,
@@ -798,6 +865,58 @@ export default function CopilotPanel({
 }
 
 /* ── Individual message bubble ─────────────────────────────────── */
+/* ── Mic button — voice input via Web Speech API ──────────────── */
+function MicButton({ listening, supported, onToggle, T, size = "md" }: {
+  listening: boolean; supported: boolean; onToggle: () => void; T: typeof DARK_COLORS; size?: "md" | "sm";
+}) {
+  if (!supported) return null;
+  const s = size === "sm" ? { pad: "7px 10px", icon: 15 } : { pad: "10px 12px", icon: 17 };
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={listening ? "Stop recording" : "Dictate your message"}
+      aria-label={listening ? "Stop recording" : "Start voice input"}
+      style={{
+        background: listening ? "#F4645F" : "transparent",
+        color: listening ? "#FFFFFF" : T.textDim,
+        border: `1px solid ${listening ? "#F4645F" : T.borderMid}`,
+        borderRadius: 7,
+        padding: s.pad,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "all 150ms",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        flexShrink: 0,
+      }}
+    >
+      <svg width={s.icon} height={s.icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="9" y="3" width="6" height="12" rx="3"/>
+        <path d="M5 11a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
+      {listening && (
+        <span style={{
+          position: "absolute", top: -3, right: -3,
+          width: 10, height: 10, borderRadius: "50%",
+          background: "#F4645F",
+          animation: "mic-pulse 1s infinite",
+        }} />
+      )}
+      <style jsx>{`
+        @keyframes mic-pulse {
+          0%,100% { box-shadow: 0 0 0 0 rgba(244,100,95,.6); transform: scale(1); }
+          50%     { box-shadow: 0 0 0 6px rgba(244,100,95,0); transform: scale(1.15); }
+        }
+      `}</style>
+    </button>
+  );
+}
+
 /* ── Usage pill — compact "237 / 300 · +50 bonus" indicator ──────── */
 function UsagePill({ quota, T, onTopup }: { quota: QuotaState | null; T: typeof DARK_COLORS; onTopup: () => void }) {
   if (!quota) return null;

@@ -97,6 +97,74 @@ const suggestCreateTool: Anthropic.Messages.Tool = {
   },
 };
 
+const suggestValuationTool: Anthropic.Messages.Tool = {
+  name: "suggest_valuation",
+  description:
+    "Produce a comparative market valuation for a single property. Call this when the user describes a property they want valued (e.g. '3-bed terrace in Fulham, 1,200 sqft, refurbished' or 'condo in Miami Beach, 2BR, ocean view'). Identify the jurisdiction from the description and use local conventions (currency, PSF vs ppm, freehold/leasehold, comparable sources). Always include estimatedValue, at least 3 comparables, valuationDrivers, and risks.",
+  input_schema: {
+    type: "object",
+    properties: {
+      description: { type: "string", description: "One-sentence summary for the Apply card, e.g. '3-bed Fulham terrace valued at £1.05m-£1.20m'." },
+      payload: {
+        type: "object",
+        description: "Full valuation data.",
+        properties: {
+          address: { type: "string" },
+          jurisdiction: { type: "string", description: "ISO country / region code or short name, e.g. 'UK', 'US', 'UAE', 'SG', 'EU-DE'." },
+          currency: { type: "string", enum: ["GBP", "USD", "EUR", "AED", "SGD", "AUD", "CHF", "JPY"] },
+          propertyType: { type: "string", description: "e.g. 'residential terrace', 'hotel', 'office', 'retail', 'industrial', 'condo'." },
+          bedrooms: { type: "number" },
+          sqft: { type: "number", description: "Gross internal area in sq ft (convert if source uses sqm)." },
+          condition: { type: "string", enum: ["new", "refurbished", "good", "needs_work", "dilapidated"] },
+          tenure: { type: "string", enum: ["freehold", "leasehold", "99-yr leasehold", "999-yr leasehold", "fee_simple", "strata"] },
+          estimatedValue: {
+            type: "object",
+            description: "Price range in the specified currency.",
+            properties: {
+              low: { type: "number" },
+              central: { type: "number" },
+              high: { type: "number" },
+            },
+            required: ["low", "central", "high"],
+          },
+          pricePerSqft: { type: "number", description: "Central estimate divided by sqft." },
+          comparables: {
+            type: "array",
+            description: "3-6 comparable properties with specifics.",
+            items: {
+              type: "object",
+              properties: {
+                address: { type: "string" },
+                price: { type: "number" },
+                currency: { type: "string" },
+                date: { type: "string", description: "Approx sale/valuation date, e.g. 'Mar 2025' or '2024'." },
+                sqft: { type: "number" },
+                pricePerSqft: { type: "number" },
+                distanceMiles: { type: "number", description: "Distance from subject property in miles (convert km if local unit)." },
+                notes: { type: "string", description: "Brief adjustment rationale, e.g. 'smaller, unrefurbished — adjusted +8%'." },
+              },
+            },
+          },
+          valuationDrivers: {
+            type: "array",
+            items: { type: "string" },
+            description: "3-6 short bullets explaining what drives the value (location, condition, yield, tenure, view, parking, etc.).",
+          },
+          risks: {
+            type: "array",
+            items: { type: "string" },
+            description: "2-4 risk factors a buyer/lender should consider (liquidity, planning, service charge, EPC, market timing, etc.).",
+          },
+          methodology: { type: "string", enum: ["comparable_sales", "income_approach", "residual_development", "cost_approach", "blended"] },
+          confidence: { type: "string", enum: ["low", "medium", "high"] },
+        },
+        required: ["jurisdiction", "currency", "propertyType", "estimatedValue", "comparables", "valuationDrivers", "risks", "methodology", "confidence"],
+      },
+    },
+    required: ["description", "payload"],
+  },
+};
+
 const suggestEditTool: Anthropic.Messages.Tool = {
   name: "suggest_edit",
   description:
@@ -134,6 +202,35 @@ Example:
 User: "Hotel in Bayswater, 60 keys, 4-star, £18m, 60% LTC"
 Reply: "Modelled as a 4-star Bayswater hotel with the spec you gave. Assumed ADR £175, 72% occupancy, 5-year hold, 6.25% exit cap. Review and tap Apply to open the appraisal."
 Tool: suggest_create with assetType=Hotel, rooms=60, purchasePrice=18000000, starRating=4, ltc=60, adr=175, occupancy=72, holdYears=5, exitCapRate=6.25.`;
+
+const VALUATION_SYSTEM = `You are Valora Copilot in valuation mode — a cross-border property valuation assistant for institutional real estate professionals.
+
+The user describes a single property (type, location, size, condition, any URL they pasted). Your job:
+
+1. Detect the JURISDICTION from the description (UK / US / UAE / Singapore / Germany / France / etc.) and apply its conventions:
+   - UK: GBP, £ per sqft, freehold/leasehold, SDLT bands, EPC rating relevance
+   - US: USD, $ per sqft, fee simple/strata, property tax, HOA for condos
+   - UAE: AED, freehold vs leasehold communities (Dubai), service charges
+   - Singapore: SGD, $ per sqft, freehold/99-year leasehold, ABSD
+   - EU: EUR, € per sqm (NOT sqft — but you can quote both), notary costs
+   - Other: use local conventions and flag confidence accordingly
+
+2. Produce a valuation with:
+   - Price range (low / central / high) in the local currency
+   - 3-6 comparables with specific addresses, prices, dates, sqft, and a brief adjustment rationale
+   - 3-6 valuation drivers (location, condition, size, yield, tenure, parking, etc.)
+   - 2-4 risks (liquidity, planning, service charge shocks, EPC, market timing, etc.)
+   - Methodology tag + confidence level
+
+3. ALWAYS output a 2-4 sentence text reply FIRST summarising the estimate, key comps, and confidence. Then call suggest_valuation with the full payload.
+
+Rules:
+- Institutional tone. No emojis. No exclamation marks.
+- If the property is outside markets you have strong knowledge of, set confidence to "low" and say so in the reply. Do NOT refuse — give the best directional estimate with appropriate caveats.
+- Money values in the payload are raw numbers (£1.1m -> 1100000).
+- Sqft everywhere (convert sqm * 10.764 if source uses metric).
+- Comparables must be specific — real-sounding addresses and dates. If you truly don't know the market, use plausible invented examples and clearly note in the reply that these are "illustrative" not verified.
+- Reply format: brief verbal take → suggest_valuation tool call. Never tool-only.`;
 
 const APPRAISAL_SYSTEM = (dealContext: string) => `You are Valora Copilot, the in-deal analyst for an institutional real estate appraisal platform.
 
@@ -258,7 +355,10 @@ export async function POST(req: Request) {
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const context: "dashboard" | "appraisal" = body.context === "appraisal" ? "appraisal" : "dashboard";
+  const context: "dashboard" | "appraisal" | "valuation" =
+    body.context === "appraisal" ? "appraisal"
+    : body.context === "valuation" ? "valuation"
+    : "dashboard";
   const messages: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(body.messages) ? body.messages : [];
   const deal = body.deal || null;
 
@@ -268,7 +368,13 @@ export async function POST(req: Request) {
 
   const system = context === "dashboard"
     ? DASHBOARD_SYSTEM
-    : APPRAISAL_SYSTEM(deal ? buildDealContext(deal) : "(no deal data provided)");
+    : context === "valuation"
+      ? VALUATION_SYSTEM
+      : APPRAISAL_SYSTEM(deal ? buildDealContext(deal) : "(no deal data provided)");
+
+  const toolSet = context === "valuation"
+    ? [suggestValuationTool]
+    : [suggestCreateTool, suggestEditTool];
 
   // ── 5. Call Claude ──
   let anthResp: Anthropic.Messages.Message;
@@ -277,7 +383,7 @@ export async function POST(req: Request) {
       model: MODEL,
       max_tokens: 1024,
       system,
-      tools: [suggestCreateTool, suggestEditTool],
+      tools: toolSet,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     });
   } catch (err: any) {

@@ -264,6 +264,7 @@ export default function Dashboard() {
           userName={userFirstName}
           onNewDeal={onCopilotNewDeal}
           onCreate={onCopilotCreate}
+          onValuation={() => router.push("/valuation")}
         />
       </div>
       {/* ── MOBILE BOTTOM NAV ── */}
