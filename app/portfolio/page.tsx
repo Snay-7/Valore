@@ -350,14 +350,25 @@ function Portfolio() {
   };
 
   // Apply: create project + appraisal from the extracted payload, then route to /appraisal.
-  // Maps the OM extraction payload onto Valora's project + appraisal schema, preserving
-  // every field Claude extracted so the analyst lands on a pre-populated model.
+  //
+  // Schema notes (verified against production):
+  //  - appraisals table has NO `data` column. The form state lives in the
+  //    `snapshot` JSONB column as a FLAT object of camelCase keys.
+  //  - Numbers are stored as STRINGS in the snapshot (React input state).
+  //    Exceptions: booleans, arrays, and some derived metrics stay native.
+  //  - Field renames from our OM extraction → snapshot:
+  //      brand → brandFranchise
+  //      openingYear → yearBuilt
+  //      gia / giaSqm → gfaSqm (form expects sqm for Hotel GFA)
+  //      entryYield → exitYield (BTR form uses exitYield as the cap rate)
+  //      sqft → propertySqft (for Flip)
   const applyBrochure = async () => {
     if (!brochureResult || !user) return;
     setApplyingBrochure(true);
     try {
       const p = brochureResult.payload;
       const projectName = p.name || brochureResult.description.split("—")[0]?.trim() || brochureResult.filename.replace(/\.pdf$/i, "");
+
       const { data: proj, error: projErr } = await supabase.from("projects").insert({
         name: projectName,
         location: p.location || p.address || "",
@@ -369,61 +380,83 @@ function Portfolio() {
       }).select().single();
       if (projErr || !proj) throw new Error(projErr?.message || "Failed to create project");
 
-      // Map extracted payload → appraisal data.
-      // Pass through every field Claude extracted; the appraisal form will display
-      // what it recognises and safely ignore anything unfamiliar.
-      const appraisalData: Record<string, any> = {
+      // Helpers: numeric inputs live as strings in the snapshot (mirroring React form state)
+      const s = (v: any) => (v === undefined || v === null || v === "") ? undefined : String(v);
+      const giaSqm = p.giaSqm
+        ? String(p.giaSqm)
+        : (p.gia ? String(Math.round(p.gia / 10.764)) : undefined);
+
+      // Build the snapshot — flat, camelCase, matches the Ritz-Carlton / Sun Belt shape we see in prod
+      const snapshot: Record<string, any> = {
+        // Identity (all asset types)
         name: projectName,
-        location: p.location || p.address || "",
+        assetType: p.assetType || "BTR",
         currency: p.currency || "GBP",
-        // Pull over every field regardless of asset type — the appraisal page shows relevant ones
+        location: p.location || "",
         ...(p.address && { address: p.address }),
-        ...(p.rooms && { rooms: p.rooms }),
-        ...(p.adr && { adr: p.adr }),
-        ...(p.occupancy && { occupancy: p.occupancy }),
-        ...(p.starRating && { starRating: p.starRating }),
-        ...(p.brand && { brand: p.brand }),
-        ...(p.purchasePrice && { purchasePrice: p.purchasePrice }),
-        ...(p.refurbBudget && { refurbBudget: p.refurbBudget }),
-        ...(p.saleValue && { saleValue: p.saleValue }),
-        ...(p.holdMonths && { holdMonths: p.holdMonths }),
-        ...(p.units && { units: p.units }),
-        ...(p.affordableUnits && { affordableUnits: p.affordableUnits }),
-        ...(p.avgUnitSize && { avgUnitSize: p.avgUnitSize }),
-        ...(p.avgRent && { avgRent: p.avgRent }),
-        ...(p.avgRentPsf && { avgRentPsf: p.avgRentPsf }),
-        ...(p.avgSalePrice && { avgSalePrice: p.avgSalePrice }),
+
+        // Hotel
+        ...(p.rooms && { rooms: s(p.rooms) }),
+        ...(p.adr && { adr: s(p.adr) }),
+        ...(p.occupancy !== undefined && { occupancy: p.occupancy }),
+        ...(p.starRating && { starRating: s(p.starRating) }),
+        ...(p.brand && { brandFranchise: p.brand }),
+        ...(p.openingYear && { yearBuilt: s(p.openingYear) }),
+        ...(giaSqm && { gfaSqm: giaSqm }),
+
+        // Purchase / acquisition (Hotel, Flip, Commercial)
+        ...(p.purchasePrice && { purchasePrice: s(p.purchasePrice) }),
+
+        // Flip
+        ...(p.refurbBudget && { refurbBudget: s(p.refurbBudget) }),
+        ...(p.saleValue && { saleValue: s(p.saleValue) }),
+        ...(p.holdMonths && { holdMonths: s(p.holdMonths) }),
+        ...(p.sqft && { propertySqft: s(p.sqft) }),
+
+        // BTR / BTS / Development
         ...(p.landCost && { landCost: p.landCost }),
-        ...(p.constructionCost && { constructionCost: p.constructionCost }),
-        ...(p.gdv && { gdv: p.gdv }),
-        ...(p.sqft && { sqft: p.sqft }),
-        ...(p.rentPerSqft && { rentPerSqft: p.rentPerSqft }),
-        ...(p.holdYears && { holdYears: p.holdYears }),
-        ...(p.ltc && { ltc: p.ltc }),
-        ...(p.ltv && { ltv: p.ltv }),
+        ...(p.constructionCost && { constructionCost: s(p.constructionCost) }),
+        ...(p.gdv && { gdv: s(p.gdv) }),
+        ...(p.entryYield && { exitYield: s(p.entryYield) }),
+        ...(p.avgUnitSize && { avgUnitSize: s(p.avgUnitSize) }),
+
+        // Commercial / Industrial
+        ...(p.rentPerSqft && { rentPerSqft: s(p.rentPerSqft) }),
+
+        // Shared capital structure
+        ...(p.holdYears && { holdYears: s(p.holdYears) }),
+        ...(p.ltc && { ltc: s(p.ltc) }),
+        ...(p.ltv && { ltv: s(p.ltv) }),
         ...(p.exitCapRate && { exitCapRate: p.exitCapRate }),
-        ...(p.entryYield && { entryYield: p.entryYield }),
-        ...(p.tenure && { tenure: p.tenure }),
-        ...(p.leaseYearsRemaining && { leaseYearsRemaining: p.leaseYearsRemaining }),
-        ...(p.openingYear && { openingYear: p.openingYear }),
-        ...(p.gia && { gia: p.gia }),
-        ...(p.secondaryUses && { secondaryUses: p.secondaryUses }),
-        ...(p.upsideNotes && { upsideNotes: p.upsideNotes }),
-        // Provenance — so the appraisal knows it came from an OM
+
+        // OM provenance (prefixed with _ so they don't collide with form fields)
         _source: "om_extraction",
         _sourceFilename: brochureResult.filename,
         _sourceConfidence: brochureResult.confidence,
         _sourceFlags: brochureResult.flags,
         _sourceNotes: brochureResult.sourceNotes,
+        ...(p.secondaryUses && { _secondaryUses: p.secondaryUses }),
+        ...(p.upsideNotes && { _upsideNotes: p.upsideNotes }),
+        ...(p.tenure && { _tenure: p.tenure }),
+        ...(p.leaseYearsRemaining && { _leaseYearsRemaining: p.leaseYearsRemaining }),
       };
 
-      const { data: appr } = await supabase
+      const { data: appr, error: apprErr } = await supabase
         .from("appraisals")
-        .insert({ project_id: proj.id, data: appraisalData, status: "draft" })
+        .insert({
+          project_id: proj.id,
+          name: projectName,
+          status: "draft",
+          scenario: "Base Case",
+          snapshot,
+        })
         .select()
         .single();
+      if (apprErr) throw new Error(apprErr.message);
 
       resetBrochureModal();
+      // No fromCopilot flag — we want the DB loader to run and read our snapshot.
+      // fromOm=1 is kept as a marker for any future OM-specific UI on /appraisal.
       if (appr) router.push(`/appraisal?project=${proj.id}&appraisal=${appr.id}&fromOm=1`);
       else router.push(`/appraisal?project=${proj.id}&fromOm=1`);
     } catch (e: any) {
