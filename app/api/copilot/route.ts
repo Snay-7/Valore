@@ -232,7 +232,14 @@ Rules:
 - Money values in the payload are raw numbers (£1.1m -> 1100000).
 - Sqft everywhere (convert sqm * 10.764 if source uses metric).
 - Comparables must be specific — real-sounding addresses and dates. If you truly don't know the market, use plausible invented examples and clearly note in the reply that these are "illustrative" not verified.
-- Reply format: brief verbal take → suggest_valuation tool call. Never tool-only.`;
+- Reply format: brief verbal take → suggest_valuation tool call. Never tool-only.
+
+CRITICAL — respect user-specified values exactly:
+- If the user states a specific number of bedrooms, bathrooms, sqft, sqm, price, year built, or any other quantity, that value MUST appear verbatim in your payload. Do not substitute your own "typical" number.
+- Example: user says "8 beds" → payload.bedrooms = 8. Not 4, not 6, not what you think is typical.
+- Example: user says "1,200 sqft" → payload.sqft = 1200. Do not round or "normalise".
+- Example: user says "200 sqm" → payload.sqft = 2153 (converted, not invented).
+- Only infer missing values the user did NOT specify. Specified values are ground truth.`;
 
 const APPRAISAL_SYSTEM = (dealContext: string) => `You are Valora Copilot, the in-deal analyst for an institutional real estate appraisal platform.
 

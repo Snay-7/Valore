@@ -188,16 +188,23 @@ export function generateValuationPDF(v: Valuation, opts?: { firmName?: string; p
   const range = `${moneyFull(v.estimatedValue?.low, ccy)}    —    ${moneyFull(v.estimatedValue?.high, ccy)}`;
   pdf.text(`Estimated range   ${range}`, M + 16, blockY + 24);
 
-  // Confidence chip (inline with range)
+  // Confidence chip — width sized to the text so nothing overflows
   const confUp = (v.confidence || "medium").toUpperCase();
+  const confLabel = `${confUp} CONFIDENCE`;
   const confCol: [number, number, number] = v.confidence === "high" ? GREEN : v.confidence === "low" ? [194, 72, 68] : [197, 126, 20];
-  const confX = W - M - 120;
-  pdf.setFillColor(...confCol);
-  pdf.roundedRect(confX, blockY + 10, 120, 22, 11, 11, "F");
-  pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "bold");
-  pdf.text(`● ${confUp} CONFIDENCE`, confX + 60, blockY + 24, { align: "center" });
+  const confTextW = pdf.getTextWidth(confLabel);
+  // padding: 14pt left (for dot + gap) + 16pt right
+  const confChipW = confTextW + 30;
+  const confX = W - M - confChipW;
+  pdf.setFillColor(...confCol);
+  pdf.roundedRect(confX, blockY + 10, confChipW, 22, 11, 11, "F");
+  // White dot drawn as a real filled circle (not a Unicode char — jsPDF default Helvetica can't render ●)
+  pdf.setFillColor(255, 255, 255);
+  pdf.circle(confX + 10, blockY + 21, 2.4, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(confLabel, confX + 18, blockY + 24);
 
   // Subject property (address)
   pdf.setTextColor(246, 244, 239);
