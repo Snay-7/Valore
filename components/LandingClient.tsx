@@ -375,8 +375,8 @@ export default function LandingClient() {
         <div className="hero-grid">
           <div className="hero-copy fade-up">
             <div className="eyebrow"><span className="eyebrow-mark">◆</span> Institutional Real Estate AI</div>
-            <h1 className="h1">One sentence.<br/><em>Full underwrite. Full valuation.</em></h1>
-            <p className="lede">Describe any deal or property &mdash; anywhere in the world. Valora&rsquo;s Copilot builds the institutional model, runs the analysis, and delivers an IC-ready PDF in under 60 seconds.</p>
+            <h1 className="h1">Know if a deal works.<br/><em>In 60 seconds.</em></h1>
+            <p className="lede">From one sentence to full underwriting, valuation, and IC-ready output &mdash; for any institutional asset, anywhere in the world.</p>
             <div className="hero-cta">
               <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>Start free &rarr;</button>
               <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>Book a demo</button>
