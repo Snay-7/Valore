@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 import CopilotPanel from "../../components/CopilotPanel";
+import { downloadValuationPDF } from "../../lib/valuation-brochure";
 /* ═══════════════════════════════════════════════════════════════════
    VALORA — VALUATION PAGE (V1)
    Copilot on the left (context="valuation") produces a property
@@ -111,6 +112,9 @@ export default function ValuationPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [valuation, setValuation] = useState<Valuation | null>(null);
+  const [valuationId, setValuationId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   // Theme sync
   useEffect(() => {
     const detect = (): "dark"|"light" => {
@@ -137,10 +141,41 @@ export default function ValuationPage() {
       setUser(session.user);
     });
   }, [router]);
-  const onApply = (payload: Record<string, any>) => {
-    setValuation(payload as Valuation);
-    // Scroll the main panel to the top so the user sees the result
+  const onApply = async (payload: Record<string, any>) => {
+    const v = payload as Valuation;
+    setValuation(v);
+    setValuationId(null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    // Persist the valuation to Supabase (fire-and-forget — UI not blocked)
+    if (user) {
+      setSaving(true);
+      try {
+        const row = {
+          user_id: user.id,
+          data: v,
+          address: v.address || null,
+          jurisdiction: v.jurisdiction || null,
+          currency: v.currency || null,
+          property_type: v.propertyType || null,
+          estimated_central: v.estimatedValue?.central ?? null,
+          confidence: v.confidence || null,
+        };
+        const { data, error } = await supabase.from("valuations").insert(row).select("id").single();
+        if (!error && data?.id) setValuationId(data.id);
+      } catch {}
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!valuation) return;
+    setDownloading(true);
+    try {
+      downloadValuationPDF(valuation);
+    } catch (e: any) {
+      alert(`PDF export failed: ${e?.message || "unknown error"}`);
+    }
+    setDownloading(false);
   };
   if (!user) return null;
   const ccy = valuation?.currency || "GBP";
@@ -265,11 +300,15 @@ export default function ValuationPage() {
               )}
               {/* FOOTER ACTIONS */}
               <div className="val-footer">
-                <button className="val-btn-primary" disabled title="Coming in V1 Day 3">📄 Generate PDF report (coming soon)</button>
-                <button className="val-btn-ghost" onClick={() => setValuation(null)}>Reset</button>
+                <button className="val-btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
+                  {downloading ? "Generating PDF…" : "⬇ Download PDF report"}
+                </button>
+                <button className="val-btn-ghost" onClick={() => { setValuation(null); setValuationId(null); }}>+ New valuation</button>
+                {saving && <span style={{ fontSize: 12, color: "var(--text-d)", alignSelf: "center" }}>Saving…</span>}
+                {!saving && valuationId && <span style={{ fontSize: 12, color: "var(--green)", alignSelf: "center", fontWeight: 600 }}>✓ Saved</span>}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 16, lineHeight: 1.55, maxWidth: 640 }}>
-                <strong style={{ color: "var(--text-m)" }}>V1 note:</strong> Comparables shown are Copilot&rsquo;s best estimate from Claude&rsquo;s training. Treat as directional until we integrate real land-registry data (V2). Use the confidence badge as your guide.
+                <strong style={{ color: "var(--text-m)" }}>Note:</strong> Comparables are produced by the Copilot from global market knowledge. Treat as directional; we will integrate live land-registry data in V2. Use the confidence badge as your guide.
               </div>
             </div>
           )}
