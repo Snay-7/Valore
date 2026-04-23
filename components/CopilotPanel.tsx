@@ -45,6 +45,9 @@ type CopilotPanelProps = {
   onCreate?: (payload: Record<string, any>) => void;  // create new deal
   onNewDeal?: (assetType: string) => void;    // dashboard: user picked asset — navigate
   onValuation?: () => void;                   // dashboard: user clicked Valuation card — route to /valuation
+  // External message injection — when `nonce` changes, the panel submits `text` as if the user typed it.
+  // Used by the valuation page's "Import from URL" pill so the URL flows through the normal chat pipeline.
+  injectedMessage?: { text: string; nonce: number };
 };
 
 // ── Premium line-SVG asset icons (1.5px stroke, currentColor, architectural) ──
@@ -231,6 +234,7 @@ export default function CopilotPanel({
   onCreate,
   onNewDeal,
   onValuation,
+  injectedMessage,
 }: CopilotPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
@@ -447,23 +451,40 @@ export default function CopilotPanel({
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || sending) return;
+  const sendText = async (text: string) => {
+    const clean = text.trim();
+    if (!clean || sending) return;
     const userMsg: Message = {
       id: `u-${Date.now()}`,
       role: "user",
-      content: input.trim(),
+      content: clean,
       timestamp: Date.now(),
     };
     // Snapshot history including the new user message, so fetchReply sees it
     const nextHistory = [...messages, userMsg];
     setMessages([...nextHistory, { id: "typing", role: "assistant", content: "", timestamp: Date.now(), typing: true }]);
-    setInput("");
     setSending(true);
     const reply = await fetchReply(nextHistory);
     setMessages(m => [...m.filter(x => !x.typing), reply]);
     setSending(false);
   };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const text = input.trim();
+    setInput("");
+    await sendText(text);
+  };
+
+  // Parent-injected message (e.g. valuation page's URL importer)
+  const lastInjectedNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!injectedMessage || !injectedMessage.text) return;
+    if (lastInjectedNonceRef.current === injectedMessage.nonce) return;
+    lastInjectedNonceRef.current = injectedMessage.nonce;
+    sendText(injectedMessage.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectedMessage?.nonce]);
 
   const handleApply = (msg: Message) => {
     if (!msg.suggestion) return;

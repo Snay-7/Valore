@@ -127,6 +127,10 @@ export default function ValuationPage() {
   const [isPaidTier, setIsPaidTier] = useState(false);
   const [trialUsed, setTrialUsed] = useState(0);
   const TRIAL_LIMIT = 3;
+  // URL import slot state
+  const [urlInput, setUrlInput] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [injectedMessage, setInjectedMessage] = useState<{ text: string; nonce: number } | null>(null);
   // Theme sync
   useEffect(() => {
     const detect = (): "dark"|"light" => {
@@ -245,6 +249,25 @@ export default function ValuationPage() {
     }
     setSharing(false);
   };
+  // Submit the URL to the Copilot — constructs a natural-language message and bumps the nonce
+  // so CopilotPanel sees it as a new user turn and routes through /api/copilot (which fetches
+  // the listing server-side and splices it into the prompt).
+  const handleUrlSubmit = () => {
+    const raw = urlInput.trim();
+    setUrlError(null);
+    if (!raw) return;
+    let parsed: URL;
+    try {
+      parsed = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+    } catch {
+      setUrlError("That doesn't look like a valid URL. Try something like https://www.rightmove.co.uk/properties/...");
+      return;
+    }
+    const text = `Value this property: ${parsed.toString()}`;
+    setInjectedMessage({ text, nonce: Date.now() });
+    setUrlInput("");
+  };
+
   if (!user) return null;
 
   // Trial exhausted — free/starter users who've used all 3 free valuations see the upgrade gate
@@ -332,9 +355,69 @@ export default function ValuationPage() {
             context="valuation"
             dealName="valuation"
             onApply={onApply}
+            injectedMessage={injectedMessage || undefined}
           />
         </div>
         <div className="val-main">
+          {/* URL import slot — paste a listing URL and we scrape it server-side */}
+          <div style={{
+            maxWidth: 880, margin: "0 auto 18px",
+            background: "var(--bg1)", border: "1px solid var(--gold-border)",
+            borderRadius: 12, padding: "16px 18px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", letterSpacing: ".12em", textTransform: "uppercase" }}>
+                Import from listing URL
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-d)", fontWeight: 500, marginLeft: 4 }}>
+                Rightmove · Zoopla · Zillow · Bayut · PropertyFinder · PropertyGuru · and 25+ more
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="url"
+                value={urlInput}
+                onChange={e => { setUrlInput(e.target.value); if (urlError) setUrlError(null); }}
+                onKeyDown={e => { if (e.key === "Enter") handleUrlSubmit(); }}
+                placeholder="https://www.rightmove.co.uk/properties/..."
+                style={{
+                  flex: 1, minWidth: 280,
+                  background: "var(--bg)", color: "var(--text)",
+                  border: `1px solid ${urlError ? "var(--red)" : "var(--border-m)"}`,
+                  borderRadius: 8, padding: "11px 14px",
+                  fontSize: 13.5, fontFamily: "var(--font-mono)",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={handleUrlSubmit}
+                disabled={!urlInput.trim()}
+                style={{
+                  background: urlInput.trim() ? "var(--green)" : "var(--bg3)",
+                  color: urlInput.trim() ? "#fff" : "var(--text-d)",
+                  border: "none", borderRadius: 8, padding: "11px 22px",
+                  fontSize: 13, fontWeight: 700, cursor: urlInput.trim() ? "pointer" : "not-allowed",
+                  fontFamily: "inherit", letterSpacing: "-.01em",
+                  transition: "all .15s",
+                }}>
+                Value this listing →
+              </button>
+            </div>
+            {urlError && (
+              <div style={{ fontSize: 12, color: "var(--red)", marginTop: 8, fontWeight: 500 }}>
+                {urlError}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, lineHeight: 1.5 }}>
+              We fetch the page, extract address, price, sqft, and bedrooms, then the Copilot builds a full valuation anchored to the real listing.
+              You can also just describe a property in the chat below.
+            </div>
+          </div>
           {/* Trial counter banner — only for free users who still have valuations left */}
           {!isPaidTier && !tierLoading && trialUsed < TRIAL_LIMIT && (
             <div style={{
