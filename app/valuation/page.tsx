@@ -82,6 +82,11 @@ body.light,
 .val-btn-ghost{background:transparent;color:var(--text-m);border:1px solid var(--border-m);border-radius:8px;padding:12px 20px;font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
 .val-btn-ghost:hover{border-color:var(--text);color:var(--text)}
 `;
+// Generate a URL-safe random token (base36, ~13 chars) — sufficient for share links.
+function generateShareToken(): string {
+  const rand = () => Math.random().toString(36).slice(2, 8);
+  return (rand() + rand() + Date.now().toString(36)).slice(0, 22);
+}
 function fmtMoney(n: number, currency = "GBP"): string {
   if (!n || !isFinite(n)) return "—";
   const sym = currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "AED" ? "AED " : currency === "SGD" ? "S$" : currency === "AUD" ? "A$" : "£";
@@ -115,6 +120,9 @@ export default function ValuationPage() {
   const [valuationId, setValuationId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   // Theme sync
   useEffect(() => {
     const detect = (): "dark"|"light" => {
@@ -176,6 +184,44 @@ export default function ValuationPage() {
       alert(`PDF export failed: ${e?.message || "unknown error"}`);
     }
     setDownloading(false);
+  };
+
+  // Generate (or reuse) a share token + copy the public URL to clipboard.
+  const handleShare = async () => {
+    if (!valuationId || !valuation) {
+      alert("Save the valuation first (Apply) before sharing.");
+      return;
+    }
+    setSharing(true); setCopied(false);
+    try {
+      // Check if we already have a share_token on this row
+      const { data: existing } = await supabase
+        .from("valuations")
+        .select("share_token")
+        .eq("id", valuationId)
+        .single();
+
+      let token = existing?.share_token as string | null;
+      if (!token) {
+        token = generateShareToken();
+        const { error } = await supabase
+          .from("valuations")
+          .update({ share_token: token })
+          .eq("id", valuationId);
+        if (error) throw error;
+      }
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${origin}/share/valuation/${token}`;
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      } catch {}
+    } catch (e: any) {
+      alert(`Share failed: ${e?.message || "unknown error"}`);
+    }
+    setSharing(false);
   };
   if (!user) return null;
   const ccy = valuation?.currency || "GBP";
@@ -303,10 +349,42 @@ export default function ValuationPage() {
                 <button className="val-btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
                   {downloading ? "Generating PDF…" : "⬇ Download PDF report"}
                 </button>
-                <button className="val-btn-ghost" onClick={() => { setValuation(null); setValuationId(null); }}>+ New valuation</button>
+                <button className="val-btn-ghost" onClick={handleShare} disabled={sharing || !valuationId}>
+                  {sharing ? "Generating link…" : "🔗 Share"}
+                </button>
+                <button className="val-btn-ghost" onClick={() => { setValuation(null); setValuationId(null); setShareUrl(null); setCopied(false); }}>+ New valuation</button>
                 {saving && <span style={{ fontSize: 12, color: "var(--text-d)", alignSelf: "center" }}>Saving…</span>}
-                {!saving && valuationId && <span style={{ fontSize: 12, color: "var(--green)", alignSelf: "center", fontWeight: 600 }}>✓ Saved</span>}
+                {!saving && valuationId && !shareUrl && <span style={{ fontSize: 12, color: "var(--green)", alignSelf: "center", fontWeight: 600 }}>✓ Saved</span>}
               </div>
+              {/* Share URL row — appears after Share is clicked */}
+              {shareUrl && (
+                <div style={{
+                  marginTop: 14, padding: "12px 16px",
+                  background: "var(--bg1)", border: "1px solid var(--gold-border)",
+                  borderRadius: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--green)", letterSpacing: ".12em", textTransform: "uppercase", flexShrink: 0 }}>
+                    {copied ? "✓ Copied" : "Share link"}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 280, fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--text)", wordBreak: "break-all" }}>
+                    {shareUrl}
+                  </div>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
+                    style={{
+                      background: "transparent", color: "var(--text-m)", border: "1px solid var(--border-m)",
+                      borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600,
+                      cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+                    }}>
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                  <a href={shareUrl} target="_blank" rel="noopener noreferrer" style={{
+                    background: "var(--green)", color: "#fff", border: "none",
+                    borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700,
+                    textDecoration: "none", flexShrink: 0,
+                  }}>Open ↗</a>
+                </div>
+              )}
               <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 16, lineHeight: 1.55, maxWidth: 640 }}>
                 <strong style={{ color: "var(--text-m)" }}>Note:</strong> Comparables are produced by the Copilot from global market knowledge. Treat as directional; we will integrate live land-registry data in V2. Use the confidence badge as your guide.
               </div>
