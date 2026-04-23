@@ -73,6 +73,19 @@ function moneyFull(n: number | undefined, currency = "GBP"): string {
     currency === "JPY" ? "¥" : "£";
   return `${sym}${Math.round(n).toLocaleString()}`;
 }
+// Price-per-sqft formatter: never abbreviates to k, always shows full number.
+function moneyPsqft(n: number | undefined, currency = "GBP"): string {
+  if (n == null || !isFinite(n)) return "—";
+  const sym =
+    currency === "USD" ? "$" :
+    currency === "EUR" ? "€" :
+    currency === "AED" ? "AED " :
+    currency === "SGD" ? "S$" :
+    currency === "AUD" ? "A$" :
+    currency === "CHF" ? "CHF " :
+    currency === "JPY" ? "¥" : "£";
+  return `${sym}${Math.round(n).toLocaleString()}`;
+}
 // Strip non-ASCII glyphs jsPDF can't render
 function ascii(s: string | undefined): string {
   if (!s) return "";
@@ -93,95 +106,153 @@ export function generateValuationPDF(v: Valuation, opts?: { firmName?: string; p
   pdf.setFont("helvetica");
 
   // ── PAGE 1 · COVER ──────────────────────────────────────────────
-  pdf.setFillColor(...NAVY);
+  // Softer navy (not pure black) for a premium feel
+  const COVER_BG: [number, number, number] = [28, 34, 44];        // #1C222C — softer than #0F1115
+  const COVER_BG_DEEP: [number, number, number] = [20, 25, 33];   // subtle two-tone
+  pdf.setFillColor(...COVER_BG);
   pdf.rect(0, 0, W, H, "F");
 
-  // Subtle green gradient bar top
+  // Bottom deeper band — adds subtle depth without real gradient
+  pdf.setFillColor(...COVER_BG_DEEP);
+  pdf.rect(0, H - 180, W, 180, "F");
+
+  // Faint green "horizon" glow at top-left (overlapping rectangles = fake radial light)
+  const glowLayers: Array<[number, number, number, number]> = [
+    [46, 158, 114, 16],
+    [46, 158, 114, 10],
+    [46, 158, 114, 6],
+  ];
+  glowLayers.forEach((layer, i) => {
+    pdf.setFillColor(layer[0], layer[1], layer[2]);
+    pdf.setGState(pdf.GState({ opacity: layer[3] / 100 }));
+    pdf.circle(W - 80, 40, 120 + i * 60, "F");
+  });
+  pdf.setGState(pdf.GState({ opacity: 1 }));
+
+  // Thin green accent at top
   pdf.setFillColor(...GREEN);
-  pdf.rect(0, 0, W, 4, "F");
+  pdf.rect(0, 0, W, 3, "F");
 
-  // Logo mark
+  // Brand row — top-left
   pdf.setFillColor(...GREEN_HOT);
-  pdf.roundedRect(M, M + 12, 34, 34, 6, 6, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(16);
+  pdf.roundedRect(M, M + 8, 36, 36, 8, 8, "F");
+  pdf.setTextColor(20, 25, 33);
+  pdf.setFontSize(18);
   pdf.setFont("helvetica", "bold");
-  pdf.text("V", M + 17, M + 34, { align: "center" });
+  pdf.text("V", M + 18, M + 31, { align: "center" });
 
-  // Valora wordmark
   pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(14);
+  pdf.setFontSize(15);
   pdf.setFont("helvetica", "bold");
-  pdf.text("Valora", M + 46, M + 34);
-  pdf.setTextColor(160, 165, 174);
+  pdf.text("Valora", M + 48, M + 28);
+  pdf.setTextColor(140, 165, 155);
   pdf.setFontSize(8);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("VALUATION REPORT", M + 48, M + 42);
+
+  // Date pill top-right
+  const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  pdf.setDrawColor(80, 90, 105);
+  pdf.setFillColor(...COVER_BG_DEEP);
+  const datePillW = pdf.getTextWidth(today) + 28;
+  pdf.roundedRect(W - M - datePillW, M + 14, datePillW, 24, 12, 12, "FD");
+  pdf.setTextColor(220, 224, 230);
+  pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
-  pdf.text("VALUATION REPORT", M + 46, M + 46);
+  pdf.text(today, W - M - 14, M + 30, { align: "right" });
+
+  // CENTRE BLOCK — balanced around the page vertical midpoint
+  const blockY = H * 0.42;
+
+  // Vertical green accent line next to the value
+  pdf.setFillColor(...GREEN_HOT);
+  pdf.roundedRect(M, blockY - 56, 3, 90, 1.5, 1.5, "F");
 
   // Eyebrow
   pdf.setTextColor(109, 255, 177);
-  pdf.setFontSize(9);
+  pdf.setFontSize(10);
   pdf.setFont("helvetica", "bold");
   const eyebrow = (v.jurisdiction ? `${v.jurisdiction.toUpperCase()} · ` : "") + "COMPARATIVE MARKET VALUATION";
-  pdf.text(eyebrow, M, H / 2 - 90);
+  pdf.text(eyebrow, M + 16, blockY - 38);
 
   // Headline value
   pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(48);
+  pdf.setFontSize(52);
   pdf.setFont("helvetica", "bold");
-  pdf.text(moneyFull(v.estimatedValue?.central, ccy), M, H / 2 - 40);
+  pdf.text(moneyFull(v.estimatedValue?.central, ccy), M + 16, blockY);
 
   // Range
-  pdf.setTextColor(200, 204, 212);
-  pdf.setFontSize(13);
+  pdf.setTextColor(180, 188, 200);
+  pdf.setFontSize(12);
   pdf.setFont("helvetica", "normal");
-  const range = `${moneyFull(v.estimatedValue?.low, ccy)}  —  ${moneyFull(v.estimatedValue?.high, ccy)}`;
-  pdf.text(`Estimated range: ${range}`, M, H / 2 - 14);
+  const range = `${moneyFull(v.estimatedValue?.low, ccy)}    —    ${moneyFull(v.estimatedValue?.high, ccy)}`;
+  pdf.text(`Estimated range   ${range}`, M + 16, blockY + 24);
 
-  // Address / property line
+  // Confidence chip (inline with range)
+  const confUp = (v.confidence || "medium").toUpperCase();
+  const confCol: [number, number, number] = v.confidence === "high" ? GREEN : v.confidence === "low" ? [194, 72, 68] : [197, 126, 20];
+  const confX = W - M - 120;
+  pdf.setFillColor(...confCol);
+  pdf.roundedRect(confX, blockY + 10, 120, 22, 11, 11, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(9);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(`● ${confUp} CONFIDENCE`, confX + 60, blockY + 24, { align: "center" });
+
+  // Subject property (address)
   pdf.setTextColor(246, 244, 239);
   pdf.setFontSize(22);
   pdf.setFont("helvetica", "bold");
   const addr = ascii(v.address || (v.propertyType ? v.propertyType : "Subject property"));
-  const addrLines = pdf.splitTextToSize(addr, W - M * 2);
-  pdf.text(addrLines, M, H / 2 + 26);
+  const addrLines = pdf.splitTextToSize(addr, W - M * 2 - 16);
+  pdf.text(addrLines, M + 16, blockY + 68);
 
-  // Meta row at bottom
-  const metaY = H - M - 80;
-  pdf.setDrawColor(40, 45, 55);
+  // Property-type sub-line (if address is present)
+  if (v.address && v.propertyType) {
+    pdf.setTextColor(140, 165, 155);
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(ascii(v.propertyType), M + 16, blockY + 68 + 22 * addrLines.length);
+  }
+
+  // Meta row at bottom — 4 columns with left-aligned labels, proper spacing
+  const metaY = H - 132;
+  // Horizontal separator
+  pdf.setDrawColor(55, 65, 80);
+  pdf.setLineWidth(0.5);
   pdf.line(M, metaY, W - M, metaY);
-  pdf.setTextColor(160, 165, 174);
-  pdf.setFontSize(8);
-  pdf.setFont("helvetica", "bold");
   const metas: Array<[string, string]> = [
-    ["TYPE", ascii(v.propertyType || "—")],
     ["SIZE", v.sqft ? `${v.sqft.toLocaleString()} sqft` : "—"],
     ["BEDS", v.bedrooms != null ? String(v.bedrooms) : "—"],
     ["TENURE", ascii(v.tenure?.replace(/_/g, " ") || "—")],
-    ["CONFIDENCE", (v.confidence || "medium").toUpperCase()],
+    ["PRICE / SQFT", v.pricePerSqft ? moneyPsqft(v.pricePerSqft, ccy) : "—"],
   ];
   const metaColW = (W - M * 2) / metas.length;
   metas.forEach((pair, i) => {
     const x = M + i * metaColW;
     pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(140, 145, 155);
-    pdf.setFontSize(7);
-    pdf.text(pair[0], x, metaY + 16);
+    pdf.setTextColor(140, 150, 165);
+    pdf.setFontSize(7.5);
+    pdf.text(pair[0], x, metaY + 20);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(11);
-    pdf.text(pair[1], x, metaY + 34);
+    pdf.setFontSize(13);
+    // Truncate long values that would collide with the next column
+    const maxW = metaColW - 16;
+    const val = pair[1];
+    const valLines = pdf.splitTextToSize(val, maxW);
+    pdf.text(valLines[0] || "—", x, metaY + 40);
   });
 
-  // Footer
+  // Footer — URL + disclaimer line
   pdf.setTextColor(109, 255, 177);
   pdf.setFontSize(8);
   pdf.setFont("helvetica", "bold");
-  pdf.text("VALORAPLATFORM.IO", M, H - M + 8);
-  pdf.setTextColor(110, 115, 125);
+  pdf.text("VALORAPLATFORM.IO", M, H - M - 10);
+  pdf.setTextColor(130, 140, 155);
   pdf.setFont("helvetica", "normal");
-  const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-  pdf.text(today, W - M, H - M + 8, { align: "right" });
+  pdf.setFontSize(7.5);
+  pdf.text("Directional valuation · not a RICS Red Book report", W - M, H - M - 10, { align: "right" });
 
   // ── PAGE 2 · EXECUTIVE SUMMARY + VALUE ─────────────────────────
   pdf.addPage();
@@ -225,7 +296,7 @@ export function generateValuationPDF(v: Valuation, opts?: { firmName?: string; p
     pdf.setTextColor(...GOLD);
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "bold");
-    pdf.text(`${moneyFull(v.pricePerSqft, ccy)} / sqft`, M + 18, y + 98);
+    pdf.text(`${moneyPsqft(v.pricePerSqft, ccy)} / sqft`, M + 18, y + 98);
   }
 
   // Confidence badge (top-right of card)
@@ -349,7 +420,7 @@ export function generateValuationPDF(v: Valuation, opts?: { firmName?: string; p
       cx2 += cols[2].w;
 
       // Price/sqft
-      pdf.text(c.pricePerSqft ? money(c.pricePerSqft, c.currency || ccy) : "—", cx2 + cols[3].w - 12, y + 8, { align: "right" });
+      pdf.text(c.pricePerSqft ? moneyPsqft(c.pricePerSqft, c.currency || ccy) : "—", cx2 + cols[3].w - 12, y + 8, { align: "right" });
       cx2 += cols[3].w;
 
       // Date
