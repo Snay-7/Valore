@@ -494,27 +494,72 @@ function Portfolio() {
     if (latest) router.push(`/appraisal?project=${project.id}&appraisal=${latest.id}`);
     else router.push(`/appraisal?project=${project.id}`);
   };
+  // Trash / delete handlers — now surface errors instead of failing silently.
+  // Previous version awaited the supabase call but never checked the .error field,
+  // so RLS rejections and FK violations silently failed while the UI still
+  // updated optimistically (creating the illusion the card was gone until refresh).
   const moveToTrash = async (projectId: string) => {
     setOpenMenuId(null);
     const now = new Date().toISOString();
-    await supabase.from("projects").update({ deleted_at: now }).eq("id", projectId);
+    const { error } = await supabase.from("projects").update({ deleted_at: now }).eq("id", projectId);
+    if (error) {
+      console.error("moveToTrash failed:", error);
+      alert(`Couldn't move to trash:\n\n${error.message}${error.details ? " — " + error.details : ""}`);
+      return;
+    }
     const project = projects.find((p: any) => p.id === projectId);
-    if (project) { setProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId)); setTrashedProjects((prev: any[]) => [...prev, { ...project, deleted_at: now, _daysLeft: TRASH_DAYS }]); }
+    if (project) {
+      setProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId));
+      setTrashedProjects((prev: any[]) => [...prev, { ...project, deleted_at: now, _daysLeft: TRASH_DAYS }]);
+    }
   };
+
   const restoreProject = async (projectId: string) => {
-    await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
+    const { error } = await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
+    if (error) {
+      console.error("restoreProject failed:", error);
+      alert(`Couldn't restore:\n\n${error.message}`);
+      return;
+    }
     const project = trashedProjects.find((p: any) => p.id === projectId);
-    if (project) { const { _daysLeft, deleted_at, ...restored } = project; setTrashedProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId)); setProjects((prev: any[]) => [{ ...restored, deleted_at: null }, ...prev]); }
+    if (project) {
+      const { _daysLeft, deleted_at, ...restored } = project;
+      setTrashedProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId));
+      setProjects((prev: any[]) => [{ ...restored, deleted_at: null }, ...prev]);
+    }
   };
+
   const permanentlyDelete = async (projectId: string) => {
-    await supabase.from("appraisals").delete().eq("project_id", projectId);
-    await supabase.from("projects").delete().eq("id", projectId);
+    const { error: apprErr } = await supabase.from("appraisals").delete().eq("project_id", projectId);
+    if (apprErr) {
+      console.error("Delete appraisals failed:", apprErr);
+      alert(`Couldn't delete child appraisals:\n\n${apprErr.message}`);
+      return;
+    }
+    const { error: projErr } = await supabase.from("projects").delete().eq("id", projectId);
+    if (projErr) {
+      console.error("Delete project failed:", projErr);
+      alert(`Couldn't delete project:\n\n${projErr.message}`);
+      return;
+    }
     setTrashedProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId));
     setConfirmDelete(null);
   };
+
   const emptyTrash = async () => {
-    for (const p of trashedProjects) { await supabase.from("appraisals").delete().eq("project_id", p.id); await supabase.from("projects").delete().eq("id", p.id); }
-    setTrashedProjects([]); setConfirmDelete(null);
+    let failures = 0;
+    for (const p of trashedProjects) {
+      const { error: apprErr } = await supabase.from("appraisals").delete().eq("project_id", p.id);
+      if (apprErr) { console.error(`Empty trash — appraisals delete failed for ${p.id}:`, apprErr); failures++; continue; }
+      const { error: projErr } = await supabase.from("projects").delete().eq("id", p.id);
+      if (projErr) { console.error(`Empty trash — project delete failed for ${p.id}:`, projErr); failures++; }
+    }
+    if (failures > 0) {
+      alert(`${failures} project(s) couldn't be deleted — see console for details.`);
+    }
+    // Refresh from DB to get an accurate picture of what survived
+    if (user) await loadProjects(user.id);
+    setConfirmDelete(null);
   };
   const filteredProjects = filter === "all" ? projects : projects.filter((p: any) => p.asset_type === filter);
   const totalGDV = projects.reduce((s: number, p: any) => s + (p.appraisals?.[0]?.gdv || 0), 0);
