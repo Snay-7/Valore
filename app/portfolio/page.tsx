@@ -441,6 +441,8 @@ function Portfolio() {
         ...(p.leaseYearsRemaining && { _leaseYearsRemaining: p.leaseYearsRemaining }),
       };
 
+      // scenario CHECK constraint allows only: base / bear / bull / custom.
+      // OM extractions always land as the base case — users can fork bear/bull later.
       const { data: appr, error: apprErr } = await supabase
         .from("appraisals")
         .insert({
@@ -449,15 +451,19 @@ function Portfolio() {
           created_by: user.id,
           name: projectName,
           status: "draft",
-          scenario: "Base Case",
+          scenario: "base",
           snapshot,
         })
         .select()
         .single();
       if (apprErr) {
-        // Surface the real reason to the console + modal so we don't silent-fail
+        // Loud logging so we can diagnose at the Supabase layer
         console.error("Appraisal insert failed:", apprErr);
-        throw new Error(`Appraisal insert failed: ${apprErr.message}${apprErr.details ? " — " + apprErr.details : ""}`);
+        // Immediate-visible pop so the user doesn't have to dig through DevTools
+        const detail = [apprErr.message, apprErr.details, apprErr.hint, apprErr.code]
+          .filter(Boolean).join(" · ");
+        alert(`Supabase rejected the appraisal insert:\n\n${detail}\n\nThe full object is in the browser console.`);
+        throw new Error(`Appraisal insert failed: ${detail}`);
       }
 
       resetBrochureModal();
