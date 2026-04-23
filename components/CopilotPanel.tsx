@@ -310,27 +310,32 @@ export default function CopilotPanel({
 
   // ── Colour palette for the current theme ──
   const T = theme === "light" ? LIGHT_COLORS : DARK_COLORS;
-  const [messages, setMessages] = useState<Message[]>(
-    context === "dashboard"
-      ? [
-          {
-            id: "sys-1",
-            role: "system",
-            content: userName
-              ? `Hi ${userName}. What deal are we building today? Pick an asset below, or describe your deal in one line and I'll set it up.`
-              : `Welcome back. What deal are we building today? Pick an asset below, or describe your deal in one line and I'll set it up.`,
-            timestamp: Date.now(),
-          },
-        ]
-      : [
-          {
-            id: "sys-1",
-            role: "system",
-            content: `I can see you're modelling ${(dealName && dealName.trim()) ? `your ${assetType} — ${dealName}` : `this ${assetType} deal`}. Ask me about this deal — "why is my IRR X%?", "what if exit cap is 5.5%?" — or describe a new deal and I'll build it.`,
-            timestamp: Date.now(),
-          },
-        ]
-  );
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (context === "dashboard") {
+      return [{
+        id: "sys-1",
+        role: "system",
+        content: userName
+          ? `Hi ${userName}. What deal are we building today? Pick an asset below, or describe your deal in one line and I'll set it up.`
+          : `Welcome back. What deal are we building today? Pick an asset below, or describe your deal in one line and I'll set it up.`,
+        timestamp: Date.now(),
+      }];
+    }
+    if (context === "valuation") {
+      return [{
+        id: "sys-1",
+        role: "system",
+        content: `Describe a property to value — anywhere in the world. I'll produce a price range, 4-6 comparables, key valuation drivers, and risks. Paste a listing URL too if you have one.`,
+        timestamp: Date.now(),
+      }];
+    }
+    return [{
+      id: "sys-1",
+      role: "system",
+      content: `I can see you're modelling ${(dealName && dealName.trim()) ? `your ${assetType} — ${dealName}` : `this ${assetType} deal`}. Ask me about this deal — "why is my IRR X%?", "what if exit cap is 5.5%?" — or describe a new deal and I'll build it.`,
+      timestamp: Date.now(),
+    }];
+  });
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -742,7 +747,7 @@ export default function CopilotPanel({
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-.015em", color: T.text }}>Valora Copilot</div>
             <div style={{ fontSize: 10, color: T.textFaint, letterSpacing: ".04em", marginTop: 1 }}>
-              {context === "dashboard" ? "Start a new deal" : `${assetType} · Session chat`}
+              {context === "dashboard" ? "Start a new deal" : context === "valuation" ? "Valuation · Session chat" : `${assetType} · Session chat`}
             </div>
           </div>
         </div>

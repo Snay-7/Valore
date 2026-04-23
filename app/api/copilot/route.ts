@@ -384,6 +384,11 @@ export async function POST(req: Request) {
       max_tokens: 1024,
       system,
       tools: toolSet,
+      // Force the Copilot to call suggest_valuation on valuation-context requests
+      // (otherwise Claude sometimes answers in text alone and leaves the result panel empty).
+      tool_choice: (context === "valuation"
+        ? { type: "tool", name: "suggest_valuation" }
+        : { type: "auto" }) as Anthropic.Messages.ToolChoice,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     });
   } catch (err: any) {
