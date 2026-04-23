@@ -445,6 +445,8 @@ function Portfolio() {
         .from("appraisals")
         .insert({
           project_id: proj.id,
+          firm_id: null,
+          created_by: user.id,
           name: projectName,
           status: "draft",
           scenario: "Base Case",
@@ -452,7 +454,11 @@ function Portfolio() {
         })
         .select()
         .single();
-      if (apprErr) throw new Error(apprErr.message);
+      if (apprErr) {
+        // Surface the real reason to the console + modal so we don't silent-fail
+        console.error("Appraisal insert failed:", apprErr);
+        throw new Error(`Appraisal insert failed: ${apprErr.message}${apprErr.details ? " — " + apprErr.details : ""}`);
+      }
 
       resetBrochureModal();
       // No fromCopilot flag — we want the DB loader to run and read our snapshot.
