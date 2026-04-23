@@ -185,6 +185,7 @@ function Portfolio() {
   }, []);
   const [projects, setProjects] = useState<any[]>([]);
   const [trashedProjects, setTrashedProjects] = useState<any[]>([]);
+  const [valuationCount, setValuationCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -216,6 +217,9 @@ function Portfolio() {
       if (!session) { router.push("/"); return; }
       setUser(session.user);
       await loadProjects(session.user.id);
+      // Light valuation count for the sidebar badge — full list lives at /valuations
+      supabase.from("valuations").select("id", { count: "exact", head: true }).eq("user_id", session.user.id)
+        .then(({ count }) => setValuationCount(count ?? 0));
       const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
       setSubscription(sub);
       const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
@@ -338,7 +342,7 @@ function Portfolio() {
       <div className="sidebar">
         <div style={{ padding: "20px 20px 18px", borderBottom: "1px solid var(--border)" }}>
           <span style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)"}}>Valora</span>
-          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 3, fontFamily:"var(--font-body)", fontWeight: 600 }}>Development Appraisal</div>
+          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 3, fontFamily:"var(--font-body)", fontWeight: 600 }}>Institutional Real Estate AI</div>
         </div>
         <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
           <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>My Work</div>
@@ -347,6 +351,13 @@ function Portfolio() {
             <span>Copilot</span>
           </button>
           <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => { setView("portfolio"); }}>Portfolio</button>
+          <button className="nav-item" onClick={() => router.push("/valuations")} style={{ display:"flex", alignItems:"center", gap:8, justifyContent:"space-between" }}>
+            <span style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ color:"var(--gold)", fontSize:13 }}>◈</span>
+              <span>Valuations</span>
+            </span>
+            {valuationCount > 0 && <span style={{ background: "var(--gold-bg)", color: "var(--gold)", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, border: "1px solid var(--gold-border)" }}>{valuationCount}</span>}
+          </button>
           <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
           <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
           <button className="nav-item" onClick={() => router.push("/notes")}>Notes</button>
@@ -744,13 +755,13 @@ function Portfolio() {
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Portfolio
         </button>
+        <button className="bottom-nav-item" onClick={() => router.push("/valuations")}>
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z"/><path d="M12 8v6"/></svg>
+          Valuations
+        </button>
         <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
           <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
           Pipeline
-        </button>
-        <button className="bottom-nav-item" onClick={() => router.push("/tasks")}>
-          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          Tasks
         </button>
         <button className="bottom-nav-item" onClick={() => router.push("/learn")}>
           <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>

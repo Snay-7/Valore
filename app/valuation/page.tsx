@@ -1,8 +1,8 @@
 "use client";
 export const dynamic = 'force-dynamic';
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CopilotPanel from "../../components/CopilotPanel";
 import { downloadValuationPDF } from "../../lib/valuation-brochure";
 /* ═══════════════════════════════════════════════════════════════════
@@ -113,8 +113,10 @@ type Valuation = {
   methodology?: string;
   confidence?: "low" | "medium" | "high";
 };
-export default function ValuationPage() {
+function ValuationPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlValuationId = searchParams.get("id");
   const [user, setUser] = useState<any>(null);
   const [valuation, setValuation] = useState<Valuation | null>(null);
   const [valuationId, setValuationId] = useState<string | null>(null);
@@ -172,6 +174,29 @@ export default function ValuationPage() {
       setTierLoading(false);
     })();
   }, [router]);
+
+  // Rehydrate from ?id=<uuid> — if the user clicked a valuation card in the portfolio,
+  // pull that row's data and show it as the current valuation. Skips the trial gate
+  // because they're re-opening an existing saved valuation, not creating a new one.
+  useEffect(() => {
+    if (!urlValuationId || !user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("valuations")
+        .select("id, data, share_token")
+        .eq("id", urlValuationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setValuation(data.data as Valuation);
+        setValuationId(data.id);
+        if (data.share_token) {
+          const origin = typeof window !== "undefined" ? window.location.origin : "";
+          setShareUrl(`${origin}/share/valuation/${data.share_token}`);
+        }
+      }
+    })();
+  }, [urlValuationId, user]);
   const onApply = async (payload: Record<string, any>) => {
     const v = payload as Valuation;
     setValuation(v);
@@ -542,7 +567,11 @@ export default function ValuationPage() {
                 <button className="val-btn-ghost" onClick={handleShare} disabled={sharing || !valuationId}>
                   {sharing ? "Generating link…" : "🔗 Share"}
                 </button>
-                <button className="val-btn-ghost" onClick={() => { setValuation(null); setValuationId(null); setShareUrl(null); setCopied(false); }}>+ New valuation</button>
+                <button className="val-btn-ghost" onClick={() => {
+                  setValuation(null); setValuationId(null); setShareUrl(null); setCopied(false);
+                  // If we got here via ?id=, clear the param so a fresh valuation doesn't get overwritten by the rehydrate effect
+                  if (urlValuationId) router.replace("/valuation");
+                }}>+ New valuation</button>
                 {saving && <span style={{ fontSize: 12, color: "var(--text-d)", alignSelf: "center" }}>Saving…</span>}
                 {!saving && valuationId && !shareUrl && <span style={{ fontSize: 12, color: "var(--green)", alignSelf: "center", fontWeight: 600 }}>✓ Saved</span>}
               </div>
@@ -583,5 +612,18 @@ export default function ValuationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ValuationPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "var(--bg, #F8F5EE)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 28, height: 28, border: "2px solid rgba(82,196,152,.15)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <ValuationPageInner />
+    </Suspense>
   );
 }
