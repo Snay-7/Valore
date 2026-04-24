@@ -101,111 +101,59 @@ function InvitePage() {
   }, [token]);
 
 
-  const acceptInvite = async (userId: string) => {
+  // ──────────────────────────────────────────────────────────────────────────
+  // acceptInvite — now a single atomic RPC call.
+  // The DB function fn_accept_firm_invite runs as SECURITY DEFINER, so it:
+  //   - Validates the auth session (auth.uid() must exist)
+  //   - Verifies the invite exists, isn't accepted, matches the user's email
+  //   - Removes any placeholder row (user_id null, same email)
+  //   - Upserts the real membership row
+  //   - Marks the invite accepted
+  // All in one transaction, bypassing RLS internally.
+  // ──────────────────────────────────────────────────────────────────────────
+  const acceptInvite = async (_userId: string) => {
     if (!invite) return;
     setJoining(true);
     setJoinError(null);
 
 
     try {
-      // ── Step 1: Try to find a placeholder row by email ──
-      const { data: existing } = await supabase
-        .from("firm_members")
-        .select("id")
-        .eq("firm_id", invite.firm_id)
-        .eq("email", invite.email)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('fn_accept_firm_invite', {
+        p_token: token,
+      });
 
 
-      if (existing) {
-        // Update the placeholder with the real user_id
-        const { error: updateErr } = await supabase
-          .from("firm_members")
-          .update({ user_id: userId, joined_at: new Date().toISOString() })
-          .eq("id", existing.id);
+      if (error) {
+        console.error('fn_accept_firm_invite error:', error);
+        const msg = (error.message || '').toUpperCase();
 
 
-        if (updateErr) {
-          console.error("firm_members update error:", updateErr);
-          // Fall through to upsert
-        } else {
-          // Update succeeded — mark invite accepted and finish
-          await supabase.from("firm_invites")
-            .update({ accepted_at: new Date().toISOString() })
-            .eq("id", invite.id);
-          setJoined(true);
+        if (msg.includes('AUTH_REQUIRED')) {
+          setJoinError('Please sign in before accepting this invite.');
+        } else if (msg.includes('INVITE_NOT_FOUND')) {
+          setJoinError('This invite link is invalid or has been revoked.');
+        } else if (msg.includes('INVITE_ALREADY_ACCEPTED')) {
+          setAlreadyAccepted(true);
           setJoining(false);
-          setTimeout(() => router.push("/dashboard"), 2000);
           return;
-        }
-      }
-
-
-      // ── Step 2: Upsert by (firm_id, user_id) ──
-      const { error: upsertErr } = await supabase
-        .from("firm_members")
-        .upsert(
-          {
-            firm_id: invite.firm_id,
-            user_id: userId,
-            email: invite.email,
-            role: invite.role || "member",
-            invited_by: invite.invited_by,
-            joined_at: new Date().toISOString(),
-          },
-          { onConflict: "firm_id,user_id", ignoreDuplicates: false }
-        );
-
-
-      if (upsertErr) {
-        console.error("firm_members upsert error:", upsertErr);
-
-
-        // ── Step 3: Plain insert as last resort ──
-        const { error: insertErr } = await supabase
-          .from("firm_members")
-          .insert({
-            firm_id: invite.firm_id,
-            user_id: userId,
-            email: invite.email,
-            role: invite.role || "member",
-            invited_by: invite.invited_by,
-            joined_at: new Date().toISOString(),
-          });
-
-
-        if (insertErr) {
-          console.error("firm_members insert error:", insertErr);
+        } else if (msg.includes('INVITE_EMAIL_MISMATCH')) {
           setJoinError(
-            `Failed to join workspace: ${insertErr.message}. ` +
-            `Please ask your admin to check RLS permissions on firm_members.`
+            `This invite was sent to ${invite.email}. Please sign in with that email.`
           );
-          setJoining(false);
-          return;
+        } else {
+          setJoinError(`Failed to join workspace: ${error.message}`);
         }
-      }
-
-
-      // ── Mark invite accepted ──
-      const { error: inviteErr } = await supabase
-        .from("firm_invites")
-        .update({ accepted_at: new Date().toISOString() })
-        .eq("id", invite.id);
-
-
-      if (inviteErr) {
-        console.error("firm_invites update error (non-fatal):", inviteErr);
+        setJoining(false);
+        return;
       }
 
 
       setJoined(true);
       setJoining(false);
-      setTimeout(() => router.push("/dashboard"), 2000);
-
-
+      setTimeout(() => router.push('/dashboard'), 2000);
     } catch (err: any) {
-      console.error("acceptInvite unexpected error:", err);
-      setJoinError("Something went wrong. Please try again or contact your admin.");
+      console.error('acceptInvite unexpected error:', err);
+      setJoinError('Something went wrong. Please try again or contact your admin.');
       setJoining(false);
     }
   };
@@ -226,6 +174,19 @@ function InvitePage() {
         },
       });
       if (error) { setAuthError(error.message); return; }
+
+
+      // If Supabase has email confirmation enabled, signUp returns user but
+      // no session → we can't insert into firm_members (RLS needs auth.uid()).
+      // Prompt the user to confirm via email first.
+      if (!data.session) {
+        setAuthError(
+          'Please check your inbox and confirm your email, then return to this link to join.'
+        );
+        return;
+      }
+
+
       if (data.user) {
         setUser(data.user);
         await acceptInvite(data.user.id);
