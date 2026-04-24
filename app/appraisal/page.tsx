@@ -5383,7 +5383,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
     doc.setFillColor(...gold);doc.rect(0,H-8,W,8,"F");
     doc.setFillColor(...dark);doc.rect(0,H-8,4,8,"F");
     doc.setTextColor(26,26,26);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
-    doc.text("Valora  ·  Institutional Development Appraisal",M,H-3);
+    doc.text("Valora  ·  Real Estate Deal Intelligence",M,H-3);
     doc.text(`Confidential  ·  Page ${pageNum} of ${total}`,W-M,H-3,{align:"right"});
   };
 
@@ -5527,7 +5527,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
   doc.setFillColor(...bg2);doc.rect(4,0,W-4,50,"F");
   doc.setFillColor(...gold);doc.rect(4,50,W-4,0.5,"F");
   doc.setTextColor(...white);doc.setFontSize(22);doc.setFont("helvetica","bold");doc.text("Valora",M,20);
-  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("DEVELOPMENT APPRAISAL",M+13,27);
+  doc.setTextColor(...grey);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text("REAL ESTATE DEAL INTELLIGENCE",M+13,27);
   doc.setTextColor(...grey);doc.setFontSize(6.5);doc.text(today,W-M,12,{align:"right"});
 
 
@@ -7742,7 +7742,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
   const pageFooter=(doc:any,pageNum:number)=>{
     doc.setFillColor(...gold);doc.rect(0,291,W,6,"F");
     doc.setTextColor(26,26,26);doc.setFontSize(6.5);doc.setFont("helvetica","bold");
-    doc.text("Valora  ·  Institutional Development Appraisal",M,295.5);
+    doc.text("Valora  ·  Real Estate Deal Intelligence",M,295.5);
     doc.text(`Strictly Private & Confidential  ·  Page ${pageNum}  ·  ${today}`,W-M,295.5,{align:"right"});
   };
 
@@ -13584,7 +13584,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
   const TABS_IND=["general","revenue","costs","finance","cashflow","analysis"];
   const TABS=assetType==="BTR"?TABS_BTR:assetType==="BTS"?TABS_BTS:assetType==="Hotel"?TABS_HOTEL:assetType==="MixedUse"?TABS_MU:assetType==="Commercial"?TABS_COM:assetType==="Industrial"?TABS_IND:TABS_FLIP;
   const TAB_LABELS:Record<string,string>={general:"General",revenue:"Revenue",costs:"Costs",finance:"Finance",im:"IM & Costs",cashflow:"Cash Flow",analysis:"Analysis",comps:"Comparables",zones:"Zones","comps-resi":"Comps (Resi)","comps-com":"Comps (Commercial)",};
-  const ASSET_LABELS:Record<string,string>={BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use",Commercial:"Commercial",Industrial:"Industrial"};
+  const ASSET_LABELS:Record<string,string>={BTR:"Residential (rental)",BTS:"Residential (for sale)",Hotel:"Hotel",Flip:"Short-hold residential",MixedUse:"Mixed Use",Commercial:"Commercial",Industrial:"Industrial"};
   const currencies=["GBP","USD","EUR","AED","MXN","BRL","COP","CLP","PEN","ARS","SGD","AUD","JPY","CHF","CAD","HKD","INR","TRY","ZAR","THB","IDR","PHP","KWD","QAR","BHD"];
   const benchmarks=["SONIA","SOFR","EURIBOR","EIBOR","SORA","AONIA","TONA","SARON","CORRA","HONIA","TIIE","CDI","IBR","TNA","MIBOR","Custom"];
   const currencySymbol={GBP:"£",USD:"$",EUR:"€",AED:"د.إ",MXN:"$MX",BRL:"R$",COP:"COP$",CLP:"CLP$",PEN:"S/",ARS:"AR$",SGD:"S$",AUD:"A$",JPY:"¥",CHF:"Fr",CAD:"C$",HKD:"HK$",INR:"₹",TRY:"₺",ZAR:"R",THB:"฿",IDR:"Rp",PHP:"₱",KWD:"KD",QAR:"QR",BHD:"BD"}[data.currency]||"£";
