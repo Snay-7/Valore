@@ -140,8 +140,8 @@ const PAINS = [
   },
   {
     tag: "Multi-scenario",
-    title: "For-sale vs rental vs short-hold — three workbooks, three weeks",
-    body: "You bought a site. Should you sell open-market, hold for rental income, or refurb-and-resell? Each scheme needs its own model from scratch. By the time the comparison is ready, the planning window has closed and you've defaulted to last-deal logic.",
+    title: "Build-to-Sell vs Build-to-Rent vs Short-hold — three workbooks, three weeks",
+    body: "You bought a site. Build-to-Sell, Build-to-Rent, or Short-hold (refurb-and-resell)? Each scheme needs its own model from scratch. By the time the comparison is ready, the planning window has closed and you've defaulted to last-deal logic.",
   },
   {
     tag: "Speed",
@@ -166,13 +166,13 @@ const SOLUTIONS = [
     num: "02",
     tag: "Multi-asset switch",
     title: "Switch asset class in one click",
-    body: "Run the same site across asset classes side-by-side. For-sale open-market vs rental stabilised yield vs hotel operating hold. Compare exit IRR, profit-on-cost, peak debt requirement at a glance. Decide on facts, not last-deal habit.",
+    body: "Run the same site across asset classes side-by-side. Build-to-Sell open-market vs Build-to-Rent stabilised yield vs Hotel operating hold. Compare exit IRR, profit-on-cost, peak debt requirement at a glance. Decide on facts, not last-deal habit.",
   },
   {
     num: "03",
     tag: "Speed",
     title: "Land call to sketch model in 3 minutes",
-    body: "Describe the deal in one line — &ldquo;rental, 120 units, $45M acquisition, 60% LTC&rdquo; — and Valora builds the model. Refine assumptions later. The first response to a broker is now &lsquo;here&rsquo;s our underwrite&rsquo; not &lsquo;give me a week&rsquo;.",
+    body: "Describe the deal in one line — &ldquo;Build-to-Rent, 120 units, $45M acquisition, 60% LTC&rdquo; — and Valora builds the model. Refine assumptions later. The first response to a broker is now &lsquo;here&rsquo;s our underwrite&rsquo; not &lsquo;give me a week&rsquo;.",
   },
   {
     num: "04",
@@ -281,9 +281,9 @@ export default function ForDevelopers() {
               <em>One source of truth.</em>
             </h1>
             <p className="lede" style={{ marginTop: 22 }}>
-              Run for-sale, rental, hotel, mixed-use, and short-hold scenarios on the same site in
-              minutes &mdash; not days. Built for developers and operators who live by the next
-              deal.
+              Run every asset class — Living (Build-to-Rent, Build-to-Sell, Short-hold),
+              Hospitality, Commercial, Industrial, Mixed-Use — on the same site in minutes &mdash;
+              not days. Built for developers and operators who live by the next deal.
             </p>
             <div className="hero-cta">
               <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>

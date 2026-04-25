@@ -173,9 +173,9 @@ const APPRAISAL_PROMPTS = [
 
 const DASHBOARD_PROMPTS = [
   "Hotel in Mayfair, 80 keys, 4-star, £45m",
-  "Bayswater rental, 120 units, 5-yr hold",
-  "Islington for-sale, 40 units, £400 psf",
-  "Soho flip, £1.8m, 6-month hold",
+  "Bayswater Build-to-Rent, 120 units, 5-yr hold",
+  "Islington Build-to-Sell, 40 units, £400 psf",
+  "Soho Short-hold, £1.8m, 6-month hold",
   "Shoreditch mixed use, 60% resi / 40% commercial",
   "Farringdon office, 40k sqft, £70 psf",
   "Park Royal industrial, 80k sqft",
