@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 /* ════════════════════════════════════════════════════════════════════
@@ -236,11 +237,16 @@ export default function CopilotPanel({
   onValuation,
   injectedMessage,
 }: CopilotPanelProps) {
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [quota, setQuota] = useState<QuotaState | null>(null);
   const [showTopup, setShowTopup] = useState(false);
+
+  const handleAttachBrochure = () => {
+    router.push("/portfolio?upload=brochure");
+  };
 
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
@@ -378,7 +384,7 @@ export default function CopilotPanel({
     const transcript = history
       .filter(
         (m) =>
-          (m.role === "user" || m.role === "assistant") && !m.typing && m.content.trim().length > 0
+          (m.role === "user" || m.role === "assistant") && !m.typing && m.content.trim().length > 0,
       )
       .map((m) => ({ role: m.role, content: m.content }));
     const body: Record<string, any> = { context, messages: transcript };
@@ -396,7 +402,7 @@ export default function CopilotPanel({
         headers,
         body: JSON.stringify(body),
       });
-      const data = await res.json().catch(() => ({} as any));
+      const data = await res.json().catch(() => ({}) as any);
       if (data.quota) setQuota(data.quota);
       if (res.status === 429 || data.error === "quota_exceeded") {
         return {
@@ -404,7 +410,7 @@ export default function CopilotPanel({
           role: "assistant",
           content: String(
             data.reply ||
-              "You've used all your Copilot messages for this period. Top up or upgrade to keep going."
+              "You've used all your Copilot messages for this period. Top up or upgrade to keep going.",
           ),
           timestamp: Date.now(),
           quotaExceeded: true,
@@ -515,8 +521,8 @@ export default function CopilotPanel({
     else if (onApply) onApply(payload);
     setMessages((ms) =>
       ms.map((m) =>
-        m.id === msg.id ? { ...m, suggestion: { ...m.suggestion!, applied: true } } : m
-      )
+        m.id === msg.id ? { ...m, suggestion: { ...m.suggestion!, applied: true } } : m,
+      ),
     );
   };
 
@@ -664,6 +670,7 @@ export default function CopilotPanel({
                     maxHeight: 160,
                   }}
                 />
+                <AttachButton onClick={handleAttachBrochure} T={T} />
                 <MicButton
                   listening={listening}
                   supported={voiceSupported}
@@ -819,6 +826,7 @@ export default function CopilotPanel({
                       maxHeight: 140,
                     }}
                   />
+                  <AttachButton onClick={handleAttachBrochure} T={T} size="sm" />
                   <MicButton
                     listening={listening}
                     supported={voiceSupported}
@@ -986,9 +994,7 @@ export default function CopilotPanel({
                 marginTop: 1,
               }}
             >
-              {context === "valuation"
-                ? "Valuation · Session chat"
-                : `${assetType} · Session chat`}
+              {context === "valuation" ? "Valuation · Session chat" : `${assetType} · Session chat`}
             </div>
           </div>
         </div>
@@ -1108,6 +1114,7 @@ export default function CopilotPanel({
               maxHeight: 120,
             }}
           />
+          <AttachButton onClick={handleAttachBrochure} T={T} size="sm" />
           <MicButton
             listening={listening}
             supported={voiceSupported}
@@ -1158,6 +1165,62 @@ export default function CopilotPanel({
         T={T}
       />
     </aside>
+  );
+}
+
+function AttachButton({
+  onClick,
+  T,
+  size = "md",
+}: {
+  onClick: () => void;
+  T: typeof DARK_COLORS;
+  size?: "md" | "sm";
+}) {
+  const s = size === "sm" ? { pad: "7px 10px", icon: 15 } : { pad: "10px 12px", icon: 17 };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Upload investment brochure"
+      aria-label="Upload investment brochure"
+      style={{
+        background: "transparent",
+        color: T.textDim,
+        border: `1px solid ${T.borderMid}`,
+        borderRadius: 7,
+        padding: s.pad,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "all 150ms",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.borderColor = T.borderAccent;
+        e.currentTarget.style.color = T.green;
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.borderColor = T.borderMid;
+        e.currentTarget.style.color = T.textDim;
+      }}
+    >
+      <svg
+        width={s.icon}
+        height={s.icon}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
   );
 }
 

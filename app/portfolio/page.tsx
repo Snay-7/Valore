@@ -1,5 +1,5 @@
-"use client";
-export const dynamic = 'force-dynamic';
+﻿"use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useState, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -131,11 +131,26 @@ const fmt = (n: number, prefix = "£") => {
   if (abs >= 1e3) return `${prefix}${(n / 1e3).toFixed(0)}k`;
   return `${prefix}${n.toFixed(0)}`;
 };
-const fmtPct = (n: number) => (n === null || n === undefined || !isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
+const fmtPct = (n: number) =>
+  n === null || n === undefined || !isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`;
 const ASSET_TYPES = ["BTR", "BTS", "Hotel", "Flip", "MixedUse", "Commercial", "Industrial"];
-const ASSET_LABELS: Record<string,string> = {BTR:"BTR",BTS:"BTS",Hotel:"Hotel",Flip:"Flip",MixedUse:"Mixed Use",Commercial:"Commercial"};
+const ASSET_LABELS: Record<string, string> = {
+  BTR: "BTR",
+  BTS: "BTS",
+  Hotel: "Hotel",
+  Flip: "Flip",
+  MixedUse: "Mixed Use",
+  Commercial: "Commercial",
+};
 const CURRENCIES = ["GBP", "USD", "EUR", "AED", "SGD", "AUD"];
-const CURRENCY_SYMBOLS: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$" };
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AED: "د.إ",
+  SGD: "S$",
+  AUD: "A$",
+};
 const TRASH_DAYS = 3;
 function Portfolio() {
   const router = useRouter();
@@ -159,25 +174,41 @@ function Portfolio() {
     if (typeof document === "undefined") return;
     document.documentElement.setAttribute("data-theme", t);
     document.body.classList.toggle("light", t === "light");
-    try { localStorage.setItem("valora-theme", t); } catch {}
-    try { localStorage.setItem("val-theme", t); } catch {}
+    try {
+      localStorage.setItem("valora-theme", t);
+    } catch {}
+    try {
+      localStorage.setItem("val-theme", t);
+    } catch {}
   };
-  const [theme, setTheme] = useState<"dark"|"light">(() => detectTheme());
-  useEffect(() => { applyTheme(theme); }, [theme]);
+  const [theme, setTheme] = useState<"dark" | "light">(() => detectTheme());
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
   useEffect(() => {
     let disposed = false;
-    const resync = () => { if (disposed) return; const t = detectTheme(); setTheme(prev => prev === t ? prev : t); };
-    const onStorage = (e: StorageEvent) => { if (e.key && /theme/i.test(e.key)) resync(); };
+    const resync = () => {
+      if (disposed) return;
+      const t = detectTheme();
+      setTheme((prev) => (prev === t ? prev : t));
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && /theme/i.test(e.key)) resync();
+    };
     const bodyObs = new MutationObserver(resync);
     bodyObs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     const htmlObs = new MutationObserver(resync);
-    htmlObs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    htmlObs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", resync);
     document.addEventListener("visibilitychange", resync);
     return () => {
       disposed = true;
-      bodyObs.disconnect(); htmlObs.disconnect();
+      bodyObs.disconnect();
+      htmlObs.disconnect();
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", resync);
       document.removeEventListener("visibilitychange", resync);
@@ -189,10 +220,15 @@ function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newProject, setNewProject] = useState({ name: "", location: "", asset_type: "BTR", currency: "GBP" });
+  const [newProject, setNewProject] = useState({
+    name: "",
+    location: "",
+    asset_type: "BTR",
+    currency: "GBP",
+  });
   const [filter, setFilter] = useState("all");
-  const [view, setView] = useState<"portfolio"|"trash">(initialView);
-  const [openMenuId, setOpenMenuId] = useState<string|null>(null);
+  const [view, setView] = useState<"portfolio" | "trash">(initialView);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
@@ -201,60 +237,105 @@ function Portfolio() {
   const [showBrochureModal, setShowBrochureModal] = useState(false);
   const [brochureFile, setBrochureFile] = useState<File | null>(null);
   const [brochureContext, setBrochureContext] = useState("");
-  const [brochureStage, setBrochureStage] = useState<"idle" | "uploading" | "extracting" | "review" | "error">("idle");
+  const [brochureStage, setBrochureStage] = useState<
+    "idle" | "uploading" | "extracting" | "review" | "error"
+  >("idle");
   const [brochureError, setBrochureError] = useState<string | null>(null);
   const [brochureResult, setBrochureResult] = useState<{
-    description: string; confidence: "high"|"medium"|"low";
+    description: string;
+    confidence: "high" | "medium" | "low";
     payload: Record<string, any>;
     flags: Array<{ severity: string; message: string }>;
-    sourceNotes: string; filename: string;
+    sourceNotes: string;
+    filename: string;
   } | null>(null);
-  const [applyingBrochure, setApplyingBrochure] = useState(false);
+  const [applyingBrochure, setApplyingBrochure] = useState(false); // Auto-open the brochure modal when arriving from Copilot's "+" button  useEffect(() => {    if (typeof window === "undefined") return;    const params = new URLSearchParams(window.location.search);    if (params.get("upload") === "brochure") {      setShowBrochureModal(true);      window.history.replaceState({}, "", "/portfolio");    }    // eslint-disable-next-line react-hooks/exhaustive-deps  }, []);
   const [dragOver, setDragOver] = useState(false);
   const tier = subscription?.tier || "free";
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
   const isTrialing = !!(trialEndsAt && trialEndsAt > new Date());
-  const trialDaysLeft = isTrialing ? Math.ceil((trialEndsAt!.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+  const trialDaysLeft = isTrialing
+    ? Math.ceil((trialEndsAt!.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0;
   const isEnterprise = tier === "enterprise" || isTrialing;
   const isPro = tier === "professional" || isEnterprise;
   const isStarter = tier === "starter";
   const activeProjectLimit = isPro ? Infinity : isStarter ? 10 : 3;
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/");
+        return;
+      }
       setUser(session.user);
       await loadProjects(session.user.id);
       // Light valuation count for the sidebar badge — full list lives at /valuations
-      supabase.from("valuations").select("id", { count: "exact", head: true }).eq("user_id", session.user.id)
+      supabase
+        .from("valuations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id)
         .then(({ count }) => setValuationCount(count ?? 0));
-      const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", session.user.id).maybeSingle();
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
       setSubscription(sub);
-      const { data: memberRow } = await supabase.from("firm_members").select("id").eq("user_id", session.user.id).maybeSingle();
+      const { data: memberRow } = await supabase
+        .from("firm_members")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
       setHasFirm(!!memberRow);
     };
     init();
   }, [router]);
   useEffect(() => {
-    const handler = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null); };
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".card-menu")) setOpenMenuId(null);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   const loadProjects = async (userId: string) => {
     setLoading(true);
-    const { data: all } = await supabase.from("projects").select(`*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`).eq("created_by", userId).order("created_at", { ascending: false });
+    const { data: all } = await supabase
+      .from("projects")
+      .select(
+        `*, appraisals(id, gdv, total_cost, profit, profit_on_cost, irr_unlevered, status, created_at)`,
+      )
+      .eq("created_by", userId)
+      .order("created_at", { ascending: false });
     const now = new Date();
-    const active: any[] = [], trashed: any[] = [];
+    const active: any[] = [],
+      trashed: any[] = [];
     let totalCount = 0;
     (all || []).forEach((p: any) => {
-      if (!p.deleted_at) { active.push(p); totalCount++; }
-      else {
-        const daysInTrash = (now.getTime() - new Date(p.deleted_at).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysInTrash < TRASH_DAYS) { trashed.push({ ...p, _daysLeft: Math.ceil(TRASH_DAYS - daysInTrash) }); totalCount++; }
-        else { supabase.from("appraisals").delete().eq("project_id", p.id).then(() => supabase.from("projects").delete().eq("id", p.id)); }
+      if (!p.deleted_at) {
+        active.push(p);
+        totalCount++;
+      } else {
+        const daysInTrash =
+          (now.getTime() - new Date(p.deleted_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysInTrash < TRASH_DAYS) {
+          trashed.push({ ...p, _daysLeft: Math.ceil(TRASH_DAYS - daysInTrash) });
+          totalCount++;
+        } else {
+          supabase
+            .from("appraisals")
+            .delete()
+            .eq("project_id", p.id)
+            .then(() => supabase.from("projects").delete().eq("id", p.id));
+        }
       }
     });
-    setProjects(active); setTrashedProjects(trashed); setTotalProjectCount(totalCount); setLoading(false);
+    setProjects(active);
+    setTrashedProjects(trashed);
+    setTotalProjectCount(totalCount);
+    setLoading(false);
   };
   // ── Brochure upload handlers ──
   const resetBrochureModal = () => {
@@ -293,8 +374,14 @@ function Portfolio() {
     if (!brochureFile || !user) return;
     setBrochureError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { setBrochureError("Please sign in again."); setBrochureStage("error"); return; }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setBrochureError("Please sign in again.");
+        setBrochureStage("error");
+        return;
+      }
 
       // Step 1: Upload PDF to Supabase Storage under {userId}/{ts}-{filename}.
       // RLS policies (see om-storage-migration.sql) scope this to the authenticated user.
@@ -302,8 +389,7 @@ function Portfolio() {
       // Strip anything that's not alphanumeric/dot/dash/underscore for a safe key
       const safeName = brochureFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const storagePath = `${user.id}/${Date.now()}-${safeName}`;
-      const { error: uploadErr } = await supabase
-        .storage
+      const { error: uploadErr } = await supabase.storage
         .from("om-uploads")
         .upload(storagePath, brochureFile, {
           contentType: "application/pdf",
@@ -338,7 +424,10 @@ function Portfolio() {
         }
         setBrochureStage("error");
         // Best-effort cleanup of the orphaned storage object on extraction failure
-        supabase.storage.from("om-uploads").remove([storagePath]).catch(() => {});
+        supabase.storage
+          .from("om-uploads")
+          .remove([storagePath])
+          .catch(() => {});
         return;
       }
       setBrochureResult(data);
@@ -367,24 +456,33 @@ function Portfolio() {
     setApplyingBrochure(true);
     try {
       const p = brochureResult.payload;
-      const projectName = p.name || brochureResult.description.split("—")[0]?.trim() || brochureResult.filename.replace(/\.pdf$/i, "");
+      const projectName =
+        p.name ||
+        brochureResult.description.split("—")[0]?.trim() ||
+        brochureResult.filename.replace(/\.pdf$/i, "");
 
-      const { data: proj, error: projErr } = await supabase.from("projects").insert({
-        name: projectName,
-        location: p.location || p.address || "",
-        asset_type: p.assetType || "BTR",
-        currency: p.currency || "GBP",
-        benchmark_rate: "SONIA",
-        created_by: user.id,
-        firm_id: null,
-      }).select().single();
+      const { data: proj, error: projErr } = await supabase
+        .from("projects")
+        .insert({
+          name: projectName,
+          location: p.location || p.address || "",
+          asset_type: p.assetType || "BTR",
+          currency: p.currency || "GBP",
+          benchmark_rate: "SONIA",
+          created_by: user.id,
+          firm_id: null,
+        })
+        .select()
+        .single();
       if (projErr || !proj) throw new Error(projErr?.message || "Failed to create project");
 
       // Helpers: numeric inputs live as strings in the snapshot (mirroring React form state)
-      const s = (v: any) => (v === undefined || v === null || v === "") ? undefined : String(v);
+      const s = (v: any) => (v === undefined || v === null || v === "" ? undefined : String(v));
       const giaSqm = p.giaSqm
         ? String(p.giaSqm)
-        : (p.gia ? String(Math.round(p.gia / 10.764)) : undefined);
+        : p.gia
+          ? String(Math.round(p.gia / 10.764))
+          : undefined;
 
       // Build the snapshot — flat, camelCase, matches the Ritz-Carlton / Sun Belt shape we see in prod
       const snapshot: Record<string, any> = {
@@ -461,8 +559,11 @@ function Portfolio() {
         console.error("Appraisal insert failed:", apprErr);
         // Immediate-visible pop so the user doesn't have to dig through DevTools
         const detail = [apprErr.message, apprErr.details, apprErr.hint, apprErr.code]
-          .filter(Boolean).join(" · ");
-        alert(`Supabase rejected the appraisal insert:\n\n${detail}\n\nThe full object is in the browser console.`);
+          .filter(Boolean)
+          .join(" · ");
+        alert(
+          `Supabase rejected the appraisal insert:\n\n${detail}\n\nThe full object is in the browser console.`,
+        );
         throw new Error(`Appraisal insert failed: ${detail}`);
       }
 
@@ -477,16 +578,31 @@ function Portfolio() {
     }
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); router.push("/"); };
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
   const createProject = async () => {
     if (!newProject.name.trim() || !user) return;
     setCreating(true);
-    const { data: proj, error } = await supabase.from("projects").insert({
-      name: newProject.name.trim(), location: newProject.location.trim(),
-      asset_type: newProject.asset_type, currency: newProject.currency,
-      benchmark_rate: "SONIA", created_by: user.id, firm_id: null,
-    }).select().single();
-    if (proj && !error) { setShowNewModal(false); setNewProject({ name: "", location: "", asset_type: "BTR", currency: "GBP" }); router.push(`/appraisal?project=${proj.id}`); }
+    const { data: proj, error } = await supabase
+      .from("projects")
+      .insert({
+        name: newProject.name.trim(),
+        location: newProject.location.trim(),
+        asset_type: newProject.asset_type,
+        currency: newProject.currency,
+        benchmark_rate: "SONIA",
+        created_by: user.id,
+        firm_id: null,
+      })
+      .select()
+      .single();
+    if (proj && !error) {
+      setShowNewModal(false);
+      setNewProject({ name: "", location: "", asset_type: "BTR", currency: "GBP" });
+      router.push(`/appraisal?project=${proj.id}`);
+    }
     setCreating(false);
   };
   const openProject = (project: any) => {
@@ -501,21 +617,32 @@ function Portfolio() {
   const moveToTrash = async (projectId: string) => {
     setOpenMenuId(null);
     const now = new Date().toISOString();
-    const { error } = await supabase.from("projects").update({ deleted_at: now }).eq("id", projectId);
+    const { error } = await supabase
+      .from("projects")
+      .update({ deleted_at: now })
+      .eq("id", projectId);
     if (error) {
       console.error("moveToTrash failed:", error);
-      alert(`Couldn't move to trash:\n\n${error.message}${error.details ? " — " + error.details : ""}`);
+      alert(
+        `Couldn't move to trash:\n\n${error.message}${error.details ? " — " + error.details : ""}`,
+      );
       return;
     }
     const project = projects.find((p: any) => p.id === projectId);
     if (project) {
       setProjects((prev: any[]) => prev.filter((p: any) => p.id !== projectId));
-      setTrashedProjects((prev: any[]) => [...prev, { ...project, deleted_at: now, _daysLeft: TRASH_DAYS }]);
+      setTrashedProjects((prev: any[]) => [
+        ...prev,
+        { ...project, deleted_at: now, _daysLeft: TRASH_DAYS },
+      ]);
     }
   };
 
   const restoreProject = async (projectId: string) => {
-    const { error } = await supabase.from("projects").update({ deleted_at: null }).eq("id", projectId);
+    const { error } = await supabase
+      .from("projects")
+      .update({ deleted_at: null })
+      .eq("id", projectId);
     if (error) {
       console.error("restoreProject failed:", error);
       alert(`Couldn't restore:\n\n${error.message}`);
@@ -530,7 +657,10 @@ function Portfolio() {
   };
 
   const permanentlyDelete = async (projectId: string) => {
-    const { error: apprErr } = await supabase.from("appraisals").delete().eq("project_id", projectId);
+    const { error: apprErr } = await supabase
+      .from("appraisals")
+      .delete()
+      .eq("project_id", projectId);
     if (apprErr) {
       console.error("Delete appraisals failed:", apprErr);
       alert(`Couldn't delete child appraisals:\n\n${apprErr.message}`);
@@ -550,9 +680,16 @@ function Portfolio() {
     let failures = 0;
     for (const p of trashedProjects) {
       const { error: apprErr } = await supabase.from("appraisals").delete().eq("project_id", p.id);
-      if (apprErr) { console.error(`Empty trash — appraisals delete failed for ${p.id}:`, apprErr); failures++; continue; }
+      if (apprErr) {
+        console.error(`Empty trash — appraisals delete failed for ${p.id}:`, apprErr);
+        failures++;
+        continue;
+      }
       const { error: projErr } = await supabase.from("projects").delete().eq("id", p.id);
-      if (projErr) { console.error(`Empty trash — project delete failed for ${p.id}:`, projErr); failures++; }
+      if (projErr) {
+        console.error(`Empty trash — project delete failed for ${p.id}:`, projErr);
+        failures++;
+      }
     }
     if (failures > 0) {
       alert(`${failures} project(s) couldn't be deleted — see console for details.`);
@@ -561,100 +698,481 @@ function Portfolio() {
     if (user) await loadProjects(user.id);
     setConfirmDelete(null);
   };
-  const filteredProjects = filter === "all" ? projects : projects.filter((p: any) => p.asset_type === filter);
+  const filteredProjects =
+    filter === "all" ? projects : projects.filter((p: any) => p.asset_type === filter);
   const totalGDV = projects.reduce((s: number, p: any) => s + (p.appraisals?.[0]?.gdv || 0), 0);
-  const totalProfit = projects.reduce((s: number, p: any) => s + (p.appraisals?.[0]?.profit || 0), 0);
-  const avgPoC = (() => { const v = projects.filter((p: any) => p.appraisals?.[0]?.profit_on_cost != null); return v.length ? v.reduce((s: number, p: any) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length : 0; })();
-  const avgIRR = (() => { const v = projects.filter((p: any) => p.appraisals?.[0]?.irr_unlevered); return v.length ? v.reduce((s: number, p: any) => s + (p.appraisals[0].irr_unlevered || 0), 0) / v.length : 0; })();
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0F1115", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-      <span style={{fontFamily:"'Poppins',system-ui,sans-serif",fontSize:22,fontWeight:700,letterSpacing:"-.03em",color:"#F6F4EF"}}>Valora</span>
-      <div style={{ width: 28, height: 28, border: "2px solid rgba(82,196,152,.15)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-      <div style={{ fontSize: 11, color: "#6B7280", letterSpacing: ".08em", textTransform: "uppercase" }}>Loading</div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
+  const totalProfit = projects.reduce(
+    (s: number, p: any) => s + (p.appraisals?.[0]?.profit || 0),
+    0,
   );
+  const avgPoC = (() => {
+    const v = projects.filter((p: any) => p.appraisals?.[0]?.profit_on_cost != null);
+    return v.length
+      ? v.reduce((s: number, p: any) => s + (p.appraisals[0].profit_on_cost || 0), 0) / v.length
+      : 0;
+  })();
+  const avgIRR = (() => {
+    const v = projects.filter((p: any) => p.appraisals?.[0]?.irr_unlevered);
+    return v.length
+      ? v.reduce((s: number, p: any) => s + (p.appraisals[0].irr_unlevered || 0), 0) / v.length
+      : 0;
+  })();
+  if (loading)
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#0F1115",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 14,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'Poppins',system-ui,sans-serif",
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: "-.03em",
+            color: "#F6F4EF",
+          }}
+        >
+          Valora
+        </span>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            border: "2px solid rgba(82,196,152,.15)",
+            borderTopColor: "#52C498",
+            borderRadius: "50%",
+            animation: "spin .7s linear infinite",
+          }}
+        />
+        <div
+          style={{
+            fontSize: 11,
+            color: "#6B7280",
+            letterSpacing: ".08em",
+            textTransform: "uppercase",
+          }}
+        >
+          Loading
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-body)", display: "flex" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text)",
+        fontFamily: "var(--font-body)",
+        display: "flex",
+      }}
+    >
       <style>{CSS}</style>
-      <script dangerouslySetInnerHTML={{__html:`(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');else if(document.body)document.body.classList.remove('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()`}}/>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var t=null;if(document.body&&document.body.classList.contains('light'))t='light';if(!t){var h=document.documentElement.getAttribute('data-theme');if(h==='light'||h==='dark')t=h;}if(!t){var keys=['valora-theme','val-theme','theme'];for(var i=0;i<keys.length;i++){var v=localStorage.getItem(keys[i]);if(v==='light'||v==='dark'){t=v;break;}}}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);if(t==='light'&&document.body)document.body.classList.add('light');else if(document.body)document.body.classList.remove('light');try{localStorage.setItem('valora-theme',t);localStorage.setItem('val-theme',t);}catch(e){}}catch(e){}})()`,
+        }}
+      />
       {/* ── SIDEBAR ── */}
       <div className="sidebar">
         <div style={{ padding: "20px 20px 18px", borderBottom: "1px solid var(--border)" }}>
-          <span style={{fontFamily:"var(--font-display)",fontSize:20,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)"}}>Valora</span>
-          <div style={{ fontSize: 9, color: "var(--text-d)", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 3, fontFamily:"var(--font-body)", fontWeight: 600 }}>Institutional Real Estate AI</div>
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: "-.03em",
+              color: "var(--text)",
+            }}
+          >
+            Valora
+          </span>
+          <div
+            style={{
+              fontSize: 9,
+              color: "var(--text-d)",
+              letterSpacing: ".18em",
+              textTransform: "uppercase",
+              marginTop: 3,
+              fontFamily: "var(--font-body)",
+              fontWeight: 600,
+            }}
+          >
+            Institutional Real Estate AI
+          </div>
         </div>
         <div style={{ padding: "16px 12px", flex: 1, overflowY: "auto" }}>
-          <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>My Work</div>
-          <button className="nav-item" onClick={() => router.push("/dashboard")} style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ color: "var(--gold)", fontSize: 14, lineHeight:1 }}>◆</span>
+          <div
+            style={{
+              fontSize: 10,
+              color: "var(--text-d)",
+              textTransform: "uppercase",
+              letterSpacing: ".14em",
+              padding: "0 12px",
+              marginBottom: 8,
+              fontWeight: 600,
+            }}
+          >
+            My Work
+          </div>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/dashboard")}
+            style={{ display: "flex", alignItems: "center", gap: 8 }}
+          >
+            <span style={{ color: "var(--gold)", fontSize: 14, lineHeight: 1 }}>◆</span>
             <span>Copilot</span>
           </button>
-          <button className={`nav-item ${view === "portfolio" ? "active" : ""}`} onClick={() => { setView("portfolio"); }}>Portfolio</button>
-          <button className="nav-item" onClick={() => router.push("/valuations")} style={{ display:"flex", alignItems:"center", gap:8, justifyContent:"space-between" }}>
-            <span style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ color:"var(--gold)", fontSize:13 }}>◈</span>
+          <button
+            className={`nav-item ${view === "portfolio" ? "active" : ""}`}
+            onClick={() => {
+              setView("portfolio");
+            }}
+          >
+            Portfolio
+          </button>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/valuations")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "var(--gold)", fontSize: 13 }}>◈</span>
               <span>Valuations</span>
             </span>
-            {valuationCount > 0 && <span style={{ background: "var(--gold-bg)", color: "var(--gold)", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, border: "1px solid var(--gold-border)" }}>{valuationCount}</span>}
+            {valuationCount > 0 && (
+              <span
+                style={{
+                  background: "var(--gold-bg)",
+                  color: "var(--gold)",
+                  borderRadius: 10,
+                  padding: "1px 7px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  border: "1px solid var(--gold-border)",
+                }}
+              >
+                {valuationCount}
+              </span>
+            )}
           </button>
-          <button className="nav-item" onClick={() => router.push("/pipeline")}>Pipeline</button>
-          <button className="nav-item" onClick={() => router.push("/tasks")}>Tasks</button>
-          <button className="nav-item" onClick={() => router.push("/notes")}>Notes</button>
-          <button className="nav-item" onClick={() => router.push("/learn")} style={{color:"var(--gold)"}}>✦ Learn</button>
-          {hasFirm && (<>
-            <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-            <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".14em", padding: "0 12px", marginBottom: 8, fontWeight: 600 }}>Team</div>
-            <button className="nav-item" onClick={() => router.push("/workspace")} style={{ color: "var(--gold)" }}>◈ Workspace</button>
-            <button className="nav-item" onClick={() => router.push("/team")}>Team</button>
-          </>)}
-          {!hasFirm && <button className="nav-item" onClick={() => router.push("/team")}>Team</button>}
+          <button className="nav-item" onClick={() => router.push("/pipeline")}>
+            Pipeline
+          </button>
+          <button className="nav-item" onClick={() => router.push("/tasks")}>
+            Tasks
+          </button>
+          <button className="nav-item" onClick={() => router.push("/notes")}>
+            Notes
+          </button>
+          <button
+            className="nav-item"
+            onClick={() => router.push("/learn")}
+            style={{ color: "var(--gold)" }}
+          >
+            ✦ Learn
+          </button>
+          {hasFirm && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-d)",
+                  textTransform: "uppercase",
+                  letterSpacing: ".14em",
+                  padding: "0 12px",
+                  marginBottom: 8,
+                  fontWeight: 600,
+                }}
+              >
+                Team
+              </div>
+              <button
+                className="nav-item"
+                onClick={() => router.push("/workspace")}
+                style={{ color: "var(--gold)" }}
+              >
+                ◈ Workspace
+              </button>
+              <button className="nav-item" onClick={() => router.push("/team")}>
+                Team
+              </button>
+            </>
+          )}
+          {!hasFirm && (
+            <button className="nav-item" onClick={() => router.push("/team")}>
+              Team
+            </button>
+          )}
           <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-          <button className={`nav-item ${view === "trash" ? "active-danger" : "danger-item"}`} onClick={() => setView("trash")} style={{ justifyContent: "space-between" }}>
+          <button
+            className={`nav-item ${view === "trash" ? "active-danger" : "danger-item"}`}
+            onClick={() => setView("trash")}
+            style={{ justifyContent: "space-between" }}
+          >
             <span>Trash</span>
-            {trashedProjects.length > 0 && <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{trashedProjects.length}</span>}
+            {trashedProjects.length > 0 && (
+              <span
+                style={{
+                  background: "var(--red)",
+                  color: "#fff",
+                  borderRadius: 10,
+                  padding: "1px 7px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {trashedProjects.length}
+              </span>
+            )}
           </button>
-          {!isPro && (<>
-            <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
-            <button className="nav-item" onClick={() => router.push("/pricing")} style={{ color: "var(--gold)", background: "var(--gold-bg)", border: "1px solid var(--gold-border)", fontWeight: 600 }}>✦ Upgrade Plan</button>
-          </>)}
+          {!isPro && (
+            <>
+              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <button
+                className="nav-item"
+                onClick={() => router.push("/pricing")}
+                style={{
+                  color: "var(--gold)",
+                  background: "var(--gold-bg)",
+                  border: "1px solid var(--gold-border)",
+                  fontWeight: 600,
+                }}
+              >
+                ✦ Upgrade Plan
+              </button>
+            </>
+          )}
         </div>
         <div style={{ padding: "12px 12px 0", borderTop: "1px solid var(--border)" }}>
           <button className="btn-demo" onClick={() => window.open(CALENDLY, "_blank")}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
             Book a Demo
           </button>
           <div style={{ padding: "10px 0 14px" }}>
-            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{user?.email}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <button className="nav-item" onClick={signOut} style={{ fontSize: 12, padding: "6px 8px", width: "auto" }}>Sign Out</button>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text-d)",
+                marginBottom: 8,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontWeight: 500,
+              }}
+            >
+              {user?.email}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 4,
+              }}
+            >
               <button
-                onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-                title={theme === "dark" ? "Light mode" : "Dark mode"}
-                style={{ padding: "5px 10px", borderRadius: 999, border: "1px solid var(--border-m)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, color: "var(--text-d)", fontSize: 10, fontFamily: "var(--font-body)", fontWeight: 600, letterSpacing: ".03em" }}
+                className="nav-item"
+                onClick={signOut}
+                style={{ fontSize: 12, padding: "6px 8px", width: "auto" }}
               >
-                {theme === "dark"
-                  ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light</>
-                  : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</>
-                }
+                Sign Out
+              </button>
+              <button
+                onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+                title={theme === "dark" ? "Light mode" : "Dark mode"}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  border: "1px solid var(--border-m)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  color: "var(--text-d)",
+                  fontSize: 10,
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 600,
+                  letterSpacing: ".03em",
+                }}
+              >
+                {theme === "dark" ? (
+                  <>
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                    Light
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                    Dark
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
       </div>
       {/* ── MAIN ── */}
-      <div className="main-content" style={{ flex: 1, minWidth: 0, padding: "40px 40px", overflowX: "hidden" }}>
+      <div
+        className="main-content"
+        style={{ flex: 1, minWidth: 0, padding: "40px 40px", overflowX: "hidden" }}
+      >
         <div className="mobile-topbar">
-          <span style={{fontFamily:"var(--font-display)",fontSize:18,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)"}}>Valora</span>
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 18,
+              fontWeight: 700,
+              letterSpacing: "-.03em",
+              color: "var(--text)",
+            }}
+          >
+            Valora
+          </span>
           <div style={{ display: "flex", gap: 6 }}>
-            <button className="btn-primary" style={{ padding: "7px 14px", fontSize: 12 }} onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>+ New</button>
-            <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border-m)", background: "var(--bg3)", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              {theme === "dark"
-                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
+            <button
+              className="btn-primary"
+              style={{ padding: "7px 14px", fontSize: 12 }}
+              onClick={() => {
+                if (!isPro && totalProjectCount >= activeProjectLimit) {
+                  router.push("/pricing");
+                  return;
+                }
+                setShowNewModal(true);
+              }}
+            >
+              + New
             </button>
-            <button onClick={signOut} title="Sign out" style={{padding:"6px 8px",border:"1px solid var(--border-m)",borderRadius:6,background:"var(--bg3)",cursor:"pointer",display:"flex",alignItems:"center"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-m)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <button
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              style={{
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border-m)",
+                background: "var(--bg3)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {theme === "dark" ? (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--text-m)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </svg>
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--text-m)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={signOut}
+              title="Sign out"
+              style={{
+                padding: "6px 8px",
+                border: "1px solid var(--border-m)",
+                borderRadius: 6,
+                background: "var(--bg3)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-m)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
             </button>
           </div>
         </div>
@@ -663,47 +1181,121 @@ function Portfolio() {
             <div className="page-header">
               <div>
                 <h1>Trash</h1>
-                <p style={{ fontSize: 13, color: "var(--text-d)", marginTop: 8, fontWeight: 500 }}>Projects deleted within the last {TRASH_DAYS} days.</p>
+                <p style={{ fontSize: 13, color: "var(--text-d)", marginTop: 8, fontWeight: 500 }}>
+                  Projects deleted within the last {TRASH_DAYS} days.
+                </p>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-ghost" onClick={() => setView("portfolio")}>← Back</button>
-                {trashedProjects.length > 0 && <button className="btn-danger" onClick={() => setConfirmDelete({ type: "all" })} style={{ padding: "9px 18px", fontSize: 12 }}>Empty Trash</button>}
+                <button className="btn-ghost" onClick={() => setView("portfolio")}>
+                  ← Back
+                </button>
+                {trashedProjects.length > 0 && (
+                  <button
+                    className="btn-danger"
+                    onClick={() => setConfirmDelete({ type: "all" })}
+                    style={{ padding: "9px 18px", fontSize: 12 }}
+                  >
+                    Empty Trash
+                  </button>
+                )}
               </div>
             </div>
             {trashedProjects.length === 0 ? (
               <div style={{ textAlign: "center", padding: "80px 0" }}>
-                <div style={{ fontSize: 48, marginBottom: 16, opacity: .4 }}>🗑</div>
-                <p style={{ fontSize: 16, color: "var(--text-d)", fontFamily: "var(--font-display)", fontWeight: 500 }}>Trash is empty</p>
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>🗑</div>
+                <p
+                  style={{
+                    fontSize: 16,
+                    color: "var(--text-d)",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
+                  }}
+                >
+                  Trash is empty
+                </p>
               </div>
             ) : (
               <div className="cards-grid">
                 {trashedProjects.map((p: any, i: number) => {
-                  const latest = p.appraisals?.[0]; const sym = CURRENCY_SYMBOLS[p.currency] || "£";
+                  const latest = p.appraisals?.[0];
+                  const sym = CURRENCY_SYMBOLS[p.currency] || "£";
                   return (
-                    <div key={p.id} className="card trashed" style={{ animationDelay: `${i * 0.04}s`, cursor: "default" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span className="pill pill--type">{ASSET_LABELS[p.asset_type] || p.asset_type}</span>
-                        <span style={{ fontSize: 11, color: "var(--red)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>Deletes in {p._daysLeft}d</span>
+                    <div
+                      key={p.id}
+                      className="card trashed"
+                      style={{ animationDelay: `${i * 0.04}s`, cursor: "default" }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span className="pill pill--type">
+                          {ASSET_LABELS[p.asset_type] || p.asset_type}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--red)",
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Deletes in {p._daysLeft}d
+                        </span>
                       </div>
                       <div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: "-.02em" }}>{p.name || "Untitled"}</h3>
-                        <p style={{ fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>{p.location || "No location"}</p>
+                        <h3
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            marginBottom: 4,
+                            fontFamily: "var(--font-display)",
+                            letterSpacing: "-.02em",
+                          }}
+                        >
+                          {p.name || "Untitled"}
+                        </h3>
+                        <p style={{ fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>
+                          {p.location || "No location"}
+                        </p>
                       </div>
                       {latest && (
                         <div className="metrics-panel" style={{ gridTemplateColumns: "1fr 1fr" }}>
                           <div className="metric-cell">
                             <div className="metric-cell__label">GDV</div>
-                            <div className="metric-cell__value" style={{ color: "var(--accent-gold)" }}>{fmt(latest.gdv, sym)}</div>
+                            <div
+                              className="metric-cell__value"
+                              style={{ color: "var(--accent-gold)" }}
+                            >
+                              {fmt(latest.gdv, sym)}
+                            </div>
                           </div>
                           <div className="metric-cell">
                             <div className="metric-cell__label">PoC</div>
-                            <div className="metric-cell__value" style={{ color: "var(--text-m)" }}>{fmtPct(latest.profit_on_cost)}</div>
+                            <div className="metric-cell__value" style={{ color: "var(--text-m)" }}>
+                              {fmtPct(latest.profit_on_cost)}
+                            </div>
                           </div>
                         </div>
                       )}
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn-ghost" onClick={() => restoreProject(p.id)} style={{ flex: 1, fontSize: 12, padding: "8px" }}>Restore</button>
-                        <button className="btn-danger" onClick={() => setConfirmDelete({ type: "single", project: p })} style={{ flex: 1, padding: "8px" }}>Delete Forever</button>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => restoreProject(p.id)}
+                          style={{ flex: 1, fontSize: 12, padding: "8px" }}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          className="btn-danger"
+                          onClick={() => setConfirmDelete({ type: "single", project: p })}
+                          style={{ flex: 1, padding: "8px" }}
+                        >
+                          Delete Forever
+                        </button>
                       </div>
                     </div>
                   );
@@ -718,69 +1310,228 @@ function Portfolio() {
               <div>
                 <h1>Portfolio</h1>
                 {projects.length > 0 && (
-                  <p style={{ fontSize: 14, color: "var(--text-d)", marginTop: 8, fontWeight: 500 }}>
-                    {projects.length} project{projects.length !== 1 ? "s" : ""} · {fmt(totalGDV)} GDV · avg {fmtPct(avgPoC)} PoC
+                  <p
+                    style={{ fontSize: 14, color: "var(--text-d)", marginTop: 8, fontWeight: 500 }}
+                  >
+                    {projects.length} project{projects.length !== 1 ? "s" : ""} · {fmt(totalGDV)}{" "}
+                    GDV · avg {fmtPct(avgPoC)} PoC
                   </p>
                 )}
               </div>
-              <div className="page-header-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <div
+                className="page-header-actions"
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}
+              >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button className="btn-ghost" onClick={() => router.push("/dashboard")} title="Start a new deal with the Copilot">
+                  <button
+                    className="btn-ghost"
+                    onClick={() => router.push("/dashboard")}
+                    title="Start a new deal with the Copilot"
+                  >
                     <span style={{ color: "var(--gold)" }}>◆</span> Copilot
                   </button>
-                  <button className="btn-ghost" onClick={() => setShowBrochureModal(true)} title="Upload an offering memorandum PDF — we extract the deal model automatically">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="12" y1="18" x2="12" y2="12"/>
-                      <line x1="9" y1="15" x2="15" y2="15"/>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setShowBrochureModal(true)}
+                    title="Upload an offering memorandum PDF — we extract the deal model automatically"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="12" y1="18" x2="12" y2="12" />
+                      <line x1="9" y1="15" x2="15" y2="15" />
                     </svg>
                     Upload Brochure
                   </button>
-                  <button className="btn-primary" onClick={() => { if (!isPro && totalProjectCount >= activeProjectLimit) { router.push("/pricing"); return; } setShowNewModal(true); }}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      if (!isPro && totalProjectCount >= activeProjectLimit) {
+                        router.push("/pricing");
+                        return;
+                      }
+                      setShowNewModal(true);
+                    }}
+                  >
                     + New Appraisal
                   </button>
                 </div>
                 {!isPro && (
                   <div style={{ fontSize: 11, color: "var(--text-d)", fontWeight: 500 }}>
-                    {totalProjectCount}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit} projects
-                    {totalProjectCount >= activeProjectLimit && <span style={{ color: "var(--amber)", marginLeft: 4, cursor: "pointer", textDecoration: "underline" }} onClick={() => router.push("/pricing")}>Upgrade</span>}
+                    {totalProjectCount}/{activeProjectLimit === Infinity ? "∞" : activeProjectLimit}{" "}
+                    projects
+                    {totalProjectCount >= activeProjectLimit && (
+                      <span
+                        style={{
+                          color: "var(--amber)",
+                          marginLeft: 4,
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                        }}
+                        onClick={() => router.push("/pricing")}
+                      >
+                        Upgrade
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
             {isTrialing && (
-              <div style={{ background:"var(--gold-bg)", border:"1px solid var(--gold-border)", borderRadius:12, padding:"14px 18px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+              <div
+                style={{
+                  background: "var(--gold-bg)",
+                  border: "1px solid var(--gold-border)",
+                  borderRadius: 12,
+                  padding: "14px 18px",
+                  marginBottom: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
                 <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:"var(--gold)", marginBottom:2, letterSpacing: "-.01em" }}>✦ Enterprise Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining</div>
-                  <div style={{ fontSize:12, color:"var(--text-m)", fontWeight: 500 }}>Full access to all features. Upgrade before your trial ends.</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--gold)",
+                      marginBottom: 2,
+                      letterSpacing: "-.01em",
+                    }}
+                  >
+                    ✦ Enterprise Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""}{" "}
+                    remaining
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-m)", fontWeight: 500 }}>
+                    Full access to all features. Upgrade before your trial ends.
+                  </div>
                 </div>
-                <button className="btn-primary" style={{ padding:"8px 16px", fontSize:12, flexShrink:0 }} onClick={() => router.push("/pricing")}>Upgrade Now</button>
+                <button
+                  className="btn-primary"
+                  style={{ padding: "8px 16px", fontSize: 12, flexShrink: 0 }}
+                  onClick={() => router.push("/pricing")}
+                >
+                  Upgrade Now
+                </button>
               </div>
             )}
             {!isPro && projects.length > 0 && (
               <div className="demo-banner">
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 2, letterSpacing: "-.01em" }}>Want a guided walkthrough?</div>
-                  <div style={{ fontSize: 12, color: "var(--text-m)", fontWeight: 500 }}>Book a free 30-min demo — we&apos;ll walk through your deals live.</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--gold)",
+                      marginBottom: 2,
+                      letterSpacing: "-.01em",
+                    }}
+                  >
+                    Want a guided walkthrough?
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-m)", fontWeight: 500 }}>
+                    Book a free 30-min demo — we&apos;ll walk through your deals live.
+                  </div>
                 </div>
-                <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 12, flexShrink: 0 }} onClick={() => window.open(CALENDLY, "_blank")}>Book Demo</button>
+                <button
+                  className="btn-primary"
+                  style={{ padding: "8px 16px", fontSize: 12, flexShrink: 0 }}
+                  onClick={() => window.open(CALENDLY, "_blank")}
+                >
+                  Book Demo
+                </button>
               </div>
             )}
             {!isPro && totalProjectCount >= activeProjectLimit && (
-              <div style={{ background: "rgba(240,164,41,.08)", border: "1px solid rgba(240,164,41,.25)", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 12, color: "var(--amber)", fontWeight: 600 }}>You&apos;ve reached your {activeProjectLimit}-project limit.</div>
-                <button className="btn-primary" onClick={() => router.push("/pricing")} style={{ padding: "7px 16px", fontSize: 12 }}>Upgrade →</button>
+              <div
+                style={{
+                  background: "rgba(240,164,41,.08)",
+                  border: "1px solid rgba(240,164,41,.25)",
+                  borderRadius: 10,
+                  padding: "12px 18px",
+                  marginBottom: 16,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 12, color: "var(--amber)", fontWeight: 600 }}>
+                  You&apos;ve reached your {activeProjectLimit}-project limit.
+                </div>
+                <button
+                  className="btn-primary"
+                  onClick={() => router.push("/pricing")}
+                  style={{ padding: "7px 16px", fontSize: 12 }}
+                >
+                  Upgrade →
+                </button>
               </div>
             )}
             {projects.length === 0 && (
-              <div style={{ textAlign: "center", padding: "80px 20px", background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 14 }}>
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "80px 20px",
+                  background: "var(--bg2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 14,
+                }}
+              >
                 <div style={{ fontSize: 40, marginBottom: 14, color: "var(--gold)" }}>◆</div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-display)", letterSpacing: "-.02em" }}>No deals yet</h2>
-                <p style={{ fontSize: 13, color: "var(--text-d)", maxWidth: 420, margin: "0 auto 22px", lineHeight: 1.6 }}>Start with the Copilot — describe your deal in one line, or pick an asset type and fill the fields yourself.</p>
-                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                  <button className="btn-primary" onClick={() => router.push("/dashboard")} style={{ padding: "10px 20px" }}>◆ Open Copilot</button>
-                  <button className="btn-ghost" onClick={() => setShowNewModal(true)} style={{ padding: "10px 20px" }}>+ New Appraisal</button>
+                <h2
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    marginBottom: 8,
+                    fontFamily: "var(--font-display)",
+                    letterSpacing: "-.02em",
+                  }}
+                >
+                  No deals yet
+                </h2>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-d)",
+                    maxWidth: 420,
+                    margin: "0 auto 22px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Start with the Copilot — describe your deal in one line, or pick an asset type and
+                  fill the fields yourself.
+                </p>
+                <div
+                  style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}
+                >
+                  <button
+                    className="btn-primary"
+                    onClick={() => router.push("/dashboard")}
+                    style={{ padding: "10px 20px" }}
+                  >
+                    ◆ Open Copilot
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setShowNewModal(true)}
+                    style={{ padding: "10px 20px" }}
+                  >
+                    + New Appraisal
+                  </button>
                 </div>
               </div>
             )}
@@ -789,24 +1540,55 @@ function Portfolio() {
                 {[
                   { label: "Projects", value: String(projects.length), color: "var(--text)" },
                   { label: "Total GDV", value: fmt(totalGDV), color: "var(--accent-gold)" },
-                  { label: "Total Profit", value: fmt(totalProfit), color: totalProfit > 0 ? "var(--green)" : "var(--red)" },
-                  { label: "Avg PoC", value: fmtPct(avgPoC), color: avgPoC > 0.2 ? "var(--green)" : avgPoC > 0.1 ? "var(--amber)" : "var(--text-m)" },
-                  { label: "Avg IRR", value: fmtPct(avgIRR), color: avgIRR > 0.15 ? "var(--green)" : avgIRR > 0.08 ? "var(--amber)" : "var(--text-m)" },
-                ].map(stat => (
+                  {
+                    label: "Total Profit",
+                    value: fmt(totalProfit),
+                    color: totalProfit > 0 ? "var(--green)" : "var(--red)",
+                  },
+                  {
+                    label: "Avg PoC",
+                    value: fmtPct(avgPoC),
+                    color:
+                      avgPoC > 0.2
+                        ? "var(--green)"
+                        : avgPoC > 0.1
+                          ? "var(--amber)"
+                          : "var(--text-m)",
+                  },
+                  {
+                    label: "Avg IRR",
+                    value: fmtPct(avgIRR),
+                    color:
+                      avgIRR > 0.15
+                        ? "var(--green)"
+                        : avgIRR > 0.08
+                          ? "var(--amber)"
+                          : "var(--text-m)",
+                  },
+                ].map((stat) => (
                   <div key={stat.label} className="stat-cell">
                     <span className="stat-cell__label">{stat.label}</span>
-                    <span className="stat-cell__value" style={{ color: stat.color }}>{stat.value}</span>
+                    <span className="stat-cell__value" style={{ color: stat.color }}>
+                      {stat.value}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
             {projects.length > 0 && (
               <div className="filter-tabs">
-                {["all", ...ASSET_TYPES].map(f => {
-                  const count = f === "all" ? projects.length : projects.filter((p: any) => p.asset_type === f).length;
+                {["all", ...ASSET_TYPES].map((f) => {
+                  const count =
+                    f === "all"
+                      ? projects.length
+                      : projects.filter((p: any) => p.asset_type === f).length;
                   return (
-                    <button key={f} className={`filter-tab ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
-                      {f === "all" ? "All" : (ASSET_LABELS[f] || f)} ({count})
+                    <button
+                      key={f}
+                      className={`filter-tab ${filter === f ? "active" : ""}`}
+                      onClick={() => setFilter(f)}
+                    >
+                      {f === "all" ? "All" : ASSET_LABELS[f] || f} ({count})
                     </button>
                   );
                 })}
@@ -817,49 +1599,144 @@ function Portfolio() {
                 {filteredProjects.map((p: any, i: number) => {
                   const latest = p.appraisals?.[0];
                   const sym = CURRENCY_SYMBOLS[p.currency] || "£";
-                  const pocColor = latest?.profit_on_cost > 0.2 ? "var(--green)" : latest?.profit_on_cost > 0.1 ? "var(--amber)" : "var(--red)";
+                  const pocColor =
+                    latest?.profit_on_cost > 0.2
+                      ? "var(--green)"
+                      : latest?.profit_on_cost > 0.1
+                        ? "var(--amber)"
+                        : "var(--red)";
                   return (
-                    <div key={p.id} className="card" style={{ animationDelay: `${i * 0.04}s` }} onClick={() => openProject(p)}>
-                      <div className="card-menu" onClick={e => e.stopPropagation()}>
-                        <button className="menu-btn" onClick={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}>···</button>
+                    <div
+                      key={p.id}
+                      className="card"
+                      style={{ animationDelay: `${i * 0.04}s` }}
+                      onClick={() => openProject(p)}
+                    >
+                      <div className="card-menu" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="menu-btn"
+                          onClick={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
+                        >
+                          ···
+                        </button>
                         {openMenuId === p.id && (
                           <div className="dropdown">
-                            <button className="dropdown-item" onClick={() => openProject(p)}>Open Appraisal</button>
-                            <button className="dropdown-item" onClick={() => router.push("/pipeline")}>View in Pipeline</button>
-                            <button className="dropdown-item danger" onClick={() => moveToTrash(p.id)}>Move to Trash</button>
+                            <button className="dropdown-item" onClick={() => openProject(p)}>
+                              Open Appraisal
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => router.push("/pipeline")}
+                            >
+                              View in Pipeline
+                            </button>
+                            <button
+                              className="dropdown-item danger"
+                              onClick={() => moveToTrash(p.id)}
+                            >
+                              Move to Trash
+                            </button>
                           </div>
                         )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="pill pill--type">{ASSET_LABELS[p.asset_type] || p.asset_type}</span>
+                        <span className="pill pill--type">
+                          {ASSET_LABELS[p.asset_type] || p.asset_type}
+                        </span>
                         <span className="pill pill--status">{latest?.status || "draft"}</span>
-                        <span style={{ fontSize: 11, color: "var(--text-d)", marginLeft: "auto", fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-                          {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-d)",
+                            marginLeft: "auto",
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {new Date(p.created_at).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </span>
                       </div>
                       <div>
-                        <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 3, fontFamily: "var(--font-display)", letterSpacing: "-.02em", lineHeight: 1.25 }}>{p.name || "Untitled"}</h3>
-                        <p style={{ fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>{p.location || "No location set"}</p>
+                        <h3
+                          style={{
+                            fontSize: 17,
+                            fontWeight: 700,
+                            marginBottom: 3,
+                            fontFamily: "var(--font-display)",
+                            letterSpacing: "-.02em",
+                            lineHeight: 1.25,
+                          }}
+                        >
+                          {p.name || "Untitled"}
+                        </h3>
+                        <p style={{ fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>
+                          {p.location || "No location set"}
+                        </p>
                       </div>
                       {latest ? (
                         <div className="metrics-panel">
                           {[
-                            { label: "GDV", value: fmt(latest.gdv, sym), color: "var(--accent-gold)" },
-                            { label: "Profit", value: fmt(latest.profit, sym), color: latest.profit > 0 ? "var(--green)" : "var(--red)" },
+                            {
+                              label: "GDV",
+                              value: fmt(latest.gdv, sym),
+                              color: "var(--accent-gold)",
+                            },
+                            {
+                              label: "Profit",
+                              value: fmt(latest.profit, sym),
+                              color: latest.profit > 0 ? "var(--green)" : "var(--red)",
+                            },
                             { label: "PoC", value: fmtPct(latest.profit_on_cost), color: pocColor },
-                          ].map(m => (
+                          ].map((m) => (
                             <div key={m.label} className="metric-cell">
                               <div className="metric-cell__label">{m.label}</div>
-                              <div className="metric-cell__value" style={{ color: m.color }}>{m.value}</div>
+                              <div className="metric-cell__value" style={{ color: m.color }}>
+                                {m.value}
+                              </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div style={{ background: "var(--bg3)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>No appraisal saved yet</div>
+                        <div
+                          style={{
+                            background: "var(--bg3)",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                            fontSize: 12,
+                            color: "var(--text-d)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          No appraisal saved yet
+                        </div>
                       )}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--text-d)", fontWeight: 500 }}>
-                        <span>{p.appraisals?.length || 0} appraisal{p.appraisals?.length !== 1 ? "s" : ""}</span>
-                        <span style={{ color: "var(--gold)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{latest?.irr_unlevered ? `IRR ${fmtPct(latest.irr_unlevered)}` : "Open →"}</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: 12,
+                          color: "var(--text-d)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        <span>
+                          {p.appraisals?.length || 0} appraisal
+                          {p.appraisals?.length !== 1 ? "s" : ""}
+                        </span>
+                        <span
+                          style={{
+                            color: "var(--gold)",
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {latest?.irr_unlevered ? `IRR ${fmtPct(latest.irr_unlevered)}` : "Open →"}
+                        </span>
                       </div>
                     </div>
                   );
@@ -870,35 +1747,91 @@ function Portfolio() {
         )}
         {/* ── NEW PROJECT MODAL ── */}
         {showNewModal && (
-          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowNewModal(false); }}>
+          <div
+            className="modal-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNewModal(false);
+            }}
+          >
             <div className="modal">
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, marginBottom: 6, letterSpacing: "-.02em" }}>New Appraisal</div>
-              <p style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24, fontWeight: 500 }}>Set up a new project to get started.</p>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 22,
+                  fontWeight: 700,
+                  marginBottom: 6,
+                  letterSpacing: "-.02em",
+                }}
+              >
+                New Appraisal
+              </div>
+              <p
+                style={{ fontSize: 13, color: "var(--text-d)", marginBottom: 24, fontWeight: 500 }}
+              >
+                Set up a new project to get started.
+              </p>
               <div className="inp-group">
                 <label className="inp-label">Project Name *</label>
-                <input className="inp" placeholder="e.g. Chiswick Tower" value={newProject.name} onChange={e => setNewProject(p => ({ ...p, name: e.target.value }))} onKeyDown={e => e.key === "Enter" && createProject()} autoFocus />
+                <input
+                  className="inp"
+                  placeholder="e.g. Chiswick Tower"
+                  value={newProject.name}
+                  onChange={(e) => setNewProject((p) => ({ ...p, name: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && createProject()}
+                  autoFocus
+                />
               </div>
               <div className="inp-group">
                 <label className="inp-label">Location</label>
-                <input className="inp" placeholder="e.g. Hammersmith, London" value={newProject.location} onChange={e => setNewProject(p => ({ ...p, location: e.target.value }))} />
+                <input
+                  className="inp"
+                  placeholder="e.g. Hammersmith, London"
+                  value={newProject.location}
+                  onChange={(e) => setNewProject((p) => ({ ...p, location: e.target.value }))}
+                />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="inp-group">
                   <label className="inp-label">Asset Type</label>
-                  <select className="inp" value={newProject.asset_type} onChange={e => setNewProject(p => ({ ...p, asset_type: e.target.value }))}>
-                    {ASSET_TYPES.map(t => <option key={t} value={t}>{ASSET_LABELS[t] || t}</option>)}
+                  <select
+                    className="inp"
+                    value={newProject.asset_type}
+                    onChange={(e) => setNewProject((p) => ({ ...p, asset_type: e.target.value }))}
+                  >
+                    {ASSET_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {ASSET_LABELS[t] || t}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="inp-group">
                   <label className="inp-label">Currency</label>
-                  <select className="inp" value={newProject.currency} onChange={e => setNewProject(p => ({ ...p, currency: e.target.value }))}>
-                    {CURRENCIES.map(c => <option key={c}>{c}</option>)}
+                  <select
+                    className="inp"
+                    value={newProject.currency}
+                    onChange={(e) => setNewProject((p) => ({ ...p, currency: e.target.value }))}
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button className="btn-ghost" onClick={() => setShowNewModal(false)} style={{ flex: 1 }}>Cancel</button>
-                <button className="btn-primary" onClick={createProject} disabled={!newProject.name.trim() || creating} style={{ flex: 2 }}>
+                <button
+                  className="btn-ghost"
+                  onClick={() => setShowNewModal(false)}
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={createProject}
+                  disabled={!newProject.name.trim() || creating}
+                  style={{ flex: 2 }}
+                >
                   {creating ? "Creating…" : "Create & Open →"}
                 </button>
               </div>
@@ -907,73 +1840,176 @@ function Portfolio() {
         )}
         {/* ── BROCHURE UPLOAD MODAL (OM-to-Model) ── */}
         {showBrochureModal && (
-          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && brochureStage !== "uploading") resetBrochureModal(); }}>
+          <div
+            className="modal-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && brochureStage !== "uploading")
+                resetBrochureModal();
+            }}
+          >
             <div className="modal" style={{ width: 640, maxHeight: "88vh", overflow: "auto" }}>
               {/* ── Header ── */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--gold)"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
                 </svg>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, letterSpacing: "-.02em" }}>
-                  {brochureStage === "review" ? "Review extracted deal" : "Upload investment brochure"}
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 22,
+                    fontWeight: 700,
+                    letterSpacing: "-.02em",
+                  }}
+                >
+                  {brochureStage === "review"
+                    ? "Review extracted deal"
+                    : "Upload investment brochure"}
                 </div>
               </div>
 
               {/* ── Upload + context form (idle / uploading / error) ── */}
               {brochureStage !== "review" && (
                 <>
-                  <p style={{ fontSize: 12.5, color: "var(--text-d)", marginBottom: 20, fontWeight: 500, lineHeight: 1.55 }}>
-                    Drop an OM, IM, or investment deck. We read text and charts to extract asset type, size, pricing, and financials, then build the model for you.
+                  <p
+                    style={{
+                      fontSize: 12.5,
+                      color: "var(--text-d)",
+                      marginBottom: 20,
+                      fontWeight: 500,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Drop an OM, IM, or investment deck. We read text and charts to extract asset
+                    type, size, pricing, and financials, then build the model for you.
                   </p>
 
                   {/* ── Dropzone ── */}
                   <div
-                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
                     onDragLeave={() => setDragOver(false)}
-                    onDrop={e => {
+                    onDrop={(e) => {
                       e.preventDefault();
                       setDragOver(false);
                       const f = e.dataTransfer.files?.[0];
                       if (f) validateAndSetFile(f);
                     }}
-                    onClick={() => { if (brochureStage === "idle") document.getElementById("brochure-file-input")?.click(); }}
+                    onClick={() => {
+                      if (brochureStage === "idle")
+                        document.getElementById("brochure-file-input")?.click();
+                    }}
                     style={{
                       border: `2px dashed ${dragOver ? "var(--gold)" : brochureFile ? "var(--gold-border)" : "var(--border-m)"}`,
                       borderRadius: 12,
                       padding: "28px 20px",
                       textAlign: "center",
-                      background: dragOver ? "var(--gold-bg)" : brochureFile ? "var(--gold-bg)" : "var(--bg3)",
+                      background: dragOver
+                        ? "var(--gold-bg)"
+                        : brochureFile
+                          ? "var(--gold-bg)"
+                          : "var(--bg3)",
                       cursor: brochureStage === "idle" ? "pointer" : "default",
                       transition: "all .15s var(--ease)",
                       marginBottom: 14,
-                    }}>
-                    <input id="brochure-file-input" type="file" accept="application/pdf" style={{ display: "none" }}
-                      onChange={e => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); e.target.value = ""; }} />
+                    }}
+                  >
+                    <input
+                      id="brochure-file-input"
+                      type="file"
+                      accept="application/pdf"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) validateAndSetFile(f);
+                        e.target.value = "";
+                      }}
+                    />
                     {brochureFile ? (
                       <>
                         <div style={{ fontSize: 32, color: "var(--gold)", marginBottom: 8 }}>◈</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: "-.01em" }}>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "var(--text)",
+                            marginBottom: 4,
+                            fontFamily: "var(--font-display)",
+                            letterSpacing: "-.01em",
+                          }}
+                        >
                           {brochureFile.name}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 10, fontWeight: 500 }}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--text-d)",
+                            marginBottom: 10,
+                            fontWeight: 500,
+                          }}
+                        >
                           {(brochureFile.size / 1024 / 1024).toFixed(2)}MB · PDF
                         </div>
                         {brochureStage === "idle" && (
-                          <button onClick={e => { e.stopPropagation(); setBrochureFile(null); }}
-                            style={{ background: "transparent", color: "var(--text-d)", border: "1px solid var(--border-m)", borderRadius: 7, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBrochureFile(null);
+                            }}
+                            style={{
+                              background: "transparent",
+                              color: "var(--text-d)",
+                              border: "1px solid var(--border-m)",
+                              borderRadius: 7,
+                              padding: "5px 12px",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
                             Remove
                           </button>
                         )}
                       </>
                     ) : (
                       <>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-d)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10 }}>
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                          <polyline points="17 8 12 3 7 8"/>
-                          <line x1="12" y1="3" x2="12" y2="15"/>
+                        <svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--text-d)"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ marginBottom: 10 }}
+                        >
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
                         </svg>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4, fontFamily: "var(--font-display)", letterSpacing: "-.01em" }}>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "var(--text)",
+                            marginBottom: 4,
+                            fontFamily: "var(--font-display)",
+                            letterSpacing: "-.01em",
+                          }}
+                        >
                           Drop PDF here, or click to browse
                         </div>
                         <div style={{ fontSize: 11.5, color: "var(--text-d)", fontWeight: 500 }}>
@@ -985,36 +2021,103 @@ function Portfolio() {
 
                   {/* ── Context field ── */}
                   <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 6, display: "block" }}>
-                      Extra context <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--text-d)", fontWeight: 400, fontSize: 11 }}>(optional — often decisive for pricing)</span>
+                    <label
+                      style={{
+                        fontSize: 10,
+                        color: "var(--text-d)",
+                        textTransform: "uppercase",
+                        letterSpacing: ".12em",
+                        fontWeight: 600,
+                        marginBottom: 6,
+                        display: "block",
+                      }}
+                    >
+                      Extra context{" "}
+                      <span
+                        style={{
+                          textTransform: "none",
+                          letterSpacing: 0,
+                          color: "var(--text-d)",
+                          fontWeight: 400,
+                          fontSize: 11,
+                        }}
+                      >
+                        (optional — often decisive for pricing)
+                      </span>
                     </label>
                     <textarea
                       className="inp"
                       value={brochureContext}
-                      onChange={e => setBrochureContext(e.target.value)}
+                      onChange={(e) => setBrochureContext(e.target.value)}
                       placeholder={`e.g. "Asking £116m, off-market, broker is Savills"\nOr: "BTR scheme, acquisition price £146m per our NDA call"`}
                       rows={3}
-                      disabled={(brochureStage === "uploading" || brochureStage === "extracting")}
-                      style={{ fontFamily: "var(--font-body)", fontSize: 12.5, resize: "vertical", minHeight: 60, lineHeight: 1.55 }}
+                      disabled={brochureStage === "uploading" || brochureStage === "extracting"}
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        fontSize: 12.5,
+                        resize: "vertical",
+                        minHeight: 60,
+                        lineHeight: 1.55,
+                      }}
                     />
-                    <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>
-                      Many OMs leave the asking price out of the deck — add it here and Claude will anchor to it.
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-d)",
+                        marginTop: 6,
+                        fontWeight: 500,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Many OMs leave the asking price out of the deck — add it here and Claude will
+                      anchor to it.
                     </div>
                   </div>
 
                   {/* ── In-flight states ── */}
-                  {((brochureStage === "uploading" || brochureStage === "extracting") || brochureStage === "extracting") && (
-                    <div style={{ background: "var(--gold-bg)", border: "1px solid var(--gold-border)", borderRadius: 10, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 18, height: 18, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "var(--gold)", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+                  {(brochureStage === "uploading" ||
+                    brochureStage === "extracting" ||
+                    brochureStage === "extracting") && (
+                    <div
+                      style={{
+                        background: "var(--gold-bg)",
+                        border: "1px solid var(--gold-border)",
+                        borderRadius: 10,
+                        padding: "14px 18px",
+                        marginBottom: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 18,
+                          height: 18,
+                          border: "2px solid rgba(82,196,152,.2)",
+                          borderTopColor: "var(--gold)",
+                          borderRadius: "50%",
+                          animation: "spin .7s linear infinite",
+                          flexShrink: 0,
+                        }}
+                      />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 2 }}>
-                          {(brochureStage === "uploading" || brochureStage === "extracting") ? "Uploading brochure…" : "Extracting deal model…"}
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "var(--gold)",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {brochureStage === "uploading" || brochureStage === "extracting"
+                            ? "Uploading brochure…"
+                            : "Extracting deal model…"}
                         </div>
                         <div style={{ fontSize: 11.5, color: "var(--text-m)", fontWeight: 500 }}>
-                          {(brochureStage === "uploading" || brochureStage === "extracting")
+                          {brochureStage === "uploading" || brochureStage === "extracting"
                             ? "Sending PDF to secure storage · this is the fast step"
-                            : "Reading pages · analysing financials · flagging assumptions · typically 15-30 seconds"
-                          }
+                            : "Reading pages · analysing financials · flagging assumptions · typically 15-30 seconds"}
                         </div>
                       </div>
                     </div>
@@ -1022,18 +2125,48 @@ function Portfolio() {
 
                   {/* ── Error banner ── */}
                   {brochureError && (
-                    <div style={{ background: "rgba(244,100,95,.1)", border: "1px solid rgba(244,100,95,.3)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, color: "var(--red)", fontWeight: 500, lineHeight: 1.5 }}>
+                    <div
+                      style={{
+                        background: "rgba(244,100,95,.1)",
+                        border: "1px solid rgba(244,100,95,.3)",
+                        borderRadius: 8,
+                        padding: "10px 14px",
+                        marginBottom: 14,
+                        fontSize: 12.5,
+                        color: "var(--red)",
+                        fontWeight: 500,
+                        lineHeight: 1.5,
+                      }}
+                    >
                       {brochureError}
                     </div>
                   )}
 
                   {/* ── Actions ── */}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={(brochureStage === "uploading" || brochureStage === "extracting")} style={{ flex: 1 }}>
+                    <button
+                      className="btn-ghost"
+                      onClick={resetBrochureModal}
+                      disabled={brochureStage === "uploading" || brochureStage === "extracting"}
+                      style={{ flex: 1 }}
+                    >
                       Cancel
                     </button>
-                    <button className="btn-primary" onClick={submitBrochure} disabled={!brochureFile || (brochureStage === "uploading" || brochureStage === "extracting")} style={{ flex: 2 }}>
-                      {brochureStage === "uploading" ? "Uploading…" : brochureStage === "extracting" ? "Extracting…" : "◈ Extract deal model →"}
+                    <button
+                      className="btn-primary"
+                      onClick={submitBrochure}
+                      disabled={
+                        !brochureFile ||
+                        brochureStage === "uploading" ||
+                        brochureStage === "extracting"
+                      }
+                      style={{ flex: 2 }}
+                    >
+                      {brochureStage === "uploading"
+                        ? "Uploading…"
+                        : brochureStage === "extracting"
+                          ? "Extracting…"
+                          : "◈ Extract deal model →"}
                     </button>
                   </div>
                 </>
@@ -1043,41 +2176,97 @@ function Portfolio() {
               {brochureStage === "review" && brochureResult && (
                 <>
                   {/* Description + confidence */}
-                  <div style={{ background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+                  <div
+                    style={{
+                      background: "var(--bg3)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: "14px 16px",
+                      marginBottom: 14,
+                    }}
+                  >
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <span style={{
-                        flexShrink: 0,
-                        fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase",
-                        padding: "3px 8px", borderRadius: 999,
-                        background: brochureResult.confidence === "high" ? "rgba(82,196,152,.12)" : brochureResult.confidence === "medium" ? "rgba(240,164,41,.1)" : "rgba(244,100,95,.08)",
-                        color: brochureResult.confidence === "high" ? "var(--green)" : brochureResult.confidence === "medium" ? "var(--amber)" : "var(--red)",
-                        border: `1px solid ${brochureResult.confidence === "high" ? "var(--gold-border)" : brochureResult.confidence === "medium" ? "rgba(240,164,41,.3)" : "rgba(244,100,95,.25)"}`,
-                      }}>
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: ".08em",
+                          textTransform: "uppercase",
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background:
+                            brochureResult.confidence === "high"
+                              ? "rgba(82,196,152,.12)"
+                              : brochureResult.confidence === "medium"
+                                ? "rgba(240,164,41,.1)"
+                                : "rgba(244,100,95,.08)",
+                          color:
+                            brochureResult.confidence === "high"
+                              ? "var(--green)"
+                              : brochureResult.confidence === "medium"
+                                ? "var(--amber)"
+                                : "var(--red)",
+                          border: `1px solid ${brochureResult.confidence === "high" ? "var(--gold-border)" : brochureResult.confidence === "medium" ? "rgba(240,164,41,.3)" : "rgba(244,100,95,.25)"}`,
+                        }}
+                      >
                         ● {brochureResult.confidence} confidence
                       </span>
-                      <div style={{ fontSize: 13.5, color: "var(--text)", fontWeight: 600, lineHeight: 1.45, flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: 13.5,
+                          color: "var(--text)",
+                          fontWeight: 600,
+                          lineHeight: 1.45,
+                          flex: 1,
+                        }}
+                      >
                         {brochureResult.description}
                       </div>
                     </div>
                     {brochureResult.sourceNotes && (
-                      <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, fontWeight: 500, lineHeight: 1.5, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                        <strong style={{ color: "var(--text-m)" }}>Source notes:</strong> {brochureResult.sourceNotes}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-d)",
+                          marginTop: 10,
+                          fontWeight: 500,
+                          lineHeight: 1.5,
+                          paddingTop: 10,
+                          borderTop: "1px solid var(--border)",
+                        }}
+                      >
+                        <strong style={{ color: "var(--text-m)" }}>Source notes:</strong>{" "}
+                        {brochureResult.sourceNotes}
                       </div>
                     )}
                   </div>
 
                   {/* Extracted fields */}
-                  <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 8 }}>Extracted deal</div>
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: 10,
-                    background: "var(--bg3)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 10,
-                    padding: 14,
-                    marginBottom: 14,
-                  }}>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text-d)",
+                      textTransform: "uppercase",
+                      letterSpacing: ".12em",
+                      fontWeight: 600,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Extracted deal
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                      gap: 10,
+                      background: "var(--bg3)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 14,
+                    }}
+                  >
                     {(() => {
                       const p = brochureResult.payload;
                       const sym = CURRENCY_SYMBOLS[p.currency || "GBP"] || "£";
@@ -1101,7 +2290,10 @@ function Portfolio() {
                         ["Star rating", p.starRating ? `${p.starRating}★` : null],
                         ["Units", p.units ? String(p.units) : null],
                         ["Affordable", p.affordableUnits ? String(p.affordableUnits) : null],
-                        ["Avg unit size", p.avgUnitSize ? `${p.avgUnitSize.toLocaleString()} sqft` : null],
+                        [
+                          "Avg unit size",
+                          p.avgUnitSize ? `${p.avgUnitSize.toLocaleString()} sqft` : null,
+                        ],
                         ["Rent /sqft", p.avgRentPsf ? money(p.avgRentPsf) : null],
                         ["Purchase price", p.purchasePrice ? money(p.purchasePrice) : null],
                         ["Land cost", p.landCost ? money(p.landCost) : null],
@@ -1112,13 +2304,43 @@ function Portfolio() {
                         ["Exit cap", p.exitCapRate ? `${p.exitCapRate}%` : null],
                         ["Entry yield", p.entryYield ? `${p.entryYield}%` : null],
                         ["LTC", p.ltc ? `${p.ltc}%` : null],
-                        ["Hold", p.holdYears ? `${p.holdYears}yr` : p.holdMonths ? `${p.holdMonths}mo` : null],
+                        [
+                          "Hold",
+                          p.holdYears
+                            ? `${p.holdYears}yr`
+                            : p.holdMonths
+                              ? `${p.holdMonths}mo`
+                              : null,
+                        ],
                         ["Opening year", p.openingYear ? String(p.openingYear) : null],
                       ].filter(([, v]) => v);
                       return fields.map(([label, val]) => (
-                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <div style={{ fontSize: 9.5, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600 }}>{label}</div>
-                          <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: "-.01em" }}>{val}</div>
+                        <div
+                          key={label}
+                          style={{ display: "flex", flexDirection: "column", gap: 2 }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 9.5,
+                              color: "var(--text-d)",
+                              textTransform: "uppercase",
+                              letterSpacing: ".08em",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "var(--text)",
+                              fontWeight: 700,
+                              fontVariantNumeric: "tabular-nums",
+                              letterSpacing: "-.01em",
+                            }}
+                          >
+                            {val}
+                          </div>
                         </div>
                       ));
                     })()}
@@ -1126,15 +2348,34 @@ function Portfolio() {
 
                   {/* Secondary uses / upside notes */}
                   {(brochureResult.payload.secondaryUses || brochureResult.payload.upsideNotes) && (
-                    <div style={{ background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", marginBottom: 14 }}>
+                    <div
+                      style={{
+                        background: "var(--bg3)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        padding: "12px 16px",
+                        marginBottom: 14,
+                      }}
+                    >
                       {brochureResult.payload.secondaryUses && (
-                        <div style={{ fontSize: 12, color: "var(--text-m)", lineHeight: 1.55, marginBottom: brochureResult.payload.upsideNotes ? 8 : 0 }}>
-                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>Secondary uses:</strong> {brochureResult.payload.secondaryUses}
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--text-m)",
+                            lineHeight: 1.55,
+                            marginBottom: brochureResult.payload.upsideNotes ? 8 : 0,
+                          }}
+                        >
+                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>
+                            Secondary uses:
+                          </strong>{" "}
+                          {brochureResult.payload.secondaryUses}
                         </div>
                       )}
                       {brochureResult.payload.upsideNotes && (
                         <div style={{ fontSize: 12, color: "var(--text-m)", lineHeight: 1.55 }}>
-                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>Upside:</strong> {brochureResult.payload.upsideNotes}
+                          <strong style={{ color: "var(--text)", fontWeight: 700 }}>Upside:</strong>{" "}
+                          {brochureResult.payload.upsideNotes}
                         </div>
                       )}
                     </div>
@@ -1143,20 +2384,84 @@ function Portfolio() {
                   {/* Flags */}
                   {brochureResult.flags.length > 0 && (
                     <>
-                      <div style={{ fontSize: 10, color: "var(--text-d)", textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 600, marginBottom: 8 }}>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-d)",
+                          textTransform: "uppercase",
+                          letterSpacing: ".12em",
+                          fontWeight: 600,
+                          marginBottom: 8,
+                        }}
+                      >
                         Flags ({brochureResult.flags.length}) — things to verify
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          marginBottom: 16,
+                        }}
+                      >
                         {brochureResult.flags.map((f, i) => {
-                          const color = f.severity === "critical" ? "var(--red)" : f.severity === "warning" ? "var(--amber)" : "var(--blue)";
-                          const bg = f.severity === "critical" ? "rgba(244,100,95,.08)" : f.severity === "warning" ? "rgba(240,164,41,.08)" : "rgba(92,165,220,.08)";
-                          const brd = f.severity === "critical" ? "rgba(244,100,95,.25)" : f.severity === "warning" ? "rgba(240,164,41,.28)" : "rgba(92,165,220,.25)";
+                          const color =
+                            f.severity === "critical"
+                              ? "var(--red)"
+                              : f.severity === "warning"
+                                ? "var(--amber)"
+                                : "var(--blue)";
+                          const bg =
+                            f.severity === "critical"
+                              ? "rgba(244,100,95,.08)"
+                              : f.severity === "warning"
+                                ? "rgba(240,164,41,.08)"
+                                : "rgba(92,165,220,.08)";
+                          const brd =
+                            f.severity === "critical"
+                              ? "rgba(244,100,95,.25)"
+                              : f.severity === "warning"
+                                ? "rgba(240,164,41,.28)"
+                                : "rgba(92,165,220,.25)";
                           return (
-                            <div key={i} style={{ background: bg, border: `1px solid ${brd}`, borderRadius: 8, padding: "10px 12px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                              <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color, padding: "2px 7px", borderRadius: 4, border: `1px solid ${brd}`, background: "var(--bg2)" }}>
+                            <div
+                              key={i}
+                              style={{
+                                background: bg,
+                                border: `1px solid ${brd}`,
+                                borderRadius: 8,
+                                padding: "10px 12px",
+                                display: "flex",
+                                gap: 10,
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  flexShrink: 0,
+                                  fontSize: 9.5,
+                                  fontWeight: 700,
+                                  letterSpacing: ".08em",
+                                  textTransform: "uppercase",
+                                  color,
+                                  padding: "2px 7px",
+                                  borderRadius: 4,
+                                  border: `1px solid ${brd}`,
+                                  background: "var(--bg2)",
+                                }}
+                              >
                                 {f.severity}
                               </span>
-                              <div style={{ fontSize: 12.5, color: "var(--text-m)", lineHeight: 1.5, fontWeight: 500 }}>{f.message}</div>
+                              <div
+                                style={{
+                                  fontSize: 12.5,
+                                  color: "var(--text-m)",
+                                  lineHeight: 1.5,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {f.message}
+                              </div>
                             </div>
                           );
                         })}
@@ -1166,15 +2471,34 @@ function Portfolio() {
 
                   {/* Apply / Cancel */}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={resetBrochureModal} disabled={applyingBrochure} style={{ flex: 1 }}>
+                    <button
+                      className="btn-ghost"
+                      onClick={resetBrochureModal}
+                      disabled={applyingBrochure}
+                      style={{ flex: 1 }}
+                    >
                       Cancel
                     </button>
-                    <button className="btn-primary" onClick={applyBrochure} disabled={applyingBrochure} style={{ flex: 2 }}>
+                    <button
+                      className="btn-primary"
+                      onClick={applyBrochure}
+                      disabled={applyingBrochure}
+                      style={{ flex: 2 }}
+                    >
                       {applyingBrochure ? "Creating deal…" : "Apply → Open in Appraisal"}
                     </button>
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-d)", marginTop: 10, fontWeight: 500, lineHeight: 1.5 }}>
-                    You can tweak any extracted field on the appraisal page. The flags above will remain visible there until you resolve them.
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-d)",
+                      marginTop: 10,
+                      fontWeight: 500,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    You can tweak any extracted field on the appraisal page. The flags above will
+                    remain visible there until you resolve them.
                   </div>
                 </>
               )}
@@ -1183,19 +2507,62 @@ function Portfolio() {
         )}
         {/* ── CONFIRM DELETE MODAL ── */}
         {confirmDelete && (
-          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
+          <div
+            className="modal-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setConfirmDelete(null);
+            }}
+          >
             <div className="modal" style={{ width: 420 }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, marginBottom: 8, color: "var(--red)", letterSpacing: "-.02em" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 22,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: "var(--red)",
+                  letterSpacing: "-.02em",
+                }}
+              >
                 {confirmDelete.type === "all" ? "Empty Trash" : "Delete Permanently"}
               </div>
               <p style={{ fontSize: 13, color: "var(--text-m)", marginBottom: 6, fontWeight: 500 }}>
-                {confirmDelete.type === "all" ? `This will permanently delete all ${trashedProjects.length} projects.` : `This will permanently delete "${confirmDelete.project?.name || "this project"}".`}
+                {confirmDelete.type === "all"
+                  ? `This will permanently delete all ${trashedProjects.length} projects.`
+                  : `This will permanently delete "${confirmDelete.project?.name || "this project"}".`}
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24, fontWeight: 500 }}>This action cannot be undone.</p>
+              <p
+                style={{ fontSize: 12, color: "var(--text-d)", marginBottom: 24, fontWeight: 500 }}
+              >
+                This action cannot be undone.
+              </p>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-ghost" onClick={() => setConfirmDelete(null)} style={{ flex: 1 }}>Cancel</button>
-                <button onClick={() => confirmDelete.type === "all" ? emptyTrash() : permanentlyDelete(confirmDelete.project.id)}
-                  style={{ flex: 1, background: "var(--red)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                <button
+                  className="btn-ghost"
+                  onClick={() => setConfirmDelete(null)}
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() =>
+                    confirmDelete.type === "all"
+                      ? emptyTrash()
+                      : permanentlyDelete(confirmDelete.project.id)
+                  }
+                  style={{
+                    flex: 1,
+                    background: "var(--red)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 18px",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
                   {confirmDelete.type === "all" ? "Empty Trash" : "Delete Forever"}
                 </button>
               </div>
@@ -1206,23 +2573,39 @@ function Portfolio() {
       {/* ── MOBILE BOTTOM NAV ── */}
       <nav className="bottom-nav">
         <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
-          <svg viewBox="0 0 24 24"><path d="M12 2L2 8.5v7L12 22l10-6.5v-7L12 2z"/><path d="M12 2v20"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 8.5v7L12 22l10-6.5v-7L12 2z" />
+            <path d="M12 2v20" />
+          </svg>
           Copilot
         </button>
         <button className="bottom-nav-item active" onClick={() => setView("portfolio")}>
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
           Portfolio
         </button>
         <button className="bottom-nav-item" onClick={() => router.push("/valuations")}>
-          <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z"/><path d="M12 8v6"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 22h20L12 2z" />
+            <path d="M12 8v6" />
+          </svg>
           Valuations
         </button>
         <button className="bottom-nav-item" onClick={() => router.push("/pipeline")}>
-          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
           Pipeline
         </button>
         <button className="bottom-nav-item" onClick={() => router.push("/learn")}>
-          <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+          </svg>
           Learn
         </button>
       </nav>
@@ -1231,12 +2614,31 @@ function Portfolio() {
 }
 export default function PortfolioPageWrapper() {
   return (
-    <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#0F1115", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 28, height: 28, border: "2px solid rgba(82,196,152,.15)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "#0F1115",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              border: "2px solid rgba(82,196,152,.15)",
+              borderTopColor: "#52C498",
+              borderRadius: "50%",
+              animation: "spin .7s linear infinite",
+            }}
+          />
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      }
+    >
       <Portfolio />
     </Suspense>
   );
