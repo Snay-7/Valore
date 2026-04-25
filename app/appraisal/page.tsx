@@ -14384,6 +14384,7 @@ Finance: ${isHotelAdv?`${data.capStructure||"Single"} facility · Interest ${fmt
                   <div className="inp-group"><label className="inp-label">Marketing (%)</label><input className="inp" type="number" step="0.1" value={data.marketingPct??""} onChange={e=>set("marketingPct",e.target.value)}/></div>
                 </div>
                 <div className="inp-group"><label className="inp-label">Absorption Period (months)</label><input className="inp" type="number" value={data.absorptionMonths??""} onChange={e=>set("absorptionMonths",e.target.value)}/></div>
+                <div className="inp-group" style={{display:"flex",alignItems:"center",gap:8,paddingTop:24}}><label style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:"var(--text-m)",cursor:"pointer",userSelect:"none"}}><input type="checkbox" checked={!!data.bulletSale} onChange={e=>set("bulletSale",e.target.checked)} style={{width:14,height:14,cursor:"pointer"}}/>Bullet sale (single hit at end of absorption — for single-property schemes)</label></div>
                 <div style={{height:1,background:"var(--border)",margin:"16px 0"}}/>
                 <div className="section-title">Presale Threshold Financing <span style={{fontSize:10,color:"var(--text-d)",fontWeight:400,marginLeft:6}}>optional</span></div>
                 <div style={{fontSize:11,color:"var(--text-d)",marginBottom:10}}>Delay loan drawdown until presale threshold is met. Leave at 0 for standard day-one financing.</div>

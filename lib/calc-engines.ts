@@ -1059,14 +1059,24 @@ function calcAll(assetType:string,data:any):Record<string,any>{
     const buildProfile=buildDrawdownProfile(buildMonths,data.costProfile??"scurve");
     // Equity ratio for the lCfs draws — now uses the SAME equity figure as MOIC
     const equityRatio=(equity+fin.loanAmount)>0?equity/(equity+fin.loanAmount):0;
-    const netSalesPm=(gdv-sellCosts)/absMonths;
+    const netGdvNet=gdv-sellCosts;
+    const isBullet=!!data.bulletSale;
+    const netSalesPm=netGdvNet/absMonths;
     const loanRepayPm=fin.peakLoanBalance/absMonths;
     const uCfs:number[]=Array(totalMonths).fill(0);
     const lCfs:number[]=Array(totalMonths).fill(0);
     uCfs[0]-=landCost+sdlt+fin.arrangementFee;
     lCfs[0]-=(landCost+sdlt)*equityRatio+fin.arrangementFee;
     for(let m=0;m<buildMonths;m++){const devDraw=buildCosts*buildProfile[m];uCfs[m]-=devDraw;lCfs[m]-=devDraw*equityRatio+(fin.monthlyInterestArr[m]??0);}
-    for(let m=0;m<absMonths;m++){const idx=buildMonths+m;const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);uCfs[idx]+=netSalesPm;lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;}
+    if(isBullet){
+      // Single bullet sale at end of absorption window — interest rolls on full peak balance
+      for(let m=0;m<absMonths;m++){const idx=buildMonths+m;lCfs[idx]-=(fin.peakLoanBalance*annualRate)/12;}
+      uCfs[totalMonths-1]+=netGdvNet;
+      lCfs[totalMonths-1]+=netGdvNet-fin.peakLoanBalance;
+    }else{
+      // Linear absorption — even monthly sales across absorption window
+      for(let m=0;m<absMonths;m++){const idx=buildMonths+m;const remainingLoan=Math.max(0,fin.peakLoanBalance-loanRepayPm*m);uCfs[idx]+=netSalesPm;lCfs[idx]+=netSalesPm-loanRepayPm-(remainingLoan*annualRate)/12;}
+    }
     const rawIrr=calcIRR(uCfs);
     const irr=isFinite(rawIrr)&&rawIrr>-1?Math.pow(1+rawIrr,12)-1:0;
     const rawIrrL=equity>0?calcIRR(lCfs):0;
