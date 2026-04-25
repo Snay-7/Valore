@@ -711,7 +711,12 @@ function Portfolio() {
   };
   const filteredProjects =
     filter === "all" ? projects : projects.filter((p: any) => p.asset_type === filter);
-  const totalGDV = projects.reduce((s: number, p: any) => s + (p.appraisals?.[0]?.gdv || 0), 0);
+  // Only projects with a real GDV figure contribute to the rollup
+  const projectsWithGDV = projects.filter((p: any) => {
+    const a = p.appraisals?.[0];
+    return a && typeof a.gdv === "number" && a.gdv > 0;
+  });
+  const totalGDV = projectsWithGDV.reduce((s: number, p: any) => s + (p.appraisals[0].gdv || 0), 0);
   const totalProfit = projects.reduce(
     (s: number, p: any) => s + (p.appraisals?.[0]?.profit || 0),
     0,
@@ -1324,8 +1329,9 @@ function Portfolio() {
                   <p
                     style={{ fontSize: 14, color: "var(--text-d)", marginTop: 8, fontWeight: 500 }}
                   >
-                    {projects.length} project{projects.length !== 1 ? "s" : ""} · {fmt(totalGDV)}{" "}
-                    GDV · avg {fmtPct(avgPoC)} PoC
+                    {projectsWithGDV.length} of {projects.length} project
+                    {projects.length !== 1 ? "s" : ""} · {fmt(totalGDV)} GDV · avg {fmtPct(avgPoC)}{" "}
+                    PoC
                   </p>
                 )}
               </div>
