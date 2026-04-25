@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 /* ════════════════════════════════════════════════════════════════════
-   VALORA — /for-funds  (PE / family offices persona)
+   VALORA — /for-lenders  (banks, debt funds, specialist lenders)
    ════════════════════════════════════════════════════════════════════ */
 
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
@@ -38,24 +38,20 @@ ul{list-style:none}
 .btn-primary:hover{background:var(--green-l);border-color:var(--green-l);transform:translateY(-1px)}
 .btn-ghost{background:transparent;color:var(--text);border-color:var(--border-m)}
 .btn-ghost:hover{background:var(--cream-d);border-color:var(--text-m)}
-.btn-dark{background:var(--navy);color:#fff;border-color:var(--navy)}
-.btn-dark:hover{background:var(--navy-m);border-color:var(--navy-m)}
 .h1{font-size:64px;font-weight:800;line-height:1.05;letter-spacing:-.04em;color:var(--text)}
 .h1 em{font-style:normal;color:var(--green);position:relative}
 .h2{font-size:42px;font-weight:700;line-height:1.1;letter-spacing:-.025em;color:var(--text)}
-.h3{font-size:22px;font-weight:600;line-height:1.3;letter-spacing:-.015em;color:var(--text)}
 .lede{font-size:19px;line-height:1.55;color:var(--text-m);font-weight:400;max-width:720px}
-.small{font-size:13px;color:var(--text-d)}
 .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:var(--green)}
 
-/* Nav */
 .nav{position:sticky;top:0;z-index:50;background:rgba(245,240,225,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
 .nav-inner{max-width:1240px;margin:0 auto;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.02em}
 .nav-logo-mark{width:28px;height:28px;border-radius:7px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 .nav-links{display:flex;align-items:center;gap:28px}
-.nav-links a{font-size:14px;color:var(--text-m);font-weight:500}
+.nav-links a{font-size:14px;color:var(--text-m);font-weight:500;cursor:pointer}
 .nav-links a:hover{color:var(--text)}
+.nav-cta{display:flex;align-items:center;gap:10px}
 .nav-dropdown{position:relative;display:flex;align-items:center}
 .nav-dropdown-trigger{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;color:var(--text-m);font-weight:500;transition:color .15s}
 .nav-dropdown-trigger::after{content:"▾";font-size:10px;opacity:.6;margin-left:2px;transition:transform .2s var(--ease)}
@@ -68,17 +64,14 @@ ul{list-style:none}
 .nav-dropdown-item-icon{width:38px;height:38px;border-radius:9px;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:15px;border:1px solid var(--green-border)}
 .nav-dropdown-item-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;letter-spacing:-.01em}
 .nav-dropdown-item-desc{font-size:12px;color:var(--text-d);line-height:1.4}
-.nav-cta{display:flex;align-items:center;gap:10px}
 
-/* Hero */
 .hero{padding:88px 32px 72px;max-width:1240px;margin:0 auto}
 .hero-grid{display:grid;grid-template-columns:1fr;gap:56px;align-items:center}
 .hero-eyebrow{margin-bottom:18px}
 .hero-cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
 .hero-trust{margin-top:28px;display:flex;gap:18px;align-items:center;font-size:13px;color:var(--text-d);flex-wrap:wrap}
-.hero-trust-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+.hero-trust-dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-right:8px}
 
-/* Pain section */
 .pains{padding:88px 32px;max-width:1240px;margin:0 auto;border-top:1px solid var(--border)}
 .pains-header{max-width:780px;margin-bottom:48px}
 .pains-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
@@ -88,7 +81,6 @@ ul{list-style:none}
 .pain-title{font-size:20px;font-weight:700;margin-bottom:8px;letter-spacing:-.015em;color:var(--text)}
 .pain-body{font-size:15px;line-height:1.55;color:var(--text-m)}
 
-/* Solution */
 .solution{padding:88px 32px;background:var(--cream-l);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .solution-inner{max-width:1240px;margin:0 auto}
 .solution-header{max-width:780px;margin-bottom:48px}
@@ -99,19 +91,16 @@ ul{list-style:none}
 .solution-body{font-size:15px;line-height:1.55;color:var(--text-m)}
 .solution-tag{position:absolute;top:24px;right:24px;background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:99px;border:1px solid var(--green-border)}
 
-/* Trust strip */
 .trust-strip{padding:48px 32px;background:var(--navy);color:#fff}
 .trust-inner{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:32px;text-align:center}
 .trust-stat-num{font-size:38px;font-weight:800;letter-spacing:-.03em;color:var(--green-hot);font-family:var(--font-display);line-height:1}
 .trust-stat-lbl{font-size:12px;color:rgba(255,255,255,.6);margin-top:8px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
 
-/* CTA */
 .cta-block{padding:96px 32px;text-align:center;max-width:920px;margin:0 auto}
 .cta-block .h2{margin-bottom:18px}
 .cta-block .lede{margin:0 auto 36px}
 .cta-pricing{display:inline-flex;align-items:center;gap:10px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:99px;padding:8px 18px;font-size:13px;font-weight:600;color:var(--green);margin-bottom:28px}
 
-/* Footer */
 .footer{background:var(--navy);color:rgba(255,255,255,.7);padding:56px 32px 32px;border-top:1px solid var(--border)}
 .footer-inner{max-width:1240px;margin:0 auto}
 .footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:48px;margin-bottom:36px}
@@ -142,23 +131,23 @@ ul{list-style:none}
 const PAINS = [
   {
     tag: "Speed",
-    title: "Associates spend 2-3 weeks on a single OM",
-    body: "By the time the analyst finishes the underwrite, the seller has moved on. Most deals die before underwrite finishes — not because the math is wrong, because the math takes too long.",
+    title: "Indicative term sheet by Friday? Maybe.",
+    body: "Borrower asks for indicative pricing on Tuesday. By Friday, your credit team is still arguing about the DSCR assumption. The deal goes to a faster lender — even though your terms would have won.",
   },
   {
-    tag: "Accuracy",
-    title: "Spreadsheet errors compound silently",
-    body: "One wrong assumption ripples through every cash flow. The IRR looks fine on the cover, hides a $4M finance interest mistake on row 234. By the time IC catches it, you've committed.",
+    tag: "Inconsistency",
+    title: "Every borrower's spreadsheet is different",
+    body: "OM from broker A is in Excel. Borrower B sent a PDF. Sponsor C built their own template. Your analyst spends four hours reformatting cash flows before they can stress-test anything.",
   },
   {
-    tag: "IC quality",
-    title: "Senior partners reformat junior work for hours",
-    body: "The deck is the deal. Partners spend more time fixing chart axes and bullet hierarchy than challenging assumptions. The most senior person in the room is the highest-paid copy editor.",
+    tag: "Stress testing",
+    title: "What if rates rise 200bps? You don't know yet.",
+    body: "Every stress scenario means rebuilding the model from scratch with someone else's assumptions. Sensitivity tables get skipped under deadline pressure — and risk catches it three weeks into committee review.",
   },
   {
-    tag: "Team consistency",
-    title: "Every associate underwrites differently",
-    body: "Three associates, three different exit cap assumptions, three different debt sculpting approaches. The fund's investment thesis is whoever shouts loudest in the IC room.",
+    tag: "Audit defensibility",
+    title: "Risk asks for a defensible trail. You hand them a spreadsheet.",
+    body: "When risk team or external audit pulls the deal file, they get a 47-tab Excel workbook nobody outside finance can navigate. Every assumption needs a memo. Every memo needs a chase.",
   },
 ];
 
@@ -166,38 +155,31 @@ const SOLUTIONS = [
   {
     num: "01",
     tag: "Speed",
-    title: "OM to full underwrite in under 90 seconds",
-    body: "Drag in the offering memorandum. Valora extracts asset class, GDV, costs, financing, and produces a full DCF with debt waterfall, sensitivity tables, and IC-ready output. No template setup. No analyst onboarding.",
+    title: "Borrower deck to indicative terms in 90 seconds",
+    body: "Drop in the OM. Valora extracts asset class, NOI, debt structure, and produces DSCR, ICR, debt yield, LTV, LTC instantly. Return indicative pricing the same day the broker calls. Close more deals at better margins.",
   },
   {
     num: "02",
-    tag: "Accuracy",
-    title: "Institutional-grade math, audited by default",
-    body: "RICS Red Book-aligned methodology. Every number traceable to its inputs. Finance interest compounds correctly. Tax recovery applied at the right stage. Sensitivity tables generated automatically — no hidden formulas.",
+    tag: "Standardisation",
+    title: "Any borrower input. One model.",
+    body: "Whatever the borrower sends — Excel, PDF, OM, scanned term sheet — Valora ingests it into a single standardised cash flow. Your credit team works with one format, every deal.",
   },
   {
     num: "03",
-    tag: "IC quality",
-    title: "Branded IC decks in one click",
-    body: "Cover, executive summary, key metrics, sensitivity grid, comparables, risk register — all auto-generated and consistent. Partner-ready output without partner-level reformatting. Your fund's logo and colours, every time.",
+    tag: "Stress testing",
+    title: "Pre-built rate, cap, and NOI shocks",
+    body: "Standard stress scenarios are built in: +200bps rate, +100bps cap, –10% NOI, refinancing risk at exit. Run the full battery in seconds. Customise the firm-wide scenarios so every deal gets the same lens.",
   },
   {
     num: "04",
-    tag: "Team consistency",
-    title: "House view enforced, overrides traceable",
-    body: "Set fund-wide assumptions once: exit cap defaults, finance terms, hurdle rates. Every team member starts from the same model. When an associate overrides, the override is logged and visible at IC. Consistency without bureaucracy.",
+    tag: "Audit trail",
+    title: "Risk-team-ready PDF, every assumption logged",
+    body: "Every output is a branded PDF with the full assumption ladder visible, RICS-aligned methodology section, and a traceable change log. Risk and audit get a defensible artefact, not a spreadsheet.",
   },
 ];
 
-export default function ForFunds() {
+export default function ForLenders() {
   const router = useRouter();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     const els = document.querySelectorAll(".fade-up");
@@ -268,7 +250,8 @@ export default function ForFunds() {
                 </a>
               </div>
             </div>
-            <a onClick={() => router.push("/#products")}>Product</a>
+            <a onClick={() => router.push("/#products")}>Underwriting</a>
+            <a onClick={() => router.push("/#products")}>Valuation</a>
             <a onClick={() => router.push("/#pricing")}>Pricing</a>
           </div>
           <div className="nav-cta">
@@ -288,15 +271,15 @@ export default function ForFunds() {
       <section className="hero">
         <div className="hero-grid">
           <div className="hero-copy fade-up">
-            <div className="eyebrow hero-eyebrow">For funds &amp; family offices</div>
+            <div className="eyebrow hero-eyebrow">For lenders &amp; banks</div>
             <h1 className="h1">
-              Underwrite a deal in 60 seconds.
+              From borrower deck to credit committee.
               <br />
-              <em>Not 6 weeks.</em>
+              <em>In one afternoon.</em>
             </h1>
             <p className="lede" style={{ marginTop: 22 }}>
-              From OM to IC-ready output for mid-market real estate funds and family offices.
-              Institutional-grade math at fund pace — without the analyst headcount.
+              Built for banks, debt funds, and specialist lenders. DSCR, LTV, debt yield, ICR —
+              instantly stress-tested, audit-trail ready, defensible to risk and audit on day one.
             </p>
             <div className="hero-cta">
               <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>
@@ -311,25 +294,16 @@ export default function ForFunds() {
             </div>
             <div className="hero-trust">
               <span>
-                <span
-                  className="hero-trust-dot"
-                  style={{ display: "inline-block", marginRight: 8 }}
-                />
-                RICS Red Book aligned
+                <span className="hero-trust-dot" />
+                Pre-built rate &amp; cap stress scenarios
               </span>
               <span>
-                <span
-                  className="hero-trust-dot"
-                  style={{ display: "inline-block", marginRight: 8 }}
-                />
-                Audit trail on every number
+                <span className="hero-trust-dot" />
+                RICS Red Book aligned methodology
               </span>
               <span>
-                <span
-                  className="hero-trust-dot"
-                  style={{ display: "inline-block", marginRight: 8 }}
-                />
-                IC-ready in one click
+                <span className="hero-trust-dot" />
+                Audit-ready PDF on every deal
               </span>
             </div>
           </div>
@@ -339,12 +313,12 @@ export default function ForFunds() {
       <section className="pains">
         <div className="pains-header fade-up">
           <div className="eyebrow" style={{ marginBottom: 14 }}>
-            The fund associate&rsquo;s week
+            The lender&rsquo;s week
           </div>
-          <h2 className="h2">Four reasons your best deals die in spreadsheets.</h2>
+          <h2 className="h2">Four reasons your credit committee runs slow.</h2>
           <p className="lede" style={{ marginTop: 18 }}>
-            We talked to associates and partners at twelve mid-market funds. The same four things
-            came up every time.
+            We talked to credit officers and risk leads at banks, debt funds, and specialist
+            lenders. The same four bottlenecks come up every cycle.
           </p>
         </div>
         <div className="pains-grid">
@@ -364,7 +338,7 @@ export default function ForFunds() {
             <div className="eyebrow" style={{ marginBottom: 14 }}>
               How Valora answers each one
             </div>
-            <h2 className="h2">Institutional output. Fund pace. No headcount.</h2>
+            <h2 className="h2">Faster pricing. Tighter risk. Defensible output.</h2>
           </div>
           <div className="solution-grid">
             {SOLUTIONS.map((s) => (
@@ -383,82 +357,32 @@ export default function ForFunds() {
         <div className="trust-inner">
           <div>
             <div className="trust-stat-num">90s</div>
-            <div className="trust-stat-lbl">From OM to underwrite</div>
+            <div className="trust-stat-lbl">Borrower deck to indicative terms</div>
           </div>
           <div>
-            <div className="trust-stat-num">7</div>
-            <div className="trust-stat-lbl">Asset classes supported</div>
-          </div>
-          <div>
-            <div className="trust-stat-num">£0</div>
-            <div className="trust-stat-lbl">Setup cost</div>
+            <div className="trust-stat-num">5+</div>
+            <div className="trust-stat-lbl">Stress scenarios pre-built</div>
           </div>
           <div>
             <div className="trust-stat-num">100%</div>
-            <div className="trust-stat-lbl">Audit-traceable numbers</div>
+            <div className="trust-stat-lbl">Audit-traceable assumptions</div>
           </div>
-        </div>
-      </section>
-
-      <section
-        style={{
-          padding: "64px 32px",
-          textAlign: "center",
-          background: "var(--cream-l)",
-          borderTop: "1px solid var(--border)",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ maxWidth: 920, margin: "0 auto" }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>
-            At the deal table
+          <div>
+            <div className="trust-stat-num">£0</div>
+            <div className="trust-stat-lbl">Setup fee, ever</div>
           </div>
-          <h3
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--text)",
-              marginBottom: 12,
-              letterSpacing: "-.015em",
-            }}
-          >
-            Also built for lenders, surveyors, advisors, valuers, and family offices.
-          </h3>
-          <p
-            style={{
-              fontSize: 15,
-              color: "var(--text-m)",
-              lineHeight: 1.6,
-              maxWidth: 640,
-              margin: "0 auto 22px",
-            }}
-          >
-            Same data, same model, different lens. Whatever your seat on the deal, Valora speaks
-            your language &mdash; DSCR for lenders, RICS Red Book methodology for valuers, IC
-            narrative for advisors.
-          </p>
-          <a
-            href="/#personas-h"
-            style={{
-              color: "var(--green)",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            See all personas &rarr;
-          </a>
         </div>
       </section>
 
       <section className="cta-block">
         <div className="cta-pricing">
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)" }} />
-          From $499/mo · up to 5 seats · 33% off for first 10 funds
+          Enterprise tier: from $1,500/mo · 15+ seats · custom risk integration available
         </div>
-        <h2 className="h2">Stop losing deals to spreadsheet drag.</h2>
+        <h2 className="h2">Stop losing borrowers to faster lenders.</h2>
         <p className="lede" style={{ marginTop: 14 }}>
-          Sign up free, run your next live deal through Valora in under five minutes, and decide if
-          it earns its place on your team.
+          Sign up free, run your next live deal through Valora, and see indicative terms returned
+          the same afternoon the broker calls.
         </p>
         <div className="hero-cta" style={{ justifyContent: "center", marginTop: 32 }}>
           <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>
@@ -487,13 +411,14 @@ export default function ForFunds() {
               <div className="footer-col-h">Product</div>
               <a href="/#products">Underwriting</a>
               <a href="/#products">Valuation</a>
-              <a href="/#products">IC decks</a>
               <a href="/#pricing">Pricing</a>
             </div>
             <div className="footer-col">
-              <div className="footer-col-h">Personas</div>
-              <a href="/for-funds">For funds</a>
-              <a href="/for-developers">For developers</a>
+              <div className="footer-col-h">Made for</div>
+              <a href="/for-funds">Funds</a>
+              <a href="/for-developers">Developers</a>
+              <a href="/for-lenders">Lenders</a>
+              <a href="/for-valuers">Valuers</a>
             </div>
           </div>
           <div className="footer-bottom">

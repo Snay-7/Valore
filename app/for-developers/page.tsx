@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /* ════════════════════════════════════════════════════════════════════
-   VALORA — /for-developers  (UK developers / operators persona)
+   VALORA — /for-developers  (developers / operators persona)
    ════════════════════════════════════════════════════════════════════ */
 
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
@@ -55,6 +55,18 @@ ul{list-style:none}
 .nav-links{display:flex;align-items:center;gap:28px}
 .nav-links a{font-size:14px;color:var(--text-m);font-weight:500}
 .nav-links a:hover{color:var(--text)}
+.nav-dropdown{position:relative;display:flex;align-items:center}
+.nav-dropdown-trigger{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;color:var(--text-m);font-weight:500;transition:color .15s}
+.nav-dropdown-trigger::after{content:"▾";font-size:10px;opacity:.6;margin-left:2px;transition:transform .2s var(--ease)}
+.nav-dropdown:hover .nav-dropdown-trigger{color:var(--text)}
+.nav-dropdown:hover .nav-dropdown-trigger::after{transform:rotate(180deg)}
+.nav-dropdown-menu{position:absolute;top:100%;left:-20px;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px;min-width:380px;box-shadow:0 16px 50px rgba(15,17,21,.10);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s var(--ease),transform .18s var(--ease),visibility .18s var(--ease);z-index:100}
+.nav-dropdown:hover .nav-dropdown-menu,.nav-dropdown:focus-within .nav-dropdown-menu{opacity:1;visibility:visible;transform:translateY(0)}
+.nav-dropdown-item{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:10px;cursor:pointer;transition:background .15s var(--ease);text-decoration:none}
+.nav-dropdown-item:hover{background:var(--cream-l)}
+.nav-dropdown-item-icon{width:38px;height:38px;border-radius:9px;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:15px;border:1px solid var(--green-border)}
+.nav-dropdown-item-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;letter-spacing:-.01em}
+.nav-dropdown-item-desc{font-size:12px;color:var(--text-d);line-height:1.4}
 .nav-cta{display:flex;align-items:center;gap:10px}
 
 .hero{padding:88px 32px 72px;max-width:1240px;margin:0 auto}
@@ -134,12 +146,12 @@ const PAINS = [
   {
     tag: "Speed",
     title: "By the time the appraisal is ready, the broker has moved on",
-    body: "Land agent calls Tuesday with a 48-hour window on a £12M scheme. By Thursday lunchtime your acquisitions team is still arguing about S106 assumptions. The deal goes to a developer with worse maths but faster fingers.",
+    body: "Land agent calls Tuesday with a 48-hour window on a $12M scheme. By Thursday lunchtime your acquisitions team is still arguing about planning contributions assumptions. The deal goes to a developer with worse maths but faster fingers.",
   },
   {
     tag: "Accuracy",
-    title: "One wrong cell and £4M profit becomes £400K",
-    body: "VAT recovery wrong stage. Finance interest compounds annually instead of quarterly. S106 buried in row 187. Profit-on-cost looks great until the spreadsheet hits the bank — and the bank's analyst finds the bug you didn't.",
+    title: "One wrong cell and $4M profit becomes $400K",
+    body: "Tax recovery applied at the wrong stage. Finance interest compounds annually instead of quarterly. planning contributions buried in row 187. Profit-on-cost looks great until the spreadsheet hits the bank — and the bank's analyst finds the bug you didn't.",
   },
 ];
 
@@ -166,7 +178,7 @@ const SOLUTIONS = [
     num: "04",
     tag: "Accuracy",
     title: "Every cost line guarded, every formula auditable",
-    body: "VAT recovery applied at the right stage. Finance interest compounds correctly. S106, CIL, professional fees with sensible defaults you can override. Profit-on-cost guardrails flag suspicious assumptions before the bank does.",
+    body: "Tax recovery applied at the right stage. Finance interest compounds correctly. planning contributions, development levies, professional fees with sensible defaults you can override. Profit-on-cost guardrails flag suspicious assumptions before the bank does.",
   },
 ];
 
@@ -201,10 +213,49 @@ export default function ForDevelopers() {
             <span>Valora</span>
           </a>
           <div className="nav-links">
-            <a href="/for-funds">For funds</a>
-            <a href="/for-developers">For developers</a>
-            <a href="/#products">Product</a>
-            <a href="/#pricing">Pricing</a>
+            <div className="nav-dropdown">
+              <span className="nav-dropdown-trigger">Made for</span>
+              <div className="nav-dropdown-menu">
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-funds")}>
+                  <div className="nav-dropdown-item-icon">F</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For funds &amp; family offices</div>
+                    <div className="nav-dropdown-item-desc">
+                      Underwrite a deal in 60 seconds. Not 6 weeks.
+                    </div>
+                  </div>
+                </a>
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-developers")}>
+                  <div className="nav-dropdown-item-icon">D</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For developers &amp; operators</div>
+                    <div className="nav-dropdown-item-desc">
+                      Every scheme. Every scenario. One source of truth.
+                    </div>
+                  </div>
+                </a>
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-lenders")}>
+                  <div className="nav-dropdown-item-icon">L</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For lenders &amp; banks</div>
+                    <div className="nav-dropdown-item-desc">
+                      Borrower deck to credit committee in one afternoon.
+                    </div>
+                  </div>
+                </a>
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-valuers")}>
+                  <div className="nav-dropdown-item-icon">V</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For valuers &amp; surveyors</div>
+                    <div className="nav-dropdown-item-desc">
+                      Red Book reports without the all-nighter.
+                    </div>
+                  </div>
+                </a>
+              </div>
+            </div>
+            <a onClick={() => router.push("/#products")}>Product</a>
+            <a onClick={() => router.push("/#pricing")}>Pricing</a>
           </div>
           <div className="nav-cta">
             <button
@@ -231,7 +282,7 @@ export default function ForDevelopers() {
             </h1>
             <p className="lede" style={{ marginTop: 22 }}>
               Run for-sale, rental, hotel, mixed-use, and short-hold scenarios on the same site in
-              minutes &mdash; not days. Built for UK developers and operators who live by the next
+              minutes &mdash; not days. Built for developers and operators who live by the next
               deal.
             </p>
             <div className="hero-cta">
@@ -269,7 +320,7 @@ export default function ForDevelopers() {
           </div>
           <h2 className="h2">Spreadsheets are killing your deal flow.</h2>
           <p className="lede" style={{ marginTop: 18 }}>
-            We sat with land directors, finance partners and acquisitions teams at UK
+            We sat with land directors, finance partners and acquisitions teams at
             developer-operators. Same four problems, every time.
           </p>
         </div>

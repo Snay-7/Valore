@@ -511,6 +511,24 @@ export default function LandingClient() {
                     </div>
                   </div>
                 </a>
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-lenders")}>
+                  <div className="nav-dropdown-item-icon">L</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For lenders &amp; banks</div>
+                    <div className="nav-dropdown-item-desc">
+                      Borrower deck to credit committee in one afternoon.
+                    </div>
+                  </div>
+                </a>
+                <a className="nav-dropdown-item" onClick={() => router.push("/for-valuers")}>
+                  <div className="nav-dropdown-item-icon">V</div>
+                  <div>
+                    <div className="nav-dropdown-item-title">For valuers &amp; surveyors</div>
+                    <div className="nav-dropdown-item-desc">
+                      Red Book reports without the all-nighter.
+                    </div>
+                  </div>
+                </a>
               </div>
             </div>
             <a
