@@ -349,6 +349,56 @@ export default function ForFunds() {
         </div>
       </section>
 
+      <section
+        style={{
+          padding: "64px 32px",
+          textAlign: "center",
+          background: "var(--cream-l)",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ maxWidth: 920, margin: "0 auto" }}>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>
+            At the deal table
+          </div>
+          <h3
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "var(--text)",
+              marginBottom: 12,
+              letterSpacing: "-.015em",
+            }}
+          >
+            Also built for lenders, surveyors, advisors, valuers, and family offices.
+          </h3>
+          <p
+            style={{
+              fontSize: 15,
+              color: "var(--text-m)",
+              lineHeight: 1.6,
+              maxWidth: 640,
+              margin: "0 auto 22px",
+            }}
+          >
+            Same data, same model, different lens. Whatever your seat on the deal, Valora speaks
+            your language &mdash; DSCR for lenders, RICS Red Book methodology for valuers, IC
+            narrative for advisors.
+          </p>
+          <a
+            href="/#personas-h"
+            style={{
+              color: "var(--green)",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            See all personas &rarr;
+          </a>
+        </div>
+      </section>
+
       <section className="cta-block">
         <div className="cta-pricing">
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)" }} />
