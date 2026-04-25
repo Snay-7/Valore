@@ -915,24 +915,47 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
 }
 
 function calcAll(assetType:string,data:any):Record<string,any>{
-  // ── Cap structure normalization (25 Apr 2026) ──
-  // Maps data.capStructure → effective data.ltc so every asset branch
-  // (BTR/BTS/Flip/Commercial/Industrial/MixedUse) respects the picker.
-  // Hotel has its own capStructure logic and is unaffected.
+  // ── Cap structure normalization (25 Apr 2026, v2) ──
   if (data && data.capStructure && data.capStructure !== "single") {
     const cs = data.capStructure;
     if (cs === "equity") {
-      data = { ...data, ltc: 0 };
+      data = { ...data, ltc: 0, ltv: 0 };
     } else if (cs === "fullstack") {
-      const senior = num(String(data.seniorLtv ?? data.ltvSenior ?? data.ltc ?? 0));
-      const mezz = num(String(data.mezzLtv ?? data.ltvMezz ?? 0));
-      data = { ...data, ltc: senior + mezz };
+      const sLtv  = num(String(data.seniorLTV ?? 0));
+      const mLtv  = num(String(data.mezzLTV   ?? 0));
+      const sRate = num(String(data.seniorRate ?? data.rate ?? 0));
+      const mRate = num(String(data.mezzRate   ?? 0));
+      const totalLtv = sLtv + mLtv;
+      const blendedRate = totalLtv > 0
+        ? ((sLtv * sRate) + (mLtv * mRate)) / totalLtv
+        : sRate;
+      data = {
+        ...data,
+        ltc: totalLtv,
+        ltv: totalLtv,
+        rate: blendedRate,
+        arrangementFeePct: data.arrangementFeePct ?? data.arrFeePct ?? 0,
+        exitFeePct:        data.exitFeePct        ?? 0,
+      };
     } else if (cs === "dual") {
-      const land = num(String(data.landLtv ?? data.ltc ?? 0));
-      const build = num(String(data.buildLtv ?? data.ltc ?? 0));
-      data = { ...data, ltc: Math.max(land, build) };
+      const acq   = num(String(data.acqLTV   ?? data.landLTV  ?? 0));
+      const capex = num(String(data.capexLTC ?? data.buildLTV ?? 0));
+      const aRate = num(String(data.acqRate  ?? data.landRate ?? data.rate ?? 0));
+      const cRate = num(String(data.capexRate ?? data.buildRate ?? data.rate ?? 0));
+      const blendedRate = (acq + capex) > 0
+        ? ((acq * aRate) + (capex * cRate)) / (acq + capex)
+        : aRate;
+      data = {
+        ...data,
+        ltc: (acq + capex) / 2,
+        ltv: (acq + capex) / 2,
+        rate: blendedRate,
+        arrangementFeePct: data.arrangementFeePct ?? 0,
+        exitFeePct:        data.exitFeePct        ?? 0,
+      };
     }
   }
+
   if(assetType==="BTR"){
     const units=data.units||[];
     const totalUnits=units.reduce((s:number,u:any)=>s+(num(String(u.count))||0),0);
