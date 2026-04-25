@@ -249,7 +249,18 @@ function Portfolio() {
     sourceNotes: string;
     filename: string;
   } | null>(null);
-  const [applyingBrochure, setApplyingBrochure] = useState(false); // Auto-open the brochure modal when arriving from Copilot's "+" button  useEffect(() => {    if (typeof window === "undefined") return;    const params = new URLSearchParams(window.location.search);    if (params.get("upload") === "brochure") {      setShowBrochureModal(true);      window.history.replaceState({}, "", "/portfolio");    }    // eslint-disable-next-line react-hooks/exhaustive-deps  }, []);
+  const [applyingBrochure, setApplyingBrochure] = useState(false);
+  // Auto-open the brochure modal when arriving from Copilot's "+" button
+  const _uploadParam = useSearchParams()?.get("upload");
+  useEffect(() => {
+    if (_uploadParam === "brochure") {
+      setShowBrochureModal(true);
+      setTimeout(() => {
+        window.history.replaceState({}, "", "/portfolio");
+      }, 200);
+    }
+  }, [_uploadParam]);
+
   const [dragOver, setDragOver] = useState(false);
   const tier = subscription?.tier || "free";
   const trialEndsAt = subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
