@@ -45,7 +45,7 @@ button{font-family:inherit;cursor:pointer}
 .nav-links a:hover{color:var(--navy)}
 .nav-dropdown{position:relative;display:flex;align-items:center}
 .nav-dropdown-trigger{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;color:var(--text-m);font-weight:500;transition:color .15s}
-.nav-dropdown-trigger::after{content:"\25BE";font-size:10px;opacity:.6;margin-left:2px;transition:transform .2s var(--ease)}
+.nav-dropdown-trigger::after{content:"▾";font-size:10px;opacity:.6;margin-left:2px;transition:transform .2s var(--ease)}
 .nav-dropdown:hover .nav-dropdown-trigger{color:var(--text)}
 .nav-dropdown:hover .nav-dropdown-trigger::after{transform:rotate(180deg)}
 .nav-dropdown-menu{position:absolute;top:100%;left:-20px;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px;min-width:380px;box-shadow:0 16px 50px rgba(15,17,21,.10);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s var(--ease),transform .18s var(--ease),visibility .18s var(--ease);z-index:100}
@@ -274,69 +274,168 @@ button{font-family:inherit;cursor:pointer}
 `;
 
 // Line-SVG persona icons — matches the asset/Copilot icon style (1.5px stroke, currentColor)
-function PersonaIcon({ type, size = 20 }: { type: "Lender" | "Developer" | "Advisor" | "Analyst"; size?: number }) {
-  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+function PersonaIcon({
+  type,
+  size = 20,
+}: {
+  type: "Lender" | "Developer" | "Advisor" | "Analyst";
+  size?: number;
+}) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
   switch (type) {
-    case "Lender":    // Classical bank façade — pediment + columns
+    case "Lender": // Classical bank façade — pediment + columns
       return (
         <svg {...common}>
-          <polyline points="3 9 12 3 21 9"/>
-          <line x1="3" y1="9" x2="21" y2="9"/>
-          <line x1="5" y1="11" x2="5" y2="19"/>
-          <line x1="9" y1="11" x2="9" y2="19"/>
-          <line x1="15" y1="11" x2="15" y2="19"/>
-          <line x1="19" y1="11" x2="19" y2="19"/>
-          <line x1="3" y1="21" x2="21" y2="21"/>
+          <polyline points="3 9 12 3 21 9" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="5" y1="11" x2="5" y2="19" />
+          <line x1="9" y1="11" x2="9" y2="19" />
+          <line x1="15" y1="11" x2="15" y2="19" />
+          <line x1="19" y1="11" x2="19" y2="19" />
+          <line x1="3" y1="21" x2="21" y2="21" />
         </svg>
       );
     case "Developer": // Blueprint / architectural compass
       return (
         <svg {...common}>
-          <path d="M12 2v4"/>
-          <path d="M12 18v4"/>
-          <path d="M4.93 4.93l2.83 2.83"/>
-          <path d="M16.24 16.24l2.83 2.83"/>
-          <path d="M2 12h4"/>
-          <path d="M18 12h4"/>
-          <path d="M4.93 19.07l2.83-2.83"/>
-          <path d="M16.24 7.76l2.83-2.83"/>
-          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v4" />
+          <path d="M12 18v4" />
+          <path d="M4.93 4.93l2.83 2.83" />
+          <path d="M16.24 16.24l2.83 2.83" />
+          <path d="M2 12h4" />
+          <path d="M18 12h4" />
+          <path d="M4.93 19.07l2.83-2.83" />
+          <path d="M16.24 7.76l2.83-2.83" />
+          <circle cx="12" cy="12" r="4" />
         </svg>
       );
-    case "Advisor":   // Two figures — handshake / client work
+    case "Advisor": // Two figures — handshake / client work
       return (
         <svg {...common}>
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
-    case "Analyst":   // Line chart with trend arrow
+    case "Analyst": // Line chart with trend arrow
       return (
         <svg {...common}>
-          <path d="M3 3v18h18"/>
-          <polyline points="7 14 11 10 15 13 21 7"/>
-          <polyline points="17 7 21 7 21 11"/>
+          <path d="M3 3v18h18" />
+          <polyline points="7 14 11 10 15 13 21 7" />
+          <polyline points="17 7 21 7 21 11" />
         </svg>
       );
-    default: return null;
+    default:
+      return null;
   }
 }
 
 // Line-SVG asset icons (same style as the Copilot)
 function AssetIcon({ type, size = 28 }: { type: string; size?: number }) {
-  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
   switch (type) {
-    case "BTR":        return (<svg {...common}><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="8" y1="6" x2="8.01" y2="6"/><line x1="12" y1="6" x2="12.01" y2="6"/><line x1="16" y1="6" x2="16.01" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><rect x="10" y="18" width="4" height="4"/></svg>);
-    case "BTS":        return (<svg {...common}><path d="M3 11l9-8 9 8"/><path d="M5 9v12h14V9"/><rect x="10" y="14" width="4" height="7"/></svg>);
-    case "Hotel":      return (<svg {...common}><path d="M3 21V9l9-6 9 6v12"/><path d="M3 21h18"/><line x1="8" y1="12" x2="8.01" y2="12"/><line x1="12" y1="12" x2="12.01" y2="12"/><line x1="16" y1="12" x2="16.01" y2="12"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/><path d="M10 21v-4h4v4"/></svg>);
-    case "Flip":       return (<svg {...common}><path d="M3 12a9 9 0 0114.85-6.85L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-14.85 6.85L3 16"/><path d="M3 21v-5h5"/></svg>);
-    case "Commercial": return (<svg {...common}><rect x="5" y="3" width="14" height="18" rx=".5"/><path d="M5 8h14"/><path d="M5 13h14"/><path d="M5 18h14"/><rect x="10" y="19" width="4" height="2"/></svg>);
-    case "MixedUse":   return (<svg {...common}><path d="M2 21V11l5-3 5 3"/><path d="M12 21V7l5-3 5 3v14"/><path d="M2 21h20"/></svg>);
-    case "Industrial": return (<svg {...common}><path d="M3 21V9l6 4V9l6 4V9l6 4v8"/><path d="M3 21h18"/><path d="M7 17h2M12 17h2M17 17h2"/></svg>);
-    case "Valuation":  return (<svg {...common}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>);
-    default: return null;
+    case "BTR":
+      return (
+        <svg {...common}>
+          <rect x="4" y="2" width="16" height="20" rx="1" />
+          <line x1="8" y1="6" x2="8.01" y2="6" />
+          <line x1="12" y1="6" x2="12.01" y2="6" />
+          <line x1="16" y1="6" x2="16.01" y2="6" />
+          <line x1="8" y1="10" x2="8.01" y2="10" />
+          <line x1="12" y1="10" x2="12.01" y2="10" />
+          <line x1="16" y1="10" x2="16.01" y2="10" />
+          <line x1="8" y1="14" x2="8.01" y2="14" />
+          <line x1="12" y1="14" x2="12.01" y2="14" />
+          <line x1="16" y1="14" x2="16.01" y2="14" />
+          <rect x="10" y="18" width="4" height="4" />
+        </svg>
+      );
+    case "BTS":
+      return (
+        <svg {...common}>
+          <path d="M3 11l9-8 9 8" />
+          <path d="M5 9v12h14V9" />
+          <rect x="10" y="14" width="4" height="7" />
+        </svg>
+      );
+    case "Hotel":
+      return (
+        <svg {...common}>
+          <path d="M3 21V9l9-6 9 6v12" />
+          <path d="M3 21h18" />
+          <line x1="8" y1="12" x2="8.01" y2="12" />
+          <line x1="12" y1="12" x2="12.01" y2="12" />
+          <line x1="16" y1="12" x2="16.01" y2="12" />
+          <line x1="8" y1="16" x2="8.01" y2="16" />
+          <line x1="16" y1="16" x2="16.01" y2="16" />
+          <path d="M10 21v-4h4v4" />
+        </svg>
+      );
+    case "Flip":
+      return (
+        <svg {...common}>
+          <path d="M3 12a9 9 0 0114.85-6.85L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 01-14.85 6.85L3 16" />
+          <path d="M3 21v-5h5" />
+        </svg>
+      );
+    case "Commercial":
+      return (
+        <svg {...common}>
+          <rect x="5" y="3" width="14" height="18" rx=".5" />
+          <path d="M5 8h14" />
+          <path d="M5 13h14" />
+          <path d="M5 18h14" />
+          <rect x="10" y="19" width="4" height="2" />
+        </svg>
+      );
+    case "MixedUse":
+      return (
+        <svg {...common}>
+          <path d="M2 21V11l5-3 5 3" />
+          <path d="M12 21V7l5-3 5 3v14" />
+          <path d="M2 21h20" />
+        </svg>
+      );
+    case "Industrial":
+      return (
+        <svg {...common}>
+          <path d="M3 21V9l6 4V9l6 4V9l6 4v8" />
+          <path d="M3 21h18" />
+          <path d="M7 17h2M12 17h2M17 17h2" />
+        </svg>
+      );
+    case "Valuation":
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          <line x1="8" y1="11" x2="14" y2="11" />
+          <line x1="11" y1="8" x2="11" y2="14" />
+        </svg>
+      );
+    default:
+      return null;
   }
 }
 
@@ -346,15 +445,35 @@ export default function LandingClient() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { router.push("/dashboard"); return; }
+      if (session) {
+        router.push("/dashboard");
+        return;
+      }
       setCheckingAuth(false);
     });
   }, [router]);
 
   if (checkingAuth) {
     return (
-      <div style={{ minHeight: "100vh", background: "#F5F0E1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 28, height: 28, border: "2px solid rgba(46,158,114,.15)", borderTopColor: "#2E9E72", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#F5F0E1",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            border: "2px solid rgba(46,158,114,.15)",
+            borderTopColor: "#2E9E72",
+            borderRadius: "50%",
+            animation: "spin .7s linear infinite",
+          }}
+        />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -367,7 +486,9 @@ export default function LandingClient() {
       {/* ─── NAV ─── */}
       <nav className="nav" aria-label="Main">
         <div className="nav-inner">
-          <a href="#top" className="nav-logo" aria-label="Valora home"><span className="nav-logo-mark">◆</span> Valora</a>
+          <a href="#top" className="nav-logo" aria-label="Valora home">
+            <span className="nav-logo-mark">◆</span> Valora
+          </a>
           <div className="nav-links">
             <div className="nav-dropdown">
               <span className="nav-dropdown-trigger">Made for</span>
@@ -376,27 +497,63 @@ export default function LandingClient() {
                   <div className="nav-dropdown-item-icon">F</div>
                   <div>
                     <div className="nav-dropdown-item-title">For funds &amp; family offices</div>
-                    <div className="nav-dropdown-item-desc">Underwrite a deal in 60 seconds. Not 6 weeks.</div>
+                    <div className="nav-dropdown-item-desc">
+                      Underwrite a deal in 60 seconds. Not 6 weeks.
+                    </div>
                   </div>
                 </a>
                 <a className="nav-dropdown-item" onClick={() => router.push("/for-developers")}>
                   <div className="nav-dropdown-item-icon">D</div>
                   <div>
                     <div className="nav-dropdown-item-title">For developers &amp; operators</div>
-                    <div className="nav-dropdown-item-desc">Every scheme. Every scenario. One source of truth.</div>
+                    <div className="nav-dropdown-item-desc">
+                      Every scheme. Every scenario. One source of truth.
+                    </div>
                   </div>
                 </a>
               </div>
             </div>
-            <a onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>Underwriting</a>
-            <a onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>Valuation</a>
-            <a onClick={() => document.getElementById("assets")?.scrollIntoView({ behavior: "smooth" })}>Assets</a>
-            <a onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}>Pricing</a>
-            <a onClick={() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}>FAQ</a>
+            <a
+              onClick={() =>
+                document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Underwriting
+            </a>
+            <a
+              onClick={() =>
+                document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Valuation
+            </a>
+            <a
+              onClick={() =>
+                document.getElementById("assets")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Assets
+            </a>
+            <a
+              onClick={() =>
+                document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Pricing
+            </a>
+            <a
+              onClick={() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              FAQ
+            </a>
           </div>
           <div className="nav-cta">
-            <button className="btn btn-ghost btn-sm" onClick={() => router.push("/auth")}>Sign in</button>
-            <button className="btn btn-primary btn-sm" onClick={() => router.push("/auth")}>Start free</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => router.push("/auth")}>
+              Sign in
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => router.push("/auth")}>
+              Start free
+            </button>
           </div>
         </div>
       </nav>
@@ -405,19 +562,39 @@ export default function LandingClient() {
       <header className="hero" id="top">
         <div className="hero-grid">
           <div className="hero-copy fade-up">
-            <div className="eyebrow"><span className="eyebrow-mark">◆</span> Institutional Real Estate AI</div>
-            <h1 className="h1">Know if a deal works.<br/><em>In 60 seconds.</em></h1>
-            <p className="lede">From one sentence to full underwriting, valuation, and IC-ready output &mdash; for any institutional asset, anywhere in the world.</p>
+            <div className="eyebrow">
+              <span className="eyebrow-mark">◆</span> Institutional Real Estate AI
+            </div>
+            <h1 className="h1">
+              Know if a deal works.
+              <br />
+              <em>In 60 seconds.</em>
+            </h1>
+            <p className="lede">
+              From one sentence to full underwriting, valuation, and IC-ready output &mdash; for any
+              institutional asset, anywhere in the world.
+            </p>
             <div className="hero-cta">
-              <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>Start free &rarr;</button>
-              <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>Book a demo</button>
+              <button className="btn btn-primary btn-lg" onClick={() => router.push("/auth")}>
+                Start free &rarr;
+              </button>
+              <button
+                className="btn btn-ghost btn-lg"
+                onClick={() => window.open(CALENDLY, "_blank")}
+              >
+                Book a demo
+              </button>
             </div>
             <div className="hero-trust">
               <span className="hero-trust-dot" />
               Used by PE funds, family offices, hotel operators &amp; deal-desk analysts
             </div>
           </div>
-          <aside className="demo-card fade-up" style={{ animationDelay: ".15s" }} aria-label="Copilot demo">
+          <aside
+            className="demo-card fade-up"
+            style={{ animationDelay: ".15s" }}
+            aria-label="Copilot demo"
+          >
             <div className="demo-header">
               <div className="demo-logo">◆</div>
               <div>
@@ -425,14 +602,20 @@ export default function LandingClient() {
                 <div className="demo-subtitle">Dashboard &middot; session chat</div>
               </div>
             </div>
-            <div className="demo-bubble demo-user">Hotel in Mayfair, 80 keys, 4-star, &pound;45m, 60% LTC</div>
+            <div className="demo-bubble demo-user">
+              Hotel in Mayfair, 80 keys, 4-star, &pound;45m, 60% LTC
+            </div>
             <div className="demo-bubble demo-assistant">
-              Modelled as a <strong>4-star Mayfair hotel</strong>. ADR <em>&pound;240</em>, occupancy <em>74%</em>, 6% exit cap, 5-yr hold. IRR levered <strong>24.8%</strong>, DSCR <strong>1.72&times;</strong>.
+              Modelled as a <strong>4-star Mayfair hotel</strong>. ADR <em>&pound;240</em>,
+              occupancy <em>74%</em>, 6% exit cap, 5-yr hold. IRR levered <strong>24.8%</strong>,
+              DSCR <strong>1.72&times;</strong>.
             </div>
             <div className="demo-suggestion">
               <div>
                 <div className="demo-suggestion-label">Suggested create</div>
-                <div className="demo-suggestion-desc">Hotel &middot; 80 keys &middot; &pound;45m &middot; 60% LTC &middot; 5-yr hold</div>
+                <div className="demo-suggestion-desc">
+                  Hotel &middot; 80 keys &middot; &pound;45m &middot; 60% LTC &middot; 5-yr hold
+                </div>
               </div>
               <button className="demo-apply">Apply</button>
             </div>
@@ -443,31 +626,64 @@ export default function LandingClient() {
       {/* ─── TRUST STRIP ─── */}
       <section className="trust-strip" aria-label="Usage stats">
         <div className="trust-inner">
-          <div className="trust-stat"><div className="trust-stat-num">&pound;1.2bn</div><div className="trust-stat-lbl">GDV Modelled</div></div>
-          <div className="trust-stat"><div className="trust-stat-num">60s</div><div className="trust-stat-lbl">Idea &rarr; IC-ready</div></div>
-          <div className="trust-stat"><div className="trust-stat-num">7</div><div className="trust-stat-lbl">Asset classes</div></div>
-          <div className="trust-stat"><div className="trust-stat-num">Global</div><div className="trust-stat-lbl">UK &middot; US &middot; UAE &middot; SG &middot; EU</div></div>
+          <div className="trust-stat">
+            <div className="trust-stat-num">&pound;1.2bn</div>
+            <div className="trust-stat-lbl">GDV Modelled</div>
+          </div>
+          <div className="trust-stat">
+            <div className="trust-stat-num">60s</div>
+            <div className="trust-stat-lbl">Idea &rarr; IC-ready</div>
+          </div>
+          <div className="trust-stat">
+            <div className="trust-stat-num">7</div>
+            <div className="trust-stat-lbl">Asset classes</div>
+          </div>
+          <div className="trust-stat">
+            <div className="trust-stat-num">Global</div>
+            <div className="trust-stat-lbl">
+              UK &middot; US &middot; UAE &middot; SG &middot; EU
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ─── TWO PRODUCTS ─── */}
       <section className="products" id="products" aria-labelledby="products-h">
         <div className="products-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> Two sides of Valora</div>
-          <h2 className="h2" id="products-h">Underwrite a deal. Value a property.<br/>Same Copilot.</h2>
-          <p className="lede" style={{ marginTop: 18 }}>One platform. Two AI-driven workflows. Both produce IC-grade output the same day you typed the one-line prompt.</p>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> Two sides of Valora
+          </div>
+          <h2 className="h2" id="products-h">
+            Underwrite a deal. Value a property.
+            <br />
+            Same Copilot.
+          </h2>
+          <p className="lede" style={{ marginTop: 18 }}>
+            One platform. Two AI-driven workflows. Both produce IC-grade output the same day you
+            typed the one-line prompt.
+          </p>
         </div>
         <div className="products-grid">
           <article className="product-card fade-up">
             <div className="product-tag">◆ Underwriting</div>
             <h3 className="h3">Describe the deal. Get the model.</h3>
-            <p className="lede" style={{ fontSize: 16 }}>Full development appraisal or acquisition underwriting. Fields pre-filled with institutional defaults. IRR, DSCR, cashflows, sensitivity &mdash; all live.</p>
+            <p className="lede" style={{ fontSize: 16 }}>
+              Full development appraisal or acquisition underwriting. Fields pre-filled with
+              institutional defaults. IRR, DSCR, cashflows, sensitivity &mdash; all live.
+            </p>
             <div className="product-demo">
-              <div className="product-demo-user">&gt; BTR in Manchester, 180 units, &pound;58m build, 5% exit</div>
-              <div className="product-demo-ai">Modelled: 180 units &middot; &pound;58m build &middot; &pound;1,650 avg rent &middot; 5.00% exit yield &middot; 30-yr hold. Applied.</div>
+              <div className="product-demo-user">
+                &gt; BTR in Manchester, 180 units, &pound;58m build, 5% exit
+              </div>
+              <div className="product-demo-ai">
+                Modelled: 180 units &middot; &pound;58m build &middot; &pound;1,650 avg rent
+                &middot; 5.00% exit yield &middot; 30-yr hold. Applied.
+              </div>
             </div>
             <div className="product-feats">
-              <div>Seven asset classes (BTR, BTS, Hotel, Flip, Commercial, Mixed Use, Industrial)</div>
+              <div>
+                Seven asset classes (BTR, BTS, Hotel, Flip, Commercial, Mixed Use, Industrial)
+              </div>
               <div>USALI cascade for hotels, year-by-year NOI for commercial</div>
               <div>IC-ready PDF brochure in one click</div>
               <div>Live investor share links</div>
@@ -476,10 +692,18 @@ export default function LandingClient() {
           <article className="product-card fade-up" style={{ animationDelay: ".1s" }}>
             <div className="product-tag">◆ Valuation</div>
             <h3 className="h3">Describe the property. Get the price.</h3>
-            <p className="lede" style={{ fontSize: 16 }}>Comparative market valuation for any property, anywhere. Price range, real comparables, valuation drivers, risk assessment.</p>
+            <p className="lede" style={{ fontSize: 16 }}>
+              Comparative market valuation for any property, anywhere. Price range, real
+              comparables, valuation drivers, risk assessment.
+            </p>
             <div className="product-demo">
-              <div className="product-demo-user">&gt; 3-bed terrace in Fulham, 1,200 sqft, refurbished</div>
-              <div className="product-demo-ai">Central &pound;1.10m (range &pound;1.02m&ndash;&pound;1.18m). 4 comps within 0.3 mi. Drivers: Zone 1, refurb, layout. Confidence: high.</div>
+              <div className="product-demo-user">
+                &gt; 3-bed terrace in Fulham, 1,200 sqft, refurbished
+              </div>
+              <div className="product-demo-ai">
+                Central &pound;1.10m (range &pound;1.02m&ndash;&pound;1.18m). 4 comps within 0.3 mi.
+                Drivers: Zone 1, refurb, layout. Confidence: high.
+              </div>
             </div>
             <div className="product-feats">
               <div>Global coverage &mdash; UK, US, UAE, Singapore, EU, APAC</div>
@@ -494,30 +718,74 @@ export default function LandingClient() {
       {/* ─── ASSET CLASSES ─── */}
       <section className="assets" id="assets" aria-labelledby="assets-h">
         <div className="assets-header fade-up">
-          <div className="eyebrow" style={{ color: "var(--green-l)" }}><span className="eyebrow-mark">◆</span> Asset coverage</div>
-          <h2 className="h2" id="assets-h">Seven asset classes. One calc engine.</h2>
-          <p className="lede" style={{ marginTop: 16 }}>Every asset modelled with its own institutional conventions &mdash; USALI cascades for hotels, zone-by-zone cashflows for mixed use, refurb-to-sale for flips. Plus cross-border valuation for any property type.</p>
+          <div className="eyebrow" style={{ color: "var(--green-l)" }}>
+            <span className="eyebrow-mark">◆</span> Asset coverage
+          </div>
+          <h2 className="h2" id="assets-h">
+            Seven asset classes. One calc engine.
+          </h2>
+          <p className="lede" style={{ marginTop: 16 }}>
+            Every asset modelled with its own institutional conventions &mdash; USALI cascades for
+            hotels, zone-by-zone cashflows for mixed use, refurb-to-sale for flips. Plus
+            cross-border valuation for any property type.
+          </p>
         </div>
         <div className="assets-grid">
           {[
-            { id: "BTR",        name: "Build to Rent",      desc: "Stabilised residential income. Unit mix, rental growth, exit yield." },
-            { id: "BTS",        name: "Build to Sell",      desc: "Residential for open-market sale. Absorption, pricing, VAT." },
-            { id: "Hotel",      name: "Hotel",              desc: "Simple + USALI Advanced. ADR, occupancy, GOP, EBITDA." },
-            { id: "Flip",       name: "Residential Flip",   desc: "Buy, refurb, sell or hold. SDLT, bridging, ROI on cost." },
-            { id: "Commercial", name: "Commercial",         desc: "Office, retail, industrial. Year-by-year NOI + rent reviews." },
-            { id: "MixedUse",   name: "Mixed Use",          desc: "Multi-zone: resi + commercial blended. Zone-level P&L." },
-            { id: "Industrial", name: "Industrial",         desc: "Logistics, light industrial. Yield, occupancy, covenant." },
-          ].map(a => (
+            {
+              id: "BTR",
+              name: "Build to Rent",
+              desc: "Stabilised residential income. Unit mix, rental growth, exit yield.",
+            },
+            {
+              id: "BTS",
+              name: "Build to Sell",
+              desc: "Residential for open-market sale. Absorption, pricing, VAT.",
+            },
+            {
+              id: "Hotel",
+              name: "Hotel",
+              desc: "Simple + USALI Advanced. ADR, occupancy, GOP, EBITDA.",
+            },
+            {
+              id: "Flip",
+              name: "Residential Flip",
+              desc: "Buy, refurb, sell or hold. SDLT, bridging, ROI on cost.",
+            },
+            {
+              id: "Commercial",
+              name: "Commercial",
+              desc: "Office, retail, industrial. Year-by-year NOI + rent reviews.",
+            },
+            {
+              id: "MixedUse",
+              name: "Mixed Use",
+              desc: "Multi-zone: resi + commercial blended. Zone-level P&L.",
+            },
+            {
+              id: "Industrial",
+              name: "Industrial",
+              desc: "Logistics, light industrial. Yield, occupancy, covenant.",
+            },
+          ].map((a) => (
             <div key={a.id} className="asset-card">
-              <div className="asset-icon"><AssetIcon type={a.id} /></div>
+              <div className="asset-icon">
+                <AssetIcon type={a.id} />
+              </div>
               <div className="asset-name">{a.name}</div>
               <div className="asset-desc">{a.desc}</div>
             </div>
           ))}
           <div className="asset-card wide">
-            <div className="asset-icon"><AssetIcon type="Valuation" size={32} /></div>
+            <div className="asset-icon">
+              <AssetIcon type="Valuation" size={32} />
+            </div>
             <div className="asset-name">+ Valuation &mdash; any property, anywhere</div>
-            <div className="asset-desc">Comparative market valuations across residential, commercial, and hospitality assets in the UK, US, UAE, Singapore, Europe, and APAC. One sentence in, institution-grade report out.</div>
+            <div className="asset-desc">
+              Comparative market valuations across residential, commercial, and hospitality assets
+              in the UK, US, UAE, Singapore, Europe, and APAC. One sentence in, institution-grade
+              report out.
+            </div>
           </div>
         </div>
       </section>
@@ -525,31 +793,90 @@ export default function LandingClient() {
       {/* ─── DIFFERENTIATORS ─── */}
       <section className="diff" aria-labelledby="diff-h">
         <div className="diff-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> How Valora&rsquo;s different</div>
-          <h2 className="h2" id="diff-h">Not a chatbot. A real calc engine with AI on top.</h2>
-          <p className="lede" style={{ marginTop: 14 }}>Valora is built on a peer-reviewed calc engine with jurisdiction-aware defaults, institutional methodology, and IC-grade output. The AI doesn&rsquo;t hallucinate numbers &mdash; it runs the real math.</p>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> How Valora&rsquo;s different
+          </div>
+          <h2 className="h2" id="diff-h">
+            Not a chatbot. A real calc engine with AI on top.
+          </h2>
+          <p className="lede" style={{ marginTop: 14 }}>
+            Valora is built on a peer-reviewed calc engine with jurisdiction-aware defaults,
+            institutional methodology, and IC-grade output. The AI doesn&rsquo;t hallucinate numbers
+            &mdash; it runs the real math.
+          </p>
         </div>
         <div className="diff-grid">
           <article className="diff-card fade-up">
             <div className="diff-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h20v18H2z"/><path d="M2 9h20"/><path d="M9 3v18"/></svg>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 3h20v18H2z" />
+                <path d="M2 9h20" />
+                <path d="M9 3v18" />
+              </svg>
             </div>
             <h3 className="h3">Institutional defaults</h3>
-            <p>Jurisdiction-aware profiles &mdash; SDLT, VAT, SONIA, SOFR, EURIBOR, USALI. Asset-specific benchmarks (hotel ADR by star tier, BTR rental growth, commercial exit cap). Every default comes from institutional comp sets, not ChatGPT guesswork.</p>
+            <p>
+              Jurisdiction-aware profiles &mdash; SDLT, VAT, SONIA, SOFR, EURIBOR, USALI.
+              Asset-specific benchmarks (hotel ADR by star tier, BTR rental growth, commercial exit
+              cap). Every default comes from institutional comp sets, not ChatGPT guesswork.
+            </p>
           </article>
           <article className="diff-card fade-up" style={{ animationDelay: ".1s" }}>
             <div className="diff-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 3v18h18" />
+                <path d="M7 14l4-4 4 4 5-5" />
+              </svg>
             </div>
             <h3 className="h3">Live sensitivity + Monte Carlo</h3>
-            <p>Change any field and watch IRR, DSCR, Debt Yield, PoC recompute instantly. Stress-test vacancy, rates, exit cap. Run Monte Carlo with P10/P50/P90. Ask &ldquo;what if exit cap is 5.5%?&rdquo; in chat and Apply the scenario in one click.</p>
+            <p>
+              Change any field and watch IRR, DSCR, Debt Yield, PoC recompute instantly. Stress-test
+              vacancy, rates, exit cap. Run Monte Carlo with P10/P50/P90. Ask &ldquo;what if exit
+              cap is 5.5%?&rdquo; in chat and Apply the scenario in one click.
+            </p>
           </article>
           <article className="diff-card fade-up" style={{ animationDelay: ".2s" }}>
             <div className="diff-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <path d="M14 2v6h6" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+                <line x1="9" y1="11" x2="15" y2="11" />
+              </svg>
             </div>
             <h3 className="h3">IC-ready output</h3>
-            <p>One-click PDF brochures and valuation reports your investment committee would actually read. Executive summary, deal strengths, risks, cashflows, sensitivity, comparables. Plus live share links &mdash; recipients see the real model, not a static file.</p>
+            <p>
+              One-click PDF brochures and valuation reports your investment committee would actually
+              read. Executive summary, deal strengths, risks, cashflows, sensitivity, comparables.
+              Plus live share links &mdash; recipients see the real model, not a static file.
+            </p>
           </article>
         </div>
       </section>
@@ -557,14 +884,23 @@ export default function LandingClient() {
       {/* ─── USE CASES ─── */}
       <section className="personas" aria-labelledby="personas-h">
         <div className="personas-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> Who uses Valora</div>
-          <h2 className="h2" id="personas-h">Built for every seat at the deal table.</h2>
-          <p className="lede" style={{ marginTop: 14 }}>Institutional output without institutional headcount &mdash; whether you&rsquo;re underwriting debt, developing assets, advising clients, or running the analyst desk.</p>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> Who uses Valora
+          </div>
+          <h2 className="h2" id="personas-h">
+            Built for every seat at the deal table.
+          </h2>
+          <p className="lede" style={{ marginTop: 14 }}>
+            Institutional output without institutional headcount &mdash; whether you&rsquo;re
+            underwriting debt, developing assets, advising clients, or running the analyst desk.
+          </p>
         </div>
         <div className="personas-grid">
           <article className="persona fade-up">
             <div className="persona-head">
-              <div className="persona-icon"><PersonaIcon type="Lender" /></div>
+              <div className="persona-icon">
+                <PersonaIcon type="Lender" />
+              </div>
               <div>
                 <div className="persona-title">For lenders</div>
                 <div className="persona-subtitle">Banks · debt funds · specialist lenders</div>
@@ -579,7 +915,9 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".08s" }}>
             <div className="persona-head">
-              <div className="persona-icon"><PersonaIcon type="Developer" /></div>
+              <div className="persona-icon">
+                <PersonaIcon type="Developer" />
+              </div>
               <div>
                 <div className="persona-title">For developers</div>
                 <div className="persona-subtitle">Sponsors · operators · owner-occupiers</div>
@@ -594,7 +932,9 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".16s" }}>
             <div className="persona-head">
-              <div className="persona-icon"><PersonaIcon type="Advisor" /></div>
+              <div className="persona-icon">
+                <PersonaIcon type="Advisor" />
+              </div>
               <div>
                 <div className="persona-title">For advisors &amp; brokers</div>
                 <div className="persona-subtitle">Agents · consultants · BD teams</div>
@@ -609,7 +949,9 @@ export default function LandingClient() {
           </article>
           <article className="persona fade-up" style={{ animationDelay: ".24s" }}>
             <div className="persona-head">
-              <div className="persona-icon"><PersonaIcon type="Analyst" /></div>
+              <div className="persona-icon">
+                <PersonaIcon type="Analyst" />
+              </div>
               <div>
                 <div className="persona-title">For PE + family office analysts</div>
                 <div className="persona-subtitle">Deal-desk · underwriting · IC prep</div>
@@ -628,27 +970,40 @@ export default function LandingClient() {
       {/* ─── FLOW ─── */}
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> From idea to IC</div>
-          <h2 className="h2" id="flow-h">Three steps. Under a minute.</h2>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> From idea to IC
+          </div>
+          <h2 className="h2" id="flow-h">
+            Three steps. Under a minute.
+          </h2>
         </div>
         <div className="flow-steps">
           <article className="flow-step fade-up">
             <div className="flow-num">01</div>
             <div className="flow-verb">Describe</div>
             <div className="flow-what">One sentence.</div>
-            <div className="flow-how">Type your deal or property as you&rsquo;d say it to an analyst. Paste a Rightmove, Zillow, Bayut, or Christie &amp; Co link and Valora extracts the rest.</div>
+            <div className="flow-how">
+              Type your deal or property as you&rsquo;d say it to an analyst. Paste a Rightmove,
+              Zillow, Bayut, or Christie &amp; Co link and Valora extracts the rest.
+            </div>
           </article>
           <article className="flow-step fade-up" style={{ animationDelay: ".1s" }}>
             <div className="flow-num">02</div>
             <div className="flow-verb">Build</div>
             <div className="flow-what">Full model.</div>
-            <div className="flow-how">Copilot pre-fills every field with institutional defaults. Metrics compute live &mdash; GDV, profit, IRR, DSCR, payback. Edit anything and watch it recompute.</div>
+            <div className="flow-how">
+              Copilot pre-fills every field with institutional defaults. Metrics compute live
+              &mdash; GDV, profit, IRR, DSCR, payback. Edit anything and watch it recompute.
+            </div>
           </article>
           <article className="flow-step fade-up" style={{ animationDelay: ".2s" }}>
             <div className="flow-num">03</div>
             <div className="flow-verb">Present</div>
             <div className="flow-what">IC brochure.</div>
-            <div className="flow-how">One-click PDF: cover, executive summary, sensitivity matrix, cashflows, comps. Or share a live link &mdash; recipients see the real model.</div>
+            <div className="flow-how">
+              One-click PDF: cover, executive summary, sensitivity matrix, cashflows, comps. Or
+              share a live link &mdash; recipients see the real model.
+            </div>
           </article>
         </div>
       </section>
@@ -657,14 +1012,41 @@ export default function LandingClient() {
       <section className="artifacts" aria-labelledby="artifacts-h">
         <div className="artifacts-inner">
           <div className="artifacts-copy fade-up">
-            <div className="eyebrow" style={{ color: "var(--green-l)" }}><span className="eyebrow-mark">◆</span> What you ship</div>
-            <h2 className="h2" id="artifacts-h">IC-ready, same day.</h2>
-            <p className="lede">Every Valora deal and valuation comes with a polished PDF report and a shareable live link. Your committee gets something investor-grade, not a spreadsheet screenshot.</p>
+            <div className="eyebrow" style={{ color: "var(--green-l)" }}>
+              <span className="eyebrow-mark">◆</span> What you ship
+            </div>
+            <h2 className="h2" id="artifacts-h">
+              IC-ready, same day.
+            </h2>
+            <p className="lede">
+              Every Valora deal and valuation comes with a polished PDF report and a shareable live
+              link. Your committee gets something investor-grade, not a spreadsheet screenshot.
+            </p>
             <ul className="artifacts-list">
-              <li><span><strong>IC brochures</strong> &mdash; executive summary, deal strengths, risk assessment, cashflow waterfall, sensitivity tables</span></li>
-              <li><span><strong>Valuation reports</strong> &mdash; price range, comparables, drivers, risks, methodology disclosure</span></li>
-              <li><span><strong>Live share links</strong> &mdash; clients open the real model with current numbers, not a PDF</span></li>
-              <li><span><strong>White-label</strong> available on Enterprise &mdash; your firm branding on every export</span></li>
+              <li>
+                <span>
+                  <strong>IC brochures</strong> &mdash; executive summary, deal strengths, risk
+                  assessment, cashflow waterfall, sensitivity tables
+                </span>
+              </li>
+              <li>
+                <span>
+                  <strong>Valuation reports</strong> &mdash; price range, comparables, drivers,
+                  risks, methodology disclosure
+                </span>
+              </li>
+              <li>
+                <span>
+                  <strong>Live share links</strong> &mdash; clients open the real model with current
+                  numbers, not a PDF
+                </span>
+              </li>
+              <li>
+                <span>
+                  <strong>White-label</strong> available on Enterprise &mdash; your firm branding on
+                  every export
+                </span>
+              </li>
             </ul>
           </div>
           <div className="artifacts-visual fade-up" style={{ animationDelay: ".1s" }}>
@@ -677,13 +1059,29 @@ export default function LandingClient() {
                 </div>
               </div>
               <div style={{ marginTop: 40 }}>
-                <div style={{ fontSize: 8, color: "var(--green)", fontWeight: 800, letterSpacing: ".14em", marginBottom: 4 }}>UK &middot; HOTEL &middot; ADVANCED</div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "var(--green)",
+                    fontWeight: 800,
+                    letterSpacing: ".14em",
+                    marginBottom: 4,
+                  }}
+                >
+                  UK &middot; HOTEL &middot; ADVANCED
+                </div>
                 <div className="pdf-mock-h">&pound;82.4m</div>
-                <div className="pdf-mock-range">GDV &middot; IRR 24.8% &middot; DSCR 1.72&times;</div>
+                <div className="pdf-mock-range">
+                  GDV &middot; IRR 24.8% &middot; DSCR 1.72&times;
+                </div>
               </div>
               <div style={{ marginTop: "auto" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--navy)" }}>Mayfair Hotel</div>
-                <div style={{ fontSize: 8, color: "var(--text-d)", marginTop: 2 }}>80 keys &middot; 4-star &middot; Mayfair, London</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--navy)" }}>
+                  Mayfair Hotel
+                </div>
+                <div style={{ fontSize: 8, color: "var(--text-d)", marginTop: 2 }}>
+                  80 keys &middot; 4-star &middot; Mayfair, London
+                </div>
               </div>
             </div>
             <div className="pdf-mock pdf-mock-2">
@@ -695,13 +1093,27 @@ export default function LandingClient() {
                 </div>
               </div>
               <div style={{ marginTop: 40 }}>
-                <div style={{ fontSize: 8, color: "var(--green-hot)", fontWeight: 800, letterSpacing: ".14em", marginBottom: 4 }}>UK &middot; COMPARATIVE MARKET</div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "var(--green-hot)",
+                    fontWeight: 800,
+                    letterSpacing: ".14em",
+                    marginBottom: 4,
+                  }}
+                >
+                  UK &middot; COMPARATIVE MARKET
+                </div>
                 <div className="pdf-mock-h">&pound;1.10m</div>
-                <div className="pdf-mock-range">&pound;1.02m &mdash; &pound;1.18m &middot; HIGH confidence</div>
+                <div className="pdf-mock-range">
+                  &pound;1.02m &mdash; &pound;1.18m &middot; HIGH confidence
+                </div>
               </div>
               <div style={{ marginTop: "auto" }}>
                 <div style={{ fontSize: 10, fontWeight: 700 }}>Fulham Road</div>
-                <div style={{ fontSize: 8, color: "rgba(255,255,255,.55)", marginTop: 2 }}>3-bed &middot; 1,200 sqft &middot; refurbished</div>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,.55)", marginTop: 2 }}>
+                  3-bed &middot; 1,200 sqft &middot; refurbished
+                </div>
               </div>
             </div>
           </div>
@@ -711,15 +1123,25 @@ export default function LandingClient() {
       {/* ─── PRICING ─── */}
       <section className="pricing" id="pricing" aria-labelledby="pricing-h">
         <div className="pricing-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> Pricing</div>
-          <h2 className="h2" id="pricing-h">Start free. Upgrade when it earns its keep.</h2>
-          <p className="lede" style={{ marginTop: 14 }}>14-day free trial on paid plans. Annual billing saves 20%. No credit card to start.</p>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> Pricing
+          </div>
+          <h2 className="h2" id="pricing-h">
+            Start free. Upgrade when it earns its keep.
+          </h2>
+          <p className="lede" style={{ marginTop: 14 }}>
+            14-day free trial on paid plans. Annual billing saves 20%. No credit card to start.
+          </p>
         </div>
         <div className="pricing-grid">
           <article className="price-card fade-up">
             <div className="price-tier">Free</div>
-            <div className="price-amount">$0<small> /month</small></div>
-            <div className="small" style={{ marginTop: -6 }}>Forever free</div>
+            <div className="price-amount">
+              $0<small> /month</small>
+            </div>
+            <div className="small" style={{ marginTop: -6 }}>
+              Forever free
+            </div>
             <ul className="price-feats">
               <li>1 full appraisal &mdash; all features unlocked</li>
               <li>3 free valuations</li>
@@ -727,15 +1149,34 @@ export default function LandingClient() {
               <li>AI Market Comps + sensitivity matrix</li>
               <li>IC PDF + live share link</li>
             </ul>
-            <button className="btn btn-ghost" onClick={() => router.push("/auth")}>Start free</button>
+            <button className="btn btn-ghost" onClick={() => router.push("/auth")}>
+              Start free
+            </button>
           </article>
           <article className="price-card featured fade-up" style={{ animationDelay: ".08s" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div className="price-tier">Pro</div>
-              <span style={{ background: "var(--green)", color: "#fff", fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 999, letterSpacing: ".12em", textTransform: "uppercase" }}>Most Popular</span>
+              <span
+                style={{
+                  background: "var(--green)",
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 800,
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  letterSpacing: ".12em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Most Popular
+              </span>
             </div>
-            <div className="price-amount">$119<small> /mo</small></div>
-            <div className="small" style={{ marginTop: -6 }}>Billed annually &middot; $149/mo monthly</div>
+            <div className="price-amount">
+              $119<small> /mo</small>
+            </div>
+            <div className="small" style={{ marginTop: -6 }}>
+              Billed annually &middot; $149/mo monthly
+            </div>
             <ul className="price-feats">
               <li>Unlimited appraisals &amp; valuations</li>
               <li>Full Copilot &mdash; 300 AI messages / mo</li>
@@ -744,12 +1185,18 @@ export default function LandingClient() {
               <li>Year-by-year NOI hold model</li>
               <li>URL import (Rightmove, Zillow, Bayut&hellip;)</li>
             </ul>
-            <button className="btn btn-primary" onClick={() => router.push("/pricing")}>Start 14-day trial</button>
+            <button className="btn btn-primary" onClick={() => router.push("/pricing")}>
+              Start 14-day trial
+            </button>
           </article>
           <article className="price-card fade-up" style={{ animationDelay: ".16s" }}>
             <div className="price-tier">Enterprise</div>
-            <div className="price-amount">$319<small> /mo</small></div>
-            <div className="small" style={{ marginTop: -6 }}>Billed annually &middot; $399/mo monthly</div>
+            <div className="price-amount">
+              $319<small> /mo</small>
+            </div>
+            <div className="small" style={{ marginTop: -6 }}>
+              Billed annually &middot; $399/mo monthly
+            </div>
             <ul className="price-feats">
               <li>Everything in Pro</li>
               <li>5 team members ($75/user after)</li>
@@ -758,32 +1205,75 @@ export default function LandingClient() {
               <li>Custom jurisdictions</li>
               <li>Dedicated onboarding + SLA</li>
             </ul>
-            <button className="btn btn-ghost" onClick={() => window.open(CALENDLY, "_blank")}>Talk to us</button>
+            <button className="btn btn-ghost" onClick={() => window.open(CALENDLY, "_blank")}>
+              Talk to us
+            </button>
           </article>
         </div>
         <div style={{ textAlign: "center", marginTop: 36, fontSize: 13, color: "var(--text-d)" }}>
-          Full feature comparison on the <a onClick={() => router.push("/pricing")} style={{ color: "var(--green)", fontWeight: 700, cursor: "pointer" }}>pricing page</a>.
+          Full feature comparison on the{" "}
+          <a
+            onClick={() => router.push("/pricing")}
+            style={{ color: "var(--green)", fontWeight: 700, cursor: "pointer" }}
+          >
+            pricing page
+          </a>
+          .
         </div>
       </section>
 
       {/* ─── FAQ ─── */}
       <section className="faq" id="faq" aria-labelledby="faq-h">
         <div className="faq-header fade-up">
-          <div className="eyebrow"><span className="eyebrow-mark">◆</span> Frequently asked</div>
-          <h2 className="h2" id="faq-h">Everything you&rsquo;d ask in a demo.</h2>
+          <div className="eyebrow">
+            <span className="eyebrow-mark">◆</span> Frequently asked
+          </div>
+          <h2 className="h2" id="faq-h">
+            Everything you&rsquo;d ask in a demo.
+          </h2>
         </div>
         <div className="faq-list">
           {[
-            { q: "What is Valora?", a: "Valora is an AI-native platform for institutional real estate. Describe a deal or property in one sentence and Valora's Copilot builds a full underwriting model or comparative market valuation — IRR, DSCR, cashflows, sensitivities, comparables, drivers, risks — and produces an IC-ready PDF in under 60 seconds." },
-            { q: "Which asset classes does Valora cover?", a: "Seven institutional asset classes: Build to Rent (BTR), Build to Sell (BTS), Hotel with USALI Advanced, Residential Flip, Commercial (office, retail, industrial), Mixed Use, and Industrial. Plus cross-border valuations for any property type." },
-            { q: "Which markets does Valora support?", a: "UK, US, UAE, Singapore, Europe (Germany, France, and more), and APAC. Valora is jurisdiction-aware — it handles SDLT, VAT, SONIA, SOFR, EURIBOR, USALI, and local conventions automatically." },
-            { q: "Is Valora a replacement for RICS Red Book valuations?", a: "No. Valora produces directional valuations for internal decision-support — deal screening, investor pitching, IC preparation. Formal Red Book or USPAP valuations should still be commissioned separately for regulated purposes like secured lending." },
-            { q: "How much does Valora cost?", a: "Free forever — 1 full appraisal and 3 free valuations unlocked with every feature. Pro is $119/mo billed annually ($149/mo monthly) with unlimited appraisals, valuations, and Copilot messages. Enterprise is $319/mo billed annually with team features and white-labelling." },
-            { q: "What outputs does Valora produce?", a: "Complete institutional models with IRR, DSCR, Debt Yield, Equity Multiple, MOIC, payback, and sensitivity matrices. IC-ready PDF brochures and valuation reports. Live investor share links with real models, not static files." },
-            { q: "Is Valora just ChatGPT with a prompt?", a: "No. Valora combines a peer-reviewed calc engine (with Simple↔Advanced reconciliation tests, USALI cascades, Monte Carlo, stress tests) with an AI Copilot on top. The AI parses your input and runs the real math — it doesn't hallucinate the numbers." },
-            { q: "Can I import a property URL from Rightmove or Zillow?", a: "Yes. Paste a listing URL from Rightmove, Zoopla, Zillow, Redfin, Bayut, PropertyFinder, PropertyGuru, Immobilienscout24, and similar sites. The Copilot extracts property data and pre-fills your model." },
-            { q: "Who uses Valora?", a: "PE funds, family offices, development teams, hotel operators, brokers, investment advisors, and solo analysts — anyone who needs institutional output without institutional headcount." },
-            { q: "Is my data private?", a: "Yes. Your deals are stored in your private workspace. Copilot conversations are session-only by default. Team workspaces on Enterprise keep firm data isolated with row-level security." },
+            {
+              q: "What is Valora?",
+              a: "Valora is an AI-native platform for institutional real estate. Describe a deal or property in one sentence and Valora's Copilot builds a full underwriting model or comparative market valuation — IRR, DSCR, cashflows, sensitivities, comparables, drivers, risks — and produces an IC-ready PDF in under 60 seconds.",
+            },
+            {
+              q: "Which asset classes does Valora cover?",
+              a: "Seven institutional asset classes: Build to Rent (BTR), Build to Sell (BTS), Hotel with USALI Advanced, Residential Flip, Commercial (office, retail, industrial), Mixed Use, and Industrial. Plus cross-border valuations for any property type.",
+            },
+            {
+              q: "Which markets does Valora support?",
+              a: "UK, US, UAE, Singapore, Europe (Germany, France, and more), and APAC. Valora is jurisdiction-aware — it handles SDLT, VAT, SONIA, SOFR, EURIBOR, USALI, and local conventions automatically.",
+            },
+            {
+              q: "Is Valora a replacement for RICS Red Book valuations?",
+              a: "No. Valora produces directional valuations for internal decision-support — deal screening, investor pitching, IC preparation. Formal Red Book or USPAP valuations should still be commissioned separately for regulated purposes like secured lending.",
+            },
+            {
+              q: "How much does Valora cost?",
+              a: "Free forever — 1 full appraisal and 3 free valuations unlocked with every feature. Pro is $119/mo billed annually ($149/mo monthly) with unlimited appraisals, valuations, and Copilot messages. Enterprise is $319/mo billed annually with team features and white-labelling.",
+            },
+            {
+              q: "What outputs does Valora produce?",
+              a: "Complete institutional models with IRR, DSCR, Debt Yield, Equity Multiple, MOIC, payback, and sensitivity matrices. IC-ready PDF brochures and valuation reports. Live investor share links with real models, not static files.",
+            },
+            {
+              q: "Is Valora just ChatGPT with a prompt?",
+              a: "No. Valora combines a peer-reviewed calc engine (with Simple↔Advanced reconciliation tests, USALI cascades, Monte Carlo, stress tests) with an AI Copilot on top. The AI parses your input and runs the real math — it doesn't hallucinate the numbers.",
+            },
+            {
+              q: "Can I import a property URL from Rightmove or Zillow?",
+              a: "Yes. Paste a listing URL from Rightmove, Zoopla, Zillow, Redfin, Bayut, PropertyFinder, PropertyGuru, Immobilienscout24, and similar sites. The Copilot extracts property data and pre-fills your model.",
+            },
+            {
+              q: "Who uses Valora?",
+              a: "PE funds, family offices, development teams, hotel operators, brokers, investment advisors, and solo analysts — anyone who needs institutional output without institutional headcount.",
+            },
+            {
+              q: "Is my data private?",
+              a: "Yes. Your deals are stored in your private workspace. Copilot conversations are session-only by default. Team workspaces on Enterprise keep firm data isolated with row-level security.",
+            },
           ].map((item, i) => (
             <details className="faq-item" key={i}>
               <summary className="faq-q">
@@ -801,8 +1291,12 @@ export default function LandingClient() {
         <h2 className="h2">Stop modelling. Start underwriting.</h2>
         <p>Try Valora free. No credit card. One full appraisal and three valuations unlocked.</p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-dark btn-lg" onClick={() => router.push("/auth")}>Start free &rarr;</button>
-          <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>Book a demo</button>
+          <button className="btn btn-dark btn-lg" onClick={() => router.push("/auth")}>
+            Start free &rarr;
+          </button>
+          <button className="btn btn-ghost btn-lg" onClick={() => window.open(CALENDLY, "_blank")}>
+            Book a demo
+          </button>
         </div>
       </section>
 
@@ -811,22 +1305,55 @@ export default function LandingClient() {
         <div className="footer-grid">
           <div className="footer-brand">
             <div className="footer-logo">◆ Valora</div>
-            <div className="footer-tagline">Institutional Real Estate AI &mdash; underwriting and valuation at the speed of thought.</div>
+            <div className="footer-tagline">
+              Institutional Real Estate AI &mdash; underwriting and valuation at the speed of
+              thought.
+            </div>
           </div>
           <div className="footer-col">
             <div className="footer-col-title">Product</div>
-            <a onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>Underwriting</a>
-            <a onClick={() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })}>Valuation</a>
-            <a onClick={() => document.getElementById("assets")?.scrollIntoView({ behavior: "smooth" })}>Asset classes</a>
+            <a
+              onClick={() =>
+                document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Underwriting
+            </a>
+            <a
+              onClick={() =>
+                document.getElementById("products")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Valuation
+            </a>
+            <a
+              onClick={() =>
+                document.getElementById("assets")?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
+              Asset classes
+            </a>
             <a onClick={() => router.push("/pricing")}>Pricing</a>
             <a onClick={() => router.push("/learn")}>Methodology</a>
           </div>
           <div className="footer-col">
             <div className="footer-col-title">Company</div>
-            <a href="https://www.linkedin.com/company/valora-platform" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-            <a href={CALENDLY} target="_blank" rel="noopener noreferrer">Book a demo</a>
+            <a
+              href="https://www.linkedin.com/company/valora-platform"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LinkedIn
+            </a>
+            <a href={CALENDLY} target="_blank" rel="noopener noreferrer">
+              Book a demo
+            </a>
             <a href="mailto:hello@valoraplatform.io">Contact</a>
-            <a onClick={() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}>FAQ</a>
+            <a
+              onClick={() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              FAQ
+            </a>
           </div>
           <div className="footer-col">
             <div className="footer-col-title">Legal</div>
@@ -843,4 +1370,3 @@ export default function LandingClient() {
     </div>
   );
 }
-
