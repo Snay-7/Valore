@@ -6871,7 +6871,7 @@ async function generatePDF(data:any,results:any,assetType:string,currencySymbol:
 
   // Sensitivity matrix
   if(assetType==="BTR"||assetType==="BTS"){
-    const sm=r.sensMatrix;
+    const sm=(typeof sensMatrix!=="undefined"&&sensMatrix)||r.sensMatrix;
     if(sm&&sm.length>0){
       py=drawSensTable(sm,
         (assetType==="BTS"?["+10% sale","+5% sale","Base","-5% sale","-10% sale"]:[`${(num(String(data.exitYield))-0.5).toFixed(2)}%`,`${(num(String(data.exitYield))-0.25).toFixed(2)}%`,`${num(String(data.exitYield)).toFixed(2)}%`,`${(num(String(data.exitYield))+0.25).toFixed(2)}%`,`${(num(String(data.exitYield))+0.5).toFixed(2)}%`]),
@@ -10134,7 +10134,7 @@ async function generateBrochurePDF(data:any,r:any,assetType:string,currencySymbo
 
 
   if(assetType==="BTR"||assetType==="BTS"){
-    const sm=r.sensMatrix;
+    const sm=(typeof sensMatrix!=="undefined"&&sensMatrix)||r.sensMatrix;
     if(sm&&sm.length>0){
       const niyBase=num(String(data.exitYield||5));
       drawSens2(sm,
