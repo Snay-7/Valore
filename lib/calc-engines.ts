@@ -915,6 +915,24 @@ function calcMixedUseAdvanced(data:any):Record<string,any>{
 }
 
 function calcAll(assetType:string,data:any):Record<string,any>{
+  // ── Cap structure normalization (25 Apr 2026) ──
+  // Maps data.capStructure → effective data.ltc so every asset branch
+  // (BTR/BTS/Flip/Commercial/Industrial/MixedUse) respects the picker.
+  // Hotel has its own capStructure logic and is unaffected.
+  if (data && data.capStructure && data.capStructure !== "single") {
+    const cs = data.capStructure;
+    if (cs === "equity") {
+      data = { ...data, ltc: 0 };
+    } else if (cs === "fullstack") {
+      const senior = num(String(data.seniorLtv ?? data.ltvSenior ?? data.ltc ?? 0));
+      const mezz = num(String(data.mezzLtv ?? data.ltvMezz ?? 0));
+      data = { ...data, ltc: senior + mezz };
+    } else if (cs === "dual") {
+      const land = num(String(data.landLtv ?? data.ltc ?? 0));
+      const build = num(String(data.buildLtv ?? data.ltc ?? 0));
+      data = { ...data, ltc: Math.max(land, build) };
+    }
+  }
   if(assetType==="BTR"){
     const units=data.units||[];
     const totalUnits=units.reduce((s:number,u:any)=>s+(num(String(u.count))||0),0);
