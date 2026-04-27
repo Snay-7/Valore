@@ -1,31 +1,55 @@
 "use client";
-export const dynamic = 'force-dynamic'
-import { useState, useEffect, Suspense } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
-import * as XLSX from "xlsx";
 import { useParams } from "next/navigation";
+import * as XLSX from "xlsx";
+import {
+  calcAll, calcHotelAdvanced, runMonteCarlo,
+  fmt, fmtPct, fmtX, num,
+} from "../../../lib/calc-engine";
+import {
+  applyOverrides, hasActiveOverrides,
+  getSlidersForSnap, type SliderSpec, type Overrides,
+} from "../../../lib/share-overrides";
 
-
-
+// ─────────────────────────────────────────────────────────────────────────────
+// VALORA — UNDERWRITE ROOM
+//
+// /share/[token] — the recipient experience.
+//
+// Architecture:
+//   1. Load share_link by slug
+//   2. Render gate based on access_mode (public | password | email)
+//   3. On gate pass, create share_view row and start tracking
+//   4. Render the Room: Hero + Assumption Ledger (left) + Body + Scenario Rail (right)
+//   5. Every slider drag mutates `overrides` -> applyOverrides -> calcAll -> rerender
+//   6. Every change is logged to share_input_overrides
+//
+// All math goes through lib/calc-engine.ts. NEVER reimplement here.
+// ─────────────────────────────────────────────────────────────────────────────
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 .theme-dark{
-  --bg:#0D1017;--bg1:#141920;--bg2:#1A2030;--bg3:#202840;--bg4:#202840;--bg5:#2A3350;
+  --bg:#0D1017;--bg1:#141920;--bg2:#1A2030;--bg3:#202840;--bg4:#2A3350;
   --text:#F0EEE8;--text-m:#8B93A5;--text-d:#4D5570;
   --border:rgba(255,255,255,0.06);--border-m:rgba(255,255,255,0.12);
   --card-bg:#1A2030;--card-border:rgba(255,255,255,0.06);
   --section-bg:#141920;--divider:rgba(255,255,255,0.06);
-  --tog-bg:#202840;--tog-active:#52C498;--tog-text:#8B93A5;
+  --rail-bg:#11161E;
+  --slider-track:#202840;--slider-fill:#52C498;--slider-thumb:#F0EEE8;
 }
 .theme-light{
-  --bg:#F8F9FA;--bg1:#F0F2F5;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;--bg5:#DDE0E6;
+  --bg:#F8F9FA;--bg1:#F0F2F5;--bg2:#FFFFFF;--bg3:#F8F9FA;--bg4:#E8EAED;
   --text:#1E2433;--text-m:#5A6478;--text-d:#9AA3AF;
   --border:rgba(0,0,0,0.08);--border-m:rgba(0,0,0,0.13);
   --card-bg:#FFFFFF;--card-border:rgba(0,0,0,0.08);
   --section-bg:#F0F2F5;--divider:rgba(0,0,0,0.08);
-  --tog-bg:#E8EAED;--tog-active:#2A8A64;--tog-text:#5A6478;
+  --rail-bg:#F2F4F7;
+  --slider-track:#E8EAED;--slider-fill:#2A8A64;--slider-thumb:#1E2433;
 }
 :root{
   --gold:#52C498;--gold-l:#72D4AE;--gold-bg:rgba(82,196,152,0.08);--gold-border:rgba(82,196,152,0.25);
@@ -33,986 +57,820 @@ const CSS = `
   --font-display:'Inter',system-ui,sans-serif;
   --font-body:'Inter',system-ui,sans-serif;
   --font-mono:'DM Mono',monospace;
+  --transition-num:200ms cubic-bezier(.16,1,.3,1);
 }
-body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
-.page-wrap{background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
+body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
+.page-wrap{background:var(--bg);color:var(--text);min-height:100vh}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.fade-up{animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
-.theme-toggle{display:flex;align-items:center;background:var(--tog-bg);border-radius:20px;padding:3px;gap:2px;border:1px solid var(--border)}
-.theme-toggle button{padding:5px 12px;border-radius:16px;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.04em;transition:all .2s;background:transparent;color:var(--tog-text)}
-.theme-toggle button.active{background:var(--tog-active);color:#0D1017}
-.hero{padding:48px 0 40px;border-bottom:1px solid var(--divider);position:relative;overflow:hidden}
-.hero-inner{max-width:1080px;margin:0 auto;padding:0 48px}
-.hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap}
-.hero-title{font-family:var(--font-display);font-size:clamp(36px,5vw,64px);font-weight:300;line-height:1.05;letter-spacing:-.01em;margin-bottom:8px}
-.hero-subtitle{font-size:14px;color:var(--text-m);letter-spacing:.02em}
-.metric-strip{display:grid;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:36px 0}
-.metric-strip-inner{display:grid}
-.metric-cell{padding:20px 24px;border-right:1px solid var(--border);position:relative}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fade-up{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
+.fade-in{animation:fadeIn .3s ease both}
+
+/* ── GATE ────────────────────────────────────────────────────────────────── */
+.gate-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+.gate-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:36px 32px;max-width:420px;width:100%;text-align:center}
+.gate-icon{font-size:32px;margin-bottom:12px;color:var(--gold)}
+.gate-title{font-family:var(--font-display);font-size:22px;font-weight:500;margin-bottom:6px;letter-spacing:-.01em}
+.gate-sub{font-size:13px;color:var(--text-m);margin-bottom:24px;line-height:1.5}
+.gate-input{width:100%;padding:12px 14px;border:1px solid var(--border-m);border-radius:8px;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;margin-bottom:12px;outline:none;transition:border-color .2s}
+.gate-input:focus{border-color:var(--gold)}
+.gate-btn{width:100%;padding:12px 14px;border:none;border-radius:8px;background:var(--gold);color:#0D1017;font-family:var(--font-body);font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.gate-btn:hover{opacity:.9}
+.gate-btn:disabled{opacity:.5;cursor:not-allowed}
+.gate-error{color:var(--red);font-size:12px;margin-bottom:12px;animation:fadeIn .2s ease both}
+.gate-foot{margin-top:20px;padding-top:18px;border-top:1px solid var(--divider);font-size:11px;color:var(--text-d)}
+
+/* ── ROOM LAYOUT ─────────────────────────────────────────────────────────── */
+.room{display:grid;grid-template-columns:280px 1fr 0;min-height:100vh;transition:grid-template-columns .25s ease}
+.room.with-rail{grid-template-columns:280px 1fr 320px}
+.ledger{background:var(--rail-bg);border-right:1px solid var(--border);padding:16px 14px;overflow-y:auto;position:sticky;top:0;height:100vh}
+.body{min-width:0;overflow-x:hidden}
+.rail{background:var(--rail-bg);border-left:1px solid var(--border);padding:16px 14px;overflow-y:auto;position:sticky;top:0;height:100vh}
+
+/* ── TOP BAR ─────────────────────────────────────────────────────────────── */
+.topbar{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid var(--border);background:var(--bg1);position:sticky;top:0;z-index:50}
+.topbar-brand{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.03em}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.theme-toggle{display:flex;align-items:center;background:var(--bg3);border-radius:18px;padding:3px;gap:2px;border:1px solid var(--border)}
+.theme-toggle button{padding:5px 11px;border-radius:14px;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.04em;background:transparent;color:var(--text-m);transition:all .2s}
+.theme-toggle button.active{background:var(--gold);color:#0D1017}
+.scenario-badge{padding:4px 10px;border-radius:14px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid;background:transparent;cursor:default}
+.scenario-badge.sponsor{color:var(--text-m);border-color:var(--border-m)}
+.scenario-badge.custom{color:var(--gold);border-color:var(--gold-border);background:var(--gold-bg)}
+
+/* ── HERO ────────────────────────────────────────────────────────────────── */
+.hero{padding:32px 40px 28px;border-bottom:1px solid var(--divider);max-width:1200px}
+.hero-title{font-family:var(--font-display);font-size:clamp(28px,4vw,46px);font-weight:300;line-height:1.05;letter-spacing:-.01em;margin:14px 0 6px}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-d);letter-spacing:.04em;text-transform:uppercase}
+.hero-sub{font-size:13px;color:var(--text-m);letter-spacing:.02em}
+.metric-strip{display:grid;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:24px}
+.metric-strip-inner{display:grid;grid-template-columns:repeat(5,1fr)}
+.metric-cell{padding:18px 20px;border-right:1px solid var(--border);background:var(--card-bg);position:relative}
 .metric-cell:last-child{border-right:none}
-.metric-cell-label{font-size:10px;color:var(--text-d);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;font-family:var(--font-body)}
-.metric-cell-value{font-family:var(--font-display);font-size:clamp(28px,3vw,40px);font-weight:300;line-height:1;letter-spacing:-.01em}
-.metric-cell-sub{font-size:11px;color:var(--text-d);margin-top:6px;font-family:var(--font-mono)}
-.inst-strip{display:grid;gap:0;border:1px solid var(--gold-border);border-radius:10px;overflow:hidden;background:var(--gold-bg);margin-bottom:36px}
-.inst-cell{padding:14px 20px;border-right:1px solid var(--gold-border)}
-.inst-cell:last-child{border-right:none}
-.inst-cell-label{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
-.inst-cell-value{font-family:var(--font-mono);font-size:15px;font-weight:500;color:var(--text)}
-.content-wrap{max-width:1080px;margin:0 auto;padding:40px 48px}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.six-col{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
-.section-hdr{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-d);margin-bottom:14px;font-family:var(--font-body);font-weight:600}
-.data-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px 22px}
-.data-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--divider);gap:16px}
+.metric-cell-label{font-size:9px;color:var(--text-d);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;font-weight:600}
+.metric-cell-value{font-family:var(--font-display);font-size:clamp(22px,2.5vw,32px);font-weight:300;line-height:1;letter-spacing:-.01em;transition:color var(--transition-num)}
+.metric-cell-delta{font-size:10px;font-family:var(--font-mono);margin-top:5px;color:var(--text-d)}
+.metric-cell-delta.up{color:var(--green)}
+.metric-cell-delta.down{color:var(--red)}
+
+/* ── BODY SECTIONS ───────────────────────────────────────────────────────── */
+.section{padding:32px 40px;border-bottom:1px solid var(--divider);max-width:1200px}
+.section-title{font-family:var(--font-display);font-size:18px;font-weight:500;letter-spacing:-.01em;margin-bottom:4px}
+.section-sub{font-size:12px;color:var(--text-m);margin-bottom:20px}
+.data-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:18px 20px}
+.data-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--divider);gap:16px}
 .data-row:last-child{border-bottom:none}
-.data-label{font-size:12px;color:var(--text-m);flex-shrink:0}
-.data-value{font-family:var(--font-mono);font-size:12px;font-weight:500;text-align:right}
-.data-label-bold{font-size:12px;color:var(--text);font-weight:600;flex-shrink:0}
+.data-label{font-size:12px;color:var(--text-m)}
+.data-value{font-family:var(--font-mono);font-size:12px;font-weight:500;text-align:right;transition:color var(--transition-num)}
+.data-label-bold{font-size:12px;color:var(--text);font-weight:600}
 .data-value-bold{font-family:var(--font-mono);font-size:13px;font-weight:600;text-align:right}
-.section-gap{margin-bottom:28px}
-.poc-bar-wrap{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:18px 22px;margin-bottom:28px}
-.poc-bar-track{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin:10px 0 6px}
-.poc-bar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.16,1,.3,1)}
-.unit-table{width:100%;border-collapse:collapse}
-.unit-th{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-d);padding:0 0 10px;border-bottom:1px solid var(--divider);text-align:left;font-family:var(--font-body);font-weight:600}
-.unit-th:not(:first-child){text-align:right}
-.unit-td{font-size:12px;color:var(--text-m);padding:9px 0;border-bottom:1px solid var(--divider);vertical-align:top}
-.unit-td:not(:first-child){text-align:right;font-family:var(--font-mono)}
-.unit-td-name{color:var(--text);font-weight:500}
-.share-footer{border-top:1px solid var(--divider);padding:24px 48px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;max-width:1080px;margin:0 auto}
-.badge{display:inline-flex;align-items:center;gap:5px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em}
-.badge-type{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em}
-.adv-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(212,137,26,.12);border:1px solid rgba(212,137,26,.3);color:#d4891a;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
-.sec-divider{height:1px;background:var(--divider);margin:32px 0}
-/* Cashflow table */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* ── ASSUMPTION LEDGER ───────────────────────────────────────────────────── */
+.ledger-hdr{font-size:10px;color:var(--text-d);text-transform:uppercase;letter-spacing:.14em;font-weight:600;padding:6px 4px 14px;display:flex;justify-content:space-between;align-items:center}
+.ledger-reset{font-size:10px;color:var(--gold);background:none;border:none;cursor:pointer;font-weight:600;padding:0;letter-spacing:.06em;text-transform:uppercase}
+.ledger-reset:disabled{color:var(--text-d);cursor:default}
+.slider-row{padding:14px 4px;border-bottom:1px solid var(--divider)}
+.slider-row:last-child{border-bottom:none}
+.slider-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.slider-label{font-size:12px;color:var(--text);font-weight:500}
+.slider-value{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--gold)}
+.slider-value.unchanged{color:var(--text-m)}
+.slider-input{width:100%;-webkit-appearance:none;appearance:none;height:4px;background:var(--slider-track);border-radius:2px;outline:none;cursor:pointer}
+.slider-input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--slider-thumb);cursor:pointer;border:2px solid var(--slider-fill);transition:transform .15s}
+.slider-input::-webkit-slider-thumb:hover{transform:scale(1.15)}
+.slider-input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--slider-thumb);cursor:pointer;border:2px solid var(--slider-fill);}
+.slider-range{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--text-d);margin-top:5px}
+.slider-hint{font-size:10px;color:var(--text-d);line-height:1.4;margin-top:6px;font-style:italic}
+.slider-row.flexed .slider-label::after{content:" •";color:var(--gold);font-weight:700}
+
+/* ── CASHFLOW TABLE ──────────────────────────────────────────────────────── */
 .cf-table{width:100%;border-collapse:collapse;font-size:11px}
-.cf-th{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-d);padding:6px 10px;border-bottom:1px solid var(--divider);text-align:right;font-family:var(--font-body);white-space:nowrap}
+.cf-th{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-d);padding:6px 10px;border-bottom:1px solid var(--divider);text-align:right;font-family:var(--font-body);font-weight:600;white-space:nowrap}
 .cf-th:first-child{text-align:left}
-.cf-td{padding:7px 10px;border-bottom:1px solid var(--divider);font-family:var(--font-mono);font-size:11px;text-align:right;color:var(--text-m)}
+.cf-td{padding:7px 10px;border-bottom:1px solid var(--divider);font-family:var(--font-mono);font-size:11px;text-align:right;color:var(--text-m);transition:color var(--transition-num)}
 .cf-td:first-child{text-align:left;color:var(--text-m);font-family:var(--font-body)}
-.cf-tr-exit .cf-td{color:var(--gold)}
-/* Per key grid */
-.per-key-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.per-key-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:14px 16px}
-.per-key-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-d);margin-bottom:6px}
-.per-key-value{font-family:var(--font-mono);font-size:16px;font-weight:500}
-/* Summary return cards */
-.return-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
-.return-card{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:14px 16px}
-.return-card-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-d);margin-bottom:6px}
-.return-card-value{font-family:var(--font-mono);font-size:17px;font-weight:600}
-@media(max-width:768px){
-  .hero-inner,.content-wrap{padding:24px 20px}
-  .hero-title{font-size:clamp(28px,6vw,42px)}
-  .metric-strip-inner{grid-template-columns:1fr 1fr !important}
-  .metric-cell{border-right:none;border-bottom:1px solid var(--border)}
-  .inst-strip{grid-template-columns:1fr 1fr !important}
-  .inst-cell{border-right:none;border-bottom:1px solid var(--gold-border)}
-  .inst-cell:last-child{border-bottom:none}
-  .two-col,.three-col,.six-col,.per-key-grid,.return-cards{grid-template-columns:1fr 1fr}
-  .share-footer{padding:20px}
+
+/* ── PER-KEY ─────────────────────────────────────────────────────────────── */
+.per-key-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.per-key-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:13px 14px}
+.per-key-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-d);margin-bottom:5px}
+.per-key-value{font-family:var(--font-mono);font-size:15px;font-weight:500;transition:color var(--transition-num)}
+
+/* ── STOCHASTIC ──────────────────────────────────────────────────────────── */
+.mc-band{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.mc-band-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:14px 16px;text-align:center}
+.mc-band-label{font-size:9px;color:var(--text-d);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.mc-band-value{font-family:var(--font-mono);font-size:18px;font-weight:600}
+.mc-band-card.p10 .mc-band-value{color:var(--red)}
+.mc-band-card.p50 .mc-band-value{color:var(--text)}
+.mc-band-card.p90 .mc-band-value{color:var(--green)}
+.mc-histogram{display:flex;align-items:flex-end;gap:1px;height:80px;padding:8px 0;margin-bottom:8px}
+.mc-bar{flex:1;background:var(--gold);opacity:.6;border-radius:1px 1px 0 0;transition:opacity .2s,height var(--transition-num)}
+.mc-bar:hover{opacity:1}
+
+/* ── BOTTOM ──────────────────────────────────────────────────────────────── */
+.share-footer{padding:24px 40px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;max-width:1200px;border-top:1px solid var(--divider)}
+.btn-ghost{font-size:11px;color:var(--text-m);background:none;border:1px solid var(--border-m);border-radius:6px;padding:6px 12px;cursor:pointer;font-family:var(--font-body);transition:all .2s}
+.btn-ghost:hover{border-color:var(--gold-border);color:var(--gold)}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────────── */
+@media(max-width:1100px){
+  .room,.room.with-rail{grid-template-columns:240px 1fr 0}
+  .rail{display:none}
 }
-@media(max-width:480px){
-  .metric-strip-inner,.inst-strip,.return-cards{grid-template-columns:1fr !important}
-  .per-key-grid{grid-template-columns:1fr 1fr}
+@media(max-width:768px){
+  .room,.room.with-rail{grid-template-columns:1fr}
+  .ledger{position:static;height:auto;max-height:none;border-right:none;border-bottom:1px solid var(--border)}
+  .topbar,.hero,.section,.share-footer{padding-left:18px;padding-right:18px}
+  .metric-strip-inner{grid-template-columns:1fr 1fr}
+  .metric-cell{border-right:none;border-bottom:1px solid var(--border)}
+  .two-col,.per-key-grid{grid-template-columns:1fr 1fr}
 }
 `;
 
-
-
-
-const fmt = (n: number, prefix = "£") => {
-  if (!isFinite(n) || isNaN(n)) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${n < 0 ? "-" : ""}${prefix}${(Math.abs(n) / 1e9).toFixed(2)}bn`;
-  if (abs >= 1e6) return `${n < 0 ? "-" : ""}${prefix}${(Math.abs(n) / 1e6).toFixed(2)}m`;
-  if (abs >= 1e3) return `${n < 0 ? "-" : ""}${prefix}${(Math.abs(n) / 1e3).toFixed(0)}k`;
-  return `${n < 0 ? "-" : ""}${prefix}${Math.abs(n).toFixed(0)}`;
-};
-const fmtPct = (n: number) => (!isFinite(n) || isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`);
-const fmtX = (n: number) => (!isFinite(n) || isNaN(n) || n === 0 ? "—" : `${n.toFixed(2)}×`);
-const num = (v: string) => parseFloat(String(v).replace(/[£,%\s]/g, "")) || 0;
-
-
-
-
-const TYPE_COLOR: Record<string, string> = { BTR: "#52C498", BTS: "#4a8ae8", Hotel: "#d4891a", Flip: "#2da870" };
-const TYPE_BG: Record<string, string> = { BTR: "rgba(82,196,152,.12)", BTS: "rgba(74,138,232,.12)", Hotel: "rgba(212,137,26,.12)", Flip: "rgba(45,168,112,.12)" };
-
-
-
-
-function calcCosts(snap: any) {
-  const t = snap.assetType || "BTR";
-  if (t === "BTR" || t === "BTS") {
-    const units = snap.units || [];
-    const totalSqft = units.reduce((s: number, u: any) => s + num(String(u.count)) * num(String(u.size)), 0);
-    const buildCost = totalSqft * num(String(snap.buildCostPsf || 0));
-    const profFees = buildCost * (num(String(snap.professionalFeesPct || 0)) / 100);
-    const contingency = buildCost * (num(String(snap.contingencyPct || 0)) / 100);
-    const gdvBts = t === "BTS" ? units.reduce((s: number, u: any) => s + num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf)), 0) : 0;
-    const agentFee = t === "BTS" ? gdvBts * (num(String(snap.agentFeePct || 0)) / 100) : 0;
-    const mktg = t === "BTS" ? gdvBts * (num(String(snap.marketingPct || 0)) / 100) : 0;
-    return { landCost: num(String(snap.landCost || 0)), buildCost, profFees, contingency, otherCosts: num(String(snap.otherCosts || 0)), agentAndMarketing: agentFee + mktg, totalSqft, buildCostPsf: num(String(snap.buildCostPsf || 0)) };
-  }
-  if (t === "Hotel") {
-    const capex = num(String(snap.capexBudget || 0));
-    return { landCost: num(String(snap.purchasePrice || 0)), buildCost: capex, profFees: 0, contingency: 0, otherCosts: 0, agentAndMarketing: 0, totalSqft: 0, buildCostPsf: 0 };
-  }
-  const refurb = num(String(snap.refurbBudget || 0));
-  return { landCost: num(String(snap.purchasePrice || 0)), buildCost: refurb, profFees: refurb * (num(String(snap.professionalFeesPct || 0)) / 100), contingency: refurb * (num(String(snap.contingencyPct || 0)) / 100), otherCosts: num(String(snap.otherCosts || 0)), agentAndMarketing: 0, totalSqft: 0, buildCostPsf: 0 };
-}
-
-
-
-
-// ── HOTEL ADVANCED SHARE SECTION ─────────────────────────────────────────────
-function HotelAdvancedShare({ snap, sym }: { snap: any; sym: string }) {
-  const ha = snap.hotelAdv || {};
-  const holdYears = num(String(snap.holdYears || 5));
-  const rooms = num(String(snap.rooms || 0));
-  const yr = ha.yearRevenue || [];
-  const capStructure = snap.capStructure || "single";
-  const capStructureLabel: Record<string, string> = { equity: "All Equity", single: "Single Facility", dual: "Dual Facility", fullstack: "Full Stack" };
-
-
-
-
-  return (
-    <>
-      {/* ── PER KEY METRICS ── */}
-      <div className="section-gap fade-up" style={{ animationDelay: ".36s" }}>
-        <div className="section-hdr">Per Key Metrics</div>
-        <div className="per-key-grid">
-          {[
-            { label: "Purchase / Key", value: fmt(ha.pricePerKey || 0, sym), color: "var(--text)" },
-            { label: "CapEx / Key", value: fmt(ha.capexPerKey || 0, sym), color: "var(--amber)" },
-            { label: "Exit Value / Key", value: fmt(ha.exitValuePerKey || 0, sym), color: "var(--gold)" },
-            { label: "EBITDA / Key", value: fmt(ha.ebitdaPerKey || 0, sym), color: "var(--green)" },
-            { label: "NOI / Key", value: fmt(ha.noiPerKey || 0, sym), color: "var(--blue)" },
-            { label: "NOI Conversion", value: fmtPct(ha.noiConversion || 0), color: "var(--text-m)" },
-          ].map(m => (
-            <div key={m.label} className="per-key-card">
-              <div className="per-key-label">{m.label}</div>
-              <div className="per-key-value" style={{ color: m.color }}>{m.value}</div>
-            </div>
-          ))}
-        </div>
-        {/* Entry yields */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 4 }}>
-          {[
-            { label: "Entry Yield (vs NOI)", value: fmtPct(ha.entryYieldNOI || 0) },
-            { label: "Entry Yield (vs EBITDA)", value: fmtPct(ha.entryYieldEBITDA || 0) },
-          ].map(m => (
-            <div key={m.label} className="per-key-card">
-              <div className="per-key-label">{m.label}</div>
-              <div className="per-key-value" style={{ color: "var(--blue)" }}>{m.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-
-
-
-      {/* ── INVESTOR CASHFLOW ── */}
-      <div className="section-gap fade-up" style={{ animationDelay: ".4s" }}>
-        <div className="section-hdr">Investor Cashflow — Year by Year</div>
-        <div className="data-card" style={{ padding: "16px 0", overflowX: "auto" }}>
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="cf-th" style={{ textAlign: "left", paddingLeft: 18 }}></th>
-                <th className="cf-th">Day 1</th>
-                {Array.from({ length: holdYears }, (_, i) => (
-                  <th key={i} className="cf-th" style={{ color: i === holdYears - 1 ? "var(--gold)" : undefined }}>
-                    Yr {i + 1}{i === holdYears - 1 ? " (Exit)" : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label: "Revenue", fn: (y: any) => y.totalRev, day1: null, color: "var(--text-m)" },
-                { label: "EBITDA", fn: (y: any) => y.ebitda, day1: null, color: "var(--text)" },
-                { label: "FF&E", fn: (y: any) => -y.ffe, day1: null, color: "var(--amber)" },
-                { label: "NOI", fn: (y: any) => y.noi, day1: null, color: "var(--green)", bold: true },
-                { label: "Equity Out", fn: () => null, day1: -(ha.equity || 0), color: "var(--red)" },
-                { label: "Disposal (Net)", fn: (_: any, i: number) => i === holdYears - 1 ? (ha.netExitProceeds || 0) : null, day1: null, color: "var(--gold)", bold: true },
-              ].map((row, ri) => (
-                <tr key={ri} style={{ background: ri % 2 === 0 ? "transparent" : "rgba(255,255,255,.02)" }}>
-                  <td className="cf-td" style={{ paddingLeft: 18, fontWeight: row.bold ? 600 : 400, color: row.color }}>{row.label}</td>
-                  <td className="cf-td" style={{ color: row.day1 !== null && row.day1 !== undefined ? "var(--red)" : "var(--text-d)" }}>
-                    {row.day1 !== null && row.day1 !== undefined ? fmt(Math.abs(row.day1), sym) : "—"}
-                  </td>
-                  {Array.from({ length: holdYears }, (_, i) => {
-                    const v = yr[i] !== undefined ? row.fn(yr[i], i) : null;
-                    return (
-                      <td key={i} className="cf-td" style={{ color: v === null ? "var(--text-d)" : v < 0 ? "var(--red)" : row.color, fontWeight: row.bold ? 600 : 400 }}>
-                        {v === null ? "—" : fmt(Math.abs(v), sym)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {/* Summary return cards */}
-          <div className="return-cards" style={{ padding: "0 18px 4px" }}>
-            {[
-              { label: "Total Investment", value: fmt(ha.totalCost || 0, sym), color: "var(--text)" },
-              { label: "Profit", value: fmt(ha.profit || 0, sym), color: (ha.profit || 0) > 0 ? "var(--green)" : "var(--red)" },
-              { label: "Equity Multiple", value: fmtX(ha.moic || 0), color: (ha.moic || 0) > 2 ? "var(--green)" : "var(--amber)" },
-              { label: "IRR (Levered)", value: fmtPct(ha.irrLevered || 0), color: (ha.irrLevered || 0) > 0.15 ? "var(--green)" : (ha.irrLevered || 0) > 0.08 ? "var(--amber)" : "var(--red)" },
-            ].map(m => (
-              <div key={m.label} className="return-card">
-                <div className="return-card-label">{m.label}</div>
-                <div className="return-card-value" style={{ color: m.color }}>{m.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-
-
-
-      {/* ── RETURNS + DEAL STRUCTURE ── */}
-      <div className="two-col section-gap fade-up" style={{ animationDelay: ".44s" }}>
-        <div>
-          <div className="section-hdr">Returns Summary</div>
-          <div className="data-card">
-            {[
-              ["RevPAR", fmt(ha.revpar || 0, sym), "var(--gold)", false],
-              ["Total Revenue pa", fmt(ha.revenuePa || 0, sym), "var(--text-m)", false],
-              ["EBITDA pa", fmt(ha.ebitda || 0, sym), "var(--green)", false],
-              ["Stabilised NOI", fmt(ha.stabilisedNOI || 0, sym), "var(--text-m)", false],
-              ["Exit Value", fmt(ha.exitValue || 0, sym), "var(--gold)", true],
-              ["Total Investment", fmt(ha.totalCost || 0, sym), "var(--text-m)", false],
-              ["Equity In", fmt(ha.equity || snap.equity || 0, sym), "var(--gold)", false],
-              ["Profit", fmt(ha.profit || 0, sym), (ha.profit || 0) > 0 ? "var(--green)" : "var(--red)", false],
-              ["Return on Cost", fmtPct(ha.poc || 0), (ha.poc || 0) > 0.15 ? "var(--green)" : "var(--amber)", false],
-              ["Yield on Cost", fmtPct(ha.yoc || 0), "var(--blue)", false],
-              ["IRR (Unlevered)", fmtPct(ha.irr || 0), "var(--blue)", false],
-              ["IRR (Levered)", fmtPct(ha.irrLevered || 0), "var(--blue)", false],
-              ["Equity Multiple", fmtX(ha.moic || 0), (ha.moic || 0) > 2 ? "var(--green)" : "var(--text)", false],
-              ["DSCR / ICR", isFinite(ha.dscr) && ha.dscr < 999 ? fmtX(ha.dscr) : "—", (ha.dscr || 0) >= 1.5 ? "var(--green)" : (ha.dscr || 0) >= 1.25 ? "var(--amber)" : "var(--red)", false],
-              ["Payback Period", ha.paybackMonth ? `Month ${ha.paybackMonth}` : "Beyond horizon", "var(--text-m)", false],
-            ].map(([l, v, c, bold]: any) => (
-              <div key={l} className="data-row">
-                <span className={bold ? "data-label-bold" : "data-label"}>{l}</span>
-                <span className={bold ? "data-value-bold" : "data-value"} style={{ color: c }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-
-
-
-        <div>
-          <div className="section-hdr">Deal Structure</div>
-          <div className="data-card" style={{ marginBottom: 16 }}>
-            {[
-              ["Rooms", rooms > 0 ? rooms.toString() : "—", "var(--text)"],
-              ["Hold Period", `${holdYears} years`, "var(--text-m)"],
-              ["Capital Structure", capStructureLabel[capStructure] || capStructure, "var(--text-m)"],
-              ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—", "var(--text-m)"],
-              ["Brand / Franchise", snap.hotelBrand || "—", "var(--text-m)"],
-              ["Location", snap.location || "—", "var(--text-m)"],
-              ["Tenure", snap.tenure || "—", "var(--text-m)"],
-            ].map(([l, v, c]: any) => (
-              <div key={l} className="data-row">
-                <span className="data-label">{l}</span>
-                <span className="data-value" style={{ color: c }}>{v}</span>
-              </div>
-            ))}
-          </div>
-
-
-
-
-          <div className="section-hdr">Cost Breakdown</div>
-          <div className="data-card">
-            {[
-              ["Purchase Price", fmt(ha.purchasePrice || 0, sym), "var(--text-m)", false],
-              ["Property Tax (SDLT)", fmt(ha.sdlt || 0, sym), "var(--text-m)", false],
-              ["Legal & DD Costs", fmt((ha.legalCosts || 0) + (snap.financingDD || 0), sym), "var(--text-m)", false],
-              ["CapEx Budget", fmt(num(String(snap.capexBudget || 0)), sym), "var(--text-m)", false],
-              ["Arrangement Fee", fmt(ha.arrangementFee || 0, sym), "var(--amber)", false],
-              ["Interest (Total Hold)", fmt(ha.interestTotal || 0, sym), "var(--amber)", false],
-              ...((ha.imAcqFee || 0) > 0 ? [["IM Acquisition Fee", fmt(ha.imAcqFee, sym), "var(--amber)", false]] : []),
-              ...((ha.imBasePATotal || 0) > 0 ? [["IM Base Charge (total)", fmt(ha.imBasePATotal, sym), "var(--amber)", false]] : []),
-              ["Total Investment", fmt(ha.totalCost || 0, sym), "var(--gold)", true],
-            ].map(([l, v, c, bold]: any) => (
-              <div key={l} className="data-row">
-                <span className={bold ? "data-label-bold" : "data-label"} style={{ color: bold ? "var(--gold)" : undefined }}>{l}</span>
-                <span className={bold ? "data-value-bold" : "data-value"} style={{ color: c }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-
-
-
-      {/* ── IM FEES (if applicable) ── */}
-      {((ha.imAcqFee || 0) + (ha.imBasePATotal || 0) + (ha.imIncentiveProfit || 0) + (ha.imIncentiveSales || 0) > 0) && (
-        <div className="section-gap fade-up" style={{ animationDelay: ".48s" }}>
-          <div className="section-hdr">Investment Manager Fees</div>
-          <div className="data-card" style={{ borderColor: "rgba(82,196,152,.2)", background: "rgba(82,196,152,.04)" }}>
-            {[
-              ["Acquisition Fee (one-off)", fmt(ha.imAcqFee || 0, sym)],
-              ["Base Annual Charge (total hold)", fmt(ha.imBasePATotal || 0, sym)],
-              ["Incentive on Gross Sales", fmt(ha.imIncentiveSales || 0, sym)],
-              ["Incentive on Profit", fmt(ha.imIncentiveProfit || 0, sym)],
-              ["Total IM Fees", fmt((ha.imAcqFee || 0) + (ha.imBasePATotal || 0) + (ha.imIncentiveProfit || 0) + (ha.imIncentiveSales || 0), sym)],
-            ].map(([l, v], i, arr) => (
-              <div key={l} className="data-row" style={{ borderBottom: i === arr.length - 1 ? "none" : undefined }}>
-                <span className={i === arr.length - 1 ? "data-label-bold" : "data-label"} style={{ color: i === arr.length - 1 ? "var(--gold)" : undefined }}>{l}</span>
-                <span className={i === arr.length - 1 ? "data-value-bold" : "data-value"} style={{ color: i === arr.length - 1 ? "var(--gold)" : "var(--amber)" }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-
-
-
-// ── SIMPLE HOTEL / OTHER ASSET SHARE SECTION ─────────────────────────────────
-function StandardShare({ snap, sym, appraisal }: { snap: any; sym: string; appraisal: any }) {
-  const assetType = snap.assetType || "BTR";
-  const gdv = appraisal.gdv || 0;
-  const totalCost = appraisal.total_cost || 0;
-  const profit = appraisal.profit || 0;
-  const poc = appraisal.profit_on_cost || 0;
-  const irr = appraisal.irr_unlevered || 0;
-  const irrLevered = appraisal.irr_levered || 0;
-  const pocColor = poc > 0.2 ? "var(--green)" : poc > 0.1 ? "var(--amber)" : "var(--red)";
-  const annualRate = (num(String(snap.benchmarkRate || 3.97)) + num(String(snap.marginOverBenchmark || 2.5))) / 100;
-  const costs = calcCosts(snap);
-  const loanAmount = (costs.landCost + costs.buildCost) * (num(String(snap.ltc || 65)) / 100);
-  const arrangementFee = loanAmount * (num(String(snap.arrangementFeePct || 1)) / 100);
-  const buildMonths = Math.max(1, Math.round(num(String(snap.programmMonths || 24))));
-  const interestEst = loanAmount * annualRate * (buildMonths / 12) * 0.55;
-  const totalFinanceCost = arrangementFee + interestEst;
-  const snapMoic = snap.moic || 0;
-  const snapDscr = snap.dscr || 0;
-
-
-
-
-  const returnsRows = assetType === "BTR" ? [
-    ["GDV (Exit)", fmt(gdv, sym), "var(--gold)", true],
-    ["Total Cost", fmt(totalCost, sym), "var(--text-m)", false],
-    ["Equity In", fmt(snap.equity||0, sym), "var(--gold)", false],
-    ["Profit", fmt(profit, sym), profit > 0 ? "var(--green)" : "var(--red)", false],
-    ["Profit on Cost", fmtPct(poc), pocColor, false],
-    ["Yield on Cost", snap.exitYield ? fmtPct(snap.exitYield / 100) : "—", "var(--text-m)", false],
-    ["IRR (Unlevered)", fmtPct(irr), "var(--blue)", false],
-    ["IRR (Levered)", fmtPct(irrLevered), "var(--blue)", false],
-  ] : assetType === "BTS" ? [
-    ["GDV", fmt(gdv, sym), "var(--gold)", true],
-    ["Total Cost", fmt(totalCost, sym), "var(--text-m)", false],
-    ["Equity In", fmt(snap.equity||0, sym), "var(--gold)", false],
-    ["Profit", fmt(profit, sym), profit > 0 ? "var(--green)" : "var(--red)", false],
-    ["Profit on Cost", fmtPct(poc), pocColor, false],
-    ["Profit on GDV", gdv > 0 ? fmtPct(profit / gdv) : "—", "var(--text-m)", false],
-    ["IRR (Unlevered)", fmtPct(irr), "var(--blue)", false],
-    ["IRR (Levered)", fmtPct(irrLevered), "var(--blue)", false],
-  ] : assetType === "Hotel" ? [
-    ["Exit Value", fmt(gdv, sym), "var(--gold)", true],
-    ["Total Investment", fmt(totalCost, sym), "var(--text-m)", false],
-    ["Equity In", fmt(snap.equity||0, sym), "var(--gold)", false],
-    ["Profit", fmt(profit, sym), profit > 0 ? "var(--green)" : "var(--red)", false],
-    ["Return on Cost", fmtPct(poc), pocColor, false],
-    ["IRR (Unlevered)", fmtPct(irr), "var(--blue)", false],
-    ["IRR (Levered)", fmtPct(irrLevered), "var(--blue)", false],
-  ] : [
-    ["Sale Price", fmt(gdv, sym), "var(--gold)", true],
-    ["Total Cost", fmt(totalCost, sym), "var(--text-m)", false],
-    ["Equity In", fmt(snap.equity||0, sym), "var(--gold)", false],
-    ["Net Proceeds", fmt(profit + totalCost, sym), "var(--text-m)", false],
-    ["Profit", fmt(profit, sym), profit > 0 ? "var(--green)" : "var(--red)", false],
-    ["ROI on Cost", fmtPct(poc), pocColor, false],
-    ["IRR (Annualised)", fmtPct(irr), "var(--blue)", false],
-  ];
-
-
-
-
-  const detailRows = assetType === "BTR" ? [
-    ["Asset Type", "Build to Rent"], ["Location", snap.location || "—"], ["Currency", snap.currency || "GBP"],
-    ["Programme", `${snap.programmMonths || "—"}m build · ${snap.stabilisationMonths || "—"}m stabilisation`],
-    ["Exit Yield", snap.exitYield ? `${snap.exitYield}%` : "—"], ["Finance Rate", annualRate > 0 ? `${(annualRate * 100).toFixed(2)}% all-in` : "—"], ["LTC Ratio", snap.ltc ? `${snap.ltc}%` : "—"],
-  ] : assetType === "BTS" ? [
-    ["Asset Type", "Build to Sell"], ["Location", snap.location || "—"], ["Currency", snap.currency || "GBP"],
-    ["Programme", `${snap.programmMonths || "—"}m build · ${snap.absorptionMonths || "—"}m absorption`],
-    ["Units", snap.units ? snap.units.reduce((s: number, u: any) => s + num(String(u.count)), 0).toString() : "—"],
-    ["Finance Rate", annualRate > 0 ? `${(annualRate * 100).toFixed(2)}% all-in` : "—"], ["LTC Ratio", snap.ltc ? `${snap.ltc}%` : "—"],
-  ] : assetType === "Hotel" ? [
-    ["Asset Type", "Hotel — Simple Mode"], ["Location", snap.location || "—"], ["Rooms", snap.rooms?.toString() || "—"],
-    ["Star Rating", snap.starRating ? `${snap.starRating}★` : "—"],
-    ["Programme", `${snap.programmMonths || "—"}m refurb · ${snap.stabilisationMonths || "—"}m stabilisation`],
-    ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—"], ["Finance Rate", annualRate > 0 ? `${(annualRate * 100).toFixed(2)}% all-in` : "—"],
-  ] : [
-    ["Asset Type", "House Flip"], ["Location", snap.location || "—"], ["Currency", snap.currency || "GBP"],
-    ["Hold Period", `${snap.bridgingTermMonths || snap.programmMonths || "—"}m`],
-    ["Sale Price", fmt(num(String(snap.salePrice || 0)), sym)], ["Agent Fee", snap.agentFeePct ? `${snap.agentFeePct}%` : "—"],
-  ];
-
-
-
-
-  const costRows = assetType === "BTR" || assetType === "BTS" ? [
-    { label: "Land / Acquisition", value: costs.landCost },
-    { label: "Build Cost", value: costs.buildCost, sub: costs.buildCostPsf > 0 ? `${sym}${costs.buildCostPsf}psf · ${Math.round(costs.totalSqft).toLocaleString()}sqft` : undefined },
-    { label: "Professional Fees", value: costs.profFees },
-    { label: "Contingency", value: costs.contingency },
-    ...(costs.otherCosts > 0 ? [{ label: "Other Costs", value: costs.otherCosts }] : []),
-    ...(costs.agentAndMarketing > 0 ? [{ label: "Agent & Marketing", value: costs.agentAndMarketing }] : []),
-    { label: "Arrangement Fee", value: arrangementFee, amber: true },
-    { label: "Interest (Est.)", value: interestEst, amber: true },
-    { label: "Total Cost", value: totalCost, bold: true },
-  ] : assetType === "Hotel" ? [
-    { label: "Purchase Price", value: costs.landCost },
-    { label: "CapEx Budget", value: costs.buildCost },
-    { label: "Arrangement Fee", value: arrangementFee, amber: true },
-    { label: "Interest (Est.)", value: interestEst, amber: true },
-    { label: "Total Investment", value: totalCost, bold: true },
-  ] : [
-    { label: "Purchase Price", value: costs.landCost },
-    { label: "Refurb Budget", value: costs.buildCost },
-    { label: "Finance Cost", value: totalFinanceCost, amber: true },
-    { label: "Total Cost", value: totalCost, bold: true },
-  ];
-
-
-
-
-  return (
-    <>
-      <div className="two-col section-gap fade-up" style={{ animationDelay: ".36s" }}>
-        <div>
-          <div className="section-hdr">Returns Summary</div>
-          <div className="data-card">
-            {returnsRows.map(([l, v, c, bold]: any) => (
-              <div key={l} className="data-row">
-                <span className={bold ? "data-label-bold" : "data-label"}>{l}</span>
-                <span className={bold ? "data-value-bold" : "data-value"} style={{ color: c || "var(--text-m)" }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="section-hdr">Project Details</div>
-          <div className="data-card">
-            {detailRows.map(([l, v]: string[]) => (
-              <div key={l} className="data-row">
-                <span className="data-label">{l}</span>
-                <span className="data-value" style={{ color: "var(--text-m)" }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="section-gap fade-up" style={{ animationDelay: ".4s" }}>
-        <div className="section-hdr">Cost Breakdown</div>
-        <div className="data-card">
-          {costRows.map((item: any) => (
-            <div key={item.label} className="data-row">
-              <div>
-                <span className={item.bold ? "data-label-bold" : "data-label"} style={{ color: item.bold ? "var(--gold)" : item.amber ? "var(--amber)" : "var(--text-m)" }}>{item.label}</span>
-                {item.sub && <span style={{ fontSize: 10, color: "var(--text-d)", marginLeft: 8, fontFamily: "var(--font-mono)" }}>{item.sub}</span>}
-              </div>
-              <span className={item.bold ? "data-value-bold" : "data-value"} style={{ color: item.bold ? "var(--gold)" : item.amber ? "var(--amber)" : "var(--text-m)" }}>{fmt(item.value || 0, sym)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      {snap.units?.length > 0 && (
-        <div className="section-gap fade-up" style={{ animationDelay: ".44s" }}>
-          <div className="section-hdr">Unit Mix</div>
-          <div className="data-card" style={{ padding: "16px 22px" }}>
-            <table className="unit-table">
-              <thead>
-                <tr>
-                  <th className="unit-th">Type</th>
-                  <th className="unit-th" style={{ textAlign: "right" }}>Units</th>
-                  {assetType === "BTS" && <th className="unit-th" style={{ textAlign: "right" }}>Price psf</th>}
-                  {assetType === "BTR" && <th className="unit-th" style={{ textAlign: "right" }}>Rent pcm</th>}
-                  <th className="unit-th" style={{ textAlign: "right" }}>Size</th>
-                  <th className="unit-th" style={{ textAlign: "right" }}>{assetType === "BTS" ? "Revenue" : "Gross pa"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {snap.units.map((u: any, i: number) => {
-                  const gross = assetType === "BTS"
-                    ? num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf))
-                    : num(String(u.count)) * num(String(u.rentPcm)) * 12;
-                  return (
-                    <tr key={i}>
-                      <td className="unit-td unit-td-name">{u.type}</td>
-                      <td className="unit-td">{u.count}</td>
-                      {assetType === "BTS" && <td className="unit-td">{sym}{u.salePricePsf}psf</td>}
-                      {assetType === "BTR" && <td className="unit-td">{sym}{u.rentPcm}pcm</td>}
-                      <td className="unit-td">{u.size} sqft</td>
-                      <td className="unit-td" style={{ color: "var(--gold)" }}>{fmt(gross, sym)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-
-
-
-// ── MAIN SHARE PAGE ───────────────────────────────────────────────────────────
-function SharePage() {
-  const params = useParams();
-  const token = params?.token as string;
-  const [appraisal, setAppraisal] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("light");
-
-
-
-
-  useEffect(() => {
-    if (!token) return;
-    const load = async () => {
-      const { data } = await supabase.from("appraisals").select("*").eq("share_token", token).single();
-      if (!data) { setNotFound(true); setLoading(false); return; }
-      setAppraisal(data); setLoading(false);
-    };
-    load();
-  }, [token]);
-
-
-
-
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
-  );
-
-
-
-
-  if (notFound) return (
-    <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 24px", textAlign: "center" }}>
-      <style>{CSS}</style>
-      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 48, color: "#4D5570", fontWeight: 300 }}>◈</div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 300, color: "#F0EEE8" }}>Appraisal not found</div>
-      <div style={{ fontSize: 14, color: "#4D5570" }}>This link may have expired or been revoked.</div>
-    </div>
-  );
-
-
-
-
-  const snap = appraisal?.snapshot || {};
-  const assetType = snap.assetType || "BTR";
-  const isHotelAdvanced = assetType === "Hotel" && snap.hotelMode === "advanced" && snap.hotelAdv;
-  const sym = { GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" }[snap.currency as string] || "£";
-
-
-
-
-  // Hero metrics — advanced hotel uses hotelAdv fields
-  const ha = snap.hotelAdv || {};
-  const gdv = appraisal.gdv || 0;
-  const profit = appraisal.profit || 0;
-  const poc = appraisal.profit_on_cost || 0;
-  const irr = appraisal.irr_unlevered || 0;
-  const irrLevered = appraisal.irr_levered || 0;
-  const pocColor = poc > 0.2 ? "var(--green)" : poc > 0.1 ? "var(--amber)" : "var(--red)";
-
-
-
-
-  const heroMetrics = isHotelAdvanced ? [
-    { label: "Exit Value", value: fmt(ha.exitValue || gdv, sym), color: "var(--gold)" },
-    { label: "Profit", value: fmt(ha.profit || profit, sym), color: (ha.profit || profit) > 0 ? "var(--green)" : "var(--red)" },
-    { label: "Return on Cost", value: fmtPct(ha.poc || poc), color: (ha.poc || poc) > 0.15 ? "var(--green)" : "var(--amber)" },
-    { label: "IRR (Levered)", value: fmtPct(ha.irrLevered || irrLevered), color: "var(--blue)" },
-    { label: "Equity In", value: fmt(ha.equity || snap.equity || 0, sym), color: "var(--gold)" },
-  ] : assetType === "BTR" ? [
-    { label: "GDV / Exit Value", value: fmt(gdv, sym), color: "var(--gold)" },
-    { label: "Profit", value: fmt(profit, sym), color: profit > 0 ? "var(--green)" : "var(--red)" },
-    { label: "Profit on Cost", value: fmtPct(poc), color: pocColor },
-    { label: "IRR (Unlevered)", value: fmtPct(irr), color: "var(--blue)" },
-    { label: "Equity In", value: fmt(snap.equity||0, sym), color: "var(--gold)" },
-  ] : assetType === "BTS" ? [
-    { label: "GDV", value: fmt(gdv, sym), color: "var(--gold)" },
-    { label: "Profit", value: fmt(profit, sym), color: profit > 0 ? "var(--green)" : "var(--red)" },
-    { label: "Profit on Cost", value: fmtPct(poc), color: pocColor },
-    { label: "IRR (Unlevered)", value: fmtPct(irr), color: "var(--blue)" },
-    { label: "Equity In", value: fmt(snap.equity||0, sym), color: "var(--gold)" },
-  ] : assetType === "Hotel" ? [
-    { label: "Exit Value", value: fmt(gdv, sym), color: "var(--gold)" },
-    { label: "Profit", value: fmt(profit, sym), color: profit > 0 ? "var(--green)" : "var(--red)" },
-    { label: "Return on Cost", value: fmtPct(poc), color: pocColor },
-    { label: "IRR (Unlevered)", value: fmtPct(irr), color: "var(--blue)" },
-    { label: "Equity In", value: fmt(snap.equity||0, sym), color: "var(--gold)" },
-  ] : [
-    { label: "Sale Price", value: fmt(gdv, sym), color: "var(--gold)" },
-    { label: "Profit", value: fmt(profit, sym), color: profit > 0 ? "var(--green)" : "var(--red)" },
-    { label: "ROI on Cost", value: fmtPct(poc), color: pocColor },
-    { label: "IRR (Annualised)", value: fmtPct(irr), color: "var(--blue)" },
-    { label: "Equity In", value: fmt(snap.equity||0, sym), color: "var(--gold)" },
-  ];
-
-
-
-
-  const instMetrics = isHotelAdvanced ? [
-    { label: "Equity Multiple", value: fmtX(ha.moic || snap.moic || 0) },
-    { label: "DSCR / ICR", value: isFinite(ha.dscr) && ha.dscr < 999 ? fmtX(ha.dscr) : "—" },
-    { label: "GOP Margin", value: ha.revenuePa > 0 ? fmtPct(ha.ebitda / ha.revenuePa) : "—" },
-    { label: "EBITDA / Room", value: snap.rooms > 0 ? fmt(ha.ebitda / num(String(snap.rooms)), sym) : "—" },
-    { label: "Payback", value: ha.paybackMonth ? `Month ${ha.paybackMonth}` : "—" },
-    { label: "Hold Period", value: `${snap.holdYears || 5} years` },
-  ] : assetType === "BTR" ? [
-    { label: "IRR (Levered)", value: fmtPct(irrLevered) },
-    { label: "Equity Multiple", value: fmtX(snap.moic || 0) },
-    { label: "DSCR / ICR", value: fmtX(snap.dscr || 0) },
-    { label: "Yield on Cost", value: snap.exitYield ? `${snap.exitYield}%` : "—" },
-  ] : assetType === "BTS" ? [
-    { label: "IRR (Levered)", value: fmtPct(irrLevered) },
-    { label: "Equity Multiple", value: fmtX(snap.moic || 0) },
-    { label: "Profit on GDV", value: gdv > 0 ? fmtPct(profit / gdv) : "—" },
-    { label: "Absorption", value: snap.absorptionMonths ? `${snap.absorptionMonths}m` : "—" },
-  ] : assetType === "Hotel" ? [
-    { label: "IRR (Levered)", value: fmtPct(irrLevered) },
-    { label: "Equity Multiple", value: fmtX(snap.moic || 0) },
-    { label: "DSCR / ICR", value: fmtX(snap.dscr || 0) },
-    { label: "Yield on Cost", value: snap.exitCapRate ? `${snap.exitCapRate}%` : "—" },
-  ] : [
-    { label: "IRR (Annualised)", value: fmtPct(irr) },
-    { label: "Equity Multiple", value: fmtX(snap.moic || 0) },
-    { label: "Bridging Rate", value: snap.bridgingRatePct ? `${snap.bridgingRatePct}%pm` : "—" },
-    { label: "Hold Period", value: snap.bridgingTermMonths ? `${snap.bridgingTermMonths}m` : "—" },
-  ];
-
-
-
-
-  // ── EXCEL EXPORT ────────────────────────────────────────────────────────────
-  const exportExcel = () => {
-    const projectName = appraisal.name || "Valora Appraisal";
-    const annualRate = (num(String(snap.benchmarkRate || 3.97)) + num(String(snap.marginOverBenchmark || 2.5))) / 100;
-
-    // Sheet 1: Summary
-    const summaryData = [
-      ["VALORA — APPRAISAL SUMMARY", ""],
-      ["", ""],
-      ["Project", projectName],
-      ["Asset Type", assetType],
-      ["Location", snap.location || "—"],
-      ["Currency", snap.currency || "GBP"],
-      ["Date", new Date().toLocaleDateString("en-GB")],
-      ["", ""],
-      ["RETURNS", ""],
-      [assetType === "Flip" ? "Sale Price" : assetType === "Hotel" ? "Exit Value" : "GDV", gdv],
-      ["Total Cost", appraisal.total_cost || 0],
-      ["Equity In", snap.equity || 0],
-      ["Profit", profit],
-      ["Profit on Cost", `${(poc * 100).toFixed(1)}%`],
-      ["IRR (Unlevered)", `${(irr * 100).toFixed(1)}%`],
-      ["IRR (Levered)", `${(irrLevered * 100).toFixed(1)}%`],
-      ["Equity Multiple", snap.moic ? `${snap.moic.toFixed(2)}x` : "—"],
-      ["DSCR", snap.dscr && snap.dscr < 999 ? `${snap.dscr.toFixed(2)}x` : "N/A (All Equity)"],
-      ["", ""],
-      ["KEY ASSUMPTIONS", ""],
-      ["Programme", `${snap.programmMonths || "—"} months`],
-      ["Finance Rate (all-in)", annualRate > 0 ? `${(annualRate * 100).toFixed(2)}%` : "—"],
-      ["LTC Ratio", snap.ltc ? `${snap.ltc}%` : "—"],
-      ...(assetType === "BTR" ? [["Exit Yield", snap.exitYield ? `${snap.exitYield}%` : "—"], ["Stabilisation", `${snap.stabilisationMonths || "—"} months`]] : []),
-      ...(assetType === "BTS" ? [["Absorption Period", `${snap.absorptionMonths || "—"} months`]] : []),
-      ...(assetType === "Hotel" ? [["Rooms", snap.rooms || "—"], ["Exit Cap Rate", snap.exitCapRate ? `${snap.exitCapRate}%` : "—"], ["ADR", snap.adr || "—"], ["Occupancy", snap.occupancy ? `${snap.occupancy}%` : "—"]] : []),
-    ];
-
-    // Sheet 2: Cost Breakdown
-    const costs = calcCosts(snap);
-    const loanAmt = (costs.landCost + costs.buildCost) * (num(String(snap.ltc || 65)) / 100);
-    const arrFee = loanAmt * (num(String(snap.arrangementFeePct || 1)) / 100);
-    const bldMonths = Math.max(1, Math.round(num(String(snap.programmMonths || 24))));
-    const intEst = loanAmt * annualRate * (bldMonths / 12) * 0.55;
-
-    const costData = [
-      ["COST BREAKDOWN", ""],
-      ["", ""],
-      [assetType === "Hotel" ? "Purchase Price" : "Land / Acquisition", costs.landCost],
-      [assetType === "Hotel" ? "CapEx Budget" : "Build Cost", costs.buildCost],
-      ...(costs.profFees > 0 ? [["Professional Fees", costs.profFees]] : []),
-      ...(costs.contingency > 0 ? [["Contingency", costs.contingency]] : []),
-      ...(costs.otherCosts > 0 ? [["Other Costs", costs.otherCosts]] : []),
-      ...(costs.agentAndMarketing > 0 ? [["Agent & Marketing", costs.agentAndMarketing]] : []),
-      ["Arrangement Fee", arrFee],
-      ["Interest (Est.)", intEst],
-      ["", ""],
-      ["TOTAL COST", appraisal.total_cost || 0],
-    ];
-
-    // Sheet 3: Cashflow — values only, no formulas
-    let cfData: any[][] = [];
-    if (isHotelAdvanced && ha.yearRevenue?.length > 0) {
-      const holdYrs = num(String(snap.holdYears || 5));
-      const yr = ha.yearRevenue || [];
-      const headers = ["", "Day 1", ...Array.from({ length: holdYrs }, (_: any, i: number) => i === holdYrs - 1 ? `Yr ${i+1} (Exit)` : `Yr ${i+1}`)];
-      cfData = [
-        ["INVESTOR CASHFLOW — YEAR BY YEAR", ""],
-        ["Values only — no formulas. For live scenario analysis visit valoraplatform.io", ""],
-        ["", ""],
-        headers,
-        ["Revenue", "—", ...yr.map((y: any) => Math.round(y.totalRev || 0))],
-        ["EBITDA", "—", ...yr.map((y: any) => Math.round(y.ebitda || 0))],
-        ["FF&E Reserve", "—", ...yr.map((y: any) => Math.round(-(y.ffe || 0)))],
-        ["NOI", "—", ...yr.map((y: any) => Math.round(y.noi || 0))],
-        ["Equity Out", `(${Math.round(ha.equity || 0)})`, ...Array(holdYrs).fill("—")],
-        ["Exit Proceeds (Net)", "—", ...Array(holdYrs - 1).fill("—"), Math.round(ha.netExitProceeds || 0)],
-        ["", ""],
-        ["RETURNS SUMMARY", ""],
-        ["Total Investment", Math.round(ha.totalCost || 0)],
-        ["Profit", Math.round(ha.profit || 0)],
-        ["Return on Cost", `${((ha.poc || 0) * 100).toFixed(1)}%`],
-        ["IRR (Unlevered)", `${((ha.irr || 0) * 100).toFixed(1)}%`],
-        ["IRR (Levered)", `${((ha.irrLevered || 0) * 100).toFixed(1)}%`],
-        ["Equity Multiple", `${(ha.moic || 0).toFixed(2)}x`],
-        ["DSCR / ICR", ha.dscr && ha.dscr < 999 ? `${ha.dscr.toFixed(2)}x` : "N/A (All Equity)"],
-        ["Payback", ha.paybackMonth ? `Month ${ha.paybackMonth}` : "Beyond horizon"],
-      ];
-    } else {
-      const totalCost = appraisal.total_cost || 0;
-      const equityIn = snap.equity || 0;
-      const programme = num(String(snap.programmMonths || 24));
-      const absorption = num(String(snap.absorptionMonths || 0));
-      const stabilisation = num(String(snap.stabilisationMonths || 0));
-      const totalMonths = programme + (absorption || stabilisation);
-      cfData = [
-        ["CASHFLOW SUMMARY", ""],
-        ["Values only — no formulas. Full month-by-month cashflow available inside Valora at valoraplatform.io", ""],
-        ["", ""],
-        ["PROGRAMME", ""],
-        ["Total Duration", `${totalMonths} months`],
-        ["Build Period", `${programme} months`],
-        ...(absorption > 0 ? [["Absorption Period", `${absorption} months`]] : []),
-        ...(stabilisation > 0 ? [["Stabilisation Period", `${stabilisation} months`]] : []),
-        ["", ""],
-        ["CAPITAL", ""],
-        ["Total Cost / Investment", totalCost],
-        ["Equity In", equityIn],
-        ["Loan Amount", totalCost - equityIn],
-        ["Arrangement Fee", arrFee],
-        ["Interest (Est.)", intEst],
-        ["", ""],
-        ["EXIT", ""],
-        [assetType === "Flip" ? "Sale Price" : "GDV / Exit Value", gdv],
-        ["Profit", profit],
-        ["Profit on Cost", `${(poc * 100).toFixed(1)}%`],
-        ["IRR (Unlevered)", `${(irr * 100).toFixed(1)}%`],
-        ["IRR (Levered)", `${(irrLevered * 100).toFixed(1)}%`],
-        ["Equity Multiple", snap.moic ? `${snap.moic.toFixed(2)}x` : "—"],
-        ["Payback", snap.paybackMonth ? `Month ${snap.paybackMonth}` : "—"],
-      ];
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION TRACKING — fingerprint that doesn't require cookies
+// ─────────────────────────────────────────────────────────────────────────────
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return "ssr";
+  const KEY = "valora-share-session";
+  try {
+    let s = sessionStorage.getItem(KEY);
+    if (!s) {
+      s = `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem(KEY, s);
     }
+    return s;
+  } catch {
+    return `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
 
-    // Sheet 4: Unit Mix (BTR/BTS only)
-    const unitData = snap.units?.length > 0 ? [
-      ["UNIT MIX", "", "", "", ""],
-      ["Type", "Units", assetType === "BTS" ? "Price psf" : "Rent pcm", "Size (sqft)", assetType === "BTS" ? "Revenue" : "Gross pa"],
-      ...snap.units.map((u: any) => {
-        const gross = assetType === "BTS"
-          ? num(String(u.count)) * num(String(u.size)) * num(String(u.salePricePsf))
-          : num(String(u.count)) * num(String(u.rentPcm)) * 12;
-        return [u.type, num(String(u.count)), assetType === "BTS" ? num(String(u.salePricePsf)) : num(String(u.rentPcm)), num(String(u.size)), gross];
-      }),
-    ] : null;
+// ─────────────────────────────────────────────────────────────────────────────
+// SPINNER
+// ─────────────────────────────────────────────────────────────────────────────
+const Spinner = () => (
+  <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+  </div>
+);
 
-    // Build workbook
-    const wb = XLSX.utils.book_new();
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    wsSummary["!cols"] = [{ wch: 28 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
-    const wsCosts = XLSX.utils.aoa_to_sheet(costData);
-    wsCosts["!cols"] = [{ wch: 28 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, wsCosts, "Cost Breakdown");
-    const wsCF = XLSX.utils.aoa_to_sheet(cfData);
-    wsCF["!cols"] = [{ wch: 32 }, ...Array(20).fill({ wch: 16 })];
-    XLSX.utils.book_append_sheet(wb, wsCF, "Cashflow");
-    if (unitData) {
-      const wsUnits = XLSX.utils.aoa_to_sheet(unitData);
-      wsUnits["!cols"] = [{ wch: 18 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, wsUnits, "Unit Mix");
+// ─────────────────────────────────────────────────────────────────────────────
+// GATE — password / email / public
+// ─────────────────────────────────────────────────────────────────────────────
+function PasswordGate({ slug, onUnlock }: { slug: string; onUnlock: (linkId: string) => void }) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!password) return;
+    setBusy(true); setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("verify_share_password", {
+      p_slug: slug, p_password: password,
+    });
+    setBusy(false);
+    if (rpcErr || !data) {
+      setError("Incorrect password.");
+      return;
     }
-    XLSX.writeFile(wb, `${projectName.replace(/[^a-zA-Z0-9]/g, "_")}_Valora.xlsx`);
+    onUnlock(data as string);
   };
-  // ────────────────────────────────────────────────────────────────────────────
 
-  const typeCol = TYPE_COLOR[assetType] || "var(--gold)";
-  const typeBg = TYPE_BG[assetType] || "rgba(82,196,152,.12)";
-  const displayPoc = isHotelAdvanced ? (ha.poc || poc) : poc;
-  const displayPocColor = isHotelAdvanced
-    ? ((ha.poc || poc) > 0.15 ? "var(--green)" : "var(--amber)")
-    : pocColor;
-  const programme = isHotelAdvanced
-    ? `${snap.holdYears || 5}-year institutional hold · ${snap.rooms || "—"} keys`
-    : assetType === "BTR" ? `${snap.programmMonths || "—"}m build · ${snap.stabilisationMonths || "—"}m stabilisation`
-      : assetType === "BTS" ? `${snap.programmMonths || "—"}m build · ${snap.absorptionMonths || "—"}m absorption`
-        : assetType === "Hotel" ? `${snap.programmMonths || "—"}m refurb · ${snap.stabilisationMonths || "—"}m stabilisation`
-          : `${snap.bridgingTermMonths || snap.programmMonths || "—"}m hold`;
+  return (
+    <div className="gate-wrap">
+      <div className="gate-card fade-up">
+        <div className="gate-icon">◆</div>
+        <div className="gate-title">Password required</div>
+        <div className="gate-sub">This appraisal has been shared with restricted access. Enter the password provided by the sponsor.</div>
+        {error && <div className="gate-error">{error}</div>}
+        <input
+          type="password" className="gate-input" placeholder="Password"
+          value={password} onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && submit()} autoFocus
+        />
+        <button className="gate-btn" onClick={submit} disabled={busy || !password}>
+          {busy ? "Verifying…" : "Unlock"}
+        </button>
+        <div className="gate-foot">Powered by Valora · Strictly Confidential</div>
+      </div>
+    </div>
+  );
+}
 
+function EmailGate({ onSubmit }: { onSubmit: (email: string) => void }) {
+  const [email, setEmail] = useState("");
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return (
+    <div className="gate-wrap">
+      <div className="gate-card fade-up">
+        <div className="gate-icon">✉</div>
+        <div className="gate-title">Enter your email to continue</div>
+        <div className="gate-sub">The sponsor will be notified that you've opened this appraisal. Your email is used for access only — no marketing.</div>
+        <input
+          type="email" className="gate-input" placeholder="you@firm.com"
+          value={email} onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => valid && e.key === "Enter" && onSubmit(email)} autoFocus
+        />
+        <button className="gate-btn" onClick={() => onSubmit(email)} disabled={!valid}>
+          Continue
+        </button>
+        <div className="gate-foot">Powered by Valora · Strictly Confidential</div>
+      </div>
+    </div>
+  );
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ASSUMPTION LEDGER (left rail)
+// ─────────────────────────────────────────────────────────────────────────────
+function AssumptionLedger({
+  snap, sliders, overrides, onOverride, onReset, sym,
+}: {
+  snap: any;
+  sliders: SliderSpec[];
+  overrides: Overrides;
+  onOverride: (path: string, value: number, originalValue: number) => void;
+  onReset: () => void;
+  sym: string;
+}) {
+  const visibleSliders = sliders.filter(s => !s.visible || s.visible(snap));
+  const hasOverrides = hasActiveOverrides(overrides);
 
+  return (
+    <div className="ledger">
+      <div className="ledger-hdr">
+        <span>Assumptions</span>
+        <button className="ledger-reset" onClick={onReset} disabled={!hasOverrides}>
+          {hasOverrides ? "Reset" : "Sponsor's case"}
+        </button>
+      </div>
+      {visibleSliders.map(spec => {
+        const base = spec.getBase(snap);
+        const [min, max] = spec.getRange(base);
+        const current = (overrides[spec.path] as number) ?? base;
+        const isFlexed = overrides[spec.path] !== undefined;
+        const fmtVal = (v: number) => {
+          if (spec.unit === "%") return `${v.toFixed(2)}%`;
+          if (spec.unit === "currency") return fmt(v, sym);
+          if (spec.unit === "ratio") return v.toFixed(2);
+          if (spec.unit === "months") return `${Math.round(v)}m`;
+          return v.toLocaleString();
+        };
+        return (
+          <div key={spec.path} className={`slider-row ${isFlexed ? "flexed" : ""}`}>
+            <div className="slider-top">
+              <span className="slider-label">{spec.label}</span>
+              <span className={`slider-value ${isFlexed ? "" : "unchanged"}`}>{fmtVal(current)}</span>
+            </div>
+            <input
+              type="range" className="slider-input"
+              min={min} max={max} step={spec.step} value={current}
+              onChange={e => onOverride(spec.path, parseFloat(e.target.value), base)}
+            />
+            <div className="slider-range">
+              <span>{fmtVal(min)}</span>
+              <span>{fmtVal(max)}</span>
+            </div>
+            {spec.hint && <div className="slider-hint">{spec.hint}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIVE METRIC CELL — animates colour shift when value crosses thresholds
+// ─────────────────────────────────────────────────────────────────────────────
+function MetricCell({ label, value, delta, baseColor }: {
+  label: string; value: string; delta?: { pct: number; absolute: string } | null; baseColor: string;
+}) {
+  return (
+    <div className="metric-cell">
+      <div className="metric-cell-label">{label}</div>
+      <div className="metric-cell-value" style={{ color: baseColor }}>{value}</div>
+      {delta && Math.abs(delta.pct) > 0.001 && (
+        <div className={`metric-cell-delta ${delta.pct > 0 ? "up" : "down"}`}>
+          {delta.pct > 0 ? "▲" : "▼"} {delta.absolute}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN ROOM
+// ─────────────────────────────────────────────────────────────────────────────
+function UnderwriteRoom({
+  link, appraisal, viewId,
+}: {
+  link: any; appraisal: any; viewId: string | null;
+}) {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return "light";
+    return (localStorage.getItem("valora-theme") as any) || "light";
+  });
+  useEffect(() => { try { localStorage.setItem("valora-theme", theme); } catch {} }, [theme]);
+
+  const sponsorSnap = appraisal.snapshot || {};
+  const assetType = sponsorSnap.assetType || "BTR";
+  const sym = ({ GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" } as any)[sponsorSnap.currency] || "£";
+
+  // ── OVERRIDES STATE ────────────────────────────────────────────────────────
+  const [overrides, setOverrides] = useState<Overrides>({});
+  const sliders = getSlidersForSnap(sponsorSnap);
+
+  // ── LIVE COMPUTE ───────────────────────────────────────────────────────────
+  // Single source of truth — every render recomputes from sponsor snap + overrides.
+  // Both `live` and `sponsor` results are computed so we can show deltas vs. the
+  // sponsor's case. Cheap because calcAll is pure and snap is small.
+  const liveSnap = useMemo(() => applyOverrides(sponsorSnap, overrides), [sponsorSnap, overrides]);
+  const liveResults = useMemo(() => {
+    try { return calcAll(assetType, liveSnap); } catch { return {}; }
+  }, [assetType, liveSnap]);
+  const sponsorResults = useMemo(() => {
+    try { return calcAll(assetType, sponsorSnap); } catch { return {}; }
+  }, [assetType, sponsorSnap]);
+
+  // For Hotel Advanced, also compute the rich hotelAdv block live
+  const liveHotelAdv = useMemo(() => {
+    if (assetType !== "Hotel" || sponsorSnap.hotelMode !== "advanced") return null;
+    try { return calcHotelAdvanced(liveSnap); } catch { return null; }
+  }, [assetType, sponsorSnap.hotelMode, liveSnap]);
+
+  // ── OVERRIDE HANDLERS ──────────────────────────────────────────────────────
+  // Debounce the DB log (don't fire on every keystroke of the slider drag).
+  const logTimer = useRef<any>(null);
+  const handleOverride = useCallback((path: string, value: number, originalValue: number) => {
+    setOverrides(prev => ({ ...prev, [path]: value }));
+    if (logTimer.current) clearTimeout(logTimer.current);
+    logTimer.current = setTimeout(() => {
+      if (!viewId) return;
+      supabase.from("share_input_overrides").insert({
+        share_view_id: viewId, input_path: path,
+        original_value: originalValue, new_value: value, source: "manual",
+      }).then(() => {});
+    }, 600);
+  }, [viewId]);
+
+  const handleReset = useCallback(() => {
+    setOverrides({});
+    if (viewId) {
+      supabase.from("share_input_overrides").insert({
+        share_view_id: viewId, input_path: "*", original_value: 0, new_value: 0, source: "reset",
+      }).then(() => {});
+    }
+  }, [viewId]);
+
+  // ── HEARTBEAT — keep last_active_at fresh ─────────────────────────────────
+  useEffect(() => {
+    if (!viewId) return;
+    const startedAt = Date.now();
+    const beat = async () => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      await supabase.from("share_views").update({
+        last_active_at: new Date().toISOString(),
+        total_active_seconds: seconds,
+      }).eq("id", viewId);
+    };
+    const iv = setInterval(beat, 15_000);
+    const onUnload = () => { beat(); };
+    window.addEventListener("beforeunload", onUnload);
+    return () => { clearInterval(iv); window.removeEventListener("beforeunload", onUnload); beat(); };
+  }, [viewId]);
+
+  // ── HERO METRICS ───────────────────────────────────────────────────────────
+  const isHotelAdv = assetType === "Hotel" && sponsorSnap.hotelMode === "advanced";
+
+  const liveGdv = isHotelAdv && liveHotelAdv ? liveHotelAdv.exitValue : (liveResults.gdv ?? liveResults.exitValue ?? 0);
+  const liveProfit = isHotelAdv && liveHotelAdv ? liveHotelAdv.profit : (liveResults.profit ?? 0);
+  const livePoc = isHotelAdv && liveHotelAdv ? liveHotelAdv.poc : (liveResults.poc ?? 0);
+  const liveIrr = isHotelAdv && liveHotelAdv ? liveHotelAdv.irrLevered : (liveResults.irrLevered ?? liveResults.irr ?? 0);
+  const liveEquity = isHotelAdv && liveHotelAdv ? liveHotelAdv.equity : (liveResults.equity ?? sponsorSnap.equity ?? 0);
+
+  const sponsorGdv = isHotelAdv ? (sponsorResults.exitValue ?? 0) : (sponsorResults.gdv ?? sponsorResults.exitValue ?? 0);
+  const sponsorIrr = isHotelAdv ? (sponsorResults.irrLevered ?? 0) : (sponsorResults.irrLevered ?? sponsorResults.irr ?? 0);
+  const sponsorPoc = sponsorResults.poc ?? 0;
+
+  const deltaPct = (live: number, sponsor: number): number => sponsor === 0 ? 0 : (live - sponsor) / Math.abs(sponsor);
+
+  const pocColor = livePoc > 0.2 ? "var(--green)" : livePoc > 0.1 ? "var(--amber)" : "var(--red)";
+  const profitColor = liveProfit > 0 ? "var(--green)" : "var(--red)";
+
+  // ── EXCEL EXPORT (carry over from existing page) ──────────────────────────
+  const exportExcel = () => {
+    if (!link?.can_export_excel) return;
+    const wb = XLSX.utils.book_new();
+    const summary = [
+      ["VALORA — UNDERWRITE ROOM EXPORT"], [""],
+      ["Project", appraisal.name || "Untitled"],
+      ["Asset Type", assetType],
+      ["Scenario", hasActiveOverrides(overrides) ? "Custom (recipient flexed)" : "Sponsor's case"],
+      ["Exported", new Date().toISOString()], [""],
+      ["RETURNS"],
+      [isHotelAdv ? "Exit Value" : "GDV", liveGdv],
+      ["Profit", liveProfit],
+      ["Profit on Cost", `${(livePoc * 100).toFixed(1)}%`],
+      ["IRR (Levered)", `${(liveIrr * 100).toFixed(1)}%`],
+      ["Equity In", liveEquity],
+      ...(hasActiveOverrides(overrides) ? [[""], ["RECIPIENT OVERRIDES"], ...Object.entries(overrides).map(([k, v]) => [k, v])] : []),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(summary);
+    ws["!cols"] = [{ wch: 28 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Summary");
+    XLSX.writeFile(wb, `${(appraisal.name || "Valora").replace(/[^a-zA-Z0-9]/g, "_")}_${hasActiveOverrides(overrides) ? "Custom" : "Base"}.xlsx`);
+    if (viewId) supabase.from("share_views").update({ excel_exported: true }).eq("id", viewId);
+  };
 
   return (
     <div className={`page-wrap theme-${theme}`}>
       <style>{CSS}</style>
-      <script dangerouslySetInnerHTML={{__html:`(function(){var t=localStorage.getItem('valora-theme')||'light';if(t==='light')document.body.classList.add('light');})()`}}/>
-      {/* NAV */}
-      <div style={{ borderBottom: "1px solid var(--border)", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", background: "var(--bg1)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:17,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+      {/* ── TOP BAR ── */}
+      <div className="topbar">
+        <div className="topbar-brand">Valora</div>
+        <div className="topbar-actions">
+          <span className={`scenario-badge ${hasActiveOverrides(overrides) ? "custom" : "sponsor"}`}>
+            {hasActiveOverrides(overrides) ? "Custom Scenario" : "Sponsor's Case"}
+          </span>
           <div className="theme-toggle">
             <button className={theme === "dark" ? "active" : ""} onClick={() => setTheme("dark")}>Dark</button>
             <button className={theme === "light" ? "active" : ""} onClick={() => setTheme("light")}>Light</button>
           </div>
-          <span style={{ fontSize: 10, color: "var(--text-d)", background: "var(--bg3)", padding: "4px 10px", borderRadius: 6, letterSpacing: ".06em", textTransform: "uppercase" }}>Read-only</span>
         </div>
       </div>
-      {/* GOLD ACCENT LINE */}
-      <div style={{ height: 2, background: `linear-gradient(90deg,${typeCol},transparent 70%)` }} />
-      {/* HERO */}
-      <div className="hero">
-        <div className="hero-inner">
-          <div className="hero-eyebrow fade-up">
-            <span className="badge-type" style={{ background: typeBg, color: typeCol }}>{assetType}</span>
-            {isHotelAdvanced && <span className="adv-badge">Advanced · Institutional</span>}
-            <span style={{ fontSize: 12, color: "var(--text-d)", fontFamily: "var(--font-mono)" }}>{snap.currency || "GBP"}</span>
-            {snap.location && <><span style={{ color: "var(--text-d)" }}>·</span><span style={{ fontSize: 12, color: "var(--text-d)" }}>{snap.location}</span></>}
-          </div>
-          <h1 className="hero-title fade-up" style={{ animationDelay: ".08s" }}>{appraisal.name || "Untitled Appraisal"}</h1>
-          <p className="hero-subtitle fade-up" style={{ animationDelay: ".14s" }}>{programme}</p>
-          {/* Metric strip */}
-          <div className="metric-strip fade-up" style={{ animationDelay: ".2s" }}>
-            <div className="metric-strip-inner" style={{ gridTemplateColumns: `repeat(${heroMetrics.length},1fr)` }}>
-              {heroMetrics.map((m, i) => (
-                <div key={m.label} className="metric-cell" style={{ background: i === 0 ? `${typeCol}08` : "var(--card-bg)" }}>
-                  <div className="metric-cell-label">{m.label}</div>
-                  <div className="metric-cell-value" style={{ color: m.color }}>{m.value}</div>
-                  {i === 2 && <div className="metric-cell-sub">
-                    {displayPoc > 0.15 ? `${((displayPoc - 0.15) * 100).toFixed(1)}% above 15% target` : `${((0.15 - displayPoc) * 100).toFixed(1)}% below target`}
-                  </div>}
-                </div>
-              ))}
+
+      {/* ── ROOM ── */}
+      <div className="room">
+        {/* LEFT: ASSUMPTION LEDGER */}
+        {sliders ? (
+          <AssumptionLedger
+            snap={sponsorSnap} sliders={sliders}
+            overrides={overrides} onOverride={handleOverride} onReset={handleReset} sym={sym}
+          />
+        ) : (
+          <div className="ledger">
+            <div className="ledger-hdr"><span>Assumptions</span></div>
+            <div style={{ fontSize: 11, color: "var(--text-d)", padding: "12px 4px", lineHeight: 1.5 }}>
+              Live scenario controls coming soon for {assetType} deals. For now, this is the sponsor's published case.
             </div>
           </div>
-          {/* Institutional strip */}
-          <div className="inst-strip fade-up" style={{ animationDelay: ".28s", gridTemplateColumns: `repeat(${instMetrics.length},1fr)` }}>
-            {instMetrics.map(m => (
-              <div key={m.label} className="inst-cell">
-                <div className="inst-cell-label">{m.label}</div>
-                <div className="inst-cell-value">{m.value}</div>
+        )}
+
+        {/* CENTRE: BODY */}
+        <div className="body">
+          {/* HERO */}
+          <div className="hero">
+            <div className="hero-eyebrow">
+              <span>{assetType}</span>
+              {isHotelAdv && <span style={{ color: "var(--gold)" }}>· Advanced · USALI</span>}
+              <span>· {sponsorSnap.currency || "GBP"}</span>
+              {sponsorSnap.location && <span>· {sponsorSnap.location}</span>}
+            </div>
+            <h1 className="hero-title">{appraisal.name || "Untitled Appraisal"}</h1>
+            <div className="hero-sub">
+              {isHotelAdv
+                ? `${sponsorSnap.holdYears || 5}-year institutional hold · ${sponsorSnap.rooms || "—"} keys`
+                : `${sponsorSnap.programmMonths || "—"}m programme`}
+            </div>
+
+            <div className="metric-strip">
+              <div className="metric-strip-inner">
+                <MetricCell
+                  label={isHotelAdv ? "Exit Value" : "GDV"}
+                  value={fmt(liveGdv, sym)}
+                  baseColor="var(--gold)"
+                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveGdv, sponsorGdv), absolute: fmt(liveGdv - sponsorGdv, sym) } : null}
+                />
+                <MetricCell
+                  label="Profit"
+                  value={fmt(liveProfit, sym)}
+                  baseColor={profitColor}
+                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveProfit, sponsorResults.profit ?? 0), absolute: fmt(liveProfit - (sponsorResults.profit ?? 0), sym) } : null}
+                />
+                <MetricCell
+                  label={isHotelAdv ? "Return on Cost" : "Profit on Cost"}
+                  value={fmtPct(livePoc)}
+                  baseColor={pocColor}
+                  delta={hasActiveOverrides(overrides) ? { pct: livePoc - sponsorPoc, absolute: `${((livePoc - sponsorPoc) * 100).toFixed(1)}pp` } : null}
+                />
+                <MetricCell
+                  label="IRR (Levered)"
+                  value={fmtPct(liveIrr)}
+                  baseColor="var(--blue)"
+                  delta={hasActiveOverrides(overrides) ? { pct: liveIrr - sponsorIrr, absolute: `${((liveIrr - sponsorIrr) * 100).toFixed(1)}pp` } : null}
+                />
+                <MetricCell
+                  label="Equity In"
+                  value={fmt(liveEquity, sym)}
+                  baseColor="var(--gold)"
+                  delta={null}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* CONTENT */}
-      <div className="content-wrap">
-        {/* PoC / RoC bar */}
-        <div className="poc-bar-wrap section-gap fade-up" style={{ animationDelay: ".32s" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-d)", marginBottom: 2 }}>
-            <span style={{ textTransform: "uppercase", letterSpacing: ".1em", fontSize: 10 }}>
-              {isHotelAdvanced ? "Return on Cost vs 15% Target" : "Return vs 20% Target"}
-            </span>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: displayPocColor }}>{fmtPct(displayPoc)}</span>
-          </div>
-          <div className="poc-bar-track">
-            <div className="poc-bar-fill" style={{
-              width: `${Math.min((displayPoc / (isHotelAdvanced ? 0.25 : 0.3)) * 100, 100)}%`,
-              background: displayPoc > (isHotelAdvanced ? 0.15 : 0.2) ? "linear-gradient(90deg,var(--green),#1a8a58)" : "linear-gradient(90deg,var(--amber),#b5720f)"
-            }} />
-          </div>
-          <div style={{ fontSize: 10, color: "var(--text-d)", textAlign: "right" }}>
-            {displayPoc > (isHotelAdvanced ? 0.15 : 0.2)
-              ? `${((displayPoc - (isHotelAdvanced ? 0.15 : 0.2)) * 100).toFixed(1)}% above target`
-              : `${(((isHotelAdvanced ? 0.15 : 0.2) - displayPoc) * 100).toFixed(1)}% below target`}
-          </div>
-        </div>
-
-
-
-
-        {/* Asset-specific body */}
-        {isHotelAdvanced
-          ? <HotelAdvancedShare snap={snap} sym={sym} />
-          : <StandardShare snap={snap} sym={sym} appraisal={appraisal} />
-        }
-
-
-
-
-        {/* Footer */}
-        <div className="sec-divider" />
-        <div className="share-footer fade-up" style={{ animationDelay: ".5s", padding: "0" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:15,fontWeight:700,letterSpacing:"-.03em",color:"var(--text)",flexShrink:0}}>Valora</span>
-            </div>
-            <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 3, letterSpacing: ".08em", textTransform: "uppercase" }}>Institutional Development Appraisal</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "var(--text-d)", marginBottom: 8 }}>Strictly Confidential · For Authorised Recipients Only</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-end" }}>
-              <button
-                onClick={exportExcel}
-                style={{ fontSize: 11, color: "var(--text-m)", background: "none", border: "1px solid var(--border-m)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "var(--font-body)", letterSpacing: ".03em", transition: "all .2s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold-border)"; e.currentTarget.style.color = "var(--gold)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-m)"; e.currentTarget.style.color = "var(--text-m)"; }}
-              >↓ Export Excel</button>
-              <a href="https://valoraplatform.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--gold)", textDecoration: "none", letterSpacing: ".04em" }}>valoraplatform.io ↗</a>
             </div>
           </div>
+
+          {/* RETURNS SUMMARY */}
+          <div className="section">
+            <div className="section-title">Returns Summary</div>
+            <div className="section-sub">All values recompute live as you flex assumptions on the left.</div>
+            <div className="two-col">
+              <div className="data-card">
+                {[
+                  [isHotelAdv ? "Exit Value" : "GDV", fmt(liveGdv, sym), "var(--gold)", true],
+                  ["Total Cost", fmt(liveResults.totalCost ?? liveResults.totalInvestment ?? 0, sym), "var(--text-m)", false],
+                  ["Equity In", fmt(liveEquity, sym), "var(--gold)", false],
+                  ["Profit", fmt(liveProfit, sym), profitColor, false],
+                  [isHotelAdv ? "Return on Cost" : "Profit on Cost", fmtPct(livePoc), pocColor, false],
+                  ["IRR (Unlevered)", fmtPct(liveResults.irr ?? 0), "var(--blue)", false],
+                  ["IRR (Levered)", fmtPct(liveIrr), "var(--blue)", false],
+                  ["Equity Multiple", fmtX(liveResults.moic ?? 0), (liveResults.moic ?? 0) > 2 ? "var(--green)" : "var(--text)", false],
+                  ["DSCR / ICR", isFinite(liveResults.dscr) && liveResults.dscr < 999 ? fmtX(liveResults.dscr) : "—", (liveResults.dscr ?? 0) >= 1.5 ? "var(--green)" : "var(--amber)", false],
+                ].map(([l, v, c, bold]: any) => (
+                  <div key={l} className="data-row">
+                    <span className={bold ? "data-label-bold" : "data-label"}>{l}</span>
+                    <span className={bold ? "data-value-bold" : "data-value"} style={{ color: c }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="data-card">
+                {[
+                  ["Asset Type", assetType + (isHotelAdv ? " (Advanced)" : "")],
+                  ["Location", sponsorSnap.location || "—"],
+                  ["Currency", sponsorSnap.currency || "GBP"],
+                  ...(isHotelAdv ? [
+                    ["Rooms", String(sponsorSnap.rooms || "—")],
+                    ["Hold Period", `${sponsorSnap.holdYears || 5} years`],
+                    ["Exit Cap Rate (live)", `${num(liveSnap.exitCapRate ?? 0).toFixed(2)}%`],
+                    ["ADR (live)", fmt(num(liveSnap.adr ?? 0), sym)],
+                    ["Occupancy (live)", `${num(liveSnap.occupancy ?? 0).toFixed(1)}%`],
+                  ] : [
+                    ["Programme", `${sponsorSnap.programmMonths || "—"}m`],
+                  ]),
+                ].map(([l, v]: string[]) => (
+                  <div key={l} className="data-row">
+                    <span className="data-label">{l}</span>
+                    <span className="data-value" style={{ color: "var(--text-m)" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* HOTEL ADVANCED — PER-KEY + CASHFLOW (only if applicable) */}
+          {isHotelAdv && liveHotelAdv && (
+            <>
+              <div className="section">
+                <div className="section-title">Per Key Metrics</div>
+                <div className="section-sub">Live, recomputed from current assumptions.</div>
+                <div className="per-key-grid">
+                  {[
+                    ["Purchase / Key", fmt(liveHotelAdv.pricePerKey || 0, sym), "var(--text)"],
+                    ["CapEx / Key", fmt(liveHotelAdv.capexPerKey || 0, sym), "var(--amber)"],
+                    ["Exit Value / Key", fmt(liveHotelAdv.exitValuePerKey || 0, sym), "var(--gold)"],
+                    ["EBITDA / Key", fmt(liveHotelAdv.ebitdaPerKey || 0, sym), "var(--green)"],
+                    ["NOI / Key", fmt(liveHotelAdv.noiPerKey || 0, sym), "var(--blue)"],
+                    ["NOI Conversion", fmtPct(liveHotelAdv.noiConversion || 0), "var(--text-m)"],
+                  ].map(([l, v, c]: any) => (
+                    <div key={l} className="per-key-card">
+                      <div className="per-key-label">{l}</div>
+                      <div className="per-key-value" style={{ color: c }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="section">
+                <div className="section-title">Investor Cashflow</div>
+                <div className="section-sub">Year-by-year. Updates live as you flex inputs.</div>
+                <div className="data-card" style={{ overflowX: "auto" }}>
+                  <table className="cf-table">
+                    <thead>
+                      <tr>
+                        <th className="cf-th"></th>
+                        <th className="cf-th">Day 1</th>
+                        {Array.from({ length: num(sponsorSnap.holdYears || 5) }, (_, i) => (
+                          <th key={i} className="cf-th" style={{ color: i === num(sponsorSnap.holdYears || 5) - 1 ? "var(--gold)" : undefined }}>
+                            Yr {i + 1}{i === num(sponsorSnap.holdYears || 5) - 1 ? " (Exit)" : ""}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Revenue", fn: (y: any) => y.totalRev, color: "var(--text-m)" },
+                        { label: "EBITDA", fn: (y: any) => y.ebitda, color: "var(--text)" },
+                        { label: "FF&E", fn: (y: any) => -y.ffe, color: "var(--amber)" },
+                        { label: "NOI", fn: (y: any) => y.noi, color: "var(--green)", bold: true },
+                      ].map(row => (
+                        <tr key={row.label}>
+                          <td className="cf-td" style={{ color: row.color, fontWeight: row.bold ? 600 : 400 }}>{row.label}</td>
+                          <td className="cf-td">—</td>
+                          {(liveHotelAdv.yearRevenue || []).map((y: any, i: number) => {
+                            const v = row.fn(y);
+                            return <td key={i} className="cf-td" style={{ color: v < 0 ? "var(--red)" : row.color, fontWeight: row.bold ? 600 : 400 }}>{fmt(Math.abs(v), sym)}</td>;
+                          })}
+                        </tr>
+                      ))}
+                      <tr>
+                        <td className="cf-td" style={{ color: "var(--red)" }}>Equity Out</td>
+                        <td className="cf-td" style={{ color: "var(--red)" }}>{fmt(liveHotelAdv.equity || 0, sym)}</td>
+                        {Array.from({ length: num(sponsorSnap.holdYears || 5) }, (_, i) => (<td key={i} className="cf-td">—</td>))}
+                      </tr>
+                      <tr>
+                        <td className="cf-td" style={{ color: "var(--gold)", fontWeight: 600 }}>Disposal (Net)</td>
+                        <td className="cf-td">—</td>
+                        {Array.from({ length: num(sponsorSnap.holdYears || 5) }, (_, i) => (
+                          <td key={i} className="cf-td" style={{ color: "var(--gold)", fontWeight: 600 }}>
+                            {i === num(sponsorSnap.holdYears || 5) - 1 ? fmt(liveHotelAdv.netExitProceeds || 0, sym) : "—"}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* STOCHASTIC — Pro feature, owner-controlled */}
+          {link?.can_see_stochastic && isHotelAdv && (
+            <StochasticPanel snap={liveSnap} assetType={assetType} sym={sym} />
+          )}
+
+          {/* FOOTER */}
+          <div className="share-footer">
+            <div>
+              <div className="topbar-brand" style={{ fontSize: 14 }}>Valora</div>
+              <div style={{ fontSize: 10, color: "var(--text-d)", marginTop: 3, letterSpacing: ".08em", textTransform: "uppercase" }}>The Underwriting Room for Real Estate</div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {link?.can_export_excel && (
+                <button className="btn-ghost" onClick={exportExcel}>↓ Export Excel</button>
+              )}
+              <a href="https://valoraplatform.io" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--gold)", textDecoration: "none" }}>valoraplatform.io ↗</a>
+            </div>
+          </div>
         </div>
-        <div style={{ height: 32 }} />
       </div>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// STOCHASTIC PANEL — Monte Carlo on the recipient's current scenario
+// ─────────────────────────────────────────────────────────────────────────────
+function StochasticPanel({ snap, assetType, sym }: { snap: any; assetType: string; sym: string }) {
+  // Default distributions for Hotel Advanced — triangular ±15% on the four
+  // headline drivers, normal ±50bps on exit cap rate. These match the LP
+  // intuition that "anything could happen but extremes are rare".
+  const mcResult = useMemo(() => {
+    try {
+      return runMonteCarlo(assetType, snap, {
+        iterations: 1500, // 1.5k is a sweet spot — fast on mobile, statistically meaningful
+        seed: 42,         // deterministic so two viewers see the same bands
+        distributions: {
+          exitCapRate: { kind: "normal", mean: num(snap.exitCapRate ?? 5.75), stdev: 0.5, clipMin: 1, clipMax: 15 },
+          adr: { kind: "triangular", min: num(snap.adr ?? 180) * 0.85, mode: num(snap.adr ?? 180), max: num(snap.adr ?? 180) * 1.15 },
+          occupancy: { kind: "triangular", min: Math.max(20, num(snap.occupancy ?? 72) - 10), mode: num(snap.occupancy ?? 72), max: Math.min(100, num(snap.occupancy ?? 72) + 10) },
+          capexBudget: { kind: "triangular", min: num(snap.capexBudget ?? 5e6) * 0.9, mode: num(snap.capexBudget ?? 5e6), max: num(snap.capexBudget ?? 5e6) * 1.2 },
+        },
+        metrics: ["irr", "moic", "profit", "poc"],
+      });
+    } catch { return null; }
+  }, [snap, assetType]);
 
+  if (!mcResult) return null;
+  const irrBand = mcResult.metrics.irr;
 
+  // Build histogram bins for IRR
+  const samples = mcResult.samples.irr || [];
+  const bins = 24;
+  const lo = Math.min(...samples), hi = Math.max(...samples);
+  const binWidth = (hi - lo) / bins;
+  const counts = Array(bins).fill(0);
+  samples.forEach(v => {
+    const idx = Math.min(bins - 1, Math.floor((v - lo) / binWidth));
+    counts[idx]++;
+  });
+  const maxCount = Math.max(...counts, 1);
+
+  return (
+    <div className="section">
+      <div className="section-title">Stochastic — Monte Carlo</div>
+      <div className="section-sub">{mcResult.metrics.irr.n.toLocaleString()} simulations across exit cap rate, ADR, occupancy and CapEx. The bars show the IRR distribution.</div>
+
+      <div className="mc-band">
+        <div className="mc-band-card p10">
+          <div className="mc-band-label">P10 (Downside)</div>
+          <div className="mc-band-value">{fmtPct(irrBand.p10)}</div>
+        </div>
+        <div className="mc-band-card p50">
+          <div className="mc-band-label">P50 (Median)</div>
+          <div className="mc-band-value">{fmtPct(irrBand.p50)}</div>
+        </div>
+        <div className="mc-band-card p90">
+          <div className="mc-band-label">P90 (Upside)</div>
+          <div className="mc-band-value">{fmtPct(irrBand.p90)}</div>
+        </div>
+      </div>
+
+      <div className="data-card">
+        <div style={{ fontSize: 10, color: "var(--text-d)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4, fontWeight: 600 }}>IRR Distribution</div>
+        <div className="mc-histogram">
+          {counts.map((c, i) => (
+            <div key={i} className="mc-bar" style={{ height: `${(c / maxCount) * 100}%` }} title={`${fmtPct(lo + i * binWidth)} – ${fmtPct(lo + (i + 1) * binWidth)}: ${c} runs`} />
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-d)" }}>
+          <span>{fmtPct(lo)}</span><span>{fmtPct(hi)}</span>
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-m)", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--divider)" }}>
+          Mean: <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{fmtPct(irrBand.mean)}</strong> ·
+          {" "}Std Dev: <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{fmtPct(irrBand.stdev)}</strong> ·
+          {" "}P(IRR &lt; 8%) ≈ <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{fmtPct(samples.filter(v => v < 0.08).length / samples.length)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE — load link, gate, then mount Room
+// ─────────────────────────────────────────────────────────────────────────────
+function SharePage() {
+  const params = useParams();
+  const slug = params?.token as string;
+
+  const [link, setLink] = useState<any>(null);
+  const [appraisal, setAppraisal] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
+
+  // ── LOAD LINK + APPRAISAL ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!slug) return;
+    (async () => {
+      const { data: linkData } = await supabase.from("share_links").select("*").eq("slug", slug).maybeSingle();
+      if (!linkData) { setNotFound(true); setLoading(false); return; }
+      // Check expiry / revocation client-side too (RLS already filters server-side)
+      if (linkData.revoked_at || (linkData.expires_at && new Date(linkData.expires_at) < new Date())) {
+        setNotFound(true); setLoading(false); return;
+      }
+      setLink(linkData);
+
+      const { data: apprData } = await supabase.from("appraisals").select("*").eq("id", linkData.appraisal_id).maybeSingle();
+      if (!apprData) { setNotFound(true); setLoading(false); return; }
+      setAppraisal(apprData);
+
+      // Public mode auto-unlocks
+      if (linkData.access_mode === "public") setUnlocked(true);
+      setLoading(false);
+    })();
+  }, [slug]);
+
+  // ── ON UNLOCK: create share_view row ──────────────────────────────────────
+  useEffect(() => {
+    if (!unlocked || !link || viewId) return;
+    (async () => {
+      const sessionId = getOrCreateSessionId();
+      const { data } = await supabase.from("share_views").insert({
+        share_link_id: link.id,
+        recipient_session_id: sessionId,
+        recipient_email: recipientEmail,
+        recipient_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : null,
+      }).select().single();
+      if (data) setViewId(data.id);
+    })();
+  }, [unlocked, link, recipientEmail, viewId]);
+
+  if (loading) return <Spinner />;
+  if (notFound) return (
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "0 24px", textAlign: "center" }}>
+      <style>{CSS}</style>
+      <div style={{ fontSize: 40, color: "var(--text-d)" }}>◈</div>
+      <div style={{ fontFamily: "Inter", fontSize: 24, fontWeight: 300 }}>Appraisal not available</div>
+      <div style={{ fontSize: 13, color: "var(--text-d)" }}>This link may have expired or been revoked by the sponsor.</div>
+    </div>
+  );
+
+  // ── GATE BRANCHES ─────────────────────────────────────────────────────────
+  if (!unlocked && link.access_mode === "password") {
+    return <><style>{CSS}</style><PasswordGate slug={slug} onUnlock={() => setUnlocked(true)} /></>;
+  }
+  if (!unlocked && link.access_mode === "email") {
+    return <><style>{CSS}</style><EmailGate onSubmit={(email) => { setRecipientEmail(email); setUnlocked(true); }} /></>;
+  }
+
+  return <UnderwriteRoom link={link} appraisal={appraisal} viewId={viewId} />;
+}
 
 export default function SharePageWrapper() {
-  return (
-    <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#0D1017", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid rgba(82,196,152,.2)", borderTopColor: "#52C498", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    }>
-      <SharePage />
-    </Suspense>
-  );
+  return <Suspense fallback={<Spinner />}><SharePage /></Suspense>;
 }
