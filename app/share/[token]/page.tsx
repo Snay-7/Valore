@@ -8,7 +8,7 @@ import * as XLSX from "xlsx";
 import {
   calcAll, calcHotelAdvanced, runMonteCarlo,
   fmt, fmtPct, fmtX, num,
-} from "../../../lib/calc-engine";
+} from "../../../lib/calc-engines";
 import {
   applyOverrides, hasActiveOverrides,
   getSlidersForSnap, type SliderSpec, type Overrides,
