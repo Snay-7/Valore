@@ -116,7 +116,7 @@ const fmt=(n:number,prefix="£")=>{
 };
 const fmtPct=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>100?"—":`${(n*100).toFixed(1)}%`);
 const fmtX=(n:number)=>(!isFinite(n)||isNaN(n)||Math.abs(n)>1000?"—":`${n.toFixed(2)}×`);
-const num=(v:string)=>parseFloat(v.replace(/[£,%\s]/g,""))||0;
+const num=(v:any)=>{if(v==null)return 0;const s=String(v);const n=parseFloat(s.replace(/[£,%\s]/g,""));return isFinite(n)?n:0;};
 const irrCol=(irr:number)=>irr>=0.15?"var(--green)":irr>=0.08?"var(--amber)":"var(--red)";
 // ─────────────────────────────────────────────────────────────────────────────
 // Sensitivity matrix — multi-metric cells + user-selectable display metric
