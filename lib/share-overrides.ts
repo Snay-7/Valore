@@ -127,7 +127,7 @@ export const HOTEL_ADVANCED_SLIDERS: SliderSpec[] = [
     getRange: (base) => [Math.max(1, base * 0.8), base * 1.2],
     step: 1,
     hint: "Average Daily Rate. Propagates through every year of the model.",
-    clearPaths: ["yearAdr"],
+    clearPaths: ["yearAdr", "noiMode", "actualNoi"],
   },
   {
     path: "occupancy",
@@ -137,7 +137,7 @@ export const HOTEL_ADVANCED_SLIDERS: SliderSpec[] = [
     getRange: (base) => [Math.max(20, base - 15), Math.min(100, base + 15)],
     step: 0.5,
     hint: "Stabilised occupancy. Drives RevPAR alongside ADR.",
-    clearPaths: ["yearOcc"],
+    clearPaths: ["yearOcc", "noiMode", "actualNoi"],
   },
   {
     path: "capexBudget",
