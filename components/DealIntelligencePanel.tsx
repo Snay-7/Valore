@@ -559,7 +559,7 @@ function SharingTab({ links, project, onRevoke, onCopy, onCreated }: any) {
           <div key={link.id} className={`dip-link-card ${isRevoked || isExpired ? "revoked" : ""}`}>
             <div className="dip-link-top">
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="dip-link-label">{link.label || "Untitled link"}</div>
+                <div className="dip-link-label">{link.label && link.label !== "Migrated from legacy share_token" ? link.label : (link.appraisal_name || "Untitled link")}</div>
                 <div className="dip-link-meta">
                   /share/{link.slug.slice(0, 12)}…  ·  Created {timeAgo(link.created_at)}
                   {link.expires_at && !isExpired && !isRevoked && <> · Expires {new Date(link.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</>}
