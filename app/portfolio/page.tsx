@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
+import DealIntelligencePanel from "../../components/DealIntelligencePanel";
 const CALENDLY = "https://calendly.com/hello-valoraplatform/30min";
 /* ═══════════════════════════════════════════════════════════════════
    VALORA — PORTFOLIO PAGE
@@ -229,6 +230,7 @@ function Portfolio() {
   const [filter, setFilter] = useState("all");
   const [view, setView] = useState<"portfolio" | "trash">(initialView);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [totalProjectCount, setTotalProjectCount] = useState(0);
@@ -1627,7 +1629,7 @@ function Portfolio() {
                       key={p.id}
                       className="card"
                       style={{ animationDelay: `${i * 0.04}s` }}
-                      onClick={() => openProject(p)}
+                      onClick={() => setSelectedProject(p)}
                     >
                       <div className="card-menu" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -2587,6 +2589,18 @@ function Portfolio() {
           </div>
         )}
       </div>
+      {/* ── DEAL INTELLIGENCE PANEL ── */}
+      {selectedProject && (
+        <DealIntelligencePanel
+          project={selectedProject}
+          onClose={() => setSelectedProject(null)}
+          onOpenAppraisal={() => {
+            const project = selectedProject;
+            setSelectedProject(null);
+            openProject(project);
+          }}
+        />
+      )}
       {/* ── MOBILE BOTTOM NAV ── */}
       <nav className="bottom-nav">
         <button className="bottom-nav-item" onClick={() => router.push("/dashboard")}>
