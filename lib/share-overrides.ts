@@ -44,11 +44,17 @@ function applyPath(obj: any, path: string, value: any): void {
  *   const liveSnap = applyOverrides(appraisal.snapshot, recipientOverrides);
  *   const liveResults = calcAll(liveSnap.assetType, liveSnap);
  */
-export function applyOverrides(snap: any, overrides: Overrides): any {
+export function applyOverrides(snap: any, overrides: Overrides, sliders?: SliderSpec[]): any {
   if (!overrides || Object.keys(overrides).length === 0) return snap;
   const out = cloneSnap(snap);
   for (const [path, value] of Object.entries(overrides)) {
     applyPath(out, path, value);
+    const spec = sliders?.find(s => s.path === path);
+    if (spec?.clearPaths) {
+      for (const clearPath of spec.clearPaths) {
+        applyPath(out, clearPath, undefined);
+      }
+    }
   }
   return out;
 }
@@ -85,6 +91,8 @@ export type SliderSpec = {
   hint?: string;
   /** Optional: only show if predicate true (e.g. hide LTC slider for all-equity deals). */
   visible?: (snap: any) => boolean;
+  /** Also reset these paths to undefined when this slider moves. */
+  clearPaths?: string[];
 };
 
 const num = (v: any): number => {
@@ -119,6 +127,7 @@ export const HOTEL_ADVANCED_SLIDERS: SliderSpec[] = [
     getRange: (base) => [Math.max(1, base * 0.8), base * 1.2],
     step: 1,
     hint: "Average Daily Rate. Propagates through every year of the model.",
+    clearPaths: ["yearAdr"],
   },
   {
     path: "occupancy",
@@ -128,6 +137,7 @@ export const HOTEL_ADVANCED_SLIDERS: SliderSpec[] = [
     getRange: (base) => [Math.max(20, base - 15), Math.min(100, base + 15)],
     step: 0.5,
     hint: "Stabilised occupancy. Drives RevPAR alongside ADR.",
+    clearPaths: ["yearOcc"],
   },
   {
     path: "capexBudget",

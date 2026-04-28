@@ -387,7 +387,7 @@ function UnderwriteRoom({
   // Single source of truth — every render recomputes from sponsor snap + overrides.
   // Both `live` and `sponsor` results are computed so we can show deltas vs. the
   // sponsor's case. Cheap because calcAll is pure and snap is small.
-  const liveSnap = useMemo(() => applyOverrides(sponsorSnap, overrides), [sponsorSnap, overrides]);
+  const liveSnap = useMemo(() => applyOverrides(sponsorSnap, overrides, sliders || undefined), [sponsorSnap, overrides, sliders]);
   const liveResults = useMemo(() => {
     try { return calcAll(assetType, liveSnap); } catch { return {}; }
   }, [assetType, liveSnap]);
