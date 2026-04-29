@@ -33,36 +33,68 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // FLIP SLIDERS — defined inline so we can ship without touching share-overrides.ts.
 // Move these into lib/share-overrides.ts as part of the next refactor.
+//
+// NOTE on field-name resolution:
+// Different snapshots may store the same concept under different keys
+// (purchase / purchasePrice / acquisitionPrice, etc). Each slider uses a
+// `getBase` that walks a fallback chain to find a non-zero value, and the
+// `path` it writes to is whichever key actually held the value. That way the
+// slider drag ends up overriding the SAME field the calc engine reads.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: pick the first key whose value resolves to a non-zero number.
+// Returns { key, value } or null. Used to resolve the actual snapshot field.
+function pickField(snap: any, keys: string[]): { key: string; value: number } | null {
+  for (const k of keys) {
+    const v = num(snap?.[k] ?? 0);
+    if (v > 0) return { key: k, value: v };
+  }
+  // Nothing non-zero — return the first key with whatever (zero) value it has,
+  // so the slider still renders rather than disappearing.
+  return { key: keys[0], value: 0 };
+}
+
+const PURCHASE_KEYS = ["purchase", "purchasePrice", "acquisitionPrice", "purchaseCost"];
+const SALE_KEYS     = ["salePrice", "gdv", "resaleValue", "exitValue", "sellPrice"];
+const REFURB_KEYS   = ["refurbBudget", "refurbCost", "refurb", "constructionCost"];
+
 const FLIP_SLIDERS: SliderSpec[] = [
   {
-    path: "purchase",
+    path: "purchase", // overridden dynamically per-snap below via getActualPath
     label: "Purchase Price",
     unit: "currency",
-    getBase: (snap: any) => num(snap.purchase ?? 0),
-    getRange: (base: number) => [Math.round(base * 0.85), Math.round(base * 1.15)],
+    getBase: (snap: any) => pickField(snap, PURCHASE_KEYS)!.value,
+    getRange: (base: number) => {
+      // If base is zero we still want a usable range so the slider isn't broken.
+      const safe = base > 0 ? base : 1_000_000;
+      return [Math.round(safe * 0.85), Math.round(safe * 1.15)];
+    },
     step: 5000,
     hint: "Negotiate the entry price ±15% — biggest single lever on returns.",
-    // Clear pricePsf so engine recomputes from the new flat purchase value
-    clearPaths: ["pricePsf"],
+    clearPaths: ["pricePsf", "purchasePsf"],
   },
   {
     path: "salePrice",
     label: "Sale Price",
     unit: "currency",
-    getBase: (snap: any) => num(snap.salePrice ?? 0),
-    getRange: (base: number) => [Math.round(base * 0.85), Math.round(base * 1.15)],
+    getBase: (snap: any) => pickField(snap, SALE_KEYS)!.value,
+    getRange: (base: number) => {
+      const safe = base > 0 ? base : 1_000_000;
+      return [Math.round(safe * 0.85), Math.round(safe * 1.15)];
+    },
     step: 5000,
     hint: "Flex sale value ±15% to test price sensitivity.",
-    // When user flexes salePrice, also clear salePricePsf so engine recomputes from new value
-    clearPaths: ["salePricePsf"],
+    clearPaths: ["salePricePsf", "gdvPsf"],
   },
   {
     path: "refurbBudget",
     label: "Refurb Budget",
     unit: "currency",
-    getBase: (snap: any) => num(snap.refurbBudget ?? 0),
-    getRange: (base: number) => [Math.round(base * 0.7), Math.round(base * 1.3)],
+    getBase: (snap: any) => pickField(snap, REFURB_KEYS)!.value,
+    getRange: (base: number) => {
+      const safe = base > 0 ? base : 500_000;
+      return [Math.round(safe * 0.7), Math.round(safe * 1.3)];
+    },
     step: 1000,
     hint: "Construction risk: ±30% on the refurb spend.",
     clearPaths: ["refurbPsf"],
@@ -71,7 +103,7 @@ const FLIP_SLIDERS: SliderSpec[] = [
     path: "bridgingTermMonths",
     label: "Bridge Term",
     unit: "months",
-    getBase: (snap: any) => num(snap.bridgingTermMonths ?? 12),
+    getBase: (snap: any) => num(snap.bridgingTermMonths ?? snap.bridgeTermMonths ?? snap.bridgingMonths ?? 12),
     getRange: () => [3, 24],
     step: 1,
     hint: "Programme overrun extends interest cost.",
@@ -80,17 +112,37 @@ const FLIP_SLIDERS: SliderSpec[] = [
     path: "bridgingRatePct",
     label: "Bridging Rate",
     unit: "%",
-    getBase: (snap: any) => num(snap.bridgingRatePct ?? 0.85),
+    getBase: (snap: any) => num(snap.bridgingRatePct ?? snap.bridgeRatePct ?? snap.bridgingRate ?? 0.85),
     getRange: () => [0.5, 1.5],
     step: 0.05,
     hint: "Monthly bridging rate — typically 0.6–1.0%pm.",
   },
 ];
 
+// Resolve the actual sliders for this specific snapshot — rewriting `path`
+// so the override writes to whichever key the snapshot actually uses.
+function resolveFlipSliders(snap: any): SliderSpec[] {
+  return FLIP_SLIDERS.map(spec => {
+    if (spec.path === "purchase") {
+      const f = pickField(snap, PURCHASE_KEYS)!;
+      return { ...spec, path: f.key };
+    }
+    if (spec.path === "salePrice") {
+      const f = pickField(snap, SALE_KEYS)!;
+      return { ...spec, path: f.key };
+    }
+    if (spec.path === "refurbBudget") {
+      const f = pickField(snap, REFURB_KEYS)!;
+      return { ...spec, path: f.key };
+    }
+    return spec;
+  });
+}
+
 // Wrapper around the original getSlidersForSnap that adds Flip support.
 // Keeps the generic page logic untouched.
 function getSlidersForSnap(snap: any): SliderSpec[] | null {
-  if (snap?.assetType === "Flip") return FLIP_SLIDERS;
+  if (snap?.assetType === "Flip") return resolveFlipSliders(snap);
   return getSlidersForSnapOriginal(snap);
 }
 
@@ -442,6 +494,17 @@ function UnderwriteRoom({
   const sponsorSnap = appraisal.snapshot || {};
   const assetType = sponsorSnap.assetType || "BTR";
   const sym = ({ GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" } as any)[sponsorSnap.currency] || "£";
+
+  // ── DEBUG (remove once Flip slider field names are confirmed) ──────────────
+  // Logs the snapshot to the browser console so we can see which keys store
+  // purchase / sale / refurb values. Also stashes on window for live poking.
+  if (typeof window !== "undefined") {
+    (window as any).__SNAP__ = sponsorSnap;
+    // eslint-disable-next-line no-console
+    console.warn("[Valora share] SNAP keys:", Object.keys(sponsorSnap).sort());
+    // eslint-disable-next-line no-console
+    console.warn("[Valora share] SNAP full:", sponsorSnap);
+  }
 
   // ── ASSET TYPE FLAGS ───────────────────────────────────────────────────────
   // Set up early so we can branch hero metrics, returns rows, info card and
