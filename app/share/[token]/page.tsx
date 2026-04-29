@@ -11,7 +11,7 @@ import {
 } from "../../../lib/calc-engines";
 import {
   applyOverrides, hasActiveOverrides,
-  getSlidersForSnap, type SliderSpec, type Overrides,
+  getSlidersForSnap as getSlidersForSnapOriginal, type SliderSpec, type Overrides,
 } from "../../../lib/share-overrides";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +29,59 @@ import {
 //
 // All math goes through lib/calc-engine.ts. NEVER reimplement here.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FLIP SLIDERS — defined inline so we can ship without touching share-overrides.ts.
+// Move these into lib/share-overrides.ts as part of the next refactor.
+// ─────────────────────────────────────────────────────────────────────────────
+const FLIP_SLIDERS: SliderSpec[] = [
+  {
+    path: "salePrice",
+    label: "Sale Price",
+    unit: "currency",
+    getBase: (snap: any) => num(snap.salePrice ?? 0),
+    getRange: (base: number) => [Math.round(base * 0.85), Math.round(base * 1.15)],
+    step: 5000,
+    hint: "Flex sale value ±15% to test price sensitivity.",
+    // When user flexes salePrice, also clear salePricePsf so engine recomputes from new value
+    clearPaths: ["salePricePsf"],
+  },
+  {
+    path: "refurbBudget",
+    label: "Refurb Budget",
+    unit: "currency",
+    getBase: (snap: any) => num(snap.refurbBudget ?? 0),
+    getRange: (base: number) => [Math.round(base * 0.7), Math.round(base * 1.3)],
+    step: 1000,
+    hint: "Construction risk: ±30% on the refurb spend.",
+    clearPaths: ["refurbPsf"],
+  },
+  {
+    path: "bridgingTermMonths",
+    label: "Bridge Term",
+    unit: "months",
+    getBase: (snap: any) => num(snap.bridgingTermMonths ?? 12),
+    getRange: () => [3, 24],
+    step: 1,
+    hint: "Programme overrun extends interest cost.",
+  },
+  {
+    path: "bridgingRatePct",
+    label: "Bridging Rate",
+    unit: "%",
+    getBase: (snap: any) => num(snap.bridgingRatePct ?? 0.85),
+    getRange: () => [0.5, 1.5],
+    step: 0.05,
+    hint: "Monthly bridging rate — typically 0.6–1.0%pm.",
+  },
+];
+
+// Wrapper around the original getSlidersForSnap that adds Flip support.
+// Keeps the generic page logic untouched.
+function getSlidersForSnap(snap: any): SliderSpec[] | null {
+  if (snap?.assetType === "Flip") return FLIP_SLIDERS;
+  return getSlidersForSnapOriginal(snap);
+}
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -379,6 +432,13 @@ function UnderwriteRoom({
   const assetType = sponsorSnap.assetType || "BTR";
   const sym = ({ GBP: "£", USD: "$", EUR: "€", AED: "د.إ", SGD: "S$", AUD: "A$", JPY: "¥", CHF: "Fr", CAD: "C$", HKD: "HK$" } as any)[sponsorSnap.currency] || "£";
 
+  // ── ASSET TYPE FLAGS ───────────────────────────────────────────────────────
+  // Set up early so we can branch hero metrics, returns rows, info card and
+  // exports without sprinkling string comparisons through the JSX.
+  const isHotelAdv = assetType === "Hotel" && sponsorSnap.hotelMode === "advanced";
+  const isFlip = assetType === "Flip";
+  const isFlipHold = isFlip && sponsorSnap.flipMode === "hold";
+
   // ── OVERRIDES STATE ────────────────────────────────────────────────────────
   const [overrides, setOverrides] = useState<Overrides>({});
   const sliders = getSlidersForSnap(sponsorSnap);
@@ -389,10 +449,10 @@ function UnderwriteRoom({
   // sponsor's case. Cheap because calcAll is pure and snap is small.
   const liveSnap = useMemo(() => applyOverrides(sponsorSnap, overrides, sliders || undefined), [sponsorSnap, overrides, sliders]);
   const liveResults = useMemo(() => {
-    try { return calcAll(assetType, liveSnap); } catch { return {}; }
+    try { return calcAll(assetType, liveSnap); } catch { return {} as any; }
   }, [assetType, liveSnap]);
   const sponsorResults = useMemo(() => {
-    try { return calcAll(assetType, sponsorSnap); } catch { return {}; }
+    try { return calcAll(assetType, sponsorSnap); } catch { return {} as any; }
   }, [assetType, sponsorSnap]);
 
   // For Hotel Advanced, also compute the rich hotelAdv block live
@@ -442,22 +502,74 @@ function UnderwriteRoom({
     return () => { clearInterval(iv); window.removeEventListener("beforeunload", onUnload); beat(); };
   }, [viewId]);
 
-  // ── HERO METRICS ───────────────────────────────────────────────────────────
-  const isHotelAdv = assetType === "Hotel" && sponsorSnap.hotelMode === "advanced";
+  // ── HERO METRICS (asset-aware) ─────────────────────────────────────────────
+  // Headline metric varies by asset:
+  //   Hotel Advanced  → Exit Value
+  //   Flip            → Sale Price (from engine — may be flat or psf*sqft)
+  //   Everything else → GDV
+  const liveHeadline = isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.exitValue
+    : isFlip
+    ? (liveResults.salePrice ?? liveResults.netProceeds ?? 0)
+    : (liveResults.gdv ?? liveResults.exitValue ?? 0);
+  const headlineLabel = isHotelAdv ? "Exit Value" : isFlip ? "Sale Price" : "GDV";
 
-  const liveGdv = isHotelAdv && liveHotelAdv ? liveHotelAdv.exitValue : (liveResults.gdv ?? liveResults.exitValue ?? 0);
-  const liveProfit = isHotelAdv && liveHotelAdv ? liveHotelAdv.profit : (liveResults.profit ?? 0);
-  const livePoc = isHotelAdv && liveHotelAdv ? liveHotelAdv.poc : (liveResults.poc ?? 0);
-  const liveIrr = isHotelAdv && liveHotelAdv ? liveHotelAdv.irrLevered : (liveResults.irrLevered ?? liveResults.irr ?? 0);
-  const liveEquity = isHotelAdv && liveHotelAdv ? liveHotelAdv.equity : (liveResults.equity ?? sponsorSnap.equity ?? 0);
+  // Profit — for Flip Hold, use profitCash (cash returned to equity) not accounting profit
+  const liveProfit = isFlipHold
+    ? (liveResults.profitCash ?? liveResults.profit ?? 0)
+    : isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.profit
+    : (liveResults.profit ?? 0);
 
-  const sponsorGdv = isHotelAdv ? (sponsorResults.exitValue ?? 0) : (sponsorResults.gdv ?? sponsorResults.exitValue ?? 0);
-  const sponsorIrr = isHotelAdv ? (sponsorResults.irrLevered ?? 0) : (sponsorResults.irrLevered ?? sponsorResults.irr ?? 0);
-  const sponsorPoc = sponsorResults.poc ?? 0;
+  // Returns metric — Flip Sell uses ROI on cost, Flip Hold uses Net Yield, others use PoC
+  const liveReturns = isFlipHold
+    ? (liveResults.netYield ?? 0)
+    : isFlip
+    ? (liveResults.roi ?? 0)
+    : isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.poc
+    : (liveResults.poc ?? 0);
+  const returnsLabel = isHotelAdv ? "Return on Cost"
+    : isFlipHold ? "Net Yield"
+    : isFlip ? "ROI on Cost"
+    : "Profit on Cost";
+
+  // IRR — Flip uses single annualised IRR; everything else uses levered
+  const liveIrr = isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.irrLevered
+    : (liveResults.irrLevered ?? liveResults.irr ?? 0);
+
+  const liveEquity = isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.equity
+    : (liveResults.equity ?? sponsorSnap.equity ?? 0);
+  const liveMoic = isHotelAdv && liveHotelAdv
+    ? liveHotelAdv.moic
+    : (liveResults.moic ?? 0);
+
+  // Sponsor-case equivalents for delta calculation — must mirror the live logic above
+  const sponsorHeadline = isHotelAdv
+    ? (sponsorResults.exitValue ?? 0)
+    : isFlip
+    ? (sponsorResults.salePrice ?? sponsorResults.netProceeds ?? 0)
+    : (sponsorResults.gdv ?? sponsorResults.exitValue ?? 0);
+  const sponsorProfit = isFlipHold
+    ? (sponsorResults.profitCash ?? sponsorResults.profit ?? 0)
+    : (sponsorResults.profit ?? 0);
+  const sponsorReturns = isFlipHold
+    ? (sponsorResults.netYield ?? 0)
+    : isFlip
+    ? (sponsorResults.roi ?? 0)
+    : (sponsorResults.poc ?? 0);
+  const sponsorIrr = sponsorResults.irrLevered ?? sponsorResults.irr ?? 0;
 
   const deltaPct = (live: number, sponsor: number): number => sponsor === 0 ? 0 : (live - sponsor) / Math.abs(sponsor);
 
-  const pocColor = livePoc > 0.2 ? "var(--green)" : livePoc > 0.1 ? "var(--amber)" : "var(--red)";
+  // Returns colouring — Flip yields use lower thresholds than development PoC
+  const returnsColor = isFlipHold
+    ? (liveReturns > 0.05 ? "var(--green)" : liveReturns > 0.03 ? "var(--amber)" : "var(--red)")
+    : isFlip
+    ? (liveReturns > 0.15 ? "var(--green)" : liveReturns > 0.08 ? "var(--amber)" : "var(--red)")
+    : (liveReturns > 0.2 ? "var(--green)" : liveReturns > 0.1 ? "var(--amber)" : "var(--red)");
   const profitColor = liveProfit > 0 ? "var(--green)" : "var(--red)";
 
   // ── EXCEL EXPORT (carry over from existing page) ──────────────────────────
@@ -471,11 +583,12 @@ function UnderwriteRoom({
       ["Scenario", hasActiveOverrides(overrides) ? "Custom (recipient flexed)" : "Sponsor's case"],
       ["Exported", new Date().toISOString()], [""],
       ["RETURNS"],
-      [isHotelAdv ? "Exit Value" : "GDV", liveGdv],
+      [headlineLabel, liveHeadline],
       ["Profit", liveProfit],
-      ["Profit on Cost", `${(livePoc * 100).toFixed(1)}%`],
-      ["IRR (Levered)", `${(liveIrr * 100).toFixed(1)}%`],
+      [returnsLabel, `${(liveReturns * 100).toFixed(1)}%`],
+      ["IRR", `${(liveIrr * 100).toFixed(1)}%`],
       ["Equity In", liveEquity],
+      ["Equity Multiple", liveMoic],
       ...(hasActiveOverrides(overrides) ? [[""], ["RECIPIENT OVERRIDES"], ...Object.entries(overrides).map(([k, v]) => [k, v])] : []),
     ];
     const ws = XLSX.utils.aoa_to_sheet(summary);
@@ -484,6 +597,93 @@ function UnderwriteRoom({
     XLSX.writeFile(wb, `${(appraisal.name || "Valora").replace(/[^a-zA-Z0-9]/g, "_")}_${hasActiveOverrides(overrides) ? "Custom" : "Base"}.xlsx`);
     if (viewId) supabase.from("share_views").update({ excel_exported: true }).eq("id", viewId);
   };
+
+  // ── RETURNS SUMMARY ROWS — built per asset type ───────────────────────────
+  // Defining as data so the JSX stays clean. Each row: [label, value, color, isBold]
+  type Row = [string, string, string, boolean];
+  const returnsRows: Row[] = isFlip
+    ? [
+        ["Purchase Price", fmt(liveResults.purchase ?? 0, sym), "var(--text-m)", false],
+        ["Refurb", fmt(liveResults.refurb ?? 0, sym), "var(--text-m)", false],
+        ["Total Cost", fmt(liveResults.totalCost ?? 0, sym), "var(--text-m)", false],
+        ["Equity In", fmt(liveEquity, sym), "var(--gold)", false],
+        [isFlipHold ? "GDV / Refi Value" : "Sale Price", fmt(liveHeadline, sym), "var(--gold)", true],
+        ...(isFlipHold && (liveResults.cashOutRefi ?? 0) > 100
+          ? [["Cash Released at Refi", fmt(liveResults.cashOutRefi, sym), "var(--green)", false] as Row]
+          : []),
+        ...(isFlipHold && (liveResults.cashOutRefi ?? 0) < -100
+          ? [["Equity Top-up at Refi", fmt(Math.abs(liveResults.cashOutRefi), sym), "var(--red)", false] as Row]
+          : []),
+        [
+          isFlipHold ? "Profit (to Equity)" : "Net Sale Proceeds",
+          fmt(isFlipHold ? (liveResults.profitCash ?? 0) : (liveResults.netProceeds ?? 0), sym),
+          "var(--gold)", false,
+        ],
+        ["Profit", fmt(liveProfit, sym), profitColor, false],
+        [returnsLabel, fmtPct(liveReturns), returnsColor, false],
+        ["IRR (Annualised)", fmtPct(liveIrr), "var(--blue)", false],
+        ["Equity Multiple", fmtX(liveMoic), liveMoic > 1.5 ? "var(--green)" : "var(--text)", false],
+        ...(isFlipHold
+          ? [[
+              "DSCR / ICR",
+              isFinite(liveResults.dscr) && liveResults.dscr > 0 && liveResults.dscr < 999
+                ? fmtX(liveResults.dscr)
+                : "N/A",
+              (liveResults.dscr ?? 0) >= 1.25 ? "var(--green)" : (liveResults.dscr ?? 0) > 0 ? "var(--amber)" : "var(--text-d)",
+              false,
+            ] as Row]
+          : []),
+        ["Payback", liveResults.paybackMonth ? `Month ${liveResults.paybackMonth}` : "—", "var(--text-m)", false],
+      ]
+    : [
+        [isHotelAdv ? "Exit Value" : "GDV", fmt(liveHeadline, sym), "var(--gold)", true],
+        ["Total Cost", fmt(liveResults.totalCost ?? liveResults.totalInvestment ?? 0, sym), "var(--text-m)", false],
+        ["Equity In", fmt(liveEquity, sym), "var(--gold)", false],
+        ["Profit", fmt(liveProfit, sym), profitColor, false],
+        [returnsLabel, fmtPct(liveReturns), returnsColor, false],
+        ["IRR (Unlevered)", fmtPct(liveResults.irr ?? 0), "var(--blue)", false],
+        ["IRR (Levered)", fmtPct(liveIrr), "var(--blue)", false],
+        ["Equity Multiple", fmtX(liveMoic), liveMoic > 2 ? "var(--green)" : "var(--text)", false],
+        [
+          "DSCR / ICR",
+          isFinite(liveResults.dscr) && liveResults.dscr < 999 ? fmtX(liveResults.dscr) : "—",
+          (liveResults.dscr ?? 0) >= 1.5 ? "var(--green)" : "var(--amber)",
+          false,
+        ],
+      ];
+
+  // ── INFO CARD ROWS — right side of the two-col, asset-aware ───────────────
+  const infoRows: [string, string][] = [
+    ["Asset Type", assetType + (isHotelAdv ? " (Advanced)" : isFlipHold ? " (Hold)" : isFlip ? " (Sell)" : "")],
+    ["Location", sponsorSnap.location || "—"],
+    ["Currency", sponsorSnap.currency || "GBP"],
+    ...(isHotelAdv
+      ? ([
+          ["Rooms", String(sponsorSnap.rooms || "—")],
+          ["Hold Period", `${sponsorSnap.holdYears || 5} years`],
+          ["Exit Cap Rate (live)", `${num(liveSnap.exitCapRate ?? 0).toFixed(2)}%`],
+          ["ADR (live)", fmt(num(liveSnap.adr ?? 0), sym)],
+          ["Occupancy (live)", `${num(liveSnap.occupancy ?? 0).toFixed(1)}%`],
+        ] as [string, string][])
+      : isFlip
+      ? ([
+          ["Property Size", sponsorSnap.propertySqft ? `${sponsorSnap.propertySqft} sqft` : "—"],
+          ["Strategy", isFlipHold ? "Hold (BTL)" : "Sell on Completion"],
+          ["Refurb Period", `${sponsorSnap.programmMonths || 9}m`],
+          ["Bridge Term (live)", `${Math.round(num(liveSnap.bridgingTermMonths ?? 12))}m`],
+          ["Bridging Rate (live)", `${num(liveSnap.bridgingRatePct ?? 0).toFixed(2)}%pm`],
+          ["LTV", `${sponsorSnap.flipLTV || 75}%`],
+          ...(isFlipHold
+            ? ([
+                ["Hold Term", `${sponsorSnap.refiTermMonths || 24}m`],
+                ["Occupancy", sponsorSnap.holdOccupancy === "tenanted" ? "Tenanted" : "Vacant"],
+              ] as [string, string][])
+            : []),
+        ] as [string, string][])
+      : ([
+          ["Programme", `${sponsorSnap.programmMonths || "—"}m`],
+        ] as [string, string][])),
+  ];
 
   return (
     <div className={`page-wrap theme-${theme}`}>
@@ -527,6 +727,8 @@ function UnderwriteRoom({
             <div className="hero-eyebrow">
               <span>{assetType}</span>
               {isHotelAdv && <span style={{ color: "var(--gold)" }}>· Advanced · USALI</span>}
+              {isFlipHold && <span style={{ color: "var(--gold)" }}>· Hold (BTL)</span>}
+              {isFlip && !isFlipHold && <span style={{ color: "var(--gold)" }}>· Sell on Completion</span>}
               <span>· {sponsorSnap.currency || "GBP"}</span>
               {sponsorSnap.location && <span>· {sponsorSnap.location}</span>}
             </div>
@@ -534,38 +736,42 @@ function UnderwriteRoom({
             <div className="hero-sub">
               {isHotelAdv
                 ? `${sponsorSnap.holdYears || 5}-year institutional hold · ${sponsorSnap.rooms || "—"} keys`
+                : isFlip
+                ? `${sponsorSnap.propertySqft ? `${sponsorSnap.propertySqft.toLocaleString()} sqft · ` : ""}${sponsorSnap.programmMonths || 9}m refurb · ${sponsorSnap.bridgingTermMonths || 12}m bridge${isFlipHold ? ` · ${sponsorSnap.refiTermMonths || 24}m hold` : ""}`
                 : `${sponsorSnap.programmMonths || "—"}m programme`}
             </div>
 
             <div className="metric-strip">
               <div className="metric-strip-inner">
                 <MetricCell
-                  label={isHotelAdv ? "Exit Value" : "GDV"}
-                  value={fmt(liveGdv, sym)}
+                  label={headlineLabel}
+                  value={fmt(liveHeadline, sym)}
                   baseColor="var(--gold)"
-                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveGdv, sponsorGdv), absolute: fmt(liveGdv - sponsorGdv, sym) } : null}
+                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveHeadline, sponsorHeadline), absolute: fmt(liveHeadline - sponsorHeadline, sym) } : null}
                 />
                 <MetricCell
                   label="Profit"
                   value={fmt(liveProfit, sym)}
                   baseColor={profitColor}
-                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveProfit, sponsorResults.profit ?? 0), absolute: fmt(liveProfit - (sponsorResults.profit ?? 0), sym) } : null}
+                  delta={hasActiveOverrides(overrides) ? { pct: deltaPct(liveProfit, sponsorProfit), absolute: fmt(liveProfit - sponsorProfit, sym) } : null}
                 />
                 <MetricCell
-                  label={isHotelAdv ? "Return on Cost" : "Profit on Cost"}
-                  value={fmtPct(livePoc)}
-                  baseColor={pocColor}
-                  delta={hasActiveOverrides(overrides) ? { pct: livePoc - sponsorPoc, absolute: `${((livePoc - sponsorPoc) * 100).toFixed(1)}pp` } : null}
+                  label={returnsLabel}
+                  value={fmtPct(liveReturns)}
+                  baseColor={returnsColor}
+                  delta={hasActiveOverrides(overrides) ? { pct: liveReturns - sponsorReturns, absolute: `${((liveReturns - sponsorReturns) * 100).toFixed(1)}pp` } : null}
                 />
                 <MetricCell
-                  label="IRR (Levered)"
+                  label={isFlip ? "IRR" : "IRR (Levered)"}
                   value={fmtPct(liveIrr)}
                   baseColor="var(--blue)"
                   delta={hasActiveOverrides(overrides) ? { pct: liveIrr - sponsorIrr, absolute: `${((liveIrr - sponsorIrr) * 100).toFixed(1)}pp` } : null}
                 />
+                {/* Final tile: for Flip show Equity Multiple (more meaningful than Equity In),
+                    for everyone else keep Equity In as before */}
                 <MetricCell
-                  label="Equity In"
-                  value={fmt(liveEquity, sym)}
+                  label={isFlip ? "Equity Multiple" : "Equity In"}
+                  value={isFlip ? fmtX(liveMoic) : fmt(liveEquity, sym)}
                   baseColor="var(--gold)"
                   delta={null}
                 />
@@ -579,17 +785,7 @@ function UnderwriteRoom({
             <div className="section-sub">All values recompute live as you flex assumptions on the left.</div>
             <div className="two-col">
               <div className="data-card">
-                {[
-                  [isHotelAdv ? "Exit Value" : "GDV", fmt(liveGdv, sym), "var(--gold)", true],
-                  ["Total Cost", fmt(liveResults.totalCost ?? liveResults.totalInvestment ?? 0, sym), "var(--text-m)", false],
-                  ["Equity In", fmt(liveEquity, sym), "var(--gold)", false],
-                  ["Profit", fmt(liveProfit, sym), profitColor, false],
-                  [isHotelAdv ? "Return on Cost" : "Profit on Cost", fmtPct(livePoc), pocColor, false],
-                  ["IRR (Unlevered)", fmtPct(liveResults.irr ?? 0), "var(--blue)", false],
-                  ["IRR (Levered)", fmtPct(liveIrr), "var(--blue)", false],
-                  ["Equity Multiple", fmtX(liveResults.moic ?? 0), (liveResults.moic ?? 0) > 2 ? "var(--green)" : "var(--text)", false],
-                  ["DSCR / ICR", isFinite(liveResults.dscr) && liveResults.dscr < 999 ? fmtX(liveResults.dscr) : "—", (liveResults.dscr ?? 0) >= 1.5 ? "var(--green)" : "var(--amber)", false],
-                ].map(([l, v, c, bold]: any) => (
+                {returnsRows.map(([l, v, c, bold]) => (
                   <div key={l} className="data-row">
                     <span className={bold ? "data-label-bold" : "data-label"}>{l}</span>
                     <span className={bold ? "data-value-bold" : "data-value"} style={{ color: c }}>{v}</span>
@@ -597,20 +793,7 @@ function UnderwriteRoom({
                 ))}
               </div>
               <div className="data-card">
-                {[
-                  ["Asset Type", assetType + (isHotelAdv ? " (Advanced)" : "")],
-                  ["Location", sponsorSnap.location || "—"],
-                  ["Currency", sponsorSnap.currency || "GBP"],
-                  ...(isHotelAdv ? [
-                    ["Rooms", String(sponsorSnap.rooms || "—")],
-                    ["Hold Period", `${sponsorSnap.holdYears || 5} years`],
-                    ["Exit Cap Rate (live)", `${num(liveSnap.exitCapRate ?? 0).toFixed(2)}%`],
-                    ["ADR (live)", fmt(num(liveSnap.adr ?? 0), sym)],
-                    ["Occupancy (live)", `${num(liveSnap.occupancy ?? 0).toFixed(1)}%`],
-                  ] : [
-                    ["Programme", `${sponsorSnap.programmMonths || "—"}m`],
-                  ]),
-                ].map(([l, v]: string[]) => (
+                {infoRows.map(([l, v]) => (
                   <div key={l} className="data-row">
                     <span className="data-label">{l}</span>
                     <span className="data-value" style={{ color: "var(--text-m)" }}>{v}</span>
