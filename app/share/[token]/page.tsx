@@ -36,6 +36,17 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const FLIP_SLIDERS: SliderSpec[] = [
   {
+    path: "purchase",
+    label: "Purchase Price",
+    unit: "currency",
+    getBase: (snap: any) => num(snap.purchase ?? 0),
+    getRange: (base: number) => [Math.round(base * 0.85), Math.round(base * 1.15)],
+    step: 5000,
+    hint: "Negotiate the entry price ±15% — biggest single lever on returns.",
+    // Clear pricePsf so engine recomputes from the new flat purchase value
+    clearPaths: ["pricePsf"],
+  },
+  {
     path: "salePrice",
     label: "Sale Price",
     unit: "currency",
