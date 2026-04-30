@@ -67,10 +67,10 @@ const FLIP_SLIDERS: SliderSpec[] = [
     getRange: (base: number) => {
       // If base is zero we still want a usable range so the slider isn't broken.
       const safe = base > 0 ? base : 1_000_000;
-      return [Math.round(safe * 0.85), Math.round(safe * 1.15)];
+      return [Math.round(safe * 0.75), Math.round(safe * 1.25)];
     },
     step: 5000,
-    hint: "Negotiate the entry price ±15% — biggest single lever on returns.",
+    hint: "Negotiate the entry price ±25% — biggest single lever on returns.",
     clearPaths: ["pricePsf", "purchasePsf"],
   },
   {
@@ -80,10 +80,10 @@ const FLIP_SLIDERS: SliderSpec[] = [
     getBase: (snap: any) => pickField(snap, SALE_KEYS)!.value,
     getRange: (base: number) => {
       const safe = base > 0 ? base : 1_000_000;
-      return [Math.round(safe * 0.85), Math.round(safe * 1.15)];
+      return [Math.round(safe * 0.75), Math.round(safe * 1.25)];
     },
     step: 5000,
-    hint: "Flex sale value ±15% to test price sensitivity.",
+    hint: "Flex sale value ±25% to test price sensitivity.",
     clearPaths: ["salePricePsf", "gdvPsf"],
   },
   {
@@ -487,9 +487,22 @@ function UnderwriteRoom({
 }) {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     if (typeof window === "undefined") return "light";
-    return (localStorage.getItem("valora-theme") as any) || "light";
+    return (localStorage.getItem("valora-share-theme") as any) || "light";
   });
-  useEffect(() => { try { localStorage.setItem("valora-theme", theme); } catch {} }, [theme]);
+  useEffect(() => {
+    try { localStorage.setItem("valora-share-theme", theme); } catch {}
+    // Apply theme class to <body> AND <html> so the whole viewport (gate overlay,
+    // modals, scroll overflow areas, mobile address bar) inherits the theme,
+    // not just the .page-wrap container.
+    if (typeof document !== "undefined") {
+      const cls = `theme-${theme}`;
+      const other = `theme-${theme === "dark" ? "light" : "dark"}`;
+      document.body.classList.remove(other);
+      document.body.classList.add(cls);
+      document.documentElement.classList.remove(other);
+      document.documentElement.classList.add(cls);
+    }
+  }, [theme]);
 
   const sponsorSnap = appraisal.snapshot || {};
   const assetType = sponsorSnap.assetType || "BTR";
