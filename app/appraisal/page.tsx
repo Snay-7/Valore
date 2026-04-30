@@ -10926,7 +10926,22 @@ function AppraisalPage(){
         setAppraisalId(appr.id);setCurrentProjectId(appr.project_id);
         if(appr.snapshot){const snap=appr.snapshot;const type=(snap.assetType||"BTR") as AssetType;setAssetType(type);setData({...DEFAULTS[type],...snap});setSaved(true);tickChecklist("created_appraisal");if(snap.hotelMode)setHotelMode(snap.hotelMode);if(snap.commercialMode)setCommercialMode(snap.commercialMode);if(snap.mixedUseMode)setMixedUseMode(snap.mixedUseMode);if(snap.flipComplexity)setFlipComplexity(snap.flipComplexity);if(snap.hotelFinanceType)set("hotelFinanceType",snap.hotelFinanceType);if(snap.areaUnit)set("areaUnit",snap.areaUnit);if(snap.noiMode)set("noiMode",snap.noiMode);}
         // MixedUse: tab handled by TABS_MU — opens on general by default
-        if(appr.share_token)setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
+        // Load most recent active link from share_links (the new system).
+        // Falls back to legacy share_token only if no share_links row exists,
+        // so old appraisals don't lose their existing URL until they're re-shared.
+        const{data:existingLinks}=await supabase
+          .from("share_links")
+          .select("slug,revoked_at,expires_at")
+          .eq("appraisal_id",appr.id)
+          .is("revoked_at",null)
+          .order("created_at",{ascending:false})
+          .limit(1);
+        const activeLink=existingLinks?.find(l=>!l.expires_at||new Date(l.expires_at)>new Date());
+        if(activeLink){
+          setLiveLink(`${window.location.origin}/share/${activeLink.slug}`);
+        }else if(appr.share_token){
+          setLiveLink(`${window.location.origin}/share/${appr.share_token}`);
+        }
       }
       setLoading(false);
     };
@@ -12459,9 +12474,23 @@ Results: GDV/Exit ${fmt(r.gdv||r.totalGDV||r.exitValue||r.salePrice||0,currSym)}
   const generateLiveLink=async()=>{
     if(!appraisalId){setSaveError("Save the appraisal first");return;}
     setGeneratingLink(true);
-    const token=Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
-    await supabase.from("appraisals").update({share_token:token}).eq("id",appraisalId);tickChecklist("saved_deal");
-    setLiveLink(`${window.location.origin}/share/${token}`);setGeneratingLink(false);
+    // Use the same RPC as the portfolio's DealIntelligencePanel so links created
+    // here appear in the portfolio's Sharing tab and can be revoked / tracked there.
+    const{data:slug,error}=await supabase.rpc("create_share_link",{
+      p_appraisal_id:appraisalId,
+      p_access_mode:"public",
+      p_password:null,
+      p_expires_at:null,
+      p_label:null,
+    });
+    if(error||!slug){
+      setSaveError(`Could not create share link: ${error?.message||"unknown error"}`);
+      setGeneratingLink(false);
+      return;
+    }
+    tickChecklist("saved_deal");
+    setLiveLink(`${window.location.origin}/share/${slug}`);
+    setGeneratingLink(false);
   };
   const copyLink=async()=>{if(!liveLink)return;await navigator.clipboard.writeText(liveLink);setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);};
   const shareEmail=()=>{if(!liveLink)return;const subject=encodeURIComponent(`Valora Appraisal: ${data.name||"Untitled"}`);const body=encodeURIComponent(`Please find the appraisal here:\n\n${liveLink}`);window.open(`mailto:?subject=${subject}&body=${body}`);};
