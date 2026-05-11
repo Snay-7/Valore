@@ -143,7 +143,123 @@ function resolveFlipSliders(snap: any): SliderSpec[] {
 // Keeps the generic page logic untouched.
 function getSlidersForSnap(snap: any): SliderSpec[] | null {
   if (snap?.assetType === "Flip") return resolveFlipSliders(snap);
+  if (snap?.assetType === "MixedUse") return resolveMixedUseSliders(snap);
   return getSlidersForSnapOriginal(snap);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MIXEDUSE SLIDERS
+//
+// MixedUse is multi-zone — each zone has its own buildCostPsf, salePricePsf,
+// exitYield. We can't just override a single top-level field for build cost
+// or sale price because the engine reads them per zone.
+//
+// Approach: the build/sale/yield sliders write into special "control" keys
+// (__mu_buildMult, __mu_saleMult, __mu_yieldShift) that don't exist in the
+// engine. We then post-process the snapshot in applyMixedUseZoneTransforms()
+// to map those controls across every zone before calcAll runs.
+//
+// Land and programme are normal top-level fields, so they slide normally.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MIXEDUSE_LAND_KEYS = ["landCost", "landPrice", "acquisitionCost", "purchasePrice", "purchase"];
+const MIXEDUSE_PROGRAMME_KEYS = ["programmMonths", "programmeMonths", "buildMonths"];
+
+const MIXEDUSE_SLIDERS: SliderSpec[] = [
+  {
+    path: "landCost", // resolved dynamically per-snap
+    label: "Land / Acquisition",
+    unit: "currency",
+    getBase: (snap: any) => pickField(snap, MIXEDUSE_LAND_KEYS)!.value,
+    getRange: (base: number) => {
+      const safe = base > 0 ? base : 1_000_000;
+      return [Math.round(safe * 0.75), Math.round(safe * 1.25)];
+    },
+    step: 25_000,
+    hint: "Flex the land/acquisition price ±25%.",
+  },
+  {
+    path: "__mu_buildMult",
+    label: "Build Cost",
+    unit: "%",
+    getBase: () => 100,
+    getRange: () => [80, 120],
+    step: 1,
+    hint: "Scale every zone's build cost ±20%.",
+  },
+  {
+    path: "__mu_saleMult",
+    label: "Sale Price (Resi)",
+    unit: "%",
+    getBase: () => 100,
+    getRange: () => [85, 115],
+    step: 1,
+    hint: "Scale every residential zone's sale £/sqft ±15%.",
+  },
+  {
+    path: "__mu_yieldShift",
+    label: "Comm. Exit Yield",
+    unit: "bps" as any, // extends SliderSpec; formatter handles it
+    getBase: () => 0,
+    getRange: () => [-100, 100],
+    step: 5,
+    hint: "Shift every commercial zone's exit yield by ±100 bps (compresses or widens).",
+  },
+  {
+    path: "programmMonths", // resolved dynamically per-snap
+    label: "Programme",
+    unit: "months",
+    getBase: (snap: any) => pickField(snap, MIXEDUSE_PROGRAMME_KEYS)!.value || 24,
+    getRange: () => [12, 48],
+    step: 1,
+    hint: "Programme overrun lifts finance cost & delays disposal.",
+  },
+];
+
+function resolveMixedUseSliders(snap: any): SliderSpec[] {
+  return MIXEDUSE_SLIDERS.map(spec => {
+    if (spec.path === "landCost") {
+      const f = pickField(snap, MIXEDUSE_LAND_KEYS)!;
+      return { ...spec, path: f.key };
+    }
+    if (spec.path === "programmMonths") {
+      const f = pickField(snap, MIXEDUSE_PROGRAMME_KEYS)!;
+      return { ...spec, path: f.key };
+    }
+    return spec;
+  });
+}
+
+// Post-process a MixedUse snapshot: read the special __mu_* control keys and
+// fan them out across `zones[]` so the calc engine sees real per-zone values.
+// Pure — returns a new snap, never mutates input.
+function applyMixedUseZoneTransforms(snap: any): any {
+  if (snap?.assetType !== "MixedUse") return snap;
+  const buildMult = num(snap.__mu_buildMult ?? 100) / 100;
+  const saleMult = num(snap.__mu_saleMult ?? 100) / 100;
+  const yieldShiftBps = num(snap.__mu_yieldShift ?? 0); // basis points
+  // Only clone if something is actually being changed — keeps memo identity
+  // stable when no MixedUse sliders are flexed.
+  const changed = buildMult !== 1 || saleMult !== 1 || yieldShiftBps !== 0;
+  if (!changed) return snap;
+  const zones = Array.isArray(snap.zones) ? snap.zones : [];
+  const newZones = zones.map((z: any) => {
+    const out: any = { ...z };
+    if (buildMult !== 1 && z.buildCostPsf != null) {
+      out.buildCostPsf = num(z.buildCostPsf) * buildMult;
+    }
+    // Residential-style zones use salePricePsf for the exit
+    if (saleMult !== 1 && z.salePricePsf != null) {
+      out.salePricePsf = num(z.salePricePsf) * saleMult;
+    }
+    // Commercial-style zones capitalise rent at exitYield (a percentage).
+    // Positive shift = wider yield = lower exit value (bear case).
+    if (yieldShiftBps !== 0 && z.exitYield != null) {
+      out.exitYield = num(z.exitYield) + yieldShiftBps / 100;
+    }
+    return out;
+  });
+  return { ...snap, zones: newZones };
 }
 
 const CSS = `
@@ -430,6 +546,10 @@ function AssumptionLedger({
         const isFlexed = overrides[spec.path] !== undefined;
         const fmtVal = (v: number) => {
           if (spec.unit === "%") return `${v.toFixed(2)}%`;
+          if (spec.unit === "bps") {
+            const sign = v > 0 ? "+" : v < 0 ? "−" : "";
+            return `${sign}${Math.round(Math.abs(v))} bps`;
+          }
           if (spec.unit === "currency") return fmt(v, sym);
           if (spec.unit === "ratio") return v.toFixed(2);
           if (spec.unit === "months") return `${Math.round(v)}m`;
@@ -534,7 +654,12 @@ function UnderwriteRoom({
   // Single source of truth — every render recomputes from sponsor snap + overrides.
   // Both `live` and `sponsor` results are computed so we can show deltas vs. the
   // sponsor's case. Cheap because calcAll is pure and snap is small.
-  const liveSnap = useMemo(() => applyOverrides(sponsorSnap, overrides, sliders || undefined), [sponsorSnap, overrides, sliders]);
+  const liveSnap = useMemo(() => {
+    const withOverrides = applyOverrides(sponsorSnap, overrides, sliders || undefined);
+    // For MixedUse, fan the __mu_* control keys across zones[] so the engine
+    // sees concrete per-zone build/sale/yield numbers. No-op for other assets.
+    return applyMixedUseZoneTransforms(withOverrides);
+  }, [sponsorSnap, overrides, sliders]);
   const liveResults = useMemo(() => {
     try { return calcAll(assetType, liveSnap); } catch { return {} as any; }
   }, [assetType, liveSnap]);
@@ -598,7 +723,7 @@ function UnderwriteRoom({
     ? liveHotelAdv.exitValue
     : isFlip
     ? (liveResults.salePrice ?? liveResults.netProceeds ?? 0)
-    : (liveResults.gdv ?? liveResults.exitValue ?? 0);
+    : (liveResults.totalGDV ?? liveResults.gdv ?? liveResults.exitValue ?? 0);
   const headlineLabel = isHotelAdv ? "Exit Value" : isFlip ? "Sale Price" : "GDV";
 
   // Profit — for Flip Hold, use profitCash (cash returned to equity) not accounting profit
@@ -638,7 +763,7 @@ function UnderwriteRoom({
     ? (sponsorResults.exitValue ?? 0)
     : isFlip
     ? (sponsorResults.salePrice ?? sponsorResults.netProceeds ?? 0)
-    : (sponsorResults.gdv ?? sponsorResults.exitValue ?? 0);
+    : (sponsorResults.totalGDV ?? sponsorResults.gdv ?? sponsorResults.exitValue ?? 0);
   const sponsorProfit = isFlipHold
     ? (sponsorResults.profitCash ?? sponsorResults.profit ?? 0)
     : (sponsorResults.profit ?? 0);
